@@ -8,32 +8,32 @@ section:
   template: sections/about.html
 
 # your designation
-designation: Research Engineer
+designation: Graduate Student in Robotics
 # your company information
 company:
-  name: TuSimple, Inc.
-  url: "https://www.tusimple.com/"
+  name: GRASP Lab, University of Pennsylvania
+  url: "https://www.grasp.upenn.edu/"
 
 # your resume. this file path should be relative to you "static" directory
 resume: "files/Resume.pdf"
 
 # a summary about you
-summary: "Greetings! I am a robotics student passionate about the autonomous driving (AD) industry. My main area of focus lies in motion planning and machine learning. I also have a lot of experience in robotics perception, such as computer vision and LiDAR. Hope to see you in the future! <br/> <br/> ***Note: Personal travel journals are available in the Chinese page.***"
+summary: "Greetings! I am a robotics student passionate about the Artificial Intelligence (AI) industry. My main area of focus lies in prediction and machine learning. I also have a lot of experience in robotics perception, such as computer vision and LiDAR. Hope to see you in the future! <br/> <br/> ***Note: Personal travel journals are available in the Posts page.***"
 
 # your social links
 # give as many as you want. use font-awesome for the icons.
 socialLinks:
   - name: Github
     icon: "fab fa-github"
-    url: "https://www.github.com/shineyruan"
+    url: "https://www.github.com/williamcfrancis"
 
   - name: Email
     icon: "fas fa-envelope"
-    url: "shineyruan@gmail.com"
+    url: "willcf@seas.upenn.edu"
 
   - name: LinkedIn
     icon: "fab fa-linkedin"
-    url: "https://www.linkedin.com/in/zhihao-ruan-29b29a13a/"
+    url: "https://www.linkedin.com/in/william-c-francis/"
 # your soft skills
 # give the percentage between 50 to 100 with 5 intervals.
 # currently supported colors: blue, yellow, pink, green, sky, orange
