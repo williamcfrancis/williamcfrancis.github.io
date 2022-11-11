@@ -1,15 +1,20 @@
 # some information about you
-name: "Zhihao (Ryan) Ruan"
-nickname: "Ryan"
+name: "William C Francis"
+nickname: "William"
 # greeting message before your name. it will default to "Hi! I am" if not provided
 greeting: "Hi, I am"
 image: "images/author/avatar.jpg"
 # give your some contact information. they will be used in the footer
 contactInfo:
-  email: "shineyruan@gmail.com"
-  github: shineyruan
+  email: "willcf@seas.upenn.edu"
+  github: williamcfrancis
 
 # some summary about what you do
 summary:
-  - What matters in life is not what happens to you but what you remember and how you remember it.
-  - 生命中真正重要的不是你遭遇了什么，而是你记住了哪些事，又是如何铭记的。
+
+  - “The future depends on some graduate student who is deeply suspicious of everything I have said.” — Geoffrey Hinton
+  - I am a roboticist
+  - I love creating brains for machines
+  - Predicting the future isn't magic, it's artificial intelligence
+  - In my world, computers are able to see, hear and learn
+  - "Machine intelligence is the last invention that humanity will ever need to make" — Nick Bostrom
