@@ -77,6 +77,6 @@ params:
     comment:
       enable: true
       utteranc:
-        repo: williamcfrancis.github.io
+        repo: williamcfrancis/williamcfrancis.github.io
         issueTerm: url
         theme: light
