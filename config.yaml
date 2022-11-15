@@ -72,3 +72,9 @@ params:
     enable: true
     provider: darkreader
     default: system
+
+  features:
+    comment:
+      enable: true
+      disqus:
+        shortName: disqus_KsbnQBXLP7
