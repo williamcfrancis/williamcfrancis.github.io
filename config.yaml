@@ -76,7 +76,8 @@ params:
   features:
     comment:
       enable: true
-      utteranc:
+      giscus:
         repo: williamcfrancis/williamcfrancis.github.io
-        issueTerm: url
-        theme: light
+        repoID: R_kgDOIaXeag
+        category: Announcements
+        categoryID: DIC_kwDOIaXeas4CSkF5
