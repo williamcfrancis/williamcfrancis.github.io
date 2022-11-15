@@ -76,5 +76,7 @@ params:
   features:
     comment:
       enable: true
-      disqus:
-        shortName: disqus_KsbnQBXLP7
+      utteranc:
+        repo: williamcfrancis.github.io
+        issueTerm: url
+        theme: light
