@@ -32,12 +32,13 @@ experiences:
   - company:
       name: Vision Cultura
       location: Bangalore, India
+      overview: Vision Cultura is a start-up that works on IoT-based farming solutions which interconnects sensors, cloud and a mobile app
     positions:
       - designation: Machine Learning Intern
         start: Dec 2019
         end: Feb 2020
         responsibilities:
-          - Worked on concept generation, Design optimization, Market analysis for IoT based farming solution.
+          - Worked on concept generation, design optimization, and market analysis
           - Built a camera-based plant monitoring system that detects flowers, pests, and diseases
           - Introduced improvements to boost efficiency, and studied feasibility of different algorithms - VGG19, ResNet & Inception for flower recognition
           - Conducted design reviews on a daily basis with the team to ensure smooth progress in product development.
