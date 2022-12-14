@@ -10,15 +10,7 @@ section:
 
 # Your experiences
 experiences:
-  - company:
-      name: TuSimple, Inc.
-      url: "https://www.tusimple.com/"
-      location: San Diego, CA
-    positions:
-      - designation: Planning Research Engineer
-        start: July 2022
-        responsibilities:
-          - Developed motion planning softwares and algorithms for autonomous driving trucks.
+
   - company:
       name: xLab, University of Pennsylvania
       url: "https://mlab-upenn.github.io/lab_website/"
@@ -27,18 +19,29 @@ experiences:
       overview: xLab is a research lab at University of Pennsylvania lead by Prof. Rahul Mangharam targeting at developing critical systems and autonomous systems.
     positions:
       - designation: Graduate Research Assistant
-        start: Feb 2021
+        start: Dec 2021
         end: May 2022
         # don't provide end date if you are currently working there. It will be replaced by "Present"
         # end: Dec 2020
         # give some points about what was your responsibilities at the company.
         responsibilities:
-          - Working on Project CAD2CAV, an unknown environment exploration and mapping project for multiple vehicles.
-          - Wrote graph-based multi-agent route planner in ROS and C++ with Ant Colony Optimization solver for Capacitated Vehicle Routing Problem, Spectral Clustering, and k-Way Graph Partitioning.
-          - Implemented FMT* planning algorithm for real-time obstacle avoidance as low-level planner.
-          - Integrated Pure Pursuit algorithm as the waypoint tracker and controller for F1/10 autonomous racing vehicles.
-          - Developed data import utilities from Autodesk Revit 3D building model to ROS occupancy map.
+          - Developed camera-based and LIDAR-based cone detection, obstacle avoidance, and Extended Kalman Filtering algorithms for Autonomous GoKart
+          - Deployed code on NVIDIA Jetson Xavier
+          - Competed in Autonomous evGrandPrix at Purdue, Indiana in May 2022
 
+  - company:
+      name: Vision Cultura
+      location: Bangalore, India
+    positions:
+      - designation: Machine Learning Intern
+        start: Dec 2019
+        end: Feb 2020
+        responsibilities:
+          - Worked on concept generation, Design optimization, Market analysis for IoT based farming solution.
+          - Built a camera-based plant monitoring system that detects flowers, pests, and diseases
+          - Introduced improvements to boost efficiency, and studied feasibility of different algorithms - VGG19, ResNet & Inception for flower recognition
+          - Conducted design reviews on a daily basis with the team to ensure smooth progress in product development.
+          - Worked in a cross-functional with Mechanical and Computervision engineers, Manager and manufacturers to ensure that product specification, performance, durability, safety, quality, cost, and manufacturing requirements are met.
       # - designation: Junior Software Engineer
       #   start: Nov 2017
       #   end: Oct 2019
@@ -48,28 +51,31 @@ experiences:
       #     - Learn k,d,w technology for xyz.
 
   - company:
-      name: TuSimple, Inc.
-      url: "https://www.tusimple.com/"
-      location: San Diego, CA
-      overview: TuSimple is an autonomous trucking company that builds world-leading autonomous driving trucks and autonomous freight network (AFN).
-    positions:
-      - designation: Planning Research Engineer Intern
-        start: May 2021
-        end: August 2021
-        responsibilities:
-          - Developed motion planning softwares and algorithms for autonomous driving trucks.
-
-  - company:
-      name: Interactive Sensing and Computing (ISC) Lab, University of Michigan
-      url: "http://www.alansonsample.com/"
-      location: Ann Arbor, MI
-      overview: ISC Lab is a research lab at University of Michigan lead by Prof. Alanson Sample that builds embedded systems for medical research and Human-Computer Interface (HCI) applications.
+      name: Center for Industrial Automation (CIA) Lab, Vellore Instiitute of Technology 
+      url: "https://chennai.vit.ac.in/electrical-and-electronics-engineering-chennai/facilities/"
+      location: Chennai, India
+      overview: CIA Lab is a research lab at Vellore Institute of Technology lead by Prof. Umayal that builds embedded systems for Industrial Automation and Robotics applications.
     positions:
       - designation: Undergraduate Research Assistant
         start: Jan 2019
         end: Dec 2019
         responsibilities:
-          - Built an embedded system in C & MATLAB with STM32 microprocessor and Panasonic's GridEye 8x8 IR sensor through I2C & UART that can collect, detect and visualize heat distribution in the room.
-          - Constructed a complete C API for Panasonic's GridEye 8x8 IR sensor for STM32 microprocessor from scratch.
-          - Implemented Direct Digital Synthesis (DDS) in C of a frequency-sweep ultrasonic sine wave from 39kHz to 41kHz with STM32 microprocessor and ultrasonic transducers.
-          - Designed two different ultrasound distance measurement algorithms in Python including FMCW (Frequency-Modulated Continuous Wave) algorithm and phase-based ranging algorithm with STM32 microprocessor.
+          - Designed a Deep Neural Network using Pytorch to detect eye-blinks from EEG signals based on kurtosis coefficients
+          - Developed a Brain-Controlled wheelchair with a camera-based collision avoidance system and GUI using Python & MATLAB
+          - Improved the Signal-to-Noise ratio of the EEG data acquisition system up to 6%
+          - Tested the prototype on the quadriplegic and iteratively improved from the feedback
+  
+  - company:
+      name: Siemens Gamesa Renewable Energy
+      url: https://www.siemensgamesa.com/en-int
+      location: Bangalore, India
+      overview: Siemens Gamesa is a leader in the renewable energy industry, working to provide the world's best offshore and onshore wind turbines and services.
+    positions:
+      - designation: Embedded Systems Intern
+        start: May 2018
+        end: Aug 2018
+        responsibilities:
+          - Designed and presented an offshore windmill model to showcase sensor functionalities 
+          - Optimized turbine to ambient conditions by embedding temperature, light, and humidity sensors
+          - Schematized a PCB using EAGLE and soldered its components
+          - Implemented Blade angle detection and Heli-hoist feature using real-time video recognition with FastAI
