@@ -50,9 +50,9 @@ degrees:
         - name: MEAM 520 Introduction to Robotics
           achieved: 4.0
           outOf: 4.0
-    # publications:
-    #   - title: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-    #     url: "#"
+    publications:
+      - title: Brain-Computer Interfacing for Wheelchair Control by Detecting Voluntary Eye Blinks 
+        url: "http://section.iaesonline.com/index.php/IJEEI/article/view/2749/618"
     #   - title: Fusce eu augue ut odio porttitor pulvinar.
     #     url: "#"
     #   - title: Nullam vitae orci tincidunt purus viverra pulvinar.
