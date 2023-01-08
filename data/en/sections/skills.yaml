@@ -32,7 +32,7 @@ skills:
     url: "https://ros.org/"
 
   - name: Tensorflow
-    logo: "/images/sections/skills/tensorflow.jpeg"
+    logo: "/images/sections/skills/tensorflow.png"
     summary: "Capable of developing fast, flexible, and scalable machine learning code for research and production."
     url: "https://www.tensorflow.org/"
 
