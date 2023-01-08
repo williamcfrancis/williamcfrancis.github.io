@@ -27,12 +27,12 @@ skills:
     url: "https://pytorch.org/"
   
   - name: ROS
-    logo: "/images/sections/skills/Ros_logo.svg.png"
+    logo: "/images/sections/skills/ros.png"
     summary: "Capable of developing and managing large robotics systems in C++ and CMake."
     url: "https://ros.org/"
 
   - name: Tensorflow
-    logo: "/images/sections/skills/tensorflow.png"
+    logo: "/images/sections/skills/tensorflow.jpeg"
     summary: "Capable of developing fast, flexible, and scalable machine learning code for research and production."
     url: "https://www.tensorflow.org/"
 
