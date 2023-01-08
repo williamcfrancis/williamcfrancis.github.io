@@ -11,31 +11,32 @@ section:
 # Your Skills.
 # Give a summary of you each skill in the summary section.
 skills:
-  - name: C++
-    logo: "/images/sections/skills/c++.png"
-    summary: "Using as the main language for professional development. Capable of writing object-oriented, scalable, testable, and maintainable projects."
-
-  - name: ROS
-    logo: "/images/sections/skills/Ros_logo.svg.png"
-    summary: "Capable of developing and managing large robotics systems in C++ and CMake."
-    url: "https://ros.org/"
 
   - name: Python
     logo: "/images/sections/skills/python.png"
     summary: "Using as the main language for machine learning research and development. Capable of writing fast machine learning toy examples and algorithms with PyTorch, Numpy, etc."
     url: "https://www.python.org/"
+  
+  - name: C++
+    logo: "/images/sections/skills/c++.png"
+    summary: "Using as the main language for professional development. Capable of writing object-oriented, scalable, testable, and maintainable projects."
 
   - name: PyTorch
     logo: "/images/sections/skills/pytorch-logo.png"
     summary: "Using as the main framework for deep learning. Capable of developing fast training and testing code."
     url: "https://pytorch.org/"
+  
+  - name: ROS
+    logo: "/images/sections/skills/Ros_logo.svg.png"
+    summary: "Capable of developing and managing large robotics systems in C++ and CMake."
+    url: "https://ros.org/"
 
-  - name: CUDA C++
-    logo: "/images/sections/skills/nvidia.png"
-    summary: "Capable of developing massively parallelized C++ programs with GPU acceleration."
-    url: "https://developer.nvidia.com/cuda-toolkit"
+  - name: Tensorflow
+    logo: "/images/sections/skills/tensorflow.png"
+    summary: "Capable of developing fast, flexible, and scalable machine learning code for research and production."
+    url: "https://www.tensorflow.org/"
 
-  - name: Vulkan
-    logo: "/images/sections/skills/vulkan-logo.png"
-    summary: "Using as the main framework for developing 3D rendering applications."
-    url: "https://www.vulkan.org/"
+  - name: AWS
+    logo: "/images/sections/skills/aws.png"
+    summary: "Using as the main cloud computing platform for developing large scale deep learning models."
+    url: "https://aws.amazon.com/"
