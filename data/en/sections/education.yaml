@@ -17,7 +17,7 @@ degrees:
       url: "https://www.upenn.edu/"
     grade:
       scale: GPA
-      achieved: 3.73
+      achieved: 3.80
       outOf: 4.0
     takenCourses:
       # if true, the courses will be rendered as a table otherwise it will render as a list and the grades will be hidden.

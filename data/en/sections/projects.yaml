@@ -28,12 +28,11 @@ projects:
     timeline: "Aug 2022 - Dec 2022"
     repo: https://github.com/williamcfrancis/Enhancing-Efficient-Panoptic-Segmentation-with-SOLOv2 # If your project is a public repo on GitHub, then provide this link. it will show star count.
     #url: ""  # If your project is not a public repo but it has a website or any external details url then provide it here. don't provide "repo" and "url" simultaneously.
-    summary: Modification to the state-of-the-art EfficientPS model by replacing its instance head (Mask RCNN) with SOLOv2.
+    summary: Improved state-of-the-art EfficientPS model by replacing its instance head (Mask RCNN) with SOLOv2.
     tags:
       [
         "image segmentation",
         "academic",
-        "robotics",
         "computer vision",
         "pytorch",
         "street scene understanding",
@@ -45,17 +44,17 @@ projects:
     timeline: "Aug 2021 - Dec 2021"
     repo: https://github.com/williamcfrancis/Machine-Learning-for-EEG-Prosthetic-Arm-Control
     #url: ""
-    summary: Benchmarking 9 machine learning algorithms for identifying hand motions from EEG recordings.
+    summary: Benchmarking 9 ML algorithms for identifying hand motions from EEG recordings.
     tags:
       [
+        "pytorch",
         "academic",
         "robotics",
-        "pytorch",
         "kaggle competition",
         "sklearn",
       ]
 
-  - name: Image Super Resolution with Improved ESRGAN
+  - name: Image Super Resolution with improved ESRGAN
     # logo: /images/sections/projects/kubernetes.png
     role: Developer
     timeline: "Aug 2021 - Dec 2021"
@@ -63,22 +62,22 @@ projects:
     #url: ""  # If your project is not a public repo but it has a website or any external details url then provide it here. don't provide "repo" and "url" simultaneously.
     summary: Pytorch Implementation of proposed improvements to the state-of-the-art image super resolution model ESRGAN.
     tags:
-      [
-        "academic",
+      [ 
+        "pytorch",
         "generative networks",
         "super resolution",
         "deep-learning",
-        "pytorch",
+        "academic"
       ]
 
-  - name: Blind Motion Deblurring using Deep Learning
+  - name: Blind Motion Deblurring using deep learning
     # logo: /images/sections/projects/kubernetes.png
     role: Developer
     timeline: "Aug 2021 - Dec 2021"
     repo: https://github.com/williamcfrancis/Blind-Motion-Deblurring-for-Legible-License-Plates-using-Deep-Learning # If your project is a public repo on GitHub, then provide this link. it will show star count.
     #url: ""  # If your project is not a public repo but it has a website or any external details url then provide it here. don't provide "repo" and "url" simultaneously.
-    summary: A novel approach to blind motion deblurring by converting a non-blind method (Weiner Deconvolution) to a blind method using Deep Learning
-    tags: ["tensorflow", "motion deblurring", "computer vision", "license plate detection"]
+    summary: A novel approach to blind motion deblurring - converting a non-blind method (Weiner Deconvolution) to a blind method using Deep Learning
+    tags: ["Tensorflow", "motion deblurring", "computer vision", "license plate detection"]
 
   - name: Robot Localization using PF-LSTM in HabitatAI
     # logo: /images/sections/projects/tensorflow.png
@@ -87,16 +86,16 @@ projects:
     repo: https://github.com/williamcfrancis/Robot-Localization-using-Particle-Filter-LSTM-in-HabitatAI
     #url: ""
     summary: Robot localization using LSTM in HabitatAI simulator, employing particle filter as the embedded algorithmic prior.
-    tags: ["academic", "robotics", "pfrnn", "localization", "habitatai"]
+    tags: ["pfrnn", "localization", "habitatai","academic", "robotics"]
 
-  - name: Handwritten Digit Recognition using Variational Autoencoder
+  - name: Handwritten Digit Recognition using VAE
     # logo: /images/sections/projects/tensorflow.png
     role: Owner
     timeline: "Aug 2021 - Dec 2021"
     repo: https://github.com/williamcfrancis/Variational-Autoencoder-for-MNIST
     #url: ""
-    summary: Pytorch implementation of a Variational Autoencoder (VAE) that learns from the MNIST dataset and generates images of altered handwritten digits.
-    tags: ["academic", "generative model", "deep learning", "Pytorch"]
+    summary: Variational Autoencoder that learns from MNIST dataset and generates altered handwritten digits.
+    tags: ["pytorch", "academic", "generative model", "deep learning"]
 
   - name: Particle Filter SLAM for Humanoid Robot
     # logo: /images/sections/projects/tensorflow.png
@@ -104,46 +103,61 @@ projects:
     timeline: "Jan 2022 - May 2022"
     repo: https://github.com/williamcfrancis/Particle-Filter-Based-SLAM-for-Humanoid-Robot
     #url: ""
-    summary: SLAM in an indoor environment using information from an IMU and a LiDAR sensor collected from a humanoid robot called THOR.
-    tags: ["academic", "humanoid SLAM", "robotics", "LIDAR", "IMU"]
+    summary: Indoor SLAM using an IMU and a LiDAR sensor of a humanoid called THOR.
+    tags: ["SLAM", "robotics", "LIDAR", "IMU", "academic"]
 
-  - name: YOLOv3 from Scratch
+  - name: YOLOv3 from scratch
     # logo: /images/sections/projects/tensorflow.png
     role: Owner
     timeline: "Aug 2022 - Dec 2022"
     repo: https://github.com/williamcfrancis/YOLOv3-Object-Detection-from-Scratch
     #url: ""
-    summary: Bottom-up PyTorch implementation of YOLOv3 for Object Detection.
+    summary: Bottom-up implementation of YOLOv3 for Object Detection.
     tags:
-      ["academic", "robotics", "computer vision", "deep learning", "pytorch"]
+      ["pytorch", "robotics", "computer vision", "deep learning", "academic"]
 
-  - name: SOLO and FPN from Scratch
+  - name: SOLO and FPN from scratch
     # logo: /images/sections/projects/tensorflow.png
     role: Owner
     timeline: "Aug 2022 - Dec 2022"
     repo: https://github.com/williamcfrancis/SOLO-and-FPN-for-Instance-Segmentation
     #url: ""
-    summary: PyTorch implementation of Segmenting Objects by LOcation (SOLO) and FPN for COCO dataset.
+    summary: pyTorch implementation of Segmenting Objects by LOcation (SOLO) and FPN for COCO dataset.
     tags:
-      ["academic", "object segmentation", "computer vision", "deep learning", "pytorch"]
+      ["object segmentation", "computer vision", "pytorch", "deep learning", "academic"]
 
-  - name: RNN Language Model
+  - name: RNN language model from scratch
     # logo: /images/sections/projects/tensorflow.png
     role: Owner
     timeline: "Aug 2021 - Dec 2021"
     repo: https://github.com/williamcfrancis/RNN-language-model
     #url: ""
-    summary: Pytorch implementation of a Recurrent Neural Network trained on Leo Tolstoy's War and Peace to imitate the language style.
-    tags: ["academic", "natural language processing", "deep learning"]
+    summary: Recurrent Neural Network trained on Leo Tolstoy's War and Peace to imitate his language style.
+    tags: ["natural language processing", "pytorch", "deep learning","academic"]
 
-  - name: Email Spam Classifier using SVM
+  - name: Email spam classifier using SVM
     # logo: /images/sections/projects/tensorflow.png
     role: Developer
     timeline: "Mar 2019 - May 2019"
     url: "https://github.com/williamcfrancis/Email-Spam-Classifier-using-SVM"
     summary: Detects spam emails with 98.7% accuracy using Support Vector Machines
-    tags: ["hobby", "MATLAB", "natural language processing", "machine learning"]
+    tags: ["MATLAB", "natural language processing", "machine learning", "hobby"]
 
+  - name: Neural network from scratch
+    # logo: /images/sections/projects/tensorflow.png
+    role: Developer
+    timeline: "Aug 2021 - Dec 2021"
+    url: "https://github.com/williamcfrancis/Neural-Net-From-Scratch-for-Digit-Recognition"
+    summary: Numpy implementation of a neural network for digit recognition
+    tags: ["numpy", "deep learning", "pytorch", "academic"]
+  
+  - name: EKF and UKF for 3D orientation tracking
+    # logo: /images/sections/projects/tensorflow.png
+    role: Developer
+    timeline: "Jan 2022 - May 2022"
+    url: "https://github.com/williamcfrancis/EKF-and-UKF-for-3D-Robot-Orientation-Tracking"
+    summary: Robot orientation tracking using EKF and UKF on VICON motion capture system
+    tags: ["robotics", "kalman filtering", "python", "academic"] 
   # - name: A sample academic paper
   #   role: Team Lead
   #   timeline: "Jan 2017 - Nov 2017"
