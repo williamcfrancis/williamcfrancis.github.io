@@ -89,14 +89,14 @@ projects:
     summary: Robot localization using LSTM in HabitatAI simulator, employing particle filter as the embedded algorithmic prior.
     tags: ["academic", "robotics", "pfrnn", "localization", "habitatai"]
 
-  - name: Vulkan Grass Rendering
+  - name: Handwritten Digit Recognition using Variational Autoencoder
     # logo: /images/sections/projects/tensorflow.png
     role: Owner
-    timeline: "Nov 2021"
-    repo: https://github.com/shineyruan/Vulkan-Grass-Rendering
+    timeline: "Aug 2021 - Dec 2021"
+    repo: https://github.com/williamcfrancis/Variational-Autoencoder-for-MNIST
     #url: ""
-    summary: Vulkan renderer of grass blades with animation in compute shader.
-    tags: ["academic", "computer graphics", "rendering", "vulkan"]
+    summary: Pytorch implementation of a Variational Autoencoder (VAE) that learns from the MNIST dataset and generates images of altered handwritten digits.
+    tags: ["academic", "generative model", "deep learning", "Pytorch"]
 
   - name: Particle Filter SLAM for Humanoid Robot
     # logo: /images/sections/projects/tensorflow.png
@@ -142,7 +142,7 @@ projects:
     timeline: "Mar 2019 - May 2019"
     url: "https://github.com/williamcfrancis/Email-Spam-Classifier-using-SVM"
     summary: Detects spam emails with 98.7% accuracy using Support Vector Machines
-    tags: ["MATLAB", "natural language processing", "machine learning"]
+    tags: ["hobby", "MATLAB", "natural language processing", "machine learning"]
 
   # - name: A sample academic paper
   #   role: Team Lead
