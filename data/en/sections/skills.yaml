@@ -33,7 +33,7 @@ skills:
 
   - name: Tensorflow
     logo: "/images/sections/skills/tensorflow.png"
-    summary: "Capable of developing fast, flexible, and scalable machine learning code for research and production."
+    summary: "Capable of developing fast, flexible, and scalable deep learning code for research and production."
     url: "https://www.tensorflow.org/"
 
   - name: AWS
