@@ -61,10 +61,10 @@ experiences:
         start: Jan 2019
         end: Dec 2019
         responsibilities:
-          - Designed a Deep Neural Network using Pytorch to detect eye-blinks from EEG signals based on kurtosis coefficients
-          - Developed a Brain-Controlled wheelchair with a camera-based collision avoidance system and GUI using Python & MATLAB
-          - Improved the Signal-to-Noise ratio of the EEG data acquisition system up to 6%
-          - Tested the prototype on the quadriplegic and iteratively improved from the feedback
+          - Engineered a Pytorch-based DNN utilizing kurtosis coefficients for highly accurate blink detection in EEG signals
+          - Conceptualized and built a brain-controlled wheelchair featuring a collision avoidance system and intuitive GUI using Python & MATLAB.
+          - Optimized EEG data acquisition system performance by 6% by implementing advanced signal processing techniques.
+          - Conducted user testing and gathered feedback to continually improve the prototype, utilizing a user-centered design approach.
   
   - company:
       name: Siemens Gamesa Renewable Energy
