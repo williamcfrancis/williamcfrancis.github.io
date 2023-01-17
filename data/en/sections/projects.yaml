@@ -139,7 +139,7 @@ projects:
     # logo: /images/sections/projects/tensorflow.png
     role: Developer
     timeline: "Mar 2019 - May 2019"
-    url: "https://github.com/williamcfrancis/Email-Spam-Classifier-using-SVM"
+    repo: "https://github.com/williamcfrancis/Email-Spam-Classifier-using-SVM"
     summary: Detects spam emails with 98.7% accuracy using Support Vector Machines
     tags: ["MATLAB", "natural language processing", "machine learning", "hobby"]
 
@@ -147,7 +147,7 @@ projects:
     # logo: /images/sections/projects/tensorflow.png
     role: Developer
     timeline: "Aug 2021 - Dec 2021"
-    url: "https://github.com/williamcfrancis/Neural-Net-From-Scratch-for-Digit-Recognition"
+    repo: "https://github.com/williamcfrancis/Neural-Net-From-Scratch-for-Digit-Recognition"
     summary: Numpy implementation of a neural network for digit recognition
     tags: ["numpy", "deep learning", "pytorch", "academic"]
   
@@ -155,7 +155,7 @@ projects:
     # logo: /images/sections/projects/tensorflow.png
     role: Developer
     timeline: "Jan 2022 - May 2022"
-    url: "https://github.com/williamcfrancis/EKF-and-UKF-for-3D-Robot-Orientation-Tracking"
+    repo: "https://github.com/williamcfrancis/EKF-and-UKF-for-3D-Robot-Orientation-Tracking"
     summary: Robot orientation tracking using EKF and UKF on VICON motion capture system
     tags: ["robotics", "kalman filtering", "python", "academic"] 
   # - name: A sample academic paper
