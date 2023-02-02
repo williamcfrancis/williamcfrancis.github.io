@@ -9,9 +9,9 @@ section:
   # hideTitle: true
 
 degrees:
-  - name: M.S.E. in Robotics
+  - name: M.S.E. in Robotics, M.S.E in Computer Science
     icon: fas fa-robot
-    timeframe: 2021-2023
+    timeframe: 2021-2024
     institution:
       name: University of Pennsylvania
       url: "https://www.upenn.edu/"
@@ -50,6 +50,12 @@ degrees:
         - name: MEAM 520 Introduction to Robotics
           achieved: 4.0
           outOf: 4.0
+        - name: CIS 700 Neuro-Symbolic AI
+          achieved: 4.0
+          outof: 4.0
+        - name: CIS 523 Ethics in Algorithms
+          achieved: 4.0
+          outof: 4.0
     publications:
 
     #   - title: Fusce eu augue ut odio porttitor pulvinar.

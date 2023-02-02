@@ -16,7 +16,7 @@ experiences:
       url: "https://mlab-upenn.github.io/lab_website/"
       location: Philadelphia, PA
       # company overview
-      overview: xLab is a research lab at University of Pennsylvania lead by Prof. Rahul Mangharam targeting at developing critical systems and autonomous systems.
+      overview: xLab is a research lab at University of Pennsylvania lead by Prof. Rahul Mangharam targeting at developing critical systems and autonomous systems
     positions:
       - designation: Graduate Research Assistant
         start: Dec 2021
@@ -25,9 +25,9 @@ experiences:
         # end: Dec 2020
         # give some points about what was your responsibilities at the company.
         responsibilities:
-          - Developed camera-based and LIDAR-based cone detection, obstacle avoidance, and Extended Kalman Filtering algorithms for Autonomous GoKart
-          - Deployed code on NVIDIA Jetson Xavier
-          - Competed in Autonomous evGrandPrix at Purdue, Indiana in May 2022
+          - Developed lane segmentation and obstacle avoidance algorithms using Python and PyTorch to improve the autonomous Go-kart's ability to navigate through complex racing tracks, resulting in a 40% improvement in obstacle avoidance rate
+          - Optimized code for speed using C++, resulting in 15% reduction in response time and real-time processing on Jetson AGX
+          - Led the Autonomous Go-kart team to a top-5 finish in the Autonomous evGrandPrix and presented at International Conference on Robotics and Automation (ICRA), securing sponsorship from the Autoware Foundation
 
   - company:
       name: Vision Cultura
@@ -38,11 +38,10 @@ experiences:
         start: Dec 2019
         end: May 2020
         responsibilities:
-          - Worked on concept generation, design optimization, and market analysis
-          - Built a camera-based plant monitoring system that detects flowers, pests, and diseases
-          - Introduced improvements to boost efficiency, and studied feasibility of different algorithms - VGG19, ResNet & Inception for flower recognition
-          - Conducted design reviews on a daily basis with the team to ensure smooth progress in product development.
-          - Worked in a cross-functional with Mechanical and Computervision engineers, Manager and manufacturers to ensure that product specification, performance, durability, safety, quality, cost, and manufacturing requirements are met.
+          - Redesigned AI-based farming solution utilizing PyTorch and IoT integration, resulting in 18% crop yield increase and 90% labor cost reduction through real-time monitoring of sunshine, water, and nutrient levels for each plant
+          - Deployed models using AWS SageMaker and monitored data in real-time using CloudWatch for optimal analysis
+          - Upgraded the perception stack using advanced object detection models (YOLO, RetinaNet, Faster R-CNN) leading to 33% boost in sales team productivity, translating to 100K increase in revenue, earning recognition as outstanding intern
+          - Worked in a cross-functional with Mechanical and Computervision engineers, Manager and manufacturers to ensure that product specification, performance, durability, safety, quality, cost, and manufacturing requirements are met
       # - designation: Junior Software Engineer
       #   start: Nov 2017
       #   end: Oct 2019
@@ -55,28 +54,27 @@ experiences:
       name: Center for Industrial Automation (CIA) Lab, Vellore Instiitute of Technology 
       url: "https://chennai.vit.ac.in/electrical-and-electronics-engineering-chennai/facilities/"
       location: Chennai, India
-      overview: CIA Lab is a research lab at Vellore Institute of Technology lead by Prof. Umayal that builds embedded systems for Industrial Automation and Robotics applications.
+      overview: CIA Lab is a research lab at Vellore Institute of Technology lead by Prof. Umayal that builds embedded systems for Industrial Automation and Robotics applications
     positions:
       - designation: Undergraduate Research Assistant
         start: Jan 2019
         end: Dec 2019
         responsibilities:
-          - Engineered a Pytorch-based DNN utilizing kurtosis coefficients for highly accurate blink detection in EEG signals
-          - Conceptualized and built a brain-controlled wheelchair featuring a collision avoidance system and intuitive GUI using Python & MATLAB.
-          - Optimized EEG data acquisition system performance by 6% by implementing advanced signal processing techniques.
-          - Conducted user testing and gathered feedback to continually improve the prototype, utilizing a user-centered design approach.
+          - Engineered TensorFlow-based deep neural network for blink detection in EEG signals, resulting in 25% increase in signal-to-noise ratio for Brain-Controlled Wheelchair with camera-based collision avoidance
+          - Implemented adaptive algorithm for personalized blink detection and control sensitivity, leading to enhanced user experience
+          - Conducted user testing and gathered feedback to continually improve the prototype, utilizing a user-centered design approach
   
   - company:
       name: Siemens Gamesa Renewable Energy
       url: https://www.siemensgamesa.com/en-int
       location: Bangalore, India
-      overview: Siemens Gamesa is a leader in the renewable energy industry, working to provide the world's best offshore and onshore wind turbines and services.
+      overview: Siemens Gamesa is a leader in the renewable energy industry, working to provide the world's best offshore and onshore wind turbines and services
     positions:
       - designation: Embedded Systems Intern
         start: May 2018
         end: Aug 2018
         responsibilities:
-          - Designed and presented an offshore windmill model to showcase sensor functionalities 
-          - Optimized turbine to ambient conditions by embedding temperature, light, and humidity sensors
-          - Schematized a PCB using EAGLE and soldered its components
-          - Implemented Blade angle detection and Heli-hoist feature using real-time video recognition with FastAI
+          - Led design and implementation of miniature windmill model using ATtiny85 microcontroller showcasing novel sensor applications
+          - Mounted sensors to optimize windmill performance, designed a PCB using Eagle to control turbine and implemented blade angle detection for Heli-hoist
+          - Collected and analyzed sensor data using Parallax Data Acquisition
+          - Designed and 3D printed a highly detailed and proportionate model of a wind turbine including the turbine shaft, blades, and tower
