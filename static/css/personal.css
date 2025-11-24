@@ -210,6 +210,7 @@ body.dark .personal-empty {
   width: 100%;
   height: 100%;
   border: 0;
+  pointer-events: none;
 }
 
 .game-preview-link {
@@ -227,11 +228,14 @@ body.dark .personal-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .game-preview-link:hover .game-preview-overlay,
-.game-preview-link:focus .game-preview-overlay {
+.game-preview-link:focus .game-preview-overlay,
+.game-preview-link:focus-visible .game-preview-overlay {
   opacity: 1;
 }
 
