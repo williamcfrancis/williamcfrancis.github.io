@@ -44,7 +44,7 @@ sections:
     games:
       - title: Lily Leap
         genre: Chill arcade
-        summary: Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows in a mellow browser break.
+        summary: Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows.
         tags: ["browser", "casual", "sound-on"]
         link:
           label: Play Lily Leap
