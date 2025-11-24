@@ -1,0 +1,55 @@
+{{ $sectionID := partial "helpers/get-section-id.html" . }}
+{{ $intro := .intro | default dict }}
+{{ $games := .games | default (slice) }}
+
+<div class="container anchor personal-section games" id="{{ $sectionID }}">
+  <div class="section-copy text-center mb-5">
+    <p class="eyebrow-label">{{ .section.name }}</p>
+    <h2>{{ $intro.title | default .section.name }}</h2>
+    <p>{{ $intro.description }}</p>
+  </div>
+  <div class="personal-card-grid">
+    {{ range $games }}
+      {{ $imgPath := "" }}
+      {{ if .image }}
+        {{ $resource := resources.Get .image }}
+        {{ if $resource }}
+          {{ $processed := $resource.Fill "640x360 center" }}
+          {{ $imgPath = $processed.RelPermalink }}
+        {{ else }}
+          {{ $imgPath = .image }}
+        {{ end }}
+      {{ end }}
+      <article class="personal-card game-card">
+        {{ if $imgPath }}
+          <div class="card-media" style="background-image: url('{{ $imgPath }}');"></div>
+        {{ end }}
+        <div class="card-body">
+          <div class="card-meta">
+            {{ if .status }}<span class="tag status">{{ .status }}</span>{{ end }}
+            {{ if .genre }}<span class="tag subtle">{{ .genre }}</span>{{ end }}
+          </div>
+          <h3>{{ .title }}</h3>
+          <p>{{ .summary }}</p>
+          {{ with .tags }}
+            <div class="tag-row">
+              {{ range . }}
+                <span class="tag">{{ . }}</span>
+              {{ end }}
+            </div>
+          {{ end }}
+          {{ with .link }}
+            {{ $href := .url }}
+            {{ if and $href (hasPrefix $href "/") }}
+              {{ $href = relLangURL $href }}
+            {{ end }}
+            <a class="btn btn-link p-0 mt-3" href="{{ $href }}" target="_blank" rel="noopener">
+              {{ .label | default "Read more" }} <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+          {{ end }}
+        </div>
+      </article>
+    {{ end }}
+  </div>
+</div>
+

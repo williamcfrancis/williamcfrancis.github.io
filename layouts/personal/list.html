@@ -1,0 +1,40 @@
+{{ define "header" }}
+  <link rel="stylesheet" href="{{ "/css/personal.css" | relURL }}">
+{{ end }}
+
+{{ define "navbar" }}
+  {{ partial "navigators/navbar.html" . }}
+{{ end }}
+
+{{ define "content" }}
+  {{ $localizedData := index site.Data site.Language.Lang }}
+  {{ $personal := dict }}
+  {{ if and $localizedData $localizedData.personal }}
+    {{ $personal = $localizedData.personal }}
+  {{ else if site.Data.personal }}
+    {{ $personal = site.Data.personal }}
+  {{ end }}
+  {{ $pageMeta := dict }}
+  {{ if $personal.page }}
+    {{ $pageMeta = $personal.page }}
+  {{ end }}
+  {{ $sections := $personal.sections | default (slice) }}
+  <section class="personal-page" id="content-section">
+    <div class="container personal-hero">
+      <p class="eyebrow-label">{{ $pageMeta.subtitle | default "Personal" }}</p>
+      <h1>{{ $pageMeta.title | default .Title }}</h1>
+      <p class="lead">{{ $pageMeta.description }}</p>
+    </div>
+
+    {{ range sort $sections "section.weight" }}
+      {{ if .section.enable }}
+        <div class="personal-section-wrapper">
+          {{ if .section.template }}
+            {{ partial .section.template . }}
+          {{ end }}
+        </div>
+      {{ end }}
+    {{ end }}
+  </section>
+{{ end }}
+

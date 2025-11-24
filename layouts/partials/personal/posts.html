@@ -1,0 +1,65 @@
+{{ $sectionID := partial "helpers/get-section-id.html" . }}
+{{ $hero := .hero | default dict }}
+{{ $highlights := .highlights | default (slice) }}
+{{ $recentPosts := first 3 (where site.RegularPages "Section" "posts") }}
+
+<div class="container anchor personal-section posts" id="{{ $sectionID }}">
+  <div class="row align-items-start">
+    <div class="col-lg-4 col-md-5 col-12 section-copy">
+      <p class="eyebrow-label">{{ .section.name }}</p>
+      <h2>{{ $hero.title | default .section.name }}</h2>
+      <p>{{ $hero.description }}</p>
+      {{ with $hero.cta }}
+        <a class="btn btn-outline-dark btn-sm mt-3" href="{{ .url | relLangURL }}">{{ .label }}</a>
+      {{ end }}
+      <div class="latest-posts mt-4">
+        <h3>Latest posts</h3>
+        {{ if gt (len $recentPosts) 0 }}
+          <ul class="latest-posts-list">
+            {{ range $recentPosts }}
+              <li>
+                <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+                <span class="meta">{{ .Date.Format "Jan 02, 2006" }}</span>
+              </li>
+            {{ end }}
+          </ul>
+        {{ else }}
+          <p class="meta">{{ $hero.emptyState | default "No posts have been published yet." }}</p>
+        {{ end }}
+      </div>
+    </div>
+    <div class="col-lg-8 col-md-7 col-12">
+      <div class="personal-card-grid">
+        {{ range $highlights }}
+          {{ $imgPath := "" }}
+          {{ if .image }}
+            {{ $resource := resources.Get .image }}
+            {{ if $resource }}
+              {{ $processed := $resource.Fill "800x450 center" }}
+              {{ $imgPath = $processed.RelPermalink }}
+            {{ else }}
+              {{ $imgPath = .image }}
+            {{ end }}
+          {{ end }}
+          <article class="personal-card">
+            {{ if $imgPath }}
+              <div class="card-media" style="background-image: url('{{ $imgPath }}');"></div>
+            {{ end }}
+            <div class="card-body">
+              <h3>{{ .title }}</h3>
+              <p>{{ .summary }}</p>
+              {{ with .tags }}
+                <div class="tag-row">
+                  {{ range . }}
+                    <span class="tag">{{ . }}</span>
+                  {{ end }}
+                </div>
+              {{ end }}
+            </div>
+          </article>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+</div>
+

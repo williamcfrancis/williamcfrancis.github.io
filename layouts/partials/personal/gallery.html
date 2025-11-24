@@ -1,0 +1,38 @@
+{{ $sectionID := partial "helpers/get-section-id.html" . }}
+{{ $intro := .intro | default dict }}
+{{ $photos := .photos | default (slice) }}
+
+<div class="container anchor personal-section gallery" id="{{ $sectionID }}">
+  <div class="section-copy text-center mb-5">
+    <p class="eyebrow-label">{{ .section.name }}</p>
+    <h2>{{ $intro.title | default .section.name }}</h2>
+    <p>{{ $intro.description }}</p>
+  </div>
+  <div class="row">
+    {{ range $photos }}
+      {{ $imgPath := "" }}
+      {{ if .image }}
+        {{ $resource := resources.Get .image }}
+        {{ if $resource }}
+          {{ $processed := $resource.Fill "900x600 center" }}
+          {{ $imgPath = $processed.RelPermalink }}
+        {{ else }}
+          {{ $imgPath = .image }}
+        {{ end }}
+      {{ end }}
+      <div class="col-lg-4 col-md-6 col-12 mb-4">
+        <figure class="gallery-card">
+          {{ if $imgPath }}
+            <img src="{{ $imgPath }}" alt="{{ .title }}">
+          {{ end }}
+          <figcaption>
+            <h3>{{ .title }}</h3>
+            <p class="location">{{ .location }}</p>
+            <p>{{ .caption }}</p>
+          </figcaption>
+        </figure>
+      </div>
+    {{ end }}
+  </div>
+</div>
+

@@ -1,0 +1,197 @@
+.personal-page {
+  padding: 4rem 0 2rem;
+}
+
+.personal-hero {
+  text-align: center;
+  max-width: 860px;
+}
+
+.personal-hero h1 {
+  font-size: 2.75rem;
+  font-weight: 700;
+}
+
+.personal-hero .lead {
+  font-size: 1.15rem;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+body.dark .personal-hero .lead {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.eyebrow-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #ff6b6b;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+body.dark .eyebrow-label {
+  color: #ffa987;
+}
+
+.personal-section-wrapper {
+  padding: 4rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.dark .personal-section-wrapper {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.personal-section .section-copy h2 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.personal-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.personal-card {
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 12px 35px rgba(20, 16, 34, 0.08);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+body.dark .personal-card {
+  background: #222331;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+}
+
+.personal-card .card-media {
+  width: 100%;
+  padding-top: 55%;
+  background-size: cover;
+  background-position: center;
+}
+
+.personal-card .card-body {
+  padding: 1.5rem;
+}
+
+.personal-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.personal-card p {
+  margin-bottom: 0.75rem;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+body.dark .personal-card p {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tag {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.85);
+}
+
+body.dark .tag {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.tag.status {
+  background: #0045ff;
+  color: #fff;
+}
+
+.tag.subtle {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.latest-posts h3 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+.latest-posts-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.latest-posts-list li {
+  margin-bottom: 0.65rem;
+}
+
+.latest-posts-list a {
+  font-weight: 600;
+}
+
+.latest-posts .meta {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+body.dark .latest-posts .meta {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.gallery-card {
+  overflow: hidden;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(20, 16, 34, 0.08);
+  background: #fff;
+}
+
+body.dark .gallery-card {
+  background: #1c1d29;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.gallery-card img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+}
+
+.gallery-card figcaption {
+  padding: 1.25rem;
+}
+
+.gallery-card .location {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #888;
+}
+
+body.dark .gallery-card .location {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 767.98px) {
+  .personal-hero h1 {
+    font-size: 2.1rem;
+  }
+
+  .personal-section-wrapper {
+    padding: 3rem 0;
+  }
+}
+
