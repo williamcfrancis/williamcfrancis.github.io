@@ -1,3 +1,16 @@
+.posts-copy {
+  text-align: center;
+}
+
+.posts-copy .latest-posts-list {
+  display: inline-block;
+  text-align: left;
+}
+
+.posts-copy .latest-posts {
+  display: inline-block;
+  text-align: left;
+}
 .personal-page {
   padding: 4rem 0 2rem;
 }
@@ -204,14 +217,14 @@ body.dark .personal-empty {
 
 .game-preview {
   width: 100%;
-  max-width: 240px;
+  max-width: 260px;
   margin: 1rem auto 0;
   border-radius: 0.9rem;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(11, 6, 40, 0.25);
   background: radial-gradient(circle at 20% 20%, #222844, #0f0f1a);
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 5 / 4;
 }
 
 .game-preview img {

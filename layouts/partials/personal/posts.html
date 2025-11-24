@@ -6,9 +6,9 @@
 
 <div class="container anchor personal-section posts" id="{{ $sectionID }}">
   <div class="row align-items-start">
-    {{ $copyClasses := "col-lg-4 col-md-5 col-12 section-copy" }}
+    {{ $copyClasses := "col-lg-4 col-md-5 col-12 section-copy posts-copy" }}
     {{ if not $hasHighlights }}
-      {{ $copyClasses = "col-12 section-copy" }}
+      {{ $copyClasses = "col-12 section-copy posts-copy text-center" }}
     {{ end }}
     <div class="{{ $copyClasses }}">
       <p class="eyebrow-label">{{ .section.name }}</p>
