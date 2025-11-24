@@ -40,23 +40,33 @@
                 {{ end }}
               </div>
             {{ end }}
+            {{ $playURL := "" }}
+            {{ if .link }}
+              {{ $playURL = .link.url }}
+              {{ if and $playURL (hasPrefix $playURL "/") }}
+                {{ $playURL = relLangURL $playURL }}
+              {{ end }}
+            {{ end }}
             {{ with .preview }}
               {{ $previewUrl := .url }}
               {{ if and $previewUrl (hasPrefix $previewUrl "/") }}
                 {{ $previewUrl = relLangURL $previewUrl }}
               {{ end }}
               {{ $aspect := .aspect | default "16/9" }}
-              <div class="game-preview" style="aspect-ratio: {{ $aspect }};">
-                <iframe src="{{ $previewUrl }}" title="{{ .title }} preview" loading="lazy"></iframe>
-              </div>
-            {{ end }}
-            {{ with .link }}
-              {{ $href := .url }}
-              {{ if and $href (hasPrefix $href "/") }}
-                {{ $href = relLangURL $href }}
-              {{ end }}
-              <a class="btn btn-link p-0 mt-3" href="{{ $href }}" target="_blank" rel="noopener">
-                {{ .label | default "Read more" }} <i class="fas fa-arrow-right ml-1"></i>
+              <a class="game-preview-link" href="{{ cond (ne $playURL "") $playURL $previewUrl }}" target="_blank" rel="noopener">
+                <div class="game-preview" style="aspect-ratio: {{ $aspect }};">
+                  <div class="game-preview-overlay">
+                    <button class="game-preview-play">
+                      <i class="fas fa-play"></i>
+                      <span>Play game</span>
+                    </button>
+                  </div>
+                  <iframe src="{{ $previewUrl }}" title="{{ .title }} preview" loading="lazy"></iframe>
+                  <span class="game-preview-back">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Games
+                  </span>
+                </div>
               </a>
             {{ end }}
           </div>
