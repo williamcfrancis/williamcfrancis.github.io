@@ -19,21 +19,7 @@
       {{ with $hero.cta }}
         <a class="btn btn-outline-dark btn-sm mt-3" href="{{ .url | relLangURL }}">{{ .label }}</a>
       {{ end }}
-      {{ if gt (len $recentPosts) 0 }}
-        <div class="latest-posts mt-4">
-          <h3>Latest posts</h3>
-          <ul class="latest-posts-list">
-            {{ range $recentPosts }}
-              <li>
-                <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-                <span class="meta">{{ .Date.Format "Jan 02, 2006" }}</span>
-              </li>
-            {{ end }}
-          </ul>
-        </div>
-      {{ else }}
-        <p class="latest-empty mt-4">{{ $hero.emptyState | default "No posts have been published yet." }}</p>
-      {{ end }}
+      <p class="latest-empty mt-4">{{ $hero.emptyState | default "No posts have been published yet." }}</p>
     </div>
     {{ if $hasHighlights }}
       <div class="col-lg-8 col-md-7 col-12">

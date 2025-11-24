@@ -19,24 +19,7 @@
 }
 .personal-page {
   padding: 4rem 0 2rem;
-  position: relative;
-  background: #0d1524;
-  overflow: hidden;
-}
-
-.personal-page::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: url("/images/site/3.jpg") center/cover no-repeat;
-  opacity: 0.25;
-  filter: blur(1px);
-  z-index: 0;
-}
-
-.personal-page > * {
-  position: relative;
-  z-index: 1;
+  background: linear-gradient(135deg, #f7f7fb, #fdfdf5);
 }
 
 .personal-hero {
@@ -73,10 +56,21 @@ body.dark .eyebrow-label {
 
 .personal-section-wrapper {
   padding: 4rem 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+  border-bottom: none;
 }
 
-body.dark .personal-section-wrapper {
+.personal-section-wrapper:nth-of-type(odd) {
+  background: linear-gradient(135deg, rgba(244, 247, 252, 0.9), rgba(248, 253, 251, 0.9));
+}
+
+.personal-section-wrapper:nth-of-type(even) {
+  background: linear-gradient(135deg, rgba(252, 245, 253, 0.9), rgba(247, 250, 255, 0.9));
+}
+
+body.dark .personal-section-wrapper:nth-of-type(odd),
+body.dark .personal-section-wrapper:nth-of-type(even) {
+  background: rgba(18, 20, 30, 0.6);
   border-color: rgba(255, 255, 255, 0.08);
 }
 
