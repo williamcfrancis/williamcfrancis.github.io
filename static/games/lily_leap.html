@@ -73,10 +73,15 @@
         .hud {
             padding: 20px;
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: flex-start;
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .score-panel {
+            text-align: right;
+            margin-left: auto;
         }
 
         #score-display {
@@ -204,7 +209,7 @@
     
     <div id="ui-layer">
         <div class="hud">
-            <div>
+            <div class="score-panel">
                 <div id="score-display">0</div>
                 <div id="high-score">Best: 0</div>
             </div>
