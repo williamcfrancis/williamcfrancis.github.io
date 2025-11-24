@@ -1,10 +1,10 @@
 page:
-  title: Personal Lab
-  subtitle: Posts, games, and a rotating photo wall.
-  description: A quieter corner for experiments that do not fit on the landing page.
+  title: After Hours
+  subtitle: Just for fun
+  description: Stories, toy projects, and galleries will land here once I add them.
 
 nav:
-  label: Personal
+  label: After Hours
   items:
     - name: Posts
       id: posts
@@ -24,25 +24,13 @@ sections:
       weight: 1
       template: personal/posts.html
     hero:
-      title: Long-form posts & field notes
-      description: Essays, teardown notes, and travel journals that pair robotics work with photography.
+      title: Posts & field notes
+      description: Essays, teardown notes, and travel journals once I’m ready to share them.
       cta:
         label: Visit the archive
         url: "/posts/"
-      emptyState: I am drafting a few new posts—check back soon.
-    highlights:
-      - title: CAD2CAV Field Notes
-        summary: Reflections on bridging CAD and autonomy while building the CAD2CAV simulation harness.
-        image: images/posts/cad2cav/cad2cav-overview.png
-        tags: ["systems", "simulation"]
-      - title: F1TENTH Race Journal
-        summary: Capturing the chaos of autonomous kart race weekends with setup sheets, telemetry, and plenty of photos.
-        image: images/posts/f1tenth-lab4/f1tenth-lab4.png
-        tags: ["f1tenth", "motorsport"]
-      - title: Travel Letters
-        summary: Lightweight travelogues from field research trips that double as photography practice.
-        image: images/posts/hong-kong/DSC00851.jpg
-        tags: ["photography", "writing"]
+      emptyState: I’m drafting a few new posts—check back soon.
+    highlights: []
 
   - section:
       name: Games
@@ -52,29 +40,8 @@ sections:
       template: personal/games.html
     intro:
       title: Games & sandboxes
-      description: Playable experiments I lean on to unwind—part sim, part sketchbook, all personal.
-    games:
-      - title: Paddock Sprint
-        status: Prototype
-        genre: Top-down racer
-        summary: A lightweight karting playground used to rehearse F1TENTH race craft, controller tuning, and pit stop choreography.
-        image: images/posts/f1tenth-lab6/f1tenth-lab6-cover.png
-        tags: ["unity", "autonomy"]
-      - title: Echo Drift
-        status: Playtest build
-        genre: SLAM puzzle
-        summary: A minimal neon maze that visualizes particle-filter localization as a game of hide and seek with drifting landmarks.
-        image: images/posts/467ProjSlam/467-task5-map.png
-        tags: ["slam", "visualization"]
-        link:
-          label: View the source
-          url: "https://github.com/williamcfrancis/Particle-Filter-Based-SLAM-for-Humanoid-Robot"
-      - title: Photon Sketch
-        status: Weekend build
-        genre: Sandbox
-        summary: A CUDA path-tracing toybox where lighting setups can be posed like table-top dioramas.
-        image: images/posts/565-cuda-path-tracer/cornell.2021-10-09_18-44-15z.5000samp.png
-        tags: ["cuda", "rendering"]
+      description: Playable experiments I tinker with after hours.
+    games: []
 
   - section:
       name: Photo Gallery
@@ -84,30 +51,6 @@ sections:
       template: personal/gallery.html
     intro:
       title: Photo Gallery
-      description: A rotating feed of images from research trips, residencies, and long walks with a camera.
-    photos:
-      - title: Ann Arbor Evenings
-        location: Ann Arbor, Michigan
-        image: images/posts/ann-arbor/RZH4586A190807.jpg
-        caption: Late-summer light bouncing off the Huron River during a robotics test campaign.
-      - title: Victoria Harbour
-        location: Hong Kong
-        image: images/posts/hong-kong/DSC00851.jpg
-        caption: A blue hour frame from a harbor ferry ride between field tests.
-      - title: Giant's Causeway
-        location: County Antrim, Ireland
-        image: images/posts/ireland/RZH403524.jpg
-        caption: Early-morning basalt columns, shot before the tourist buses arrived.
-      - title: London Laundry Day
-        location: London, United Kingdom
-        image: images/posts/london/_RZH3468postruanzh.jpg
-        caption: Misty streets near Shoreditch while scouting textures for a rendering study.
-      - title: Phuket Tones
-        location: Phuket, Thailand
-        image: images/posts/phuket-journal/RZH6667post.jpg
-        caption: A storm rolling over the bay minutes before a dive briefing.
-      - title: Old San Juan
-        location: San Juan, Puerto Rico
-        image: images/posts/puerto-rico-journal/PR-cover.jpg
-        caption: Cobblestone blues and narrow shadows from a quick photo walk.
+      description: A rotating feed of images from trips, residencies, and long walks with a camera.
+    photos: []
 

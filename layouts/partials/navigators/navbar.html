@@ -73,8 +73,7 @@
     <div class="collapse navbar-collapse dynamic-navbar" id="top-nav-items">
       <div class="navbar-groups ml-auto">
         <div class="navbar-group professional">
-          <p class="navbar-label">Professional</p>
-          <ul class="navbar-nav">
+          <ul class="navbar-nav" aria-label="Professional">
             <li class="nav-item">
               <a class="nav-link" href="#home">{{ i18n "home" }}</a>
             </li>
@@ -92,10 +91,9 @@
           </ul>
         </div>
         {{ if gt (len $personalNav) 0 }}
-          <div class="navbar-divider" aria-hidden="true"></div>
+          <span class="navbar-pipe" aria-hidden="true">|</span>
           <div class="navbar-group personal">
-            <p class="navbar-label">{{ $personalLabel }}</p>
-            <ul class="navbar-nav">
+            <ul class="navbar-nav" aria-label="{{ $personalLabel }}">
               {{ range $personalNav }}
                 {{ $href := .url }}
                 {{ if and $href (hasPrefix $href "/") }}
@@ -109,7 +107,7 @@
           </div>
         {{ end }}
         <div class="navbar-group utilities">
-          <ul class="navbar-nav">
+          <ul class="navbar-nav" aria-label="Site utilities">
             {{ range $customMenus }}
               {{ if (not .hideFromNavbar) }}
                 <li class="nav-item">

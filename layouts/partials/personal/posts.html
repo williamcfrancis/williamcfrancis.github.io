@@ -2,13 +2,20 @@
 {{ $hero := .hero | default dict }}
 {{ $highlights := .highlights | default (slice) }}
 {{ $recentPosts := first 3 (where site.RegularPages "Section" "posts") }}
+{{ $hasHighlights := gt (len $highlights) 0 }}
 
 <div class="container anchor personal-section posts" id="{{ $sectionID }}">
   <div class="row align-items-start">
-    <div class="col-lg-4 col-md-5 col-12 section-copy">
+    {{ $copyClasses := "col-lg-4 col-md-5 col-12 section-copy" }}
+    {{ if not $hasHighlights }}
+      {{ $copyClasses = "col-12 section-copy" }}
+    {{ end }}
+    <div class="{{ $copyClasses }}">
       <p class="eyebrow-label">{{ .section.name }}</p>
       <h2>{{ $hero.title | default .section.name }}</h2>
-      <p>{{ $hero.description }}</p>
+      {{ with $hero.description }}
+        <p>{{ . }}</p>
+      {{ end }}
       {{ with $hero.cta }}
         <a class="btn btn-outline-dark btn-sm mt-3" href="{{ .url | relLangURL }}">{{ .label }}</a>
       {{ end }}
@@ -28,38 +35,40 @@
         {{ end }}
       </div>
     </div>
-    <div class="col-lg-8 col-md-7 col-12">
-      <div class="personal-card-grid">
-        {{ range $highlights }}
-          {{ $imgPath := "" }}
-          {{ if .image }}
-            {{ $resource := resources.Get .image }}
-            {{ if $resource }}
-              {{ $processed := $resource.Fill "800x450 center" }}
-              {{ $imgPath = $processed.RelPermalink }}
-            {{ else }}
-              {{ $imgPath = .image }}
-            {{ end }}
-          {{ end }}
-          <article class="personal-card">
-            {{ if $imgPath }}
-              <div class="card-media" style="background-image: url('{{ $imgPath }}');"></div>
-            {{ end }}
-            <div class="card-body">
-              <h3>{{ .title }}</h3>
-              <p>{{ .summary }}</p>
-              {{ with .tags }}
-                <div class="tag-row">
-                  {{ range . }}
-                    <span class="tag">{{ . }}</span>
-                  {{ end }}
-                </div>
+    {{ if $hasHighlights }}
+      <div class="col-lg-8 col-md-7 col-12">
+        <div class="personal-card-grid">
+          {{ range $highlights }}
+            {{ $imgPath := "" }}
+            {{ if .image }}
+              {{ $resource := resources.Get .image }}
+              {{ if $resource }}
+                {{ $processed := $resource.Fill "800x450 center" }}
+                {{ $imgPath = $processed.RelPermalink }}
+              {{ else }}
+                {{ $imgPath = .image }}
               {{ end }}
-            </div>
-          </article>
-        {{ end }}
+            {{ end }}
+            <article class="personal-card">
+              {{ if $imgPath }}
+                <div class="card-media" style="background-image: url('{{ $imgPath }}');"></div>
+              {{ end }}
+              <div class="card-body">
+                <h3>{{ .title }}</h3>
+                <p>{{ .summary }}</p>
+                {{ with .tags }}
+                  <div class="tag-row">
+                    {{ range . }}
+                      <span class="tag">{{ . }}</span>
+                    {{ end }}
+                  </div>
+                {{ end }}
+              </div>
+            </article>
+          {{ end }}
+        </div>
       </div>
-    </div>
+    {{ end }}
   </div>
 </div>
 

@@ -21,9 +21,13 @@
   {{ $sections := $personal.sections | default (slice) }}
   <section class="personal-page" id="content-section">
     <div class="container personal-hero">
-      <p class="eyebrow-label">{{ $pageMeta.subtitle | default "Personal" }}</p>
+      {{ with $pageMeta.subtitle }}
+        <p class="eyebrow-label">{{ . }}</p>
+      {{ end }}
       <h1>{{ $pageMeta.title | default .Title }}</h1>
-      <p class="lead">{{ $pageMeta.description }}</p>
+      {{ with $pageMeta.description }}
+        <p class="lead">{{ . }}</p>
+      {{ end }}
     </div>
 
     {{ range sort $sections "section.weight" }}
