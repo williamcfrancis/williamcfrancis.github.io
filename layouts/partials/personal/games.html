@@ -12,20 +12,14 @@
   {{ if $hasGames }}
     <div class="personal-card-grid">
       {{ range $games }}
-        {{ $imgPath := "" }}
-        {{ if .image }}
-          {{ $resource := resources.Get .image }}
-          {{ if $resource }}
-            {{ $processed := $resource.Fill "640x360 center" }}
-            {{ $imgPath = $processed.RelPermalink }}
+          {{ $imgPath := "" }}
+          {{ if .image }}
+            {{ $imgPath = .image | relURL }}
           {{ else }}
-            {{ $imgPath = .image }}
+            {{ $slug := replace (lower .title) " " "-" }}
+            {{ $imgPath = (printf "/games/%s.png" $slug) | relURL }}
           {{ end }}
-        {{ end }}
         <article class="personal-card game-card">
-          {{ if $imgPath }}
-            <div class="card-media" style="background-image: url('{{ $imgPath }}');"></div>
-          {{ end }}
           <div class="card-body">
             <div class="card-meta">
               {{ if .status }}<span class="tag status">{{ .status }}</span>{{ end }}
@@ -40,40 +34,31 @@
                 {{ end }}
               </div>
             {{ end }}
-            {{ $playURL := "" }}
-            {{ $playLabel := "Play game" }}
-            {{ if .link }}
-              {{ $playURL = .link.url }}
-              {{ if and $playURL (hasPrefix $playURL "/") }}
-                {{ $playURL = relLangURL $playURL }}
+              {{ $playURL := "" }}
+              {{ $playLabel := "Play game" }}
+              {{ if .link }}
+                {{ $playURL = .link.url }}
+                {{ if and $playURL (hasPrefix $playURL "/") }}
+                  {{ $playURL = relLangURL $playURL }}
+                {{ end }}
+                {{ if .link.label }}
+                  {{ $playLabel = .link.label }}
+                {{ end }}
               {{ end }}
-              {{ if .link.label }}
-                {{ $playLabel = .link.label }}
+              {{ if not $playURL }}
+                {{ $playURL = "#" }}
               {{ end }}
-            {{ end }}
-            {{ with .preview }}
-              {{ $previewUrl := .url }}
-              {{ if and $previewUrl (hasPrefix $previewUrl "/") }}
-                {{ $previewUrl = relLangURL $previewUrl }}
-              {{ end }}
-              {{ $aspect := .aspect | default "16/9" }}
-              {{ $destination := cond (ne $playURL "") $playURL $previewUrl }}
-              <a class="game-preview-link" href="{{ $destination }}" target="_blank" rel="noopener" aria-label="{{ printf "%s – opens in a new tab" $playLabel }}">
-                <div class="game-preview" style="aspect-ratio: {{ $aspect }};">
+              <a class="game-preview-link" href="{{ $playURL }}" target="_blank" rel="noopener" aria-label="{{ printf "%s – opens in a new tab" $playLabel }}">
+                <div class="game-preview">
+                  <img src="{{ $imgPath }}" alt="{{ .title }} preview image">
                   <div class="game-preview-overlay">
                     <div class="game-preview-play">
                       <i class="fas fa-play"></i>
                       <span>{{ $playLabel }}</span>
                     </div>
                   </div>
-                  <iframe src="{{ $previewUrl }}" title="{{ .title }} preview" loading="lazy"></iframe>
-                  <span class="game-preview-back">
-                    <i class="fas fa-arrow-left"></i>
-                    Back to Games
-                  </span>
                 </div>
               </a>
-            {{ end }}
           </div>
         </article>
       {{ end }}

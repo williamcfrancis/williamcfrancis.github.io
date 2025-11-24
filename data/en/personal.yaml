@@ -44,14 +44,12 @@ sections:
     games:
       - title: Lily Leap
         genre: Chill arcade
-        summary: A breezy lily-pad hop built in HTML5—best enjoyed with headphones and a cup of tea.
+        summary: Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows in a mellow browser break.
         tags: ["browser", "casual", "sound-on"]
         link:
           label: Play Lily Leap
           url: "/games/lily_leap.html"
-        preview:
-          url: "/games/lily_leap.html"
-          aspect: 16/9
+        image: "/games/lily_leap.png"
 
   - section:
       name: Photo Gallery
