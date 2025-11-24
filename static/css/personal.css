@@ -11,8 +11,32 @@
   display: inline-block;
   text-align: left;
 }
+
+.latest-empty {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-style: italic;
+}
 .personal-page {
   padding: 4rem 0 2rem;
+  position: relative;
+  background: #0d1524;
+  overflow: hidden;
+}
+
+.personal-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/images/site/3.jpg") center/cover no-repeat;
+  opacity: 0.25;
+  filter: blur(1px);
+  z-index: 0;
+}
+
+.personal-page > * {
+  position: relative;
+  z-index: 1;
 }
 
 .personal-hero {

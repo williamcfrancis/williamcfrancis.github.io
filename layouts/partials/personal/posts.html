@@ -19,9 +19,9 @@
       {{ with $hero.cta }}
         <a class="btn btn-outline-dark btn-sm mt-3" href="{{ .url | relLangURL }}">{{ .label }}</a>
       {{ end }}
-      <div class="latest-posts mt-4">
-        <h3>Latest posts</h3>
-        {{ if gt (len $recentPosts) 0 }}
+      {{ if gt (len $recentPosts) 0 }}
+        <div class="latest-posts mt-4">
+          <h3>Latest posts</h3>
           <ul class="latest-posts-list">
             {{ range $recentPosts }}
               <li>
@@ -30,10 +30,10 @@
               </li>
             {{ end }}
           </ul>
-        {{ else }}
-          <p class="meta">{{ $hero.emptyState | default "No posts have been published yet." }}</p>
-        {{ end }}
-      </div>
+        </div>
+      {{ else }}
+        <p class="latest-empty mt-4">{{ $hero.emptyState | default "No posts have been published yet." }}</p>
+      {{ end }}
     </div>
     {{ if $hasHighlights }}
       <div class="col-lg-8 col-md-7 col-12">

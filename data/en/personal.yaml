@@ -25,7 +25,7 @@ sections:
       template: personal/posts.html
     hero:
       title: Posts & field notes
-      description: Essays, teardown notes, and travel journals once I’m ready to share them.
+      description: Field logs and thoughts that are worth sharing.
       cta:
         label: Visit the archive
         url: "/posts/"
@@ -44,7 +44,7 @@ sections:
     games:
       - title: Lily Leap
         genre: Chill arcade
-        summary: Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows.
+        summary: "Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows."
         tags: ["browser", "casual", "sound-on"]
         link:
           label: Play Lily Leap
