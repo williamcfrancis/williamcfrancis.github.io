@@ -375,33 +375,58 @@ function dist(x1, y1, x2, y2) { return Math.sqrt((x2-x1)**2 + (y2-y1)**2); }
  * CLASSES
  */
 class Cloud {
-    constructor(y) {
-        this.x = randomRange(0, canvas.width);
+    constructor(y, x = randomRange(-canvas.width * 0.2, canvas.width * 1.2)) {
+        this.x = x;
         this.y = y;
-        this.speed = randomRange(0.2, 0.5);
-        this.size = randomRange(30, 60);
-        this.opacity = randomRange(0.1, 0.3);
+        this.seed = Math.random();
+        const layerOptions = [
+            { parallax: 0.25, speed: [0.15, 0.35], scale: [80, 130], alpha: [0.15, 0.25] },
+            { parallax: 0.45, speed: [0.25, 0.55], scale: [50, 90], alpha: [0.12, 0.2] },
+            { parallax: 0.65, speed: [0.45, 0.9], scale: [30, 60], alpha: [0.08, 0.15] }
+        ];
+        this.layer = layerOptions[Math.floor(randomRange(0, layerOptions.length))];
+        this.parallax = this.layer.parallax;
+        const speedVal = randomRange(this.layer.speed[0], this.layer.speed[1]);
+        this.speed = (Math.random() > 0.5 ? speedVal : -speedVal);
+        this.scale = randomRange(this.layer.scale[0], this.layer.scale[1]);
+        this.alpha = randomRange(this.layer.alpha[0], this.layer.alpha[1]);
+        this.swayAmplitude = randomRange(6, 22);
+        this.swaySpeed = randomRange(0.0015, 0.0045);
+        this.swayPhase = Math.random() * Math.PI * 2;
+        this.puffs = Array.from({ length: Math.floor(randomRange(3, 6)) }, () => ({
+            dx: randomRange(-this.scale * 0.6, this.scale * 0.6),
+            dy: randomRange(-this.scale * 0.3, this.scale * 0.2),
+            r: randomRange(this.scale * 0.35, this.scale * 0.75),
+            alpha: randomRange(0.6, 1)
+        }));
     }
 
     update() {
         this.x += this.speed;
-        if (this.x > canvas.width + 100) {
-            this.x = -100;
+        this.swayPhase += this.swaySpeed;
+        if (this.speed > 0 && this.x > canvas.width + 200) {
+            this.x = -200;
+        } else if (this.speed < 0 && this.x < -200) {
+            this.x = canvas.width + 200;
         }
     }
 
     draw(ctx, camY) {
-        const drawY = this.y - camY * 0.5; // Parallax effect (move slower than camera)
+        const drawY = this.y - camY * this.parallax + Math.sin(this.swayPhase) * this.swayAmplitude;
         ctx.save();
         ctx.translate(this.x, drawY);
-        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
-        
-        ctx.beginPath();
-        ctx.arc(0, 0, this.size, 0, Math.PI * 2);
-        ctx.arc(this.size * 0.8, -this.size * 0.5, this.size * 0.7, 0, Math.PI * 2);
-        ctx.arc(-this.size * 0.8, -this.size * 0.5, this.size * 0.7, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = this.alpha;
+        this.puffs.forEach(puff => {
+            const gradient = ctx.createRadialGradient(puff.dx - puff.r * 0.2, puff.dy - puff.r * 0.4, puff.r * 0.1, puff.dx, puff.dy, puff.r);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(puff.dx, puff.dy, puff.r, 0, Math.PI * 2);
+            ctx.fill();
+        });
         ctx.restore();
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -415,10 +440,24 @@ class Squishmallow {
         this.isPink = this.color === '#fbcfe8';
         
         this.messages = [
-            "Don't give up!", "You're doing great!", "Just keep hopping!", 
-            "Believe in the leap!", "Froggy power!", "So proud of you!", 
-            "Looking good!", "Keep going!", "You got this!", "Reach for the stars!", 
-            "I believe in you!", "Hop hop hooray!", "You are magical!", "Ribbit-tastic!"
+            "Believe in the leap!",
+            "Just keep hopping.",
+            "Wiggle, sip, repeat.",
+            "Hop now, nap later.",
+            "Moon said you’re cute.",
+            "Sprinkle glitter on fear.",
+            "Tiny hops are still hops.",
+            "Snack break = power-up.",
+            "Breathe in the lily smell.",
+            "You sparkle when you rest.",
+            "Ribbit and carry on.",
+            "Frogs don’t rush; neither do you.",
+            "Look! The clouds clap for you.",
+            "Soft hearts make strong waves.",
+            "Hold my hand, keep floating.",
+            "You’re the cozy in cozy pond.",
+            "Let’s count the stars together.",
+            "Silly beats saddy every time."
         ];
         this.message = this.messages[Math.floor(Math.random() * this.messages.length)];
         this.bounceOffset = randomRange(0, Math.PI * 2);
@@ -1074,7 +1113,8 @@ function generateWorld(currentCameraY) {
         if (nextX < margin) nextX = margin;
         if (nextX > canvas.width - margin) nextX = canvas.width - margin;
 
-        const size = Math.max(35, 65 - Math.abs(nextY)/1500); 
+        const heightFactor = Math.max(0.4, Math.min(1, 1 - Math.abs(nextY) / 12000));
+        const size = randomRange(40, 70) * heightFactor;
         
         pads.push(new LilyPad(nextX, nextY, size));
         
@@ -1242,7 +1282,7 @@ function loop() {
         
         // Update clouds
         clouds.forEach(c => c.update());
-        clouds = clouds.filter(c => c.x > -150); // Keep clouds
+        clouds = clouds.filter(c => c.x > -250 && c.x < canvas.width + 250);
 
         // Collisions
         collectibles.forEach(c => {

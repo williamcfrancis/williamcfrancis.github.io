@@ -43,7 +43,6 @@ sections:
       description: Playable experiments I tinker with after hours.
     games:
       - title: Lily Leap
-        status: Playable now
         genre: Chill arcade
         summary: A breezy lily-pad hop built in HTML5—best enjoyed with headphones and a cup of tea.
         tags: ["browser", "casual", "sound-on"]
