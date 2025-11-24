@@ -40,6 +40,16 @@
                 {{ end }}
               </div>
             {{ end }}
+            {{ with .preview }}
+              {{ $previewUrl := .url }}
+              {{ if and $previewUrl (hasPrefix $previewUrl "/") }}
+                {{ $previewUrl = relLangURL $previewUrl }}
+              {{ end }}
+              {{ $aspect := .aspect | default "16/9" }}
+              <div class="game-preview" style="aspect-ratio: {{ $aspect }};">
+                <iframe src="{{ $previewUrl }}" title="{{ .title }} preview" loading="lazy"></iframe>
+              </div>
+            {{ end }}
             {{ with .link }}
               {{ $href := .url }}
               {{ if and $href (hasPrefix $href "/") }}

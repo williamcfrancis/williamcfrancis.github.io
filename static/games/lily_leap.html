@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lily Leap</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2c3e50;
+            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+            touch-action: none; /* Prevent mobile scrolling */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        #score-display {
+            font-family: 'Fredoka One', cursive;
+            font-size: 48px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #high-score {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .combo-text {
+            color: #fbbf24;
+            font-size: 24px;
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none !important;
+        }
+
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 64px;
+            color: #a8ff78;
+            text-shadow: 3px 3px 0px #27ae60, 6px 6px 10px rgba(0,0,0,0.3);
+            margin: 0 0 20px 0;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        p {
+            color: white;
+            font-size: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+
+        .btn {
+            background: #ff9f43;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 24px;
+            font-family: 'Fredoka One', cursive;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #e67e22, 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #e67e22, 0 0 0 rgba(0,0,0,0.2);
+        }
+
+        .tutorial-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .tutorial-item {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+            .tutorial-icon {
+            font-size: 32px;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 42px; }
+            #score-display { font-size: 36px; }
+            .tutorial-container { flex-direction: column; gap: 10px; }
+            .tutorial-item { flex-direction: row; text-align: left; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div class="hud">
+            <div>
+                <div id="score-display">0</div>
+                <div id="high-score">Best: 0</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>Lily Leap</h1>
+        <div class="tutorial-container">
+            <div class="tutorial-item">
+                <span class="tutorial-icon">👆</span>
+                <span>Drag & Release to Jump</span>
+            </div>
+            <div class="tutorial-item">
+                <span class="tutorial-icon">🚀</span>
+                <span>Get Jetpacks for Speed</span>
+            </div>
+            <div class="tutorial-item">
+                <span class="tutorial-icon">☁️</span>
+                <span>Spot Floating Squishmallows</span>
+            </div>
+        </div>
+        <button class="btn" id="start-btn">PLAY</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1>SPLASH!</h1>
+        <p>You fell into the water.<br>Better luck next time!</p>
+        <div id="final-score" style="font-size: 32px; color: white; margin-bottom: 20px; font-family: 'Fredoka One';">Score: 0</div>
+        <button class="btn" id="restart-btn">TRY AGAIN</button>
+    </div>
+</div>
+
+<script>
+/**
+ * AUDIO SYSTEM
+ * Synthesizes simple sound effects.
+ */
+class SoundEngine {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.enabled = true;
+    }
+
+    playJump() {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.1);
+    }
+
+    playLand() {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+    }
+
+    playSplash() {
+        if (!this.enabled) return;
+        const bufferSize = this.ctx.sampleRate * 0.5;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+        noise.start();
+    }
+
+    playCollect(type) {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        if (type === 'jetpack') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+            osc.frequency.linearRampToValueAtTime(800, this.ctx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.5);
+        } else {
+            // Coin/Fly
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+            osc.frequency.setValueAtTime(1200, this.ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.2);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.2);
+        }
+    }
+}
+
+/**
+ * GAME ENGINE
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const audio = new SoundEngine();
+
+// UI Elements
+const scoreEl = document.getElementById('score-display');
+const highScoreEl = document.getElementById('high-score');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const finalScoreEl = document.getElementById('final-score');
+
+// Game State
+let gameState = 'MENU';
+let score = 0;
+let highScore = localStorage.getItem('lilyLeapHighScore') || 0;
+let cameraY = 0;
+let frameCount = 0;
+highScoreEl.innerText = `Best: ${highScore}`;
+
+// Constants
+const GRAVITY = 0.5;
+const DRAG = 0.99;
+const MAX_POWER = 22;
+const MIN_POWER = 5;
+
+// Inputs
+let dragStart = null;
+let dragCurrent = null;
+let isDragging = false;
+
+// Entities
+let frog;
+let pads = [];
+let particles = [];
+let collectibles = [];
+let flies = [];
+let squishmallows = []; 
+let clouds = []; // New background element
+
+/**
+ * UTILITIES
+ */
+function randomRange(min, max) { return Math.random() * (max - min) + min; }
+function dist(x1, y1, x2, y2) { return Math.sqrt((x2-x1)**2 + (y2-y1)**2); }
+
+/**
+ * CLASSES
+ */
+class Cloud {
+    constructor(y) {
+        this.x = randomRange(0, canvas.width);
+        this.y = y;
+        this.speed = randomRange(0.2, 0.5);
+        this.size = randomRange(30, 60);
+        this.opacity = randomRange(0.1, 0.3);
+    }
+
+    update() {
+        this.x += this.speed;
+        if (this.x > canvas.width + 100) {
+            this.x = -100;
+        }
+    }
+
+    draw(ctx, camY) {
+        const drawY = this.y - camY * 0.5; // Parallax effect (move slower than camera)
+        ctx.save();
+        ctx.translate(this.x, drawY);
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+        ctx.arc(this.size * 0.8, -this.size * 0.5, this.size * 0.7, 0, Math.PI * 2);
+        ctx.arc(-this.size * 0.8, -this.size * 0.5, this.size * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+class Squishmallow {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.baseY = y;
+        // Equal probability of Pink vs White
+        this.color = Math.random() > 0.5 ? '#ffffff' : '#fbcfe8'; 
+        this.isPink = this.color === '#fbcfe8';
+        
+        this.messages = [
+            "Don't give up!", "You're doing great!", "Just keep hopping!", 
+            "Believe in the leap!", "Froggy power!", "So proud of you!", 
+            "Looking good!", "Keep going!", "You got this!", "Reach for the stars!", 
+            "I believe in you!", "Hop hop hooray!", "You are magical!", "Ribbit-tastic!"
+        ];
+        this.message = this.messages[Math.floor(Math.random() * this.messages.length)];
+        this.bounceOffset = randomRange(0, Math.PI * 2);
+    }
+
+    update() {
+        // Bobbing in water
+        this.y = this.baseY + Math.sin(frameCount * 0.05 + this.bounceOffset) * 4;
+        
+        // Add occasional water ripple
+        if (Math.random() > 0.98) {
+             particles.push(new Particle(this.x, this.y + 15, 'ripple'));
+        }
+    }
+
+    draw(ctx, camY) {
+        const drawY = this.y - camY;
+
+        ctx.save();
+        ctx.translate(this.x, drawY);
+
+        // Water reflection/submerged look (semi-transparent bottom)
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.beginPath();
+        ctx.ellipse(0, 15, 12, 4, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // Legs (Now Brown!)
+        ctx.fillStyle = '#8B4513'; // SaddleBrown
+        ctx.beginPath();
+        ctx.ellipse(-10, 18, 4, 6, 0, 0, Math.PI*2); // Left leg
+        ctx.ellipse(10, 18, 4, 6, 0, 0, Math.PI*2); // Right leg
+        ctx.fill();
+
+        // Body (Squircle) - Opaque
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(-18, -15, 36, 36, 12);
+        ctx.fill();
+        
+        // Shading/Outline
+        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Bowtie
+        const bowColor = this.isPink ? '#ffffff' : '#f472b6'; // White on Pink, Pink on White
+        ctx.fillStyle = bowColor;
+        
+        // Draw Bow
+        ctx.beginPath();
+        ctx.moveTo(0, -16);
+        // Left wing
+        ctx.lineTo(-8, -20); 
+        ctx.lineTo(-8, -12);
+        ctx.lineTo(0, -16);
+        // Right wing
+        ctx.lineTo(8, -20);
+        ctx.lineTo(8, -12);
+        ctx.lineTo(0, -16);
+        ctx.fill();
+        
+        // Center knot
+        ctx.beginPath();
+        ctx.arc(0, -16, 2.5, 0, Math.PI*2);
+        ctx.fillStyle = this.isPink ? '#f0f0f0' : '#ec4899'; // Slightly darker knot for contrast
+        ctx.fill();
+
+        // Face
+        ctx.fillStyle = '#111';
+        // Eyes
+        ctx.beginPath();
+        ctx.arc(-7, -2, 2.5, 0, Math.PI*2);
+        ctx.arc(7, -2, 2.5, 0, Math.PI*2);
+        ctx.fill();
+        // Mouth (Smile)
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(0, 2, 3, 0, Math.PI);
+        ctx.stroke();
+
+        // Blush
+        ctx.fillStyle = '#fda4af';
+        ctx.beginPath();
+        ctx.ellipse(-12, 2, 3, 1.5, 0, 0, Math.PI*2);
+        ctx.ellipse(12, 2, 3, 1.5, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // Speech Bubble
+        ctx.font = 'bold 12px "Nunito"';
+        const metrics = ctx.measureText(this.message);
+        const textWidth = metrics.width;
+        const bubbleWidth = textWidth + 16;
+        const bubbleHeight = 24;
+        
+        ctx.translate(0, -35); // Move above head
+
+        // Bubble shape
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(-bubbleWidth/2, -bubbleHeight/2, bubbleWidth, bubbleHeight, 8);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Little tail
+        ctx.beginPath();
+        ctx.moveTo(-4, bubbleHeight/2);
+        ctx.lineTo(0, bubbleHeight/2 + 6);
+        ctx.lineTo(4, bubbleHeight/2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Text
+        ctx.fillStyle = '#333';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.message, 0, 0);
+
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type; 
+        this.life = 1.0;
+        this.decay = randomRange(0.02, 0.05);
+        
+        if (type === 'splash') {
+            const angle = randomRange(0, Math.PI * 2);
+            const speed = randomRange(1, 4);
+            this.vx = Math.cos(angle) * speed;
+            this.vy = Math.sin(angle) * speed - 2;
+            this.size = randomRange(2, 5);
+            this.color = '#fff';
+        } else if (type === 'jet_fire') {
+            this.vx = randomRange(-2, 2);
+            this.vy = randomRange(2, 5); // Fall down
+            this.size = randomRange(3, 6);
+            this.color = `hsl(${randomRange(10, 40)}, 100%, 50%)`; // Orange/Red
+            this.decay = 0.08;
+        } else if (type === 'sparkle') {
+            this.vx = randomRange(-1, 1);
+            this.vy = randomRange(-2, -0.5);
+            this.size = randomRange(2, 4);
+            this.color = '#fbbf24';
+        } else if (type === 'ripple') {
+            this.vx = 0;
+            this.vy = 0;
+            this.size = 1;
+            this.maxSize = 40;
+            this.decay = 0.02;
+            this.color = 'rgba(255, 255, 255, 0.4)';
+        }
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.type === 'splash') this.vy += 0.2;
+        if (this.type === 'ripple') this.size += 1;
+        this.life -= this.decay;
+    }
+
+    draw(ctx, camY) {
+        ctx.save();
+        ctx.translate(this.x, this.y - camY);
+        ctx.globalAlpha = this.life;
+        
+        if (this.type === 'ripple') {
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, this.size, this.size * 0.5, 0, 0, Math.PI*2);
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+class Fly {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.startX = x;
+        this.startY = y;
+        this.collected = false;
+        this.speed = randomRange(0.02, 0.05);
+        this.radius = 40; // Movement radius
+        this.angle = randomRange(0, Math.PI * 2);
+    }
+
+    update() {
+        this.angle += this.speed;
+        this.x = this.startX + Math.cos(this.angle) * this.radius;
+        this.y = this.startY + Math.sin(this.angle * 2) * (this.radius * 0.5); // Figure 8 ish
+    }
+
+    draw(ctx, camY) {
+        if (this.collected) return;
+        const drawY = this.y - camY;
+        
+        ctx.save();
+        ctx.translate(this.x, drawY);
+        
+        // Wings
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        const flap = Math.sin(frameCount * 0.8) * 5;
+        ctx.beginPath();
+        ctx.ellipse(-4, -2, 4, 2, Math.PI/4 + flap, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(4, -2, 4, 2, -Math.PI/4 - flap, 0, Math.PI*2);
+        ctx.fill();
+
+        // Body
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+}
+
+class Collectible {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.baseY = y;
+        this.type = type; // 'jetpack'
+        this.collected = false;
+        this.offset = randomRange(0, Math.PI * 2);
+    }
+
+    update() {
+        this.y = this.baseY + Math.sin(frameCount * 0.1 + this.offset) * 5;
+    }
+
+    draw(ctx, camY) {
+        if (this.collected) return;
+        const drawY = this.y - camY;
+        
+        ctx.save();
+        ctx.translate(this.x, drawY);
+        
+        if (this.type === 'jetpack') {
+            // Glow
+            ctx.shadowColor = '#e11d48';
+            ctx.shadowBlur = 10;
+            
+            // Jetpack Body
+            ctx.fillStyle = '#e11d48';
+            ctx.beginPath();
+            ctx.roundRect(-8, -12, 16, 24, 4);
+            ctx.fill();
+            
+            // Stripe
+            ctx.fillStyle = '#fb7185';
+            ctx.fillRect(-8, -4, 16, 8);
+            
+            // Icon
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚀', 0, 0);
+
+        }
+        ctx.restore();
+    }
+}
+
+class LilyPad {
+    constructor(x, y, radius) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.wobble = 0;
+        this.rotation = randomRange(0, Math.PI * 2);
+        this.type = Math.random() > 0.85 ? 'moving' : 'static';
+        this.moveSpeed = randomRange(1.5, 3) * (Math.random() > 0.5 ? 1 : -1);
+        this.moveRange = 120;
+        this.startX = x;
+        
+        // Color variation
+        const hue = randomRange(100, 140);
+        this.colorMain = `hsl(${hue}, 70%, 50%)`;
+        this.colorDark = `hsl(${hue}, 70%, 40%)`;
+        
+        // Decorations handled in main loop now (Squishmallows are entities)
+    }
+
+    update() {
+        this.wobble *= 0.8;
+        if (this.type === 'moving') {
+            this.x += this.moveSpeed;
+            if (this.x > this.startX + this.moveRange || this.x < this.startX - this.moveRange) {
+                this.moveSpeed *= -1;
+            }
+        }
+    }
+
+    draw(ctx, camY) {
+        const drawY = this.y - camY;
+        ctx.save();
+        ctx.translate(this.x, drawY + Math.sin(this.wobble) * 5);
+        ctx.rotate(this.rotation);
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath();
+        ctx.ellipse(5, 5, this.radius, this.radius * 0.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Body
+        const gradient = ctx.createRadialGradient(-10, -10, 5, 0, 0, this.radius);
+        gradient.addColorStop(0, this.colorMain);
+        gradient.addColorStop(1, this.colorDark);
+        ctx.fillStyle = gradient;
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0.2, Math.PI * 1.94); // Pacman
+        ctx.fill();
+
+        // Veins
+        ctx.strokeStyle = this.colorDark;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        for(let i=0; i<5; i++) {
+            const angle = 0.5 + (i * 1.2);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(angle) * (this.radius - 5), Math.sin(angle) * (this.radius - 5));
+        }
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    triggerLand() {
+        this.wobble = 0.5;
+        particles.push(new Particle(this.x, this.y, 'ripple'));
+    }
+}
+
+class Frog {
+    constructor() {
+        this.radius = 20;
+        this.reset();
+    }
+
+    reset() {
+        this.x = canvas.width / 2;
+        this.y = canvas.height - 150;
+        this.vx = 0;
+        this.vy = 0;
+        this.state = 'GROUNDED'; // GROUNDED, AIRBORNE, JETPACK
+        this.rotation = 0;
+        this.stretch = 1;
+        this.squash = 1;
+        this.facing = 1;
+        this.currentPad = pads[0];
+        this.jetpackTimer = 0;
+    }
+
+    jump(power, angle) {
+        if (this.state !== 'GROUNDED') return;
+        this.vx = Math.cos(angle) * power;
+        this.vy = Math.sin(angle) * power;
+        this.state = 'AIRBORNE';
+        this.currentPad = null;
+        this.stretch = 1.3;
+        this.squash = 0.7;
+        this.facing = this.vx > 0 ? 1 : -1;
+        audio.playJump();
+    }
+
+    activateJetpack() {
+        this.state = 'JETPACK';
+        this.jetpackTimer = 120; // Frames
+        this.vy = -18; // Constant upward speed
+        this.vx = 0;
+        this.currentPad = null;
+        audio.playCollect('jetpack');
+    }
+
+    update() {
+        this.stretch += (1 - this.stretch) * 0.1;
+        this.squash += (1 - this.squash) * 0.1;
+
+        if (this.state === 'JETPACK') {
+            this.jetpackTimer--;
+            this.vy = -18; // Override gravity
+            this.x += (canvas.width/2 - this.x) * 0.05; // Center frog
+            this.y += this.vy;
+            this.rotation = 0;
+            this.stretch = 1.2;
+            
+            // Particles
+            if (frameCount % 2 === 0) {
+                particles.push(new Particle(this.x - 10, this.y + 15, 'jet_fire'));
+                particles.push(new Particle(this.x + 10, this.y + 15, 'jet_fire'));
+            }
+
+            // --- JETPACK ENDS: SAFE LANDING LOGIC ---
+            if (this.jetpackTimer <= 0) {
+                this.state = 'AIRBORNE';
+                this.vy = -2; // Gentle pop
+                
+                const safetyPad = new LilyPad(this.x, this.y + 150, 90); // Big pad
+                safetyPad.type = 'static'; 
+                pads.push(safetyPad);
+                
+                // Add some sparkles
+                for(let i=0; i<10; i++) particles.push(new Particle(this.x, this.y + 150, 'sparkle'));
+            }
+
+        } else if (this.state === 'AIRBORNE') {
+            this.vy += GRAVITY;
+            this.vx *= DRAG;
+            this.x += this.vx;
+            this.y += this.vy;
+            this.rotation = Math.atan2(this.vy, this.vx);
+
+            // Collision with pads
+            if (this.vy > 0) {
+                for (let pad of pads) {
+                    let dx = this.x - pad.x;
+                    let dy = this.y - pad.y;
+                    if (Math.abs(dy) < 15 && Math.sqrt(dx*dx + (dy*2.5)*(dy*2.5)) < pad.radius) {
+                        this.land(pad);
+                        break;
+                    }
+                }
+            }
+        } else if (this.state === 'GROUNDED' && this.currentPad) {
+            this.x += (this.currentPad.x - this.x) * 0.2;
+            this.y = this.currentPad.y;
+            this.vx = 0; 
+            this.vy = 0;
+            this.rotation = 0;
+        }
+
+        // Walls
+        if (this.x < this.radius) { this.x = this.radius; this.vx *= -0.5; }
+        if (this.x > canvas.width - this.radius) { this.x = canvas.width - this.radius; this.vx *= -0.5; }
+
+        // Water
+        if (this.y > cameraY + canvas.height + 60) this.die();
+    }
+
+    land(pad) {
+        this.state = 'GROUNDED';
+        this.currentPad = pad;
+        this.y = pad.y;
+        this.vx = 0;
+        this.vy = 0;
+        this.squash = 1.4;
+        this.stretch = 0.6;
+        pad.triggerLand();
+        audio.playLand();
+        
+        let distScore = Math.floor((pads[0].y - pad.y) / 50);
+        if(distScore > score) {
+            score = distScore;
+            scoreEl.innerText = score;
+        }
+    }
+
+    die() {
+        if (gameState === 'GAMEOVER') return;
+        gameState = 'GAMEOVER';
+        for(let i=0; i<15; i++) particles.push(new Particle(this.x, this.y, 'splash'));
+        audio.playSplash();
+
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('lilyLeapHighScore', highScore);
+            highScoreEl.innerText = `Best: ${highScore}`;
+        }
+        finalScoreEl.innerText = `Score: ${score}`;
+        setTimeout(() => gameOverScreen.classList.remove('hidden'), 500);
+    }
+
+    draw(ctx, camY) {
+        const drawY = this.y - camY;
+        ctx.save();
+        ctx.translate(this.x, drawY);
+        
+        if (this.state === 'AIRBORNE' || this.state === 'JETPACK') {
+            ctx.rotate(this.state === 'JETPACK' ? 0 : this.rotation + (this.facing === -1 ? Math.PI : 0));
+        }
+        
+        ctx.scale(this.facing * this.stretch, this.squash);
+
+        // Jetpack visual on back
+        if (this.state === 'JETPACK' || this.state === 'AIRBORNE') {
+             if (this.state === 'JETPACK') {
+                 ctx.fillStyle = '#be123c';
+                 ctx.fillRect(-12, -8, 24, 16);
+             }
+        }
+
+        // Draw Legs (Dynamic!)
+        ctx.fillStyle = '#65a30d'; // Darker green for legs
+        if (this.state === 'GROUNDED') {
+            // Tucked underneath
+            ctx.beginPath();
+            ctx.ellipse(-15, 12, 10, 5, Math.PI/6, 0, Math.PI*2); // Left
+            ctx.ellipse(15, 12, 10, 5, -Math.PI/6, 0, Math.PI*2); // Right
+            ctx.fill();
+        } else if (this.state === 'AIRBORNE' || this.state === 'JETPACK') {
+            if (this.vy < 0) { // Moving Up: Trail legs
+                ctx.beginPath();
+                ctx.ellipse(-18, 5, 12, 4, Math.PI/2.5, 0, Math.PI*2); 
+                ctx.ellipse(18, 5, 12, 4, -Math.PI/2.5, 0, Math.PI*2);
+                ctx.fill();
+            } else { // Falling: Spread legs
+                ctx.beginPath();
+                ctx.ellipse(-18, 10, 12, 5, Math.PI/4, 0, Math.PI*2);
+                ctx.ellipse(18, 10, 12, 5, -Math.PI/4, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+
+        // Body
+        ctx.fillStyle = '#84cc16';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Belly
+        ctx.fillStyle = '#bef264';
+        ctx.beginPath();
+        ctx.ellipse(0, 5, 12, 10, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // Eyes
+        const eyeOffset = 12;
+        const eyeY = -12;
+        ctx.fillStyle = '#84cc16';
+        ctx.beginPath();
+        ctx.arc(-eyeOffset, eyeY, 10, 0, Math.PI*2);
+        ctx.arc(eyeOffset, eyeY, 10, 0, Math.PI*2);
+        ctx.fill();
+
+        // Eye Whites
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(-eyeOffset, eyeY, 6, 0, Math.PI*2);
+        ctx.arc(eyeOffset, eyeY, 6, 0, Math.PI*2);
+        ctx.fill();
+
+        // Pupils
+        ctx.fillStyle = '#000';
+        let pupilX = 0, pupilY = 0;
+        if (this.state === 'GROUNDED' && isDragging && dragStart && dragCurrent) {
+            const dx = dragStart.x - dragCurrent.x;
+            const dy = dragStart.y - dragCurrent.y;
+            const angle = Math.atan2(dy, dx);
+            pupilX = Math.cos(angle) * 2;
+            pupilY = Math.sin(angle) * 2;
+        } else if (this.state === 'AIRBORNE') {
+            // Look forward
+            pupilX = 1;
+        }
+        
+        ctx.beginPath();
+        ctx.arc(-eyeOffset + pupilX, eyeY + pupilY, 3, 0, Math.PI*2);
+        ctx.arc(eyeOffset + pupilX, eyeY + pupilY, 3, 0, Math.PI*2);
+        ctx.fill();
+
+        // Blush
+        ctx.fillStyle = 'rgba(244, 114, 182, 0.5)';
+        ctx.beginPath();
+        ctx.arc(-14, 0, 4, 0, Math.PI*2);
+        ctx.arc(14, 0, 4, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+/**
+ * INITIALIZATION
+ */
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function initGame() {
+    frog = new Frog();
+    pads = [];
+    particles = [];
+    collectibles = [];
+    flies = [];
+    squishmallows = [];
+    clouds = [];
+    cameraY = 0;
+    score = 0;
+    scoreEl.innerText = '0';
+    gameState = 'PLAYING';
+    
+    // Initial Pad
+    pads.push(new LilyPad(canvas.width / 2, canvas.height - 150, 60));
+    frog.y = pads[0].y;
+    frog.x = pads[0].x;
+    frog.currentPad = pads[0];
+
+    // Clouds
+    for(let i=0; i<8; i++) {
+        clouds.push(new Cloud(randomRange(0, canvas.height)));
+    }
+
+    // Pre-generate ample world
+    generateWorld(cameraY);
+}
+
+// ROBUST GENERATION LOGIC
+function generateWorld(currentCameraY) {
+    // Generate new background clouds
+    if (clouds.length < 10) {
+        clouds.push(new Cloud(currentCameraY - 200));
+    }
+
+    const buffer = canvas.height * 2;
+    const limit = currentCameraY - buffer;
+
+    if (pads.length === 0) return;
+
+    let lastPad = pads[pads.length - 1];
+
+    while (lastPad.y > limit) {
+        const spacing = randomRange(130, 240);
+        const nextY = lastPad.y - spacing;
+        
+        let nextX = lastPad.x + randomRange(-350, 350);
+        const margin = 70;
+        if (nextX < margin) nextX = margin;
+        if (nextX > canvas.width - margin) nextX = canvas.width - margin;
+
+        const size = Math.max(35, 65 - Math.abs(nextY)/1500); 
+        
+        pads.push(new LilyPad(nextX, nextY, size));
+        
+        // Spawn Logic
+        const r = Math.random();
+        if (r > 0.93) {
+            collectibles.push(new Collectible(nextX, nextY - 50, 'jetpack'));
+        } else if (r > 0.8) {
+            flies.push(new Fly(nextX, nextY - 60));
+        }
+
+        // Independent Squishmallow Spawn (Very Rare, Floating in Water)
+        if (Math.random() > 0.95) {
+             const squishX = randomRange(50, canvas.width - 50);
+             const squishY = nextY + spacing / 2; // In between pad rows
+             squishmallows.push(new Squishmallow(squishX, squishY));
+        }
+
+        lastPad = pads[pads.length - 1];
+    }
+}
+
+/**
+ * INPUTS
+ */
+function getPointerPos(e) {
+    if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+}
+
+function handleStart(e) {
+    if (gameState !== 'PLAYING' || frog.state !== 'GROUNDED') return;
+    isDragging = true;
+    dragStart = getPointerPos(e);
+    dragCurrent = dragStart;
+}
+
+function handleMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    dragCurrent = getPointerPos(e);
+}
+
+function handleEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    const dx = dragStart.x - dragCurrent.x;
+    const dy = dragStart.y - dragCurrent.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    
+    if (dist > 10) {
+        const angle = Math.atan2(dy, dx);
+        const power = Math.min(Math.max(dist * 0.15, MIN_POWER), MAX_POWER);
+        frog.jump(power, angle);
+    }
+    dragStart = null;
+    dragCurrent = null;
+}
+
+canvas.addEventListener('mousedown', handleStart);
+canvas.addEventListener('mousemove', handleMove);
+window.addEventListener('mouseup', handleEnd);
+canvas.addEventListener('touchstart', handleStart, {passive: false});
+canvas.addEventListener('touchmove', handleMove, {passive: false});
+window.addEventListener('touchend', handleEnd);
+
+document.getElementById('start-btn').addEventListener('click', () => {
+    if (audio.ctx.state === 'suspended') audio.ctx.resume();
+    startScreen.classList.add('hidden');
+    initGame();
+    loop();
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+    gameOverScreen.classList.add('hidden');
+    initGame();
+});
+
+/**
+ * DRAWING
+ */
+function drawTrajectory(ctx) {
+    if (!isDragging || !dragStart || !dragCurrent || frog.state !== 'GROUNDED') return;
+    const dx = dragStart.x - dragCurrent.x;
+    const dy = dragStart.y - dragCurrent.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const angle = Math.atan2(dy, dx);
+    const power = Math.min(Math.max(dist * 0.15, MIN_POWER), MAX_POWER);
+
+    let simX = frog.x;
+    let simY = frog.y - cameraY;
+    let simVx = Math.cos(angle) * power;
+    let simVy = Math.sin(angle) * power;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(simX, simY);
+
+    for (let i = 0; i < 15; i++) {
+        simX += simVx;
+        simY += simVy;
+        simVy += GRAVITY;
+        ctx.lineTo(simX, simY);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Slingshot Line
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(frog.x, frog.y - cameraY);
+    ctx.lineTo(dragCurrent.x - dragStart.x + frog.x, dragCurrent.y - dragStart.y + (frog.y - cameraY));
+    ctx.stroke();
+}
+
+function drawBackground(ctx) {
+    const time = frameCount * 0.02;
+    ctx.save();
+    
+    // Deep water gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, '#0ea5e9');
+    grad.addColorStop(1, '#0284c7');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+
+    // Draw Clouds (Background Layer)
+    clouds.forEach(c => c.draw(ctx, cameraY));
+
+    ctx.translate(0, -cameraY * 0.2); 
+    
+    // Animated waves
+    for (let i = 0; i < 4; i++) {
+        const yOffset = (i * 250) + (Math.sin(time + i) * 20);
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.05 + (i*0.01)})`;
+        ctx.beginPath();
+        for (let x = 0; x <= canvas.width + 50; x+=50) {
+            const y = Math.sin(x * 0.005 + time + i) * 40 + yOffset;
+            if (x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.lineTo(canvas.width, canvas.height + 2000); // Extend far down
+        ctx.lineTo(0, canvas.height + 2000);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+/**
+ * LOOP
+ */
+function loop() {
+    if (gameState !== 'PLAYING' && gameState !== 'GAMEOVER') return;
+
+    if (gameState === 'PLAYING') {
+        frameCount++;
+        frog.update();
+        pads.forEach(p => p.update());
+        collectibles.forEach(c => c.update());
+        flies.forEach(f => f.update());
+        squishmallows.forEach(s => s.update());
+        
+        // Update clouds
+        clouds.forEach(c => c.update());
+        clouds = clouds.filter(c => c.x > -150); // Keep clouds
+
+        // Collisions
+        collectibles.forEach(c => {
+            if (!c.collected && dist(frog.x, frog.y, c.x, c.y) < frog.radius + 20) {
+                c.collected = true;
+                if (c.type === 'jetpack') frog.activateJetpack();
+            }
+        });
+
+        flies.forEach(f => {
+            if (!f.collected && dist(frog.x, frog.y, f.x, f.y) < frog.radius + 15) {
+                f.collected = true;
+                score += 10;
+                scoreEl.innerText = score;
+                audio.playCollect('fly');
+                for(let i=0; i<5; i++) particles.push(new Particle(f.x, f.y, 'sparkle'));
+            }
+        });
+
+        // Cleanup
+        particles = particles.filter(p => p.life > 0);
+        particles.forEach(p => p.update());
+
+        // Camera
+        let targetY = frog.y - canvas.height * 0.6;
+        if (frog.state === 'JETPACK') targetY = frog.y - canvas.height * 0.5; 
+        
+        if (targetY < cameraY) {
+            const lerp = frog.state === 'JETPACK' ? 0.2 : 0.1;
+            cameraY += (targetY - cameraY) * lerp;
+        }
+
+        generateWorld(cameraY);
+
+        // Cull objects way below screen
+        const killY = cameraY + canvas.height + 300;
+        pads = pads.filter(p => p.y < killY);
+        collectibles = collectibles.filter(c => c.y < killY);
+        flies = flies.filter(f => f.y < killY);
+        squishmallows = squishmallows.filter(s => s.y < killY);
+        // Don't cull clouds based on Y, only X
+    }
+
+    // Render
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground(ctx);
+
+    // Draw order matters for transparency
+    squishmallows.forEach(s => s.draw(ctx, cameraY));
+    pads.forEach(p => p.draw(ctx, cameraY));
+    collectibles.forEach(c => c.draw(ctx, cameraY));
+    flies.forEach(f => f.draw(ctx, cameraY));
+    drawTrajectory(ctx);
+    particles.forEach(p => p.draw(ctx, cameraY));
+    frog.draw(ctx, cameraY);
+
+    if (gameState === 'PLAYING' || gameState === 'GAMEOVER') requestAnimationFrame(loop);
+}
+
+resize();
+drawBackground(ctx);
+
+</script>
+</body>
+</html>

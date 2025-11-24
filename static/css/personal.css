@@ -196,6 +196,21 @@ body.dark .personal-empty {
   color: rgba(255, 255, 255, 0.6);
 }
 
+.game-preview {
+  width: 100%;
+  margin-top: 1rem;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(11, 6, 40, 0.25);
+  background: radial-gradient(circle at 20% 20%, #222844, #0f0f1a);
+}
+
+.game-preview iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 @media (max-width: 767.98px) {
   .personal-hero h1 {
     font-size: 2.1rem;

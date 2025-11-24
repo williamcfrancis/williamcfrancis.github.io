@@ -41,7 +41,18 @@ sections:
     intro:
       title: Games & sandboxes
       description: Playable experiments I tinker with after hours.
-    games: []
+    games:
+      - title: Lily Leap
+        status: Playable now
+        genre: Chill arcade
+        summary: A breezy lily-pad hop built in HTML5—best enjoyed with headphones and a cup of tea.
+        tags: ["browser", "casual", "sound-on"]
+        link:
+          label: Play Lily Leap
+          url: "/games/lily_leap.html"
+        preview:
+          url: "/games/lily_leap.html"
+          aspect: 16/9
 
   - section:
       name: Photo Gallery
