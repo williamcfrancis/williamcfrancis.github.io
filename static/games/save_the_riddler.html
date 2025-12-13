@@ -457,52 +457,9 @@
             100% { transform: translate(0); }
         }
 
-        /* Back to Games Button */
-        .back-to-games {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            z-index: 100;
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(8px);
-            color: #e2e8f0;
-            text-decoration: none;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            padding: 10px 18px;
-            border-radius: 999px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-            pointer-events: auto;
-            transition: transform 120ms ease, background 120ms ease;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .back-to-games span {
-            font-size: 15px;
-        }
-
-        .back-to-games:hover {
-            transform: translateX(-2px);
-            background: rgba(15, 23, 42, 0.95);
-            color: #ffffff;
-        }
-
-        .back-to-games i {
-            font-size: 14px;
-        }
-
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center selection:bg-indigo-500 selection:text-white">
-
-    <!-- Back to Games Button -->
-    <a class="back-to-games" href="/personal/#games">
-        <i class="fa-solid fa-arrow-left"></i>
-        <span>Back</span>
-    </a>
 
     <!-- Loading Overlay -->
     <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 transition-opacity duration-700">
