@@ -240,8 +240,12 @@
 // Ensure the DOM is fully loaded before running any script logic
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- Mock AI Simulation Engine ---
+    // --- AI Simulation Engine with LLM Integration ---
     const SimulationEngine = {
+        // Using Hugging Face Inference API - Free, no API key required
+        // Using Mistral-7B-Instruct, a powerful open-source model
+        apiEndpoint: 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
+        
         colors: [
             'bg-red-100 border-red-200 text-red-700 ring-red-200',
             'bg-blue-100 border-blue-200 text-blue-700 ring-blue-200', 
@@ -262,7 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return Math.abs(hash);
         },
 
-        generateStream: function(prompt) {
+        // Fallback generator for when API is unavailable
+        generateStreamFallback: function(prompt) {
             const seed = this.stringHash(prompt.toLowerCase().trim());
             const emoji = this.emojis[seed % this.emojis.length];
             const color = this.colors[seed % this.colors.length];
@@ -272,12 +277,186 @@ document.addEventListener('DOMContentLoaded', () => {
                 rate: rate,
                 emoji: emoji,
                 label: prompt.length > 25 ? prompt.substring(0, 22) + '...' : prompt,
-                desc: "Simulation estimate based on local probability algorithms.",
+                desc: "Estimated rate (fallback mode - API unavailable).",
                 color: color
             };
         },
 
-        generateScenario: function(prompt) {
+        // Call LLM API to generate accurate event rate (using free Hugging Face API)
+        async generateStream(prompt) {
+            try {
+                const promptText = `<s>[INST] You are an expert at estimating global event rates. Given an event description, estimate how many times per second this event occurs globally. Consider real-world data, population statistics, and reasonable estimates. Return ONLY a valid JSON object with this exact structure:
+{
+  "rate": <number in events per second>,
+  "emoji": "<single relevant emoji>",
+  "label": "<short event name, max 25 chars>",
+  "desc": "<brief explanation of the estimate, max 100 chars>"
+}
+
+Examples:
+- "People blinking" → {"rate": 140000, "emoji": "👁️", "label": "People Blinking", "desc": "~8.8B people × ~15-20 blinks/min"}
+- "Babies born" → {"rate": 4.3, "emoji": "👶", "label": "Babies Born", "desc": "~140M births/year globally"}
+- "Lightning strikes" → {"rate": 44, "emoji": "⚡", "label": "Lightning Strikes", "desc": "Global cloud-to-ground strikes"}
+
+Be realistic and use actual data when possible. For fictional events, make reasonable estimates.
+
+Estimate the global rate for: "${prompt}" [/INST]`;
+
+                const response = await fetch(this.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: promptText,
+                        parameters: {
+                            max_new_tokens: 200,
+                            temperature: 0.7,
+                            return_full_text: false
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    // If model is loading, wait and retry once
+                    if (response.status === 503) {
+                        const retryAfter = response.headers.get('Retry-After') || 20;
+                        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                        return this.generateStream(prompt); // Retry once
+                    }
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Hugging Face returns array with generated_text
+                let content = '';
+                if (Array.isArray(data) && data[0]?.generated_text) {
+                    content = data[0].generated_text.trim();
+                } else if (data.generated_text) {
+                    content = data.generated_text.trim();
+                } else {
+                    throw new Error('Unexpected API response format');
+                }
+                
+                // Extract JSON from response (handle markdown code blocks)
+                let jsonStr = content;
+                if (content.includes('```')) {
+                    const match = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+                    if (match) jsonStr = match[1];
+                } else {
+                    // Try to find JSON object in the response
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) jsonStr = jsonMatch[0];
+                }
+                
+                const result = JSON.parse(jsonStr);
+                
+                // Validate and assign color
+                const seed = this.stringHash(prompt.toLowerCase().trim());
+                const color = this.colors[seed % this.colors.length];
+                
+                return {
+                    rate: Math.max(0.1, parseFloat(result.rate) || 1.0),
+                    emoji: result.emoji || this.emojis[seed % this.emojis.length],
+                    label: result.label || (prompt.length > 25 ? prompt.substring(0, 22) + '...' : prompt),
+                    desc: result.desc || "LLM-generated estimate.",
+                    color: color
+                };
+            } catch (error) {
+                console.error('LLM API error:', error);
+                // Fallback to deterministic generation
+                return this.generateStreamFallback(prompt);
+            }
+        },
+
+        // Generate scenario with multiple events (using free Hugging Face API)
+        async generateScenario(prompt) {
+            try {
+                const promptText = `<s>[INST] You are an expert at creating themed event scenarios. Given a theme or scenario description, generate 4-6 related events with realistic global rates. Return ONLY a valid JSON array with this exact structure:
+[
+  {
+    "rate": <number in events per second>,
+    "emoji": "<single relevant emoji>",
+    "label": "<short event name, max 25 chars>",
+    "desc": "<brief explanation, max 100 chars>"
+  },
+  ...
+]
+
+Make events thematically related and use realistic rates based on real-world data when possible. For fictional scenarios, make creative but reasonable estimates.
+
+Create a themed scenario for: "${prompt}" [/INST]`;
+
+                const response = await fetch(this.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: promptText,
+                        parameters: {
+                            max_new_tokens: 600,
+                            temperature: 0.8,
+                            return_full_text: false
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    // If model is loading, wait and retry once
+                    if (response.status === 503) {
+                        const retryAfter = response.headers.get('Retry-After') || 20;
+                        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                        return this.generateScenario(prompt); // Retry once
+                    }
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Hugging Face returns array with generated_text
+                let content = '';
+                if (Array.isArray(data) && data[0]?.generated_text) {
+                    content = data[0].generated_text.trim();
+                } else if (data.generated_text) {
+                    content = data.generated_text.trim();
+                } else {
+                    throw new Error('Unexpected API response format');
+                }
+                
+                // Extract JSON from response
+                let jsonStr = content;
+                if (content.includes('```')) {
+                    const match = content.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
+                    if (match) jsonStr = match[1];
+                } else {
+                    // Try to find JSON array in the response
+                    const jsonMatch = content.match(/\[[\s\S]*\]/);
+                    if (jsonMatch) jsonStr = jsonMatch[0];
+                }
+                
+                const results = JSON.parse(jsonStr);
+                
+                // Validate and assign colors
+                return results.map((item, index) => {
+                    const seed = this.stringHash(prompt + index);
+                    return {
+                        rate: Math.max(0.1, parseFloat(item.rate) || 1.0),
+                        emoji: item.emoji || this.emojis[seed % this.emojis.length],
+                        label: item.label || `Event ${index + 1}`,
+                        desc: item.desc || "LLM-generated event.",
+                        color: this.colors[seed % this.colors.length]
+                    };
+                });
+            } catch (error) {
+                console.error('LLM API error:', error);
+                return this.generateScenarioFallback(prompt);
+            }
+        },
+
+        // Fallback scenario generator
+        generateScenarioFallback: function(prompt) {
             const p = prompt.toLowerCase();
             
             // Preset: Zombies
@@ -319,7 +498,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 { l: "Entropy", e: "📉" }, { l: "Confused Users", e: "🤔" }, { l: "Lucky Pennies", e: "🪙" }
             ];
             
-            // Deterministic random using seed
             const seed = this.stringHash(prompt);
             const results = [];
             for(let i=0; i<5; i++) {
@@ -328,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     rate: ((seed + i * 13) % 50) + 1,
                     emoji: item.e,
                     label: item.l,
-                    desc: "Procedurally generated event.",
+                    desc: "Procedurally generated event (fallback mode).",
                     color: this.colors[(seed + i) % this.colors.length]
                 });
             }
@@ -757,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     btnCloseModal.onclick = closeModal;
 
-    aiForm.onsubmit = (e) => {
+    aiForm.onsubmit = async (e) => {
         e.preventDefault();
         const promptText = aiInput.value.trim();
         if (!promptText) return;
@@ -767,49 +945,47 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
         if(aiError) aiError.classList.add('hidden');
 
-        // Simulate Network Delay
-        setTimeout(() => {
-            try {
-                if (modalMode === 'scenario') {
-                    // Scenario Mode: Append instead of replace
-                    const scenarios = SimulationEngine.generateScenario(promptText);
-                    const newStreams = scenarios.map((s, i) => ({ ...s, id: `scenario-${Date.now()}-${i}` }));
-                    streams = [...newStreams, ...streams];
-                    
-                    // Activate new streams without removing old ones
-                    const newIds = newStreams.map(s => s.id);
-                    activeStreams = [...newIds, ...activeStreams];
-                    
-                    activeCountEl.innerText = `${activeStreams.length} Active`;
-                } else {
-                    // Single Mode: Add to top
-                    const result = SimulationEngine.generateStream(promptText);
-                    const newStream = { id: `custom-${Date.now()}`, ...result };
-                    streams.unshift(newStream);
-                    if(!activeStreams.includes(newStream.id)) activeStreams.push(newStream.id);
-                }
+        try {
+            if (modalMode === 'scenario') {
+                // Scenario Mode: Append instead of replace
+                const scenarios = await SimulationEngine.generateScenario(promptText);
+                const newStreams = scenarios.map((s, i) => ({ ...s, id: `scenario-${Date.now()}-${i}` }));
+                streams = [...newStreams, ...streams];
                 
-                closeModal();
-                aiInput.value = '';
+                // Activate new streams without removing old ones
+                const newIds = newStreams.map(s => s.id);
+                activeStreams = [...newIds, ...activeStreams];
                 
-                if(!isPlaying) {
-                    isPlaying = true;
-                    updateUIState();
-                }
-                
-                renderStreams();
-
-            } catch (err) {
-                console.error(err);
-                if(aiError && aiErrorText) {
-                    aiErrorText.innerText = "Simulation failed. Try again.";
-                    aiError.classList.remove('hidden');
-                }
-            } finally {
-                btnGenerate.disabled = false;
-                btnGenerate.innerText = modalMode === 'scenario' ? "Generate Scenario" : "Generate Stream";
+                activeCountEl.innerText = `${activeStreams.length} Active`;
+            } else {
+                // Single Mode: Add to top
+                const result = await SimulationEngine.generateStream(promptText);
+                const newStream = { id: `custom-${Date.now()}`, ...result };
+                streams.unshift(newStream);
+                if(!activeStreams.includes(newStream.id)) activeStreams.push(newStream.id);
             }
-        }, 1200);
+            
+            closeModal();
+            aiInput.value = '';
+            
+            if(!isPlaying) {
+                isPlaying = true;
+                updateUIState();
+            }
+            
+            renderStreams();
+
+        } catch (err) {
+            console.error(err);
+            if(aiError && aiErrorText) {
+                aiErrorText.innerText = err.message || "Simulation failed. Try again.";
+                aiError.classList.remove('hidden');
+            }
+        } finally {
+            btnGenerate.disabled = false;
+            btnGenerate.innerHTML = modalMode === 'scenario' ? "Generate Scenario" : "Generate Stream";
+            lucide.createIcons();
+        }
     };
 
     // --- Init ---
