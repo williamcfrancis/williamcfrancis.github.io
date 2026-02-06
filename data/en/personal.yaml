@@ -50,23 +50,6 @@ sections:
           label: Play Lily Leap
           url: "/games/lily_leap.html"
         image: "/games/lily_leap.png"
-      - title: Save The Riddler
-        genre: Word puzzle
-        summary: "Guess the word to save The Riddler from fading into the void. Use semantic similarity to find the answer!"
-        tags: ["browser", "puzzle", "word-game"]
-        link:
-          label: Play Save The Riddler
-          url: "/games/save_the_riddler.html"
-        image: "/games/save_the_riddler.png"
-      - title: Every Millisecond
-        genre: Data visualization
-        summary: "Real-time visualization of global events happening every millisecond. Watch as events pile up and understand the scale of modern life."
-        tags: ["browser", "visualization", "interactive"]
-        link:
-          label: Play Every Millisecond
-          url: "/games/every_millisecond.html"
-        image: "/games/every_millisecond.png"
-
   - section:
       name: Photo Gallery
       id: gallery
