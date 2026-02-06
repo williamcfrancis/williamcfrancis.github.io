@@ -50,6 +50,14 @@ sections:
           label: Play Lily Leap
           url: "/games/lily_leap.html"
         image: "/games/lily_leap.png"
+      - title: Echo Walker
+        genre: Audio-physics
+        summary: "The world is silent and intangible. Use sound to create solid matter and reach the portal."
+        tags: ["browser", "platformer", "sound-on"]
+        link:
+          label: Play Echo Walker
+          url: "/games/echo_walker.html"
+        image: "/games/echo_walker.png"
   - section:
       name: Photo Gallery
       id: gallery

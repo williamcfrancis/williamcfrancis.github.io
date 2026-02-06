@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo Walker: Audio-Physics Prototype</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: #ccc;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 255, 200, 0.1);
+            border: 1px solid #333;
+            width: 800px;
+            height: 600px;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            background-color: #000;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* HUD Layer */
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .tutorial {
+            font-size: 14px;
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 200, 0.5);
+            max-width: 400px;
+            line-height: 1.4;
+        }
+
+        .score-hud {
+            font-size: 18px;
+            color: #fff;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        #energy-bar-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 150px;
+            height: 10px;
+            border: 1px solid #444;
+            background: #111;
+            z-index: 5;
+        }
+
+        #energy-bar {
+            width: 100%;
+            height: 100%;
+            background: #00ffcc;
+            box-shadow: 0 0 10px #00ffcc;
+            transition: width 0.1s;
+        }
+
+        #level-indicator {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #444;
+            font-size: 12px;
+            z-index: 5;
+            text-align: right;
+        }
+        
+        /* Menu System */
+        #main-menu, #death-screen, #win-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 5, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+        
+        #death-screen { background: rgba(20, 0, 0, 0.9); display: none; }
+        #win-screen { background: rgba(0, 20, 20, 0.95); display: none; }
+
+        h1 { margin: 0 0 15px 0; color: #00ffcc; text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 20px rgba(0, 255, 200, 0.5); }
+        .danger-text { color: #ff3333; text-shadow: 0 0 20px rgba(255, 50, 50, 0.5); }
+        .win-text { color: #ffff00; text-shadow: 0 0 20px rgba(255, 255, 0, 0.5); }
+        
+        p { color: #aaa; margin-bottom: 20px; text-align: center; max-width: 600px; line-height: 1.5; }
+        
+        .highscore-display {
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #00ffcc;
+            border: 1px solid #333;
+            padding: 10px 20px;
+            background: rgba(0, 255, 204, 0.05);
+            font-family: monospace;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid #00ffcc;
+            color: #00ffcc;
+            padding: 15px 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background: #00ffcc;
+            color: #000;
+            box-shadow: 0 0 20px #00ffcc;
+            transform: translateY(-2px);
+        }
+
+        .btn.hard { border-color: #ff3333; color: #ff3333; }
+        .btn.hard:hover { background: #ff3333; color: #000; box-shadow: 0 0 20px #ff3333; }
+
+        .back-to-games {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 25;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
+            color: #00ffcc;
+            text-decoration: none;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s;
+        }
+        .back-to-games:hover {
+            background: rgba(0, 255, 204, 0.15);
+            border-color: #00ffcc;
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.3);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <a class="back-to-games" href="/personal/#games"><span>←</span> Back to games</a>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <!-- HUD -->
+        <div id="ui-layer">
+            <div class="tutorial" id="tutorial-text">INITIALIZING ECHO SYSTEM...</div>
+            <div class="score-hud" id="score-text">SCORE: 0</div>
+        </div>
+        <div id="energy-bar-container">
+            <div id="energy-bar"></div>
+        </div>
+        <div id="level-indicator">
+            <div id="level-name">SECTOR: 1</div>
+            <div id="level-bonus" style="color: #ffff00;">BONUS: 5000</div>
+        </div>
+        
+        <!-- Main Menu -->
+        <div id="main-menu">
+            <h1>Echo Walker</h1>
+            <p>The world is silent and intangible.<br>Use sound to create solid matter.</p>
+            
+            <div class="highscore-display" id="menu-highscores">
+                LOADING DATA...
+            </div>
+
+            <div class="btn-group">
+                <button class="btn" onclick="startGame('EASY')">Tourist</button>
+                <button class="btn" onclick="startGame('NORMAL')">Scout</button>
+                <button class="btn hard" onclick="startGame('HARD')">Void</button>
+            </div>
+            <p style="font-size: 12px; margin-top: 30px; color: #555;">Controls: W/A/S/D to Move • SPACE to Scream • HOLD W to Hover</p>
+        </div>
+
+        <!-- Death Screen -->
+        <div id="death-screen">
+            <h1 class="danger-text">Signal Lost</h1>
+            <p>Your echo faded into the void.</p>
+            <div class="highscore-display" id="death-score"></div>
+            <div class="btn-group">
+                <button class="btn" onclick="restartLevel()">Retry Sector</button>
+                <button class="btn hard" onclick="showMainMenu()">Menu</button>
+            </div>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen">
+            <h1 class="win-text">Resonance Achieved</h1>
+            <p>You have traversed the silence.</p>
+            <div class="highscore-display" id="win-score"></div>
+            <div class="btn-group">
+                <button class="btn" onclick="showMainMenu()">Main Menu</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * ECHO WALKER - Ver 3.1 (Highscore Fix)
+ * Features: Polished Physics, Balanced Levels, Highscore saves on Death.
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiText = document.getElementById('tutorial-text');
+const scoreText = document.getElementById('score-text');
+const bonusText = document.getElementById('level-bonus');
+const energyBar = document.getElementById('energy-bar');
+const deathScreen = document.getElementById('death-screen');
+const winScreen = document.getElementById('win-screen');
+const mainMenu = document.getElementById('main-menu');
+const levelIndicator = document.getElementById('level-name');
+const menuHighscores = document.getElementById('menu-highscores');
+
+// --- CONSTANTS & CONFIG ---
+
+const DIFFICULTIES = {
+    EASY: { 
+        decay: 0.006, energyRegen: 0.9, cooldown: 15, name: "Tourist", id: 'easy',
+        gravity: 0.35, moveSpeed: 0.85, jumpForce: -10, hoverCost: 0.4
+    },
+    NORMAL: { 
+        decay: 0.012, energyRegen: 0.6, cooldown: 25, name: "Scout", id: 'normal',
+        gravity: 0.5, moveSpeed: 1.1, jumpForce: -11, hoverCost: 0.6
+    },
+    HARD: { 
+        decay: 0.025, energyRegen: 0.35, cooldown: 45, name: "Void", id: 'hard',
+        gravity: 0.6, moveSpeed: 1.2, jumpForce: -12, hoverCost: 0.9
+    }
+};
+
+// Physics Vars (Set by difficulty)
+let currentDifficulty = DIFFICULTIES.NORMAL;
+let GRAVITY, MOVE_SPEED, JUMP_FORCE;
+
+const PULSE_SPEED = 9;
+const PULSE_DECAY = 0.95; 
+const COYOTE_TIME = 5; // Frames allowed to jump after leaving ground
+const JUMP_BUFFER = 5; // Frames to remember jump press before hitting ground
+
+// --- GAME STATE ---
+
+let gameState = {
+    running: false,
+    level: 0,
+    frames: 0,
+    totalScore: 0,
+    currentLevelBonus: 5000,
+    activePulse: false // visual effect
+};
+
+// Input
+const keys = {
+    ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+    w: false, s: false, a: false, d: false,
+    " ": false
+};
+
+// --- AUDIO SYSTEM ---
+
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'pulse') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(); osc.stop(now + 0.3);
+    } else if (type === 'jump') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(); osc.stop(now + 0.1);
+    } else if (type === 'land') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(100, now);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.05);
+        osc.start(); osc.stop(now + 0.05);
+    } else if (type === 'hover') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(60, now);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(); osc.stop(now + 0.1);
+    } else if (type === 'levelComplete') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(659, now + 0.2);
+        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
+        osc.start(); osc.stop(now + 0.6);
+    }
+}
+
+// --- CLASSES ---
+
+class Vector2 { constructor(x, y) { this.x = x; this.y = y; } }
+
+class Particle {
+    constructor(x, y, color, speed, size, life = 1.0) {
+        this.pos = new Vector2(x, y);
+        const angle = Math.random() * Math.PI * 2;
+        this.vel = new Vector2(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        this.color = color;
+        this.life = life;
+        this.decay = 0.02 + Math.random() * 0.03;
+        this.size = size;
+    }
+    update() { this.pos.x += this.vel.x; this.pos.y += this.vel.y; this.life -= this.decay; }
+    draw() {
+        if (this.life <= 0) return;
+        ctx.fillStyle = `rgba(${this.color[0]},${this.color[1]},${this.color[2]},${this.life})`;
+        ctx.fillRect(this.pos.x, this.pos.y, this.size, this.size);
+    }
+}
+
+class Player {
+    constructor(x, y) {
+        this.pos = new Vector2(x, y);
+        this.vel = new Vector2(0, 0);
+        this.size = new Vector2(20, 20);
+        this.grounded = false;
+        this.coyoteCounter = 0; // Frames since left ground
+        this.jumpBuffer = 0; // Frames since jump pressed
+        this.cooldown = 0;
+        this.energy = 100;
+        this.dead = false;
+        this.hovering = false;
+    }
+
+    update() {
+        if (this.dead) return;
+
+        // Horizontal Movement
+        if (keys.ArrowLeft || keys.a) this.vel.x -= MOVE_SPEED;
+        if (keys.ArrowRight || keys.d) this.vel.x += MOVE_SPEED;
+        
+        // Ground Logic & Coyote Time
+        if (this.grounded) {
+            this.coyoteCounter = COYOTE_TIME;
+        } else {
+            if (this.coyoteCounter > 0) this.coyoteCounter--;
+        }
+
+        // Jump Buffering
+        if (keys.ArrowUp || keys.w) this.jumpBuffer = JUMP_BUFFER;
+        if (this.jumpBuffer > 0) this.jumpBuffer--;
+
+        // Jump Execution (Normal or Coyote)
+        if (this.jumpBuffer > 0 && this.coyoteCounter > 0) {
+            this.vel.y = JUMP_FORCE;
+            this.grounded = false;
+            this.coyoteCounter = 0;
+            this.jumpBuffer = 0;
+            playSound('jump');
+            this.spawnDust(5);
+        }
+
+        // Scream / Pulse
+        if (keys[" "] && this.cooldown <= 0 && this.energy > 10) {
+            this.pulse();
+        }
+
+        // Hover Mechanics
+        this.hovering = false;
+        if ((keys.ArrowUp || keys.w) && !this.grounded && this.vel.y > -2 && this.energy > 0.5) {
+            this.hovering = true;
+            // Counter gravity effectively
+            this.vel.y -= GRAVITY * 0.85; 
+            // Cap fall speed while hovering
+            if(this.vel.y > 2) this.vel.y = 2;
+            
+            this.vel.x *= 0.95; // Stabilize air movement
+            this.energy -= currentDifficulty.hoverCost;
+            
+            // Visuals
+            if (Math.random() > 0.5) {
+                let p = new Particle(this.pos.x + 10 + (Math.random()*10 - 5), this.pos.y + 20, [0, 255, 255], 1, 2, 0.5);
+                p.vel.y = 2; p.vel.x *= 0.2; particles.push(p);
+            }
+            if (gameState.frames % 8 === 0) playSound('hover');
+        }
+
+        // Apply Physics
+        this.vel.y += GRAVITY;
+        this.vel.x *= 0.85; // Friction
+        this.pos.x += this.vel.x;
+        this.pos.y += this.vel.y;
+
+        // Cooldowns & Regen
+        if (this.cooldown > 0) this.cooldown--;
+        if (this.energy < 100 && !this.hovering) this.energy += currentDifficulty.energyRegen;
+
+        // Death Check
+        if (this.pos.y > canvas.height + 100) this.die();
+    }
+
+    pulse() {
+        pulses.push(new Pulse(this.pos.x + 10, this.pos.y + 10));
+        this.cooldown = currentDifficulty.cooldown;
+        this.energy -= 20;
+        playSound('pulse');
+        screenShake = 6;
+        gameState.activePulse = true;
+        setTimeout(() => gameState.activePulse = false, 150);
+        this.spawnDust(10, [0, 255, 204]);
+    }
+
+    spawnDust(count, color = [200, 200, 200]) {
+        for(let i=0; i<count; i++) particles.push(new Particle(this.pos.x + 10, this.pos.y + 20, color, 2, 3));
+    }
+
+    die() {
+        if (this.dead) return;
+        this.dead = true;
+        showDeathScreen();
+    }
+
+    draw() {
+        if (this.dead) return;
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 10; ctx.shadowColor = '#fff';
+        ctx.fillRect(this.pos.x, this.pos.y, this.size.x, this.size.y);
+        ctx.shadowBlur = 0;
+        
+        // Thruster Visuals
+        if (this.hovering) {
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillRect(this.pos.x + 2, this.pos.y + 20, 4, 6);
+            ctx.fillRect(this.pos.x + 14, this.pos.y + 20, 4, 6);
+        }
+        
+        // Voice Box / Cooldown Ring
+        if (this.cooldown > 0) {
+            ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
+            let radius = 20 - (this.cooldown/currentDifficulty.cooldown)*20;
+            ctx.beginPath();
+            ctx.arc(this.pos.x + 10, this.pos.y + 10, Math.max(0, radius), 0, Math.PI*2);
+            ctx.stroke();
+        }
+    }
+}
+
+class Pulse {
+    constructor(x, y) {
+        this.pos = new Vector2(x, y);
+        this.radius = 10;
+        this.alpha = 1.0;
+        this.active = true;
+    }
+    update() {
+        this.radius += PULSE_SPEED;
+        this.alpha *= PULSE_DECAY;
+        if (this.alpha < 0.05) this.active = false;
+        
+        if (this.active) {
+            platforms.forEach(p => {
+                let closestX = Math.max(p.pos.x, Math.min(this.pos.x, p.pos.x + p.size.x));
+                let closestY = Math.max(p.pos.y, Math.min(this.pos.y, p.pos.y + p.size.y));
+                let distSq = (this.pos.x - closestX)**2 + (this.pos.y - closestY)**2;
+                
+                // Ring Collision Logic
+                if (distSq < this.radius**2 && distSq > (this.radius - 20)**2) {
+                    // Only active if platform is fading or invisible
+                    if (p.solidity < 1.0) {
+                         p.makeSolid();
+                         if (Math.random() > 0.8) particles.push(new Particle(closestX, closestY, [0, 255, 204], 1, 2));
+                    }
+                }
+            });
+        }
+    }
+    draw() {
+        ctx.beginPath(); ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 255, 204, ${this.alpha})`; ctx.lineWidth = 3; ctx.stroke();
+    }
+}
+
+class Platform {
+    constructor(x, y, w, h) {
+        this.pos = new Vector2(x, y);
+        this.size = new Vector2(w, h);
+        this.solidity = 0; 
+    }
+    update() {
+        if (this.solidity > 0) {
+            this.solidity -= currentDifficulty.decay;
+            if (this.solidity < 0) this.solidity = 0;
+        }
+    }
+    makeSolid() { this.solidity = Math.max(this.solidity, 1.25); } // Buffer > 1 for stability
+    draw() {
+        if (this.solidity <= 0.05) {
+            // Ghost State
+            ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+            ctx.strokeRect(this.pos.x, this.pos.y, this.size.x, this.size.y);
+        } else {
+            // Solid State
+            let r, g, b;
+            let val = Math.min(1.0, this.solidity);
+            
+            // Color Logic
+            if (val > 0.6) { r=0; g=255; b=204; } // Safe
+            else if (val > 0.3) { r=255; g=255; b=0; } // Warning
+            else { r=255; g=50; b=50; } // Danger
+
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${val * 0.3})`;
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${val})`;
+            ctx.lineWidth = 2;
+            ctx.fillRect(this.pos.x, this.pos.y, this.size.x, this.size.y);
+            ctx.strokeRect(this.pos.x, this.pos.y, this.size.x, this.size.y);
+        }
+    }
+}
+
+class Portal {
+    constructor(x, y) {
+        this.pos = new Vector2(x, y);
+        this.size = new Vector2(40, 60);
+        this.pulse = 0;
+    }
+    draw() {
+        this.pulse += 0.1;
+        ctx.shadowBlur = 20; ctx.shadowColor = '#0f0';
+        ctx.fillStyle = `rgba(50, 255, 50, ${0.5 + Math.sin(this.pulse)*0.2})`;
+        ctx.fillRect(this.pos.x, this.pos.y, this.size.x, this.size.y);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#fff'; ctx.strokeRect(this.pos.x + 10, this.pos.y + 10, this.size.x - 20, this.size.y - 20);
+    }
+}
+
+// --- GLOBAL VARIABLES ---
+
+let player;
+let pulses = [], platforms = [], particles = [];
+let portal;
+let screenShake = 0;
+
+// --- LEVEL DESIGN ---
+
+const levels = [
+    // 1. Basics
+    {   
+        start: [50, 430], portal: [700, 430],
+        platforms: [[20, 450, 200, 20], [250, 450, 150, 20], [450, 450, 150, 20], [650, 450, 130, 20]],
+        text: "Safe ground is a lie. Press SPACE to scream reality into existence.", bonus: 3000
+    },
+    // 2. The Climb
+    {   
+        start: [50, 500], portal: [700, 100],
+        platforms: [[20, 520, 150, 20], [200, 450, 100, 20], [350, 380, 100, 20], [500, 300, 100, 20], [650, 150, 100, 20]],
+        text: "Sound decays. Keep moving.", bonus: 4000
+    },
+    // 3. The Drop (Vertical Descent)
+    {   
+        start: [50, 50], portal: [700, 500],
+        platforms: [[20, 80, 100, 20], [200, 200, 80, 20], [350, 320, 80, 20], [500, 440, 80, 20], [650, 520, 100, 20]],
+        text: "Yellow means caution. Red means death.", bonus: 4500
+    },
+    // 4. Rhythm Run (Horizontal Spacing)
+    {   
+        start: [50, 300], portal: [750, 300],
+        platforms: [[20, 320, 80, 20], [150, 320, 60, 20], [250, 320, 60, 20], [350, 320, 60, 20], [450, 320, 60, 20], [550, 320, 60, 20], [650, 320, 60, 20], [740, 320, 60, 20]],
+        text: "Don't stop. Don't look down.", bonus: 5000
+    },
+    // 5. The Spiral (Circular)
+    {   
+        start: [50, 550], portal: [400, 50],
+        platforms: [[20, 570, 100, 20], [200, 500, 80, 20], [350, 450, 80, 20], [500, 400, 80, 20], [650, 350, 80, 20], [500, 250, 80, 20], [350, 150, 80, 20], [380, 80, 80, 20]],
+        text: "Ascend the spiral. Watch your energy.", bonus: 6000
+    },
+    // 6. The Hover (Tutorial for Hover)
+    {   
+        start: [50, 200], portal: [700, 200],
+        platforms: [[20, 220, 150, 20], [250, 500, 300, 20], [650, 220, 150, 20]], 
+        text: "Gap too wide? Hold JUMP in mid-air to Hover.", bonus: 5000
+    },
+    // 7. Fragmentation (Precision)
+    {   
+        start: [50, 100], portal: [700, 500],
+        platforms: [[20, 120, 100, 20], [180, 200, 40, 20], [300, 280, 40, 20], [420, 360, 40, 20], [540, 440, 40, 20], [650, 520, 100, 20]],
+        text: "Small echos require precise screams.", bonus: 7000
+    },
+    // 8. Ascension (Finale)
+    {   
+        start: [400, 550], portal: [400, 50],
+        platforms: [[350, 570, 100, 20], [150, 450, 100, 20], [550, 350, 100, 20], [150, 250, 100, 20], [550, 150, 100, 20], [350, 80, 100, 20]],
+        text: "The final echo. Do not fall.", bonus: 8000
+    }
+];
+
+// --- CORE FUNCTIONS ---
+
+function updateHighscoreDisplay() {
+    let t = "HIGHSCORES:<br>";
+    t += "TOURIST: " + (localStorage.getItem('highscore_easy') || 0) + "<br>";
+    t += "SCOUT:   " + (localStorage.getItem('highscore_normal') || 0) + "<br>";
+    t += "VOID:    " + (localStorage.getItem('highscore_hard') || 0);
+    menuHighscores.innerHTML = t;
+}
+
+function startGame(difficultyKey) {
+    currentDifficulty = DIFFICULTIES[difficultyKey];
+    GRAVITY = currentDifficulty.gravity;
+    MOVE_SPEED = currentDifficulty.moveSpeed;
+    JUMP_FORCE = currentDifficulty.jumpForce;
+
+    mainMenu.style.display = 'none';
+    winScreen.style.display = 'none';
+    gameState.running = true;
+    gameState.frames = 0;
+    gameState.totalScore = 0;
+    initLevel(0);
+}
+
+function showMainMenu() {
+    deathScreen.style.display = 'none';
+    winScreen.style.display = 'none';
+    mainMenu.style.display = 'flex';
+    gameState.running = false;
+    updateHighscoreDisplay();
+}
+
+function checkAndSaveHighscore() {
+    const key = 'highscore_' + currentDifficulty.id;
+    const oldBest = parseInt(localStorage.getItem(key)) || 0;
+    
+    if (gameState.totalScore > oldBest) {
+        localStorage.setItem(key, gameState.totalScore);
+        return true; // New Record
+    }
+    return false;
+}
+
+function showDeathScreen() {
+    deathScreen.style.display = 'flex';
+    
+    // Save score on death if it's a highscore
+    const isNewRecord = checkAndSaveHighscore();
+    let text = "FINAL SCORE: " + gameState.totalScore;
+    
+    if (isNewRecord) {
+        text += "<br><span style='color:#ffff00; font-size:12px'>NEW RECORD!</span>";
+    }
+    
+    document.getElementById('death-score').innerHTML = text;
+}
+
+function showWinScreen() {
+    gameState.running = false;
+    winScreen.style.display = 'flex';
+    
+    // Check Highscore
+    const isNewRecord = checkAndSaveHighscore();
+    const key = 'highscore_' + currentDifficulty.id;
+    const best = localStorage.getItem(key);
+    
+    if (isNewRecord) {
+        document.getElementById('win-score').innerHTML = "NEW HIGHSCORE: " + gameState.totalScore;
+    } else {
+        document.getElementById('win-score').innerHTML = "SCORE: " + gameState.totalScore + "<br>BEST: " + best;
+    }
+}
+
+function restartLevel() {
+    // Reset Bonus for this level on retry to prevent farming/confusion, but keep Total Score intact
+    // Note: If you retry a sector, you keep the score you had entering it.
+    initLevel(gameState.level);
+}
+
+function initLevel(idx) {
+    if (idx >= levels.length) {
+        showWinScreen();
+        return;
+    }
+    gameState.level = idx;
+    
+    const data = levels[idx];
+    player = new Player(data.start[0], data.start[1]);
+    
+    platforms = [];
+    data.platforms.forEach(p => { platforms.push(new Platform(p[0], p[1], p[2], p[3])); });
+
+    if (platforms.length > 0) platforms[0].solidity = 5.0; // Safe start
+
+    portal = new Portal(data.portal[0], data.portal[1]);
+    
+    pulses = []; particles = [];
+    player.dead = false; player.energy = 100;
+    deathScreen.style.display = 'none';
+    uiText.innerText = data.text;
+    
+    gameState.currentLevelBonus = data.bonus;
+    levelIndicator.innerText = `SECTOR: ${idx + 1} // ${currentDifficulty.name}`;
+    
+    // Auto pulse on start
+    setTimeout(() => player.pulse(), 100);
+}
+
+function resolveCollisions() {
+    player.grounded = false;
+    
+    // Platform Collisions
+    platforms.forEach(p => {
+        if (p.solidity < 0.3) return; // Ghost objects are intangible
+
+        // AABB
+        const dx = (player.pos.x + 10) - (p.pos.x + p.size.x/2);
+        const dy = (player.pos.y + 10) - (p.pos.y + p.size.y/2);
+        const w = (20 + p.size.x) / 2;
+        const h = (20 + p.size.y) / 2;
+
+        if (Math.abs(dx) < w && Math.abs(dy) < h) {
+            const ox = w - Math.abs(dx);
+            const oy = h - Math.abs(dy);
+            
+            if (ox >= oy) {
+                if (dy > 0) { 
+                    // Hit ceiling
+                    player.pos.y += oy; 
+                    player.vel.y = 0; 
+                } else { 
+                    // Land on floor
+                    player.pos.y -= oy; 
+                    player.vel.y = 0; 
+                    if (!player.grounded && player.vel.y >= 0) { // Ensure falling down
+                        playSound('land'); 
+                        player.spawnDust(5); 
+                    }
+                    player.grounded = true;
+                }
+            } else {
+                // Wall collision
+                if (dx > 0) { player.pos.x += ox; player.vel.x = 0; }
+                else { player.pos.x -= ox; player.vel.x = 0; }
+            }
+        }
+    });
+
+    // Portal Collision
+    if (player.pos.x < portal.pos.x + 40 && player.pos.x + 20 > portal.pos.x &&
+        player.pos.y < portal.pos.y + 60 && player.pos.y + 20 > portal.pos.y) {
+        playSound('levelComplete');
+        gameState.totalScore += Math.floor(gameState.currentLevelBonus);
+        initLevel(gameState.level + 1);
+    }
+}
+
+function loop() {
+    requestAnimationFrame(loop);
+    if (!gameState.running) {
+        ctx.fillStyle = '#050505'; ctx.fillRect(0,0,canvas.width, canvas.height); return;
+    }
+    gameState.frames++;
+
+    // Decrement Bonus
+    if (gameState.currentLevelBonus > 0) gameState.currentLevelBonus -= 1.5;
+    if (gameState.currentLevelBonus < 0) gameState.currentLevelBonus = 0;
+
+    // Updates
+    scoreText.innerText = `SCORE: ${gameState.totalScore}`;
+    bonusText.innerText = `BONUS: ${Math.floor(gameState.currentLevelBonus)}`;
+
+    // Background & Screenshake
+    ctx.fillStyle = gameState.activePulse ? '#080808' : 'rgba(5, 5, 5, 0.4)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    let shakeX = 0, shakeY = 0;
+    if (screenShake > 0) {
+        shakeX = (Math.random() - 0.5) * screenShake; shakeY = (Math.random() - 0.5) * screenShake;
+        screenShake *= 0.9; if (screenShake < 0.5) screenShake = 0;
+    }
+    
+    ctx.save(); 
+    ctx.translate(shakeX, shakeY);
+
+    player.update();
+    pulses.forEach(p => p.update()); pulses = pulses.filter(p => p.active);
+    platforms.forEach(p => p.update());
+    particles.forEach(p => p.update()); particles = particles.filter(p => p.life > 0);
+
+    if (!player.dead) resolveCollisions();
+
+    // Draws
+    portal.draw();
+    platforms.forEach(p => p.draw());
+    pulses.forEach(p => p.draw());
+    particles.forEach(p => p.draw());
+    player.draw();
+    
+    ctx.restore();
+
+    // HUD Logic
+    energyBar.style.width = player.energy + "%";
+    if (player.energy < 20) {
+        energyBar.style.background = "#ff3333"; energyBar.style.boxShadow = "0 0 10px #ff3333";
+    } else {
+        energyBar.style.background = "#00ffcc"; energyBar.style.boxShadow = "0 0 10px #00ffcc";
+    }
+}
+
+// Input Handling
+window.addEventListener('keydown', e => {
+    if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+    if (gameState.running) { if (e.key === 'r' || e.key === 'R') restartLevel(); }
+    if (e.key === 'm' || e.key === 'M') showMainMenu();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+});
+window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
+updateHighscoreDisplay();
+loop();
+
+</script>
+</body>
+</html>
