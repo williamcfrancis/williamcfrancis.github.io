@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyss: Deep Blue</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #001e36;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        /* HUD Styling */
+        .hud-panel {
+            background: rgba(0, 30, 60, 0.4);
+            border: 1px solid rgba(100, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            color: #dff;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        #status-container {
+            width: 300px;
+        }
+
+        /* Oxygen Bar */
+        #oxygen-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            letter-spacing: 1px;
+            color: #0ff;
+        }
+
+        #oxygen-bar-bg {
+            width: 100%;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #0ff;
+            margin-bottom: 15px;
+        }
+
+        #oxygen-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #0066ff, #00ffff);
+            transition: width 0.2s;
+        }
+
+        /* Dash Bar */
+        #dash-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            letter-spacing: 1px;
+            color: #ffcc00;
+        }
+
+        #dash-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #ffcc00;
+        }
+
+        #dash-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: #ffcc00;
+            transition: width 0.1s;
+        }
+
+        #score-display {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: right;
+        }
+
+        #depth-display {
+            font-size: 14px;
+            color: rgba(170, 255, 255, 0.7);
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        /* Biome Indicator */
+        #biome-display {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            font-size: 24px;
+            font-weight: 300;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            transition: color 1s, text-shadow 1s;
+            text-align: right;
+        }
+
+        /* Compass */
+        #compass-container {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            opacity: 0.8;
+        }
+        
+        #compass-arrow {
+            width: 100%;
+            height: 100%;
+            border-bottom: 20px solid #00ffff;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            box-sizing: border-box;
+            height: 0;
+            width: 0;
+            margin: 0 auto;
+            transform-origin: 50% 20px;
+            filter: drop-shadow(0 0 8px #00ffff);
+            transition: transform 0.1s;
+        }
+        
+        #compass-text {
+            text-align: center;
+            font-size: 10px;
+            margin-top: 30px;
+            color: #0ff;
+            letter-spacing: 1px;
+        }
+
+        #center-msg {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 70px;
+            margin: 0;
+            color: #f0ffff;
+            letter-spacing: 8px;
+            text-shadow: 0 0 30px #00aaff;
+            font-weight: 300;
+        }
+        
+        p {
+            font-size: 18px;
+            color: #aaddff;
+            letter-spacing: 2px;
+        }
+
+        #game-over-screen {
+            display: none;
+            flex-direction: column;
+            pointer-events: auto;
+            background: linear-gradient(rgba(0, 10, 20, 0.9), rgba(0, 5, 10, 0.95));
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .back-to-games {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 15;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            color: #0ff;
+            text-decoration: none;
+            font-size: 14px;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .back-to-games:hover {
+            background: rgba(0, 255, 255, 0.15);
+            border-color: #0ff;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+        }
+
+        button {
+            background: rgba(0, 255, 255, 0.1);
+            color: #0ff;
+            border: 1px solid #0ff;
+            padding: 15px 50px;
+            font-size: 18px;
+            font-family: inherit;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 30px;
+        }
+
+        button:hover {
+            background: rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 25px #0ff;
+            transform: scale(1.05);
+        }
+
+        #vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 40%, #000c18 130%);
+            pointer-events: none;
+        }
+        
+        #reticle {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: width 0.1s, height 0.1s, border-color 0.1s;
+            z-index: 5;
+        }
+        #reticle.locked {
+            border-color: #ffcc00;
+            border-width: 2px;
+            width: 30px;
+            height: 30px;
+            box-shadow: 0 0 15px #ffcc00;
+            background: rgba(255, 204, 0, 0.1);
+        }
+
+    </style>
+    <!-- Import Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="vignette"></div>
+    <div id="reticle"></div>
+    
+    <div id="ui-layer">
+        <div id="top-bar">
+            <div id="status-container" class="hud-panel">
+                <div id="oxygen-label"><span>O2 LEVELS</span> <span id="oxy-text">100%</span></div>
+                <div id="oxygen-bar-bg">
+                    <div id="oxygen-bar-fill"></div>
+                </div>
+                
+                <div id="dash-label"><span>ENERGY</span></div>
+                <div id="dash-bar-bg">
+                    <div id="dash-bar-fill"></div>
+                </div>
+            </div>
+            
+            <div id="compass-container">
+                <div id="compass-arrow"></div>
+                <div id="compass-text">SONAR</div>
+            </div>
+
+            <div class="hud-panel">
+                <div id="score-display">0</div>
+                <div id="depth-display">DEPTH: 0m</div>
+            </div>
+        </div>
+
+        <div id="biome-display">The Shallows</div>
+
+        <div id="center-msg">
+            <h1>ABYSS</h1>
+            <p>Move Mouse to Swim.<br>Space/Right-Click to Dash & Destroy Mines.</p>
+        </div>
+    </div>
+
+    <div id="game-over-screen">
+        <a class="back-to-games" href="/personal/#games"><span>←</span> Back to games</a>
+        <h1>SYSTEM OFFLINE</h1>
+        <p id="final-score">Artifacts: 0</p>
+        <button onclick="resetGame()">Initialize Dive</button>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const config = {
+            baseSpeed: 0.8,
+            dashSpeed: 2.5,
+            dashDrain: 1.5, 
+            energyRecharge: 0.2,
+            // DRASTICALLY REDUCED FOG for better visibility
+            fogDensity: 0.002, 
+            bounds: { x: 40, y: 25 },
+            spawnDist: 140,
+            despawnDist: 30,
+            oxygenDepletionRate: 0.08,
+            oxygenRestore: 25,
+            floorDepth: -25,
+            surfaceHeight: 30
+        };
+
+        const biomes = [
+            // Brighter colors for the first biome
+            { limit: 1000, name: "The Shallows", color: 0x004466, fog: 0x004466, density: 0.002, light: 0x44eeff },
+            { limit: 2500, name: "The Midnight Zone", color: 0x110022, fog: 0x110022, density: 0.005, light: 0xaa00ff },
+            { limit: Infinity, name: "The Abyssal Rift", color: 0x1a0000, fog: 0x1a0000, density: 0.008, light: 0xff0000 }
+        ];
+
+        const state = {
+            isPlaying: true,
+            score: 0,
+            depth: 0, 
+            oxygen: 100,
+            energy: 100,
+            isDashing: false,
+            mouseX: 0,
+            mouseY: 0, 
+            targetX: 0,
+            targetY: 0,
+            speed: config.baseSpeed,
+            currentBiomeIndex: 0,
+            shakeIntensity: 0
+        };
+
+        // --- Init Scene ---
+        const scene = new THREE.Scene();
+        const initialBiome = biomes[0];
+        scene.fog = new THREE.FogExp2(initialBiome.fog, initialBiome.density);
+        scene.background = new THREE.Color(initialBiome.color);
+
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 300);
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        // Increased intensity
+        const hemiLight = new THREE.HemisphereLight(initialBiome.light, 0x000000, 1.0);
+        scene.add(hemiLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        sunLight.position.set(0, 50, 20);
+        sunLight.castShadow = true;
+        scene.add(sunLight);
+
+        const spotLight = new THREE.SpotLight(0xffffff, 3.0);
+        spotLight.position.set(0, 0, 5);
+        spotLight.angle = 0.9;
+        spotLight.penumbra = 0.3;
+        spotLight.decay = 1;
+        spotLight.distance = 200; // Longer range
+        scene.add(spotLight);
+        spotLight.target.position.set(0, 0, -50);
+        scene.add(spotLight.target);
+
+        // --- Environment ---
+        
+        // Seabed
+        const planeGeo = new THREE.PlaneGeometry(300, 300, 32, 32); // Wider floor
+        const posAttribute = planeGeo.attributes.position;
+        for (let i = 0; i < posAttribute.count; i++) {
+            const x = posAttribute.getX(i);
+            const y = posAttribute.getY(i);
+            const z = Math.sin(x * 0.1) * 2 + Math.cos(y * 0.1) * 2; 
+            posAttribute.setZ(i, z);
+        }
+        planeGeo.computeVertexNormals();
+        const bedMat = new THREE.MeshStandardMaterial({
+            color: 0x001122,
+            roughness: 0.9,
+            metalness: 0.1,
+            flatShading: true
+        });
+        const seaBed = new THREE.Mesh(planeGeo, bedMat);
+        seaBed.rotation.x = -Math.PI / 2;
+        seaBed.position.y = config.floorDepth;
+        scene.add(seaBed);
+
+        // Surface
+        const surfaceMat = new THREE.MeshBasicMaterial({
+            color: 0x006688,
+            transparent: true,
+            opacity: 0.2,
+            side: THREE.DoubleSide
+        });
+        const surface = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), surfaceMat);
+        surface.rotation.x = Math.PI / 2;
+        surface.position.y = config.surfaceHeight;
+        scene.add(surface);
+
+        // --- Assets ---
+        const entities = []; 
+        const geoSphere = new THREE.SphereGeometry(1, 16, 16);
+        const geoSpike = new THREE.ConeGeometry(1, 4, 6);
+        const geoArtifact = new THREE.IcosahedronGeometry(0.8, 0);
+        const geoBox = new THREE.BoxGeometry(0.5, 8, 0.5); // For Seaweed
+
+        const matOxygen = new THREE.MeshPhysicalMaterial({
+            color: 0x00ffff, emissive: 0x0088aa, metalness: 0.2, roughness: 0.1,
+            transmission: 0.6, opacity: 0.9, transparent: true
+        });
+        const matSpike = new THREE.MeshStandardMaterial({
+            color: 0x222222, roughness: 0.5, metalness: 0.8
+        });
+        const matGold = new THREE.MeshStandardMaterial({
+            color: 0xffcc00, emissive: 0xff8800, emissiveIntensity: 0.4,
+            roughness: 0.2, metalness: 1.0
+        });
+        const matSeaweed = new THREE.MeshBasicMaterial({
+             color: 0x005522, transparent: true, opacity: 0.4 
+        });
+
+        // --- Particle Systems ---
+        // Snow - INCREASED COUNT
+        const snowGeo = new THREE.BufferGeometry();
+        const snowCount = 3000;
+        const snowPos = new Float32Array(snowCount * 3);
+        for(let i=0; i<snowCount; i++) {
+            snowPos[i*3] = (Math.random() - 0.5) * 120;
+            snowPos[i*3+1] = (Math.random() - 0.5) * 80;
+            snowPos[i*3+2] = (Math.random() - 0.5) * 300;
+        }
+        snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+        const snowSystem = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+            color: 0xaaccff, size: 0.25, transparent: true, opacity: 0.6
+        }));
+        scene.add(snowSystem);
+
+        // Explosion Particles
+        const explosionCount = 200;
+        const explosionGeo = new THREE.BufferGeometry();
+        const exPos = new Float32Array(explosionCount * 3);
+        for(let i=0; i<explosionCount*3; i++) exPos[i] = 9999; 
+        explosionGeo.setAttribute('position', new THREE.BufferAttribute(exPos, 3));
+        const explosionSystem = new THREE.Points(explosionGeo, new THREE.PointsMaterial({
+            color: 0xffaa00, size: 0.5, transparent: true
+        }));
+        scene.add(explosionSystem);
+        
+        let explosionActive = false;
+        let explosionTime = 0;
+        let explosionCenter = new THREE.Vector3();
+
+        // --- Spawners ---
+
+        function spawnOxygen(z) {
+            const mesh = new THREE.Mesh(geoSphere, matOxygen);
+            setRandomPos(mesh, z);
+            mesh.add(new THREE.PointLight(0x00ffff, 1.5, 15));
+            mesh.userData = { type: 'oxygen', baseScale: 1 };
+            scene.add(mesh);
+            entities.push(mesh);
+        }
+
+        function spawnMineCluster(z) {
+            const group = new THREE.Group();
+            group.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), matSpike));
+            // Add spikes
+            const spike = new THREE.Mesh(geoSpike, matSpike);
+            const dirs = [[0,1,0],[0,-1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]];
+            dirs.forEach(d => {
+                const s = spike.clone();
+                s.position.set(d[0], d[1], d[2]);
+                s.lookAt(0,0,0);
+                s.rotateX(-Math.PI/2);
+                group.add(s);
+            });
+            setRandomPos(group, z);
+            group.scale.setScalar(1.5 + Math.random());
+            group.rotation.set(Math.random(), Math.random(), Math.random());
+            group.userData = { type: 'obstacle', rotSpeed: 0.02 };
+            scene.add(group);
+            entities.push(group);
+        }
+
+        function spawnArtifact(z) {
+            const mesh = new THREE.Mesh(geoArtifact, matGold);
+            setRandomPos(mesh, z);
+            mesh.userData = { type: 'artifact', rotSpeed: 0.05 };
+            mesh.add(new THREE.PointLight(0xffaa00, 1, 10));
+            scene.add(mesh);
+            entities.push(mesh);
+        }
+        
+        function spawnFloorDecor(z) {
+            // Adds seaweed/rocks to floor to prevent "empty" feel
+            const isSeaweed = Math.random() > 0.3;
+            let mesh;
+            
+            if (isSeaweed) {
+                 mesh = new THREE.Mesh(geoBox, matSeaweed);
+                 mesh.scale.y = 1 + Math.random() * 2;
+                 mesh.rotation.z = (Math.random() - 0.5) * 0.5;
+            } else {
+                 // Rock
+                 mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(2, 0), matSpike);
+                 mesh.scale.set(1.5, 0.8, 1.5);
+            }
+            
+            mesh.position.x = (Math.random() - 0.5) * config.bounds.x * 3; 
+            mesh.position.y = config.floorDepth + (isSeaweed ? 4 : 1);
+            mesh.position.z = z;
+            mesh.userData = { type: 'decor' }; // Non interactive
+            scene.add(mesh);
+            entities.push(mesh);
+        }
+
+        function setRandomPos(obj, z) {
+            obj.position.x = (Math.random() - 0.5) * config.bounds.x * 2;
+            obj.position.y = (Math.random() - 0.5) * config.bounds.y * 2;
+            obj.position.z = z;
+        }
+
+        // --- Visual Effects ---
+
+        function triggerExplosion(pos) {
+            explosionActive = true;
+            explosionTime = 0;
+            explosionCenter.copy(pos);
+            explosionSystem.material.opacity = 1;
+        }
+
+        function updateExplosion() {
+            if (!explosionActive) return;
+            explosionTime += 0.05;
+            const positions = explosionSystem.geometry.attributes.position.array;
+            
+            if (explosionTime > 1) {
+                explosionActive = false;
+                for(let i=0; i<explosionCount*3; i++) positions[i] = 9999;
+                explosionSystem.geometry.attributes.position.needsUpdate = true;
+                return;
+            }
+
+            for(let i=0; i<explosionCount; i++) {
+                const r = 2 + explosionTime * 12; // Faster expansion
+                const theta = i * 0.1; 
+                const phi = i * 0.2;
+                positions[i*3] = explosionCenter.x + r * Math.sin(theta) * Math.cos(phi);
+                positions[i*3+1] = explosionCenter.y + r * Math.sin(theta) * Math.sin(phi);
+                positions[i*3+2] = explosionCenter.z + r * Math.cos(theta);
+            }
+            explosionSystem.material.opacity = 1 - explosionTime;
+            explosionSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // --- Core Logic ---
+
+        function updateBiomes() {
+            const distance = Math.abs(camera.position.z) + Math.abs(state.depth)*5;
+            
+            let targetBiome = biomes[state.currentBiomeIndex];
+            if (biomes[state.currentBiomeIndex + 1] && distance > biomes[state.currentBiomeIndex].limit) {
+                state.currentBiomeIndex++;
+                targetBiome = biomes[state.currentBiomeIndex];
+                
+                const biomeText = document.getElementById('biome-display');
+                biomeText.innerText = targetBiome.name;
+                biomeText.style.color = '#fff';
+                biomeText.style.textShadow = `0 0 20px ${new THREE.Color(targetBiome.light).getStyle()}`;
+                setTimeout(() => { biomeText.style.color = 'rgba(255,255,255,0.4)'; }, 3000);
+            }
+
+            scene.fog.color.lerp(new THREE.Color(targetBiome.fog), 0.01);
+            scene.background.lerp(new THREE.Color(targetBiome.color), 0.01);
+            hemiLight.color.lerp(new THREE.Color(targetBiome.light), 0.01);
+            scene.fog.density += (targetBiome.density - scene.fog.density) * 0.01;
+        }
+
+        function updateState() {
+            if(!state.isPlaying) return;
+
+            document.getElementById('oxygen-bar-fill').style.width = state.oxygen + '%';
+            document.getElementById('oxy-text').innerText = Math.floor(state.oxygen) + '%';
+            document.getElementById('dash-bar-fill').style.width = state.energy + '%';
+
+            state.oxygen -= config.oxygenDepletionRate;
+            if (state.oxygen <= 0) { state.oxygen = 0; gameOver(); }
+
+            if (state.isDashing) {
+                state.energy -= config.dashDrain;
+                state.speed = config.dashSpeed;
+                state.shakeIntensity = 0.5;
+                document.getElementById('reticle').classList.add('locked');
+                
+                camera.fov += (90 - camera.fov) * 0.1;
+                camera.updateProjectionMatrix();
+
+                if (state.energy <= 0) {
+                    state.isDashing = false;
+                }
+            } else {
+                state.speed = config.baseSpeed;
+                state.energy = Math.min(state.energy + config.energyRecharge, 100);
+                state.shakeIntensity = 0;
+                document.getElementById('reticle').classList.remove('locked');
+
+                camera.fov += (65 - camera.fov) * 0.1;
+                camera.updateProjectionMatrix();
+            }
+
+            if (state.shakeIntensity > 0) {
+                camera.position.x += (Math.random() - 0.5) * state.shakeIntensity;
+                camera.position.y += (Math.random() - 0.5) * state.shakeIntensity;
+            }
+        }
+
+        function manageSpawning() {
+            const spawnZ = camera.position.z - config.spawnDist;
+            const deleteZ = camera.position.z + config.despawnDist;
+
+            for (let i = entities.length - 1; i >= 0; i--) {
+                if (entities[i].position.z > deleteZ) {
+                    scene.remove(entities[i]);
+                    entities.splice(i, 1);
+                }
+            }
+
+            const densityMult = 1 + (state.currentBiomeIndex * 0.5);
+            
+            // Increased spawn cap
+            if (entities.length < 60 * densityMult) {
+                const r = Math.random();
+                const posZ = spawnZ - Math.random() * 20;
+                
+                if (r < 0.1) spawnOxygen(posZ);
+                else if (r < 0.2) spawnArtifact(posZ);
+                else if (r < 0.4 * densityMult) spawnMineCluster(posZ);
+                else if (r < 0.8) spawnFloorDecor(posZ); // High chance for decor
+            }
+        }
+
+        function checkCollisions() {
+            const playerPos = camera.position.clone();
+            playerPos.z -= 1;
+
+            for (let i = entities.length - 1; i >= 0; i--) {
+                const e = entities[i];
+                if (e.userData.type === 'decor') continue; // Ignore decor
+
+                const dist = playerPos.distanceTo(e.position);
+                let hitRadius = 2.0;
+                if (e.userData.type === 'obstacle') hitRadius = 3.5;
+
+                if (dist < hitRadius) {
+                    if (e.userData.type === 'oxygen') {
+                        state.oxygen = Math.min(state.oxygen + config.oxygenRestore, 100);
+                        triggerFeedback('O2 REPLENISHED', '#0ff');
+                        scene.remove(e); entities.splice(i, 1);
+                    }
+                    else if (e.userData.type === 'artifact') {
+                        const pts = state.isDashing ? 2 : 1;
+                        state.score += pts;
+                        document.getElementById('score-display').innerText = state.score;
+                        triggerFeedback(state.isDashing ? 'COMBO GRAB!' : 'ARTIFACT COLLECTED', '#fb0');
+                        scene.remove(e); entities.splice(i, 1);
+                    }
+                    else if (e.userData.type === 'obstacle') {
+                        if (state.isDashing) {
+                            triggerExplosion(e.position);
+                            state.score += 5; 
+                            document.getElementById('score-display').innerText = state.score;
+                            triggerFeedback('MINE DESTROYED!', '#ff4400');
+                            scene.remove(e); entities.splice(i, 1);
+                        } else {
+                            state.oxygen -= 30;
+                            triggerFeedback('HULL BREACH!', '#f33');
+                            camera.position.z += 5; 
+                            scene.remove(e); entities.splice(i, 1);
+                        }
+                    }
+                }
+            }
+        }
+
+        function triggerFeedback(text, color) {
+            const el = document.getElementById('center-msg');
+            const h1 = el.querySelector('h1');
+            const p = el.querySelector('p');
+            h1.style.display = 'none';
+            p.innerHTML = text;
+            p.style.color = color;
+            p.style.fontSize = '28px';
+            p.style.fontWeight = 'bold';
+            p.style.textShadow = `0 0 15px ${color}`;
+            el.style.opacity = 1;
+            setTimeout(() => { el.style.opacity = 0; }, 800);
+        }
+
+        function gameOver() {
+            state.isPlaying = false;
+            document.getElementById('game-over-screen').style.display = 'flex';
+            document.getElementById('final-score').innerText = `Depth: ${Math.floor(Math.abs(state.depth))}m | Score: ${state.score}`;
+        }
+
+        window.resetGame = function() {
+            state.score = 0; state.oxygen = 100; state.depth = 0; state.energy = 100;
+            state.isPlaying = true; state.currentBiomeIndex = 0;
+            camera.position.set(0, 0, 5); camera.rotation.set(0,0,0);
+            
+            entities.forEach(e => scene.remove(e)); entities.length = 0;
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('score-display').innerText = '0';
+            document.getElementById('biome-display').innerText = "The Shallows";
+            
+            // Initial spawn
+            for(let i=0; i<15; i++) {
+                spawnOxygen(-20 - i*10);
+                spawnFloorDecor(-20 - i*10);
+            }
+        }
+
+        // --- Inputs ---
+        document.addEventListener('mousemove', (e) => {
+            if (!state.isPlaying) return;
+            const reticle = document.getElementById('reticle');
+            reticle.style.left = e.clientX + 'px';
+            reticle.style.top = e.clientY + 'px';
+            state.mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            state.mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        function activateDash() {
+            if (state.energy > 20) state.isDashing = true;
+        }
+        function deactivateDash() {
+            state.isDashing = false;
+        }
+
+        document.addEventListener('mousedown', (e) => { 
+            if(e.button === 0 || e.button === 2) activateDash(); 
+        });
+        document.addEventListener('mouseup', deactivateDash);
+        document.addEventListener('keydown', (e) => { if(e.code === 'Space') activateDash(); });
+        document.addEventListener('keyup', (e) => { if(e.code === 'Space') deactivateDash(); });
+        window.addEventListener('contextmenu', e => e.preventDefault()); 
+
+        // --- Loop ---
+        setTimeout(() => { document.getElementById('center-msg').style.opacity = 1; }, 500);
+        setTimeout(() => { document.getElementById('center-msg').style.opacity = 0; }, 4000);
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            if (!state.isPlaying) return;
+
+            camera.position.z -= state.speed;
+            state.depth = camera.position.z; 
+            document.getElementById('depth-display').innerText = `DEPTH: ${Math.floor(Math.abs(state.depth))}m`;
+
+            state.targetX = state.mouseX * config.bounds.x;
+            state.targetY = state.mouseY * config.bounds.y;
+            camera.position.x += (state.targetX - camera.position.x) * 0.08;
+            camera.position.y += (state.targetY - camera.position.y) * 0.08;
+
+            const targetRotY = (state.targetX - camera.position.x) * -0.05;
+            const targetRotX = (state.targetY - camera.position.y) * 0.05;
+            const targetRotZ = (state.targetX - camera.position.x) * -0.02;
+
+            camera.rotation.y += (targetRotY - camera.rotation.y) * 0.1;
+            camera.rotation.x += (targetRotX - camera.rotation.x) * 0.1;
+            camera.rotation.z += (targetRotZ - camera.rotation.z) * 0.1;
+
+            spotLight.position.copy(camera.position);
+            spotLight.target.position.set(camera.position.x, camera.position.y, camera.position.z - 50);
+            spotLight.target.updateMatrixWorld();
+
+            entities.forEach(e => {
+                if(e.userData.rotSpeed) {
+                    e.rotation.x += e.userData.rotSpeed;
+                    e.rotation.y += e.userData.rotSpeed;
+                }
+                if (e.userData.type === 'oxygen') {
+                    const s = 1 + Math.sin(time * 0.003) * 0.2;
+                    e.scale.setScalar(s);
+                }
+            });
+
+            const offset = camera.position.z;
+            if (offset % 300 > -5) {
+                seaBed.position.z = camera.position.z;
+                surface.position.z = camera.position.z;
+            }
+            snowSystem.position.z = camera.position.z;
+
+            let nearestDist = Infinity; let nearestObj = null;
+            entities.forEach(e => {
+                if (e.userData.type === 'oxygen' && e.position.z < camera.position.z) {
+                    const d = camera.position.distanceTo(e.position);
+                    if (d < nearestDist) { nearestDist = d; nearestObj = e; }
+                }
+            });
+            const arrow = document.getElementById('compass-arrow');
+            if (nearestObj && nearestDist < 200) {
+                arrow.style.opacity = 1;
+                const local = nearestObj.position.clone().applyMatrix4(camera.matrixWorldInverse);
+                const angle = Math.atan2(local.y, local.x);
+                arrow.style.transform = `rotate(${(angle * 180 / Math.PI) - 90}deg)`;
+            } else {
+                arrow.style.opacity = 0.2;
+                arrow.style.transform = `rotate(0deg)`;
+            }
+
+            updateBiomes();
+            updateState();
+            manageSpawning();
+            checkCollisions();
+            updateExplosion();
+
+            renderer.render(scene, camera);
+        }
+
+        animate(0);
+
+    </script>
+</body>
+</html>

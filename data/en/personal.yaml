@@ -66,6 +66,14 @@ sections:
           label: Play Lexical Hazard
           url: "/games/lexical_hazard.html"
         image: "/games/lexical_hazard.png"
+      - title: Abyss
+        genre: Deep-dive survival
+        summary: "Dive into the deep blue. Manage oxygen, dash to destroy mines, and descend through biomes to the abyssal rift."
+        tags: ["browser", "3D", "sound-on"]
+        link:
+          label: Play Abyss
+          url: "/games/abyss.html"
+        image: "/games/abyss.jpg"
   - section:
       name: Photo Gallery
       id: gallery
