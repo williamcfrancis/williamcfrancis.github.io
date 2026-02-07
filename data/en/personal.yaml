@@ -58,6 +58,14 @@ sections:
           label: Play Echo Walker
           url: "/games/echo_walker.html"
         image: "/games/echo_walker.png"
+      - title: Lexical Hazard
+        genre: Word survival
+        summary: "Type the falling words to neutralize them. Each word triggers its meaning—FAST speeds time, BLIND dims the lights."
+        tags: ["browser", "typing", "sound-on"]
+        link:
+          label: Play Lexical Hazard
+          url: "/games/lexical_hazard.html"
+        image: "/games/lexical_hazard.png"
   - section:
       name: Photo Gallery
       id: gallery

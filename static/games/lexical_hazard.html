@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lexical Hazard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            font-size: 24px;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .score-box { color: #0ff; }
+        .health-box { color: #f0f; }
+
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 5, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        h1 {
+            font-size: 64px;
+            margin: 0 0 20px 0;
+            background: linear-gradient(45deg, #0ff, #f0f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        p {
+            font-size: 18px;
+            color: #aaa;
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .btn {
+            margin-top: 40px;
+            padding: 15px 40px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 24px;
+            background: transparent;
+            color: #0ff;
+            border: 2px solid #0ff;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .back-to-games {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 15;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
+            color: #0ff;
+            text-decoration: none;
+            font-size: 13px;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.2s;
+        }
+        .back-to-games:hover {
+            background: rgba(0, 255, 255, 0.15);
+            border-color: #0ff;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+        }
+
+        .active-effects {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .effect-tag {
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-left: 3px solid;
+            font-size: 14px;
+            animation: slideIn 0.3s ease-out;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        #input-display {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;
+            color: #fff;
+            text-shadow: 0 0 20px #fff;
+            letter-spacing: 5px;
+            height: 60px;
+        }
+
+        .caret {
+            display: inline-block;
+            width: 15px;
+            height: 40px;
+            background: #f0f;
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 5px;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="score-box">SCORE: <span id="score">0</span> <span id="level-indicator" style="font-size: 0.6em; color: #fff; margin-left: 10px;">LVL 1</span></div>
+            <div class="health-box">Integrity: <span id="health">100</span>%</div>
+        </div>
+        <div class="active-effects" id="effects-list"></div>
+        <div id="input-display"><span id="current-input"></span><span class="caret"></span></div>
+    </div>
+
+    <div id="start-screen">
+        <a class="back-to-games" href="/personal/#games"><span>←</span> Back to games</a>
+        <h1>Lexical Hazard</h1>
+        <p><strong>WARNING:</strong> Semantic containment breach detected.</p>
+        <p>Type the falling words to neutralize them. <br>
+           <span style="color:#f0f">CAUTION:</span> Neutralizing a word triggers its meaning.</p>
+        <p>Destroy "FAST" -> Time speeds up.<br>
+           Destroy "BLIND" -> Lights go out.<br>
+           Destroy "REWIND" -> Time reverses.</p>
+        <button class="btn" onclick="startGame()">Initialize Defense</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <a class="back-to-games" href="/personal/#games"><span>←</span> Back to games</a>
+        <h1>SYSTEM FAILURE</h1>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <p>The meaning of the words became too heavy to bear.</p>
+        <button class="btn" onclick="resetGame()">Reboot System</button>
+    </div>
+</div>
+
+<script>
+/**
+ * LEXICAL HAZARD
+ * A Single-File Semantic Survival Game
+ */
+
+// --- CONFIGURATION ---
+const WORDS = [
+    // Gameplay Modifiers
+    { text: "FAST", type: "bad", desc: "Speed Up", duration: 5000 },
+    { text: "SLOW", type: "good", desc: "Slow Down", duration: 5000 },
+    { text: "HEAL", type: "good", desc: "Repair +20", duration: 0 },
+    { text: "CLEAR", type: "good", desc: "Nuke Screen", duration: 0 },
+    { text: "SHIELD", type: "good", desc: "Invulnerable", duration: 5000 },
+    { text: "FREEZE", type: "good", desc: "Stop Time", duration: 4000 },
+    { text: "SWARM", type: "bad", desc: "Spawn Enemies", duration: 0 },
+    { text: "GRAVITY", type: "bad", desc: "Heavy Fall", duration: 6000 },
+    { text: "REWIND", type: "good", desc: "Reverse Time", duration: 3000 },
+    { text: "MAGNET", type: "bad", desc: "Attract Center", duration: 6000 },
+    { text: "SHUFFLE", type: "neutral", desc: "Swap Positions", duration: 0 },
+    
+    // Visual/Physics Disruptors
+    { text: "BLIND", type: "bad", desc: "Darkness", duration: 4000 },
+    { text: "DIZZY", type: "bad", desc: "Rotation", duration: 6000 },
+    { text: "SHAKE", type: "bad", desc: "Earthquake", duration: 3000 },
+    { text: "ZOOM", type: "bad", desc: "FOV Shift", duration: 5000 },
+    { text: "MIRROR", type: "bad", desc: "Flip Screen", duration: 6000 },
+    { text: "GLITCH", type: "bad", desc: "Visual Noise", duration: 5000 },
+    { text: "CHAOS", type: "bad", desc: "Erratic Move", duration: 5000 },
+    { text: "PIXEL", type: "bad", desc: "Low Resolution", duration: 5000 },
+    { text: "FOG", type: "bad", desc: "Low Visibility", duration: 6000 },
+    
+    // Fun / Atmospheric Effects
+    { text: "RAIN", type: "neutral", desc: "Heavy Rain", duration: 8000 },
+    { text: "FIRE", type: "bad", desc: "Inferno", duration: 6000 },
+    { text: "WAVE", type: "bad", desc: "Wobbly World", duration: 7000 },
+    { text: "NEON", type: "neutral", desc: "Party Mode", duration: 8000 },
+    { text: "BIG", type: "neutral", desc: "Giant Text", duration: 8000 },
+    { text: "TINY", type: "bad", desc: "Tiny Text", duration: 8000 },
+    { text: "BOUNCE", type: "neutral", desc: "Wall Bounce", duration: 7000 },
+    { text: "GHOST", type: "bad", desc: "Fade Out", duration: 6000 },
+    { text: "WIND", type: "bad", desc: "Side Force", duration: 6000 },
+    { text: "DANCE", type: "neutral", desc: "Groovy Moves", duration: 5000 }
+];
+
+const WORD_TIERS = {
+    1: ["CAT", "DOG", "SUN", "SKY", "RED", "BLUE", "RUN", "JUMP", "PLAY", "GAME", "LOVE", "HOPE", "LIFE", "TIME", "MIND", "SOUL", "STAR", "MOON", "FIRE", "WIND", "RAIN", "SNOW", "TREE", "LEAF", "BIRD", "FISH", "BOOK", "PEN", "ART", "SONG", "FOOD", "CAKE", "MILK", "GOLD", "RICH", "POOR", "COOL", "WARM", "HOT", "COLD", "FAST", "SLOW", "HARD", "SOFT", "LOUD", "QUIET", "DARK", "LIGHT", "DAY", "NIGHT", "YEAR", "WEEK", "HOUR", "MIN", "SEC", "WORK", "REST", "SLEEP", "WAKE", "WALK", "TALK", "READ", "SWIM", "FLY"],
+    2: ["PLANET", "GALAXY", "ROCKET", "ORBIT", "FUTURE", "PAST", "PRESEN", "SUMMER", "WINTER", "AUTUMN", "SPRING", "JUNGLE", "DESERT", "OCEAN", "RIVER", "VALLEY", "CANYON", "ISLAND", "CASTLE", "PALACE", "TEMPLE", "SCHOOL", "OFFICE", "MARKET", "STREET", "BRIDGE", "TUNNEL", "GARDEN", "FLOWER", "ANIMAL", "TIGER", "LION", "BEAR", "WOLF", "HORSE", "ZEBRA", "MONKEY", "RABBIT", "MOUSE", "SNAKE", "EAGLE", "SHARK", "WHALE", "ROBOT", "ALIEN", "GHOST", "ZOMBIE", "WITCH", "FAIRY", "ANGEL", "DEMON", "MAGIC", "POWER", "FORCE", "SPEED", "DANGER", "ACTION", "COMEDY", "DRAMA", "HORROR", "MUSIC", "DANCE", "PARTY"],
+    3: ["UNIVERSE", "DIMENSION", "PARALLEL", "QUANTUM", "MYSTERY", "ADVENTURE", "JOURNEY", "DESTINY", "FANTASY", "REALITY", "DREAMER", "THINKER", "BELIEVER", "SKEPTIC", "WARRIOR", "SOLDIER", "LEGEND", "HERO", "VILLAIN", "MONSTER", "CREATURE", "DRAGON", "PHOENIX", "UNICORN", "GRIFFIN", "KRAKEN", "CYBORG", "ANDROID", "MUTANT", "VAMPIRE", "WEREWOLF", "DINOSAUR", "VOLCANO", "TORNADO", "HURRICANE", "TSUNAMI", "BLIZZARD", "THUNDER", "LIGHTNING", "EXPLOSION", "COLLISION", "ILLUSION", "REFLECTION", "SHADOW", "SILENCE", "WHISPER", "SCREAM", "LAUGHTER", "SORROW", "HAPPINESS", "FREEDOM", "LIBERTY", "JUSTICE", "VICTORY", "DEFEAT", "TRIUMPH", "TRAGEDY"]
+};
+
+// --- ENGINE SETUP ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiScore = document.getElementById('score');
+const uiHealth = document.getElementById('health');
+const uiInput = document.getElementById('current-input');
+const uiEffects = document.getElementById('effects-list');
+const uiLevel = document.getElementById('level-indicator');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const finalScoreSpan = document.getElementById('final-score');
+
+// Resize handling
+let width, height;
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- STATE MANAGEMENT ---
+let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
+let score = 0;
+let health = 100;
+let userInput = "";
+let lastTime = 0;
+let difficultyMultiplier = 1;
+let level = 1;
+let spawnTimer = 0;
+let spawnRate = 2000; // ms
+
+// --- AUDIO SYSTEM (Web Audio API) ---
+const Audio = {
+    ctx: null,
+    init: function() {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    },
+    playTone: function(freq, type, duration, vol = 0.1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    shoot: function() { this.playTone(800, 'square', 0.1, 0.05); },
+    explosion: function() { this.playTone(100, 'sawtooth', 0.3, 0.1); },
+    hit: function() { this.playTone(50, 'sawtooth', 0.5, 0.2); },
+    powerup: function() { this.playTone(1200, 'sine', 0.3, 0.1); },
+    shieldHit: function() { this.playTone(600, 'sine', 0.1, 0.1); this.playTone(800, 'sine', 0.1, 0.1); },
+    type: function() { this.playTone(400 + Math.random()*200, 'sine', 0.05, 0.02); }
+};
+
+// --- ENTITIES ---
+
+class Word {
+    constructor() {
+        // 20% chance for a special word, increases with difficulty
+        const isSpecial = Math.random() < (0.15 + (difficultyMultiplier * 0.02));
+        
+        if (isSpecial) {
+            const template = WORDS[Math.floor(Math.random() * WORDS.length)];
+            this.text = template.text;
+            this.effectType = template.type;
+            this.effectTemplate = template;
+            this.color = this.effectType === 'good' ? '#0f0' : (this.effectType === 'bad' ? '#f00' : '#ff0');
+        } else {
+            // Determine word tier based on level
+            let tier = 1;
+            if (level >= 3) tier = Math.random() < 0.5 ? 2 : 1;
+            if (level >= 6) {
+                const r = Math.random();
+                tier = r < 0.4 ? 3 : (r < 0.8 ? 2 : 1);
+            }
+            
+            const list = WORD_TIERS[tier];
+            this.text = list[Math.floor(Math.random() * list.length)];
+            this.effectType = 'none';
+            this.color = tier === 3 ? '#ff00ff' : (tier === 2 ? '#00ffff' : '#0099ff');
+        }
+
+        this.x = Math.random() * (width - 100) + 50;
+        this.y = -50;
+        this.baseSpeed = (Math.random() * 0.3 + 0.3) * (60 + (level * 5)); // Increase speed with level
+        this.vx = 0;
+        this.vy = 0;
+        this.scale = 1;
+        this.opacity = 1;
+        this.wobble = Math.random() * Math.PI * 2;
+        this.chaosOffset = 0;
+    }
+
+    update(dt) {
+        let speedMult = 1;
+        if (Effects.has('FAST')) speedMult = 2.5;
+        if (Effects.has('SLOW')) speedMult = 0.5;
+        if (Effects.has('FREEZE')) speedMult = 0;
+        if (Effects.has('GRAVITY')) speedMult = 3.0;
+        if (Effects.has('REWIND')) speedMult = -1.5;
+
+        // Apply physics
+        this.vy = this.baseSpeed * speedMult;
+        
+        if (Effects.has('WIND')) this.vx = Math.sin(Date.now() / 1000) * 150;
+        else this.vx = 0;
+
+        if (Effects.has('MAGNET')) {
+            const centerX = width / 2;
+            const dir = this.x < centerX ? 1 : -1;
+            this.vx += dir * 150; 
+        }
+        
+        if (Effects.has('CHAOS')) {
+             this.vx += (Math.random() - 0.5) * 500;
+             this.vy += (Math.random() - 0.5) * 200;
+        }
+
+        if (Effects.has('BOUNCE')) {
+            this.x += (Math.cos(this.wobble) * 200 * dt);
+            if (this.x < 50 || this.x > width - 50) this.wobble += Math.PI;
+        }
+
+        if (Effects.has('DANCE')) {
+            this.x += Math.sin(Date.now() / 200 + this.y) * 5; 
+        }
+
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Visual wobble
+        this.wobble += dt * 2;
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        
+        if (Effects.has('DIZZY')) ctx.rotate(Math.sin(Date.now()/500) * 0.1);
+        if (Effects.has('WAVE')) ctx.translate(Math.sin(Date.now()/200 + this.y/50) * 20, 0);
+        if (Effects.has('BIG') || Effects.has('ZOOM')) ctx.scale(2, 2);
+        if (Effects.has('TINY')) ctx.scale(0.5, 0.5);
+        
+        let alpha = this.opacity;
+        if (Effects.has('GHOST')) alpha = 0.3 + Math.sin(Date.now()/200)*0.2;
+        
+        if (Effects.has('FOG')) {
+            // Words fade in as they go down
+            const visibility = Math.max(0, (this.y - 100) / (height/2));
+            alpha = Math.min(alpha, visibility);
+        }
+
+        if (Effects.has('BLIND')) {
+            // Only visible in small spotlight around cursor? No, just invisible/dim
+            alpha = 0.1; 
+            // In blind mode, text is barely visible outlines
+            ctx.strokeStyle = '#333';
+            ctx.strokeText(this.text, 0, 0);
+        }
+
+        ctx.globalAlpha = alpha;
+        
+        if (Effects.has('NEON')) {
+             ctx.fillStyle = `hsl(${(Date.now()/5 + this.x)%360}, 100%, 50%)`;
+        } else {
+             ctx.fillStyle = this.color;
+        }
+        
+        // Glitch effect overrides color
+        if (Effects.has('GLITCH') && Math.random() > 0.8) {
+            ctx.fillStyle = '#fff';
+            ctx.translate(Math.random()*10-5, 0);
+        }
+
+        ctx.font = "30px 'Share Tech Mono'";
+        ctx.textAlign = "center";
+        ctx.fillText(this.text, 0, 0);
+        
+        // Match highlight
+        if (userInput.length > 0 && this.text.startsWith(userInput)) {
+            ctx.fillStyle = '#fff';
+            const matchedPart = userInput;
+            const w = ctx.measureText(this.text).width;
+            const charW = 18; // approx width
+            const offset = (this.text.length * charW) / 2;
+            const matchW = matchedPart.length * charW;
+            
+            ctx.fillStyle = '#fff';
+            ctx.fillText(matchedPart, 0 - offset + (matchW/2), 0);
+            
+            // Draw underline for target
+            ctx.fillRect(-offset, 5, matchW, 2);
+        }
+
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 200 + 50;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.life = 1.0;
+        this.decay = Math.random() * 2.0 + 1.0;
+    }
+
+    update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= this.decay * dt;
+        this.vy += 200 * dt; // Gravity
+    }
+
+    draw(ctx) {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, 4, 4);
+        ctx.globalAlpha = 1;
+    }
+}
+
+// --- SYSTEMS ---
+
+const Effects = {
+    active: {}, // Map of EffectName -> TimeRemaining
+    
+    activate: function(name, duration) {
+        // Instant effects
+        if (name === 'HEAL') {
+            health = Math.min(100, health + 20);
+            updateHUD();
+            Audio.powerup();
+            createParticles(width/2, height, '#0f0', 20);
+            return;
+        }
+        if (name === 'SWARM') {
+            for(let i=0; i<5; i++) spawnWord();
+            createParticles(width/2, 100, '#f00', 20);
+            return;
+        }
+        if (name === 'CLEAR') {
+            words.forEach(w => createParticles(w.x, w.y, w.color, 10));
+            words = [];
+            Audio.explosion();
+            createParticles(width/2, height/2, '#fff', 50);
+            return;
+        }
+        if (name === 'SHUFFLE') {
+            words.forEach(w => {
+                w.x = Math.random() * (width - 100) + 50;
+                w.y = Math.random() * (height / 2); 
+            });
+            Audio.powerup();
+            return;
+        }
+
+        // Duration effects
+        this.active[name] = duration;
+        this.renderList();
+    },
+
+    update: function(dt) {
+        const names = Object.keys(this.active);
+        let changed = false;
+        names.forEach(name => {
+            this.active[name] -= dt * 1000;
+            if (this.active[name] <= 0) {
+                delete this.active[name];
+                changed = true;
+            }
+        });
+        if (changed) this.renderList();
+    },
+
+    has: function(name) {
+        return !!this.active[name];
+    },
+
+    renderList: function() {
+        uiEffects.innerHTML = '';
+        Object.keys(this.active).forEach(name => {
+            const div = document.createElement('div');
+            div.className = 'effect-tag';
+            const wordData = WORDS.find(w=>w.text===name);
+            const color = wordData ? (wordData.type === 'good' ? '#0f0' : '#f00') : '#fff';
+            div.style.borderColor = color;
+            div.style.color = '#fff';
+            div.innerText = `${name} ${(this.active[name]/1000).toFixed(1)}s`;
+            uiEffects.appendChild(div);
+        });
+    }
+};
+
+let words = [];
+let particles = [];
+let cameraShake = 0;
+
+function spawnWord() {
+    words.push(new Word());
+}
+
+function createParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+    }
+}
+
+function updateHUD() {
+    uiScore.innerText = score;
+    uiHealth.innerText = health;
+    uiInput.innerText = userInput;
+    
+    if (document.getElementById('level-indicator')) {
+        document.getElementById('level-indicator').innerText = `LVL ${level}`;
+    }
+}
+
+function startGame() {
+    Audio.init();
+    gameState = 'PLAYING';
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    
+    score = 0;
+    health = 100;
+    level = 1;
+    userInput = "";
+    words = [];
+    particles = [];
+    Effects.active = {};
+    Effects.renderList();
+    
+    difficultyMultiplier = 1;
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+}
+
+function resetGame() {
+    startGame();
+}
+
+function triggerGameOver() {
+    gameState = 'GAMEOVER';
+    gameOverScreen.classList.remove('hidden');
+    finalScoreSpan.innerText = score;
+}
+
+// --- INPUT HANDLING ---
+window.addEventListener('keydown', (e) => {
+    if (gameState !== 'PLAYING') return;
+
+    if (e.key === 'Backspace') {
+        userInput = userInput.slice(0, -1);
+        Audio.type();
+    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+        userInput += e.key.toUpperCase();
+        Audio.type();
+    }
+
+    // Check matches
+    const matchIndex = words.findIndex(w => w.text === userInput);
+    if (matchIndex !== -1) {
+        const word = words[matchIndex];
+        
+        // Success
+        words.splice(matchIndex, 1);
+        userInput = "";
+        
+        // Progression
+        score += word.text.length * 10;
+        const newLevel = Math.floor(score / 500) + 1;
+        if (newLevel > level) {
+            level = newLevel;
+            Audio.powerup(); // Level up sound
+            createParticles(width/2, height/2, '#0ff', 50);
+        }
+
+        createParticles(word.x, word.y, word.color, 15);
+        Audio.shoot();
+
+        if (word.effectType !== 'none') {
+            Effects.activate(word.text, word.effectTemplate.duration);
+            // Visual flair for activation
+            cameraShake = 10;
+        }
+
+        difficultyMultiplier += 0.05;
+    } else {
+        // Check if current input matches the START of any word
+        const isPrefix = words.some(w => w.text.startsWith(userInput));
+        if (!isPrefix && userInput.length > 0) {
+            // Error handling - flash red?
+        }
+    }
+    
+    updateHUD();
+});
+
+// --- MAIN LOOP ---
+
+function gameLoop(timestamp) {
+    if (gameState !== 'PLAYING') return;
+    
+    const dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    // Spawning Logic
+    // Cap spawn rate at 300ms minimum
+    const baseRate = Math.max(300, 2000 - (level * 150)); 
+    // Add chaos if difficulty is high
+    spawnRate = baseRate;
+    
+    spawnTimer -= dt * 1000;
+    if (spawnTimer <= 0) {
+        spawnWord();
+        spawnTimer = spawnRate;
+    }
+
+    // Update Entities
+    words.forEach(w => w.update(dt));
+    particles.forEach(p => p.update(dt));
+    Effects.update(dt);
+    
+    // Cleanup
+    particles = particles.filter(p => p.life > 0);
+    
+    // Collision / Damage
+    for (let i = words.length - 1; i >= 0; i--) {
+        if (words[i].y > height + 20) {
+            // Hit bottom
+            if (Effects.has('SHIELD')) {
+                // Shield blocks damage
+                Audio.shieldHit();
+                cameraShake = 5;
+            } else {
+                health -= 10;
+                cameraShake = 20;
+                Audio.hit();
+            }
+            words.splice(i, 1);
+            if (health <= 0) triggerGameOver();
+        }
+    }
+    
+    // Cull words flying too high (REWIND effect)
+    words = words.filter(w => w.y > -200);
+
+    updateHUD();
+
+    // Drawing
+    ctx.clearRect(0, 0, width, height);
+    
+    // Global transforms
+    ctx.save();
+    
+    if (Effects.has('MIRROR')) {
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+    }
+    
+    // Background Effects
+    if (Effects.has('BLIND')) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0,0,width,height);
+    } else {
+        // Grid background
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        
+        // Moving grid
+        const gridOffset = (Date.now() / 50) % 40;
+        ctx.beginPath();
+        for(let x=0; x<=width; x+=40) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
+        for(let y=gridOffset; y<=height; y+=40) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
+        ctx.stroke();
+
+        if (Effects.has('RAIN')) {
+           ctx.strokeStyle = '#00f';
+           ctx.lineWidth = 2;
+           ctx.beginPath();
+           for(let i=0; i<30; i++) {
+               let rx = Math.random() * width;
+               let ry = Math.random() * height;
+               ctx.moveTo(rx, ry);
+               ctx.lineTo(rx - 5, ry + 30);
+           }
+           ctx.stroke();
+        }
+        
+        if (Effects.has('FOG')) {
+            const grad = ctx.createLinearGradient(0, 0, 0, height);
+            grad.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
+            grad.addColorStop(0.4, 'rgba(200, 200, 200, 0.5)');
+            grad.addColorStop(0.8, 'rgba(200, 200, 200, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+        }
+    }
+
+    // Fire Overlay
+    if (Effects.has('FIRE')) {
+        ctx.fillStyle = 'rgba(255, 50, 0, 0.15)';
+        ctx.fillRect(0,0,width,height);
+    }
+
+    // Shield Visual
+    if (Effects.has('SHIELD')) {
+        ctx.strokeStyle = `rgba(0, 200, 255, ${0.5 + Math.sin(Date.now()/200)*0.3})`;
+        ctx.lineWidth = 10;
+        ctx.strokeRect(0, 0, width, height);
+    }
+
+    // Camera Shake
+    if (cameraShake > 0) {
+        const dx = (Math.random() - 0.5) * cameraShake;
+        const dy = (Math.random() - 0.5) * cameraShake;
+        ctx.translate(dx, dy);
+        cameraShake -= dt * 60;
+        if (cameraShake < 0) cameraShake = 0;
+    }
+
+    // Draw Entities
+    words.forEach(w => w.draw(ctx));
+    particles.forEach(p => p.draw(ctx));
+    
+    // Restore Mirror/Shake transforms
+    ctx.restore();
+
+    // Post-processing overlays (Screen space, not mirrored)
+    if (Effects.has('GLITCH') && Math.random() > 0.9) {
+        ctx.fillStyle = `rgba(${Math.random()*255},0,255,0.2)`;
+        ctx.fillRect(0, Math.random()*height, width, Math.random()*50);
+    }
+    
+    if (Effects.has('PIXEL')) {
+        // Simple mosaic effect logic via sub-sampling
+        // Note: Real-time full canvas mosaic is expensive in JS loop without WebGL.
+        // We will simulate it by drawing a grid overlay.
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        for(let x=0; x<width; x+=10) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, height);
+        }
+        for(let y=0; y<height; y+=10) {
+            ctx.moveTo(0, y); ctx.lineTo(width, y);
+        }
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.stroke();
+        
+        // Actually, let's try the downscale/upscale trick quickly, it's often fast enough
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(canvas, 0, 0, width, height, 0, 0, width/8, height/8);
+        ctx.drawImage(canvas, 0, 0, width/8, height/8, 0, 0, width, height);
+        ctx.imageSmoothingEnabled = true;
+    }
+    
+    // Shield Text Overlay (optional)
+    if (Effects.has('SHIELD')) {
+        ctx.fillStyle = "rgba(0, 255, 255, 0.1)";
+        ctx.font = "100px 'Share Tech Mono'";
+        ctx.textAlign = "center";
+        ctx.fillText("SHIELD ACTIVE", width/2, height/2);
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+</script>
+</body>
+</html>
