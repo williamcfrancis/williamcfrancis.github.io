@@ -206,9 +206,9 @@
         <p><strong>WARNING:</strong> Semantic containment breach detected.</p>
         <p>Type the falling words to neutralize them. <br>
            <span style="color:#f0f">CAUTION:</span> Neutralizing a word triggers its meaning.</p>
-        <p>Destroy "FAST" -> Time speeds up.<br>
-           Destroy "BLIND" -> Lights go out.<br>
-           Destroy "REWIND" -> Time reverses.</p>
+        <p style="color:#0f0">HEAL, SHIELD, PURIFY, BONUS &rarr; Help you survive.<br>
+           <span style="color:#f00">FAST, SCRAMBLE, CLONE, LEECH</span> &rarr; Make life harder.<br>
+           <span style="color:#ff0">NEON, MATRIX, DANCE</span> &rarr; Pure chaos.</p>
         <button class="btn" onclick="startGame()">Initialize Defense</button>
     </div>
 
@@ -223,69 +223,224 @@
 
 <script>
 /**
- * LEXICAL HAZARD
- * A Single-File Semantic Survival Game
+ * LEXICAL HAZARD — Semantic Survival Game
  */
 
-// --- CONFIGURATION ---
-const WORDS = [
-    // Gameplay Modifiers
-    { text: "FAST", type: "bad", desc: "Speed Up", duration: 5000 },
-    { text: "SLOW", type: "good", desc: "Slow Down", duration: 5000 },
-    { text: "HEAL", type: "good", desc: "Repair +20", duration: 0 },
-    { text: "CLEAR", type: "good", desc: "Nuke Screen", duration: 0 },
-    { text: "SHIELD", type: "good", desc: "Invulnerable", duration: 5000 },
-    { text: "FREEZE", type: "good", desc: "Stop Time", duration: 4000 },
-    { text: "SWARM", type: "bad", desc: "Spawn Enemies", duration: 0 },
-    { text: "GRAVITY", type: "bad", desc: "Heavy Fall", duration: 6000 },
-    { text: "REWIND", type: "good", desc: "Reverse Time", duration: 3000 },
-    { text: "MAGNET", type: "bad", desc: "Attract Center", duration: 6000 },
-    { text: "SHUFFLE", type: "neutral", desc: "Swap Positions", duration: 0 },
-    
-    // Visual/Physics Disruptors
-    { text: "BLIND", type: "bad", desc: "Darkness", duration: 4000 },
-    { text: "DIZZY", type: "bad", desc: "Rotation", duration: 6000 },
-    { text: "SHAKE", type: "bad", desc: "Earthquake", duration: 3000 },
-    { text: "ZOOM", type: "bad", desc: "FOV Shift", duration: 5000 },
-    { text: "MIRROR", type: "bad", desc: "Flip Screen", duration: 6000 },
-    { text: "GLITCH", type: "bad", desc: "Visual Noise", duration: 5000 },
-    { text: "CHAOS", type: "bad", desc: "Erratic Move", duration: 5000 },
-    { text: "PIXEL", type: "bad", desc: "Low Resolution", duration: 5000 },
-    { text: "FOG", type: "bad", desc: "Low Visibility", duration: 6000 },
-    
-    // Fun / Atmospheric Effects
-    { text: "RAIN", type: "neutral", desc: "Heavy Rain", duration: 8000 },
-    { text: "FIRE", type: "bad", desc: "Inferno", duration: 6000 },
-    { text: "WAVE", type: "bad", desc: "Wobbly World", duration: 7000 },
-    { text: "NEON", type: "neutral", desc: "Party Mode", duration: 8000 },
-    { text: "BIG", type: "neutral", desc: "Giant Text", duration: 8000 },
-    { text: "TINY", type: "bad", desc: "Tiny Text", duration: 8000 },
-    { text: "BOUNCE", type: "neutral", desc: "Wall Bounce", duration: 7000 },
-    { text: "GHOST", type: "bad", desc: "Fade Out", duration: 6000 },
-    { text: "WIND", type: "bad", desc: "Side Force", duration: 6000 },
-    { text: "DANCE", type: "neutral", desc: "Groovy Moves", duration: 5000 }
+// ============================================================
+//  SPECIAL WORDS — Effects triggered when typed
+// ============================================================
+var WORDS = [
+    // ===== GOOD (16) — Helpful =====
+    { text: "SLOW",    type: "good", desc: "Slow Down",        duration: 5000 },
+    { text: "HEAL",    type: "good", desc: "Repair +20",       duration: 0 },
+    { text: "CLEAR",   type: "good", desc: "Nuke Screen",      duration: 0 },
+    { text: "SHIELD",  type: "good", desc: "Invulnerable",     duration: 5000 },
+    { text: "FREEZE",  type: "good", desc: "Stop Time",        duration: 4000 },
+    { text: "REWIND",  type: "good", desc: "Reverse Time",     duration: 3000 },
+    { text: "PURIFY",  type: "good", desc: "Cleanse Effects",  duration: 0 },
+    { text: "DOUBLE",  type: "good", desc: "Score x2",         duration: 8000 },
+    { text: "ARMOR",   type: "good", desc: "Half Damage",      duration: 6000 },
+    { text: "ABSORB",  type: "good", desc: "Drain & Clear",    duration: 0 },
+    { text: "REPAIR",  type: "good", desc: "Full Heal",        duration: 0 },
+    { text: "BONUS",   type: "good", desc: "Bonus Round!",     duration: 0 },
+    { text: "FOCUS",   type: "good", desc: "Clear Vision",     duration: 6000 },
+    { text: "REGEN",   type: "good", desc: "Health Regen",     duration: 8000 },
+    { text: "CALM",    type: "good", desc: "Peace & Heal",     duration: 0 },
+    { text: "LUCKY",   type: "good", desc: "Good Fortune",     duration: 8000 },
+
+    // ===== BAD (27) — Harmful =====
+    { text: "FAST",     type: "bad", desc: "Speed Up",         duration: 5000 },
+    { text: "SWARM",    type: "bad", desc: "Spawn Enemies",    duration: 0 },
+    { text: "GRAVITY",  type: "bad", desc: "Heavy Fall",       duration: 6000 },
+    { text: "MAGNET",   type: "bad", desc: "Attract Center",   duration: 6000 },
+    { text: "BLIND",    type: "bad", desc: "Darkness",         duration: 4000 },
+    { text: "DIZZY",    type: "bad", desc: "Rotation",         duration: 6000 },
+    { text: "SHAKE",    type: "bad", desc: "Earthquake",       duration: 3000 },
+    { text: "ZOOM",     type: "bad", desc: "FOV Shift",        duration: 5000 },
+    { text: "MIRROR",   type: "bad", desc: "Flip Screen",      duration: 6000 },
+    { text: "GLITCH",   type: "bad", desc: "Visual Noise",     duration: 5000 },
+    { text: "CHAOS",    type: "bad", desc: "Erratic Move",     duration: 5000 },
+    { text: "PIXEL",    type: "bad", desc: "Low Resolution",   duration: 5000 },
+    { text: "FOG",      type: "bad", desc: "Low Visibility",   duration: 6000 },
+    { text: "FIRE",     type: "bad", desc: "Inferno",          duration: 6000 },
+    { text: "TINY",     type: "bad", desc: "Tiny Text",        duration: 8000 },
+    { text: "GHOST",    type: "bad", desc: "Fade Out",         duration: 6000 },
+    { text: "WIND",     type: "bad", desc: "Side Force",       duration: 6000 },
+    { text: "CAPSLOCK", type: "bad", desc: "Random Case",      duration: 8000 },
+    { text: "SCRAMBLE", type: "bad", desc: "Anagram Mode",     duration: 8000 },
+    { text: "REVERSE",  type: "bad", desc: "Backwards Text",   duration: 7000 },
+    { text: "CLONE",    type: "bad", desc: "Duplicate Words",  duration: 0 },
+    { text: "LEECH",    type: "bad", desc: "Health Drain",     duration: 8000 },
+    { text: "RUSH",     type: "bad", desc: "Spawn Frenzy",     duration: 5000 },
+    { text: "CORRUPT",  type: "bad", desc: "Wrong Letters",    duration: 6000 },
+    { text: "HEAVY",    type: "bad", desc: "Double Damage",    duration: 7000 },
+    { text: "AMNESIA",  type: "bad", desc: "Forget Input",     duration: 0 },
+    { text: "INVERT",   type: "bad", desc: "Color Invert",     duration: 5000 },
+    { text: "DRUNK",    type: "bad", desc: "Wobbly Words",     duration: 6000 },
+
+    // ===== NEUTRAL (10) — Chaotic / Fun =====
+    { text: "SHUFFLE",  type: "neutral", desc: "Swap Positions", duration: 0 },
+    { text: "RAIN",     type: "neutral", desc: "Heavy Rain",     duration: 8000 },
+    { text: "WAVE",     type: "neutral", desc: "Wobbly World",   duration: 7000 },
+    { text: "NEON",     type: "neutral", desc: "Party Mode",     duration: 8000 },
+    { text: "BIG",      type: "neutral", desc: "Giant Text",     duration: 8000 },
+    { text: "BOUNCE",   type: "neutral", desc: "Wall Bounce",    duration: 7000 },
+    { text: "DANCE",    type: "neutral", desc: "Groovy Moves",   duration: 5000 },
+    { text: "ECHO",     type: "neutral", desc: "Afterimages",    duration: 6000 },
+    { text: "PULSE",    type: "neutral", desc: "Size Pulse",     duration: 7000 },
+    { text: "MATRIX",   type: "neutral", desc: "Digital Rain",   duration: 8000 }
 ];
 
-const WORD_TIERS = {
-    1: ["CAT", "DOG", "SUN", "SKY", "RED", "BLUE", "RUN", "JUMP", "PLAY", "GAME", "LOVE", "HOPE", "LIFE", "TIME", "MIND", "SOUL", "STAR", "MOON", "FIRE", "WIND", "RAIN", "SNOW", "TREE", "LEAF", "BIRD", "FISH", "BOOK", "PEN", "ART", "SONG", "FOOD", "CAKE", "MILK", "GOLD", "RICH", "POOR", "COOL", "WARM", "HOT", "COLD", "FAST", "SLOW", "HARD", "SOFT", "LOUD", "QUIET", "DARK", "LIGHT", "DAY", "NIGHT", "YEAR", "WEEK", "HOUR", "MIN", "SEC", "WORK", "REST", "SLEEP", "WAKE", "WALK", "TALK", "READ", "SWIM", "FLY"],
-    2: ["PLANET", "GALAXY", "ROCKET", "ORBIT", "FUTURE", "PAST", "PRESEN", "SUMMER", "WINTER", "AUTUMN", "SPRING", "JUNGLE", "DESERT", "OCEAN", "RIVER", "VALLEY", "CANYON", "ISLAND", "CASTLE", "PALACE", "TEMPLE", "SCHOOL", "OFFICE", "MARKET", "STREET", "BRIDGE", "TUNNEL", "GARDEN", "FLOWER", "ANIMAL", "TIGER", "LION", "BEAR", "WOLF", "HORSE", "ZEBRA", "MONKEY", "RABBIT", "MOUSE", "SNAKE", "EAGLE", "SHARK", "WHALE", "ROBOT", "ALIEN", "GHOST", "ZOMBIE", "WITCH", "FAIRY", "ANGEL", "DEMON", "MAGIC", "POWER", "FORCE", "SPEED", "DANGER", "ACTION", "COMEDY", "DRAMA", "HORROR", "MUSIC", "DANCE", "PARTY"],
-    3: ["UNIVERSE", "DIMENSION", "PARALLEL", "QUANTUM", "MYSTERY", "ADVENTURE", "JOURNEY", "DESTINY", "FANTASY", "REALITY", "DREAMER", "THINKER", "BELIEVER", "SKEPTIC", "WARRIOR", "SOLDIER", "LEGEND", "HERO", "VILLAIN", "MONSTER", "CREATURE", "DRAGON", "PHOENIX", "UNICORN", "GRIFFIN", "KRAKEN", "CYBORG", "ANDROID", "MUTANT", "VAMPIRE", "WEREWOLF", "DINOSAUR", "VOLCANO", "TORNADO", "HURRICANE", "TSUNAMI", "BLIZZARD", "THUNDER", "LIGHTNING", "EXPLOSION", "COLLISION", "ILLUSION", "REFLECTION", "SHADOW", "SILENCE", "WHISPER", "SCREAM", "LAUGHTER", "SORROW", "HAPPINESS", "FREEDOM", "LIBERTY", "JUSTICE", "VICTORY", "DEFEAT", "TRIUMPH", "TRAGEDY"]
+// Pre-filter for LUCKY effect
+var GOOD_NEUTRAL_WORDS = WORDS.filter(function(w) { return w.type !== 'bad'; });
+
+// ============================================================
+//  WORD TIERS — 5 tiers, generous tier 1
+// ============================================================
+var WORD_TIERS = {
+    1: [
+        "CAT","DOG","SUN","SKY","RED","RUN","JUMP","PLAY","GAME","LOVE",
+        "HOPE","LIFE","TIME","STAR","MOON","WIND","RAIN","SNOW","TREE","BIRD",
+        "FISH","BOOK","PEN","ART","SONG","FOOD","CAKE","MILK","GOLD","COOL",
+        "WARM","HOT","COLD","FAST","SLOW","HARD","SOFT","LOUD","DARK","DAY",
+        "WORK","REST","WALK","TALK","READ","SWIM","FLY","BOX","CUP","HAT",
+        "MAP","KEY","GEM","ORB","AXE","BOW","OWL","FOX","ELF","JAM",
+        "INK","RAY","ZAP","HUM","DIG","HOP","SIT","MIX","ZIP","WEB",
+        "BIT","LOG","NET","PIN","ROD","TIP","WAX","DEN","HUB","RIM",
+        "ACE","AGE","AIR","ANT","APE","ARM","BAG","BAT","BED","BIG",
+        "BUS","CAN","CAR","COW","CRY","CUT","DAD","DIM","DOT","DRY",
+        "EAR","EAT","EGG","END","EYE","FAN","FAR","FAT","FIG","FIT",
+        "FUN","GAS","GUM","HEN","HIT","ICE","JAR","JET","JOB","JOY",
+        "KIT","LAP","LAW","LEG","LID","LIP","LOW","MAD","MOM","MUD",
+        "NAP","NEW","NUT","OAK","ODD","OLD","ONE","PAD","PAY","PEA",
+        "PET","PIE","PIG","POT","PUB","RAN","RAT","RAW","RIB","RIG",
+        "RIP","ROW","RUG","SAD","SEA","SET","SIP","SIX","SKI","SON",
+        "SPY","SUM","TAN","TAP","TEA","TEN","TIE","TIN","TOE","TON",
+        "TOY","TUB","TWO","VAN","WAR","WET","WIN","WIT","YES","ZOO"
+    ],
+    2: [
+        "PLANET","GALAXY","SMILE","ROCKET","ORBIT","FUTURE","SUMMER","WINTER",
+        "JUNGLE","DESERT","OCEAN","RIVER","VALLEY","CANYON","ISLAND","CASTLE",
+        "PALACE","TEMPLE","SCHOOL","OFFICE","MARKET","STREET","BRIDGE","TUNNEL",
+        "GARDEN","FLOWER","ANIMAL","TIGER","WOLF","HORSE","MONKEY","RABBIT",
+        "MOUSE","SNAKE","EAGLE","SHARK","WHALE","ROBOT","ALIEN","GHOST",
+        "ZOMBIE","WITCH","FAIRY","ANGEL","DEMON","MAGIC","POWER","FORCE",
+        "SPEED","DANGER","ACTION","COMEDY","DRAMA","HORROR","MUSIC","DANCE",
+        "PARTY","PIRATE","CIPHER","CYBORG","PORTAL","NEBULA","QUASAR","PRISM",
+        "EMBER","THORN","FORGE","CRYPT","BLADE","ROGUE","VAULT","STORM",
+        "FROST","FLAME","STEEL","IVORY","CORAL","AMBER","ATLAS","GLYPH"
+    ],
+    3: [
+        "UNIVERSE","DIMENSION","PARALLEL","QUANTUM","MYSTERY","ADVENTURE",
+        "JOURNEY","DESTINY","FANTASY","REALITY","DREAMER","THINKER","BELIEVER",
+        "WARRIOR","SOLDIER","LEGEND","VILLAIN","MONSTER","CREATURE","DRAGON",
+        "PHOENIX","UNICORN","GRIFFIN","KRAKEN","ANDROID","MUTANT","VAMPIRE",
+        "WEREWOLF","DINOSAUR","VOLCANO","TORNADO","HURRICANE","TSUNAMI",
+        "BLIZZARD","THUNDER","LIGHTNING","EXPLOSION","COLLISION","ILLUSION",
+        "SHADOW","SILENCE","WHISPER","LAUGHTER","SORROW","FREEDOM","JUSTICE",
+        "VICTORY","TRIUMPH","TRAGEDY","ALCHEMY","PARADOX","ENIGMA","ECLIPSE",
+        "MIRAGE","PHANTOM","REVENANT","SENTINEL","NOMAD","OUTCAST","TEMPEST",
+        "VOLTAGE","CATALYST","SPECTRUM","MONOLITH","ARTIFACT","HOLOGRAM",
+        "SYNAPSE","VORTEX","OBELISK","LABYRINTH","REQUIEM","DOMINION"
+    ],
+    4: [
+        "ALGORITHM","AMPLITUDE","BARRICADE","BLUEPRINT","CALCULATE","CALIBRATE",
+        "CARTRIDGE","CHROMATIC","CLOCKWORK","COLOSSEUM","CONUNDRUM","CRESCENDO",
+        "CROSSFIRE","CUSTODIAN","DAMNATION","DECEPTION","DESOLATOR","DIPLOMACY",
+        "DRIFTWOOD","EGOMANIAC","ELABORATE","EPICENTER","ESPLANADE","FIREBREAK",
+        "FLASHBACK","FORMULATE","FREQUENCY","GENERATOR","GROTESQUE","HARBINGER",
+        "HEMOGLOBIN","HYPNOTIZE","IMPLOSION","INCOGNITO","INJUSTICE","JUGGERNAUT",
+        "KEYSTROKE","KINGMAKER","KINEMATIC","LIGHTWAVE","MAGNITUDE","MALICIOUS",
+        "MAUSOLEUM","MERCENARY","NAVIGATOR","NIGHTMARE","OBSESSION",
+        "OVERTHROW","PENUMBRAL","PROTOTYPE","PUNCTUATE","QUICKSAND","RAZORBLADE",
+        "RESONANCE","RETROGRADE","SABOTEUR","SATELLITE","SENTIMENT","SHOCKWAVE",
+        "SIDEQUEST","SLINGSHOT","SNOWFLAKE","STALEMATE","STAMPEDE","STARLIGHT",
+        "STOCKPILE","SUNSCREEN","SUPERNOVA","SWORDFISH","TERRAFORM","THRESHOLD",
+        "UNDERTONE","VENDETTA","VIGILANTE","WARHAMMER","XENOMORPH"
+    ],
+    5: [
+        "ACCELERATE","ARCHIPELAGO","ATMOSPHERIC","BATTLEFRONT","BOMBARDMENT",
+        "BRAINFREEZE","BULLETPROOF","CATASTROPHE","CAUTERIZE","CHAINREACTION",
+        "CHRONOGRAPH","CLANDESTINE","COMBUSTIBLE","CONCENTRATE",
+        "CONSIDERATE","DECONSTRUCT","DEMONSTRATE","DETERIORATE","DISASSEMBLE",
+        "EARTHSHAKER","ELECTRICITY","ENCHANTMENT","EVISCERATE","EXAGGERATE",
+        "EXPONENTIAL","EXTRAVAGANT","FLAMETHROWER","FLUCTUATING","FURTHERMORE",
+        "HALLUCINATE","HARPSICHORD","HEAVYWEIGHT","HYPERACTIVE","INCORPORATE",
+        "INDEPENDENT","INVESTIGATE","KALEIDOSCOPE","LOUDSPEAKER",
+        "MANUFACTURE","MASTERPIECE","MULTIPLAYER","OBLITERATE",
+        "OUTSTANDING","OVERWHELMING","PANDEMONIUM","PERSONALIZE","PREDECESSOR",
+        "QUARTERBACK","QUARANTINE","RECONNOITER","RESTRUCTURE",
+        "ROLLERCOASTER","SCATTERBRAIN","SIGNIFICANCE","SLEEPWALKER","SPECTACULAR",
+        "SURVEILLANCE","THUNDERSTORM","TRAMPOLINE","TRANSMITTING","TREACHEROUS",
+        "UNBELIEVABLE","UNPREDICTABLE","WHEREABOUTS"
+    ]
 };
 
-// --- ENGINE SETUP ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const uiScore = document.getElementById('score');
-const uiHealth = document.getElementById('health');
-const uiInput = document.getElementById('current-input');
-const uiEffects = document.getElementById('effects-list');
-const uiLevel = document.getElementById('level-indicator');
-const startScreen = document.getElementById('start-screen');
-const gameOverScreen = document.getElementById('game-over-screen');
-const finalScoreSpan = document.getElementById('final-score');
+var TIER_COLORS = ['#0099ff', '#00ffff', '#ff00ff', '#ff8800', '#ffdd00'];
 
-// Resize handling
-let width, height;
+// ============================================================
+//  LEVEL CONFIG — Non-linear tier mix, breather levels
+//  tiers = [t1%, t2%, t3%, t4%, t5%], spawnMs, speedMult, specialChance
+// ============================================================
+var LEVEL_CONFIG = [
+    { tiers: [90,10, 0, 0, 0], spawnMs: 2400, speed: 0.75, special: 0.12 }, // L1:  Gentle intro
+    { tiers: [70,25, 5, 0, 0], spawnMs: 2100, speed: 0.80, special: 0.13 }, // L2:  Ease in tier 2
+    { tiers: [55,30,15, 0, 0], spawnMs: 1900, speed: 0.85, special: 0.14 }, // L3:  Tier 3 appears
+    { tiers: [40,30,25, 5, 0], spawnMs: 1750, speed: 0.95, special: 0.15 }, // L4:  Getting harder
+    { tiers: [75,15,10, 0, 0], spawnMs: 2200, speed: 0.75, special: 0.20 }, // L5:  ** BREATHER **
+    { tiers: [30,30,25,15, 0], spawnMs: 1650, speed: 1.00, special: 0.16 }, // L6:  Tier 4 push
+    { tiers: [25,25,25,20, 5], spawnMs: 1550, speed: 1.05, special: 0.17 }, // L7:  All 5 tiers
+    { tiers: [20,20,25,25,10], spawnMs: 1450, speed: 1.10, special: 0.18 }, // L8:  Hard
+    { tiers: [65,20,10, 5, 0], spawnMs: 2000, speed: 0.80, special: 0.22 }, // L9:  ** BREATHER **
+    { tiers: [20,20,20,20,20], spawnMs: 1350, speed: 1.15, special: 0.19 }, // L10: Even chaos
+    { tiers: [15,20,25,25,15], spawnMs: 1300, speed: 1.20, special: 0.20 }, // L11: Heavy tiers
+    { tiers: [60,25,10, 5, 0], spawnMs: 1800, speed: 0.85, special: 0.24 }, // L12: ** BREATHER **
+    { tiers: [15,15,25,25,20], spawnMs: 1200, speed: 1.25, special: 0.21 }, // L13: Endgame ramp
+    { tiers: [10,15,20,25,30], spawnMs: 1100, speed: 1.30, special: 0.22 }, // L14: Intense
+    { tiers: [10,10,20,30,30], spawnMs: 1000, speed: 1.35, special: 0.23 }, // L15: Hardest
+];
+
+function getLevelCfg(lvl) {
+    var idx = Math.min(lvl - 1, LEVEL_CONFIG.length - 1);
+    var cfg = LEVEL_CONFIG[idx];
+    // Beyond defined levels: keep tightening
+    if (lvl > LEVEL_CONFIG.length) {
+        var extra = lvl - LEVEL_CONFIG.length;
+        return {
+            tiers: cfg.tiers,
+            spawnMs: Math.max(600, cfg.spawnMs - extra * 30),
+            speed: cfg.speed + extra * 0.03,
+            special: Math.min(0.30, cfg.special + extra * 0.01)
+        };
+    }
+    return cfg;
+}
+
+function pickTier(cfg) {
+    var r = Math.random() * 100;
+    var cum = 0;
+    for (var t = 0; t < 5; t++) {
+        cum += cfg.tiers[t];
+        if (r < cum) return t + 1;
+    }
+    return 1;
+}
+
+// ============================================================
+//  ENGINE SETUP
+// ============================================================
+var canvas = document.getElementById('gameCanvas');
+var ctx = canvas.getContext('2d');
+var uiScore = document.getElementById('score');
+var uiHealth = document.getElementById('health');
+var uiInput = document.getElementById('current-input');
+var uiEffects = document.getElementById('effects-list');
+var uiLevel = document.getElementById('level-indicator');
+var startScreen = document.getElementById('start-screen');
+var gameOverScreen = document.getElementById('game-over-screen');
+var finalScoreSpan = document.getElementById('final-score');
+
+var width, height;
 function resize() {
     width = window.innerWidth;
     height = window.innerHeight;
@@ -295,28 +450,38 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// --- STATE MANAGEMENT ---
-let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
-let score = 0;
-let health = 100;
-let userInput = "";
-let lastTime = 0;
-let difficultyMultiplier = 1;
-let level = 1;
-let spawnTimer = 0;
-let spawnRate = 2000; // ms
+// ============================================================
+//  STATE
+// ============================================================
+var gameState = 'MENU';
+var score = 0;
+var health = 100;
+var userInput = "";
+var lastTime = 0;
+var difficultyMultiplier = 1;
+var level = 1;
+var spawnTimer = 0;
+var spawnRate = 2000;
 
-// --- AUDIO SYSTEM (Web Audio API) ---
-const Audio = {
+// Bonus round state
+var bonusActive = false;
+var bonusTimer = 0;
+var BONUS_DURATION = 12000;
+
+// ============================================================
+//  AUDIO
+// ============================================================
+var Audio = {
     ctx: null,
     init: function() {
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         this.ctx = new AudioContext();
     },
-    playTone: function(freq, type, duration, vol = 0.1) {
+    playTone: function(freq, type, duration, vol) {
         if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
+        vol = vol || 0.1;
+        var osc = this.ctx.createOscillator();
+        var gain = this.ctx.createGain();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
@@ -331,228 +496,386 @@ const Audio = {
     hit: function() { this.playTone(50, 'sawtooth', 0.5, 0.2); },
     powerup: function() { this.playTone(1200, 'sine', 0.3, 0.1); },
     shieldHit: function() { this.playTone(600, 'sine', 0.1, 0.1); this.playTone(800, 'sine', 0.1, 0.1); },
-    type: function() { this.playTone(400 + Math.random()*200, 'sine', 0.05, 0.02); }
+    type: function() { this.playTone(400 + Math.random()*200, 'sine', 0.05, 0.02); },
+    drain: function() { this.playTone(200, 'sawtooth', 0.15, 0.05); },
+    purify: function() {
+        this.playTone(600, 'sine', 0.15, 0.08);
+        this.playTone(900, 'sine', 0.15, 0.08);
+        this.playTone(1200, 'sine', 0.2, 0.08);
+    },
+    bonus: function() {
+        this.playTone(800, 'sine', 0.15, 0.08);
+        this.playTone(1000, 'sine', 0.15, 0.08);
+        this.playTone(1200, 'sine', 0.15, 0.08);
+        this.playTone(1600, 'sine', 0.3, 0.1);
+    }
 };
 
-// --- ENTITIES ---
+// ============================================================
+//  ENTITIES
+// ============================================================
 
-class Word {
-    constructor() {
-        // 20% chance for a special word, increases with difficulty
-        const isSpecial = Math.random() < (0.15 + (difficultyMultiplier * 0.02));
-        
-        if (isSpecial) {
-            const template = WORDS[Math.floor(Math.random() * WORDS.length)];
-            this.text = template.text;
-            this.effectType = template.type;
-            this.effectTemplate = template;
-            this.color = this.effectType === 'good' ? '#0f0' : (this.effectType === 'bad' ? '#f00' : '#ff0');
+function Word() {
+    var cfg = getLevelCfg(level);
+    var specialChance = bonusActive ? 0.25 : cfg.special;
+    var isSpecial = Math.random() < specialChance;
+
+    if (isSpecial) {
+        var pool;
+        if (bonusActive || Effects.has('LUCKY')) {
+            // During bonus or LUCKY: only good/neutral specials
+            pool = GOOD_NEUTRAL_WORDS;
         } else {
-            // Determine word tier based on level
-            let tier = 1;
-            if (level >= 3) tier = Math.random() < 0.5 ? 2 : 1;
-            if (level >= 6) {
-                const r = Math.random();
-                tier = r < 0.4 ? 3 : (r < 0.8 ? 2 : 1);
-            }
-            
-            const list = WORD_TIERS[tier];
-            this.text = list[Math.floor(Math.random() * list.length)];
-            this.effectType = 'none';
-            this.color = tier === 3 ? '#ff00ff' : (tier === 2 ? '#00ffff' : '#0099ff');
+            pool = WORDS;
         }
-
-        this.x = Math.random() * (width - 100) + 50;
-        this.y = -50;
-        this.baseSpeed = (Math.random() * 0.3 + 0.3) * (60 + (level * 5)); // Increase speed with level
-        this.vx = 0;
-        this.vy = 0;
-        this.scale = 1;
-        this.opacity = 1;
-        this.wobble = Math.random() * Math.PI * 2;
-        this.chaosOffset = 0;
+        var template = pool[Math.floor(Math.random() * pool.length)];
+        this.text = template.text;
+        this.effectType = template.type;
+        this.effectTemplate = template;
+        this.color = this.effectType === 'good' ? '#0f0' : (this.effectType === 'bad' ? '#f00' : '#ff0');
+    } else {
+        var tier;
+        if (bonusActive) {
+            // Bonus round: only tier 1
+            tier = 1;
+        } else {
+            tier = pickTier(cfg);
+        }
+        var list = WORD_TIERS[tier];
+        this.text = list[Math.floor(Math.random() * list.length)];
+        this.effectType = 'none';
+        this.color = TIER_COLORS[tier - 1];
     }
 
-    update(dt) {
-        let speedMult = 1;
-        if (Effects.has('FAST')) speedMult = 2.5;
-        if (Effects.has('SLOW')) speedMult = 0.5;
-        if (Effects.has('FREEZE')) speedMult = 0;
-        if (Effects.has('GRAVITY')) speedMult = 3.0;
-        if (Effects.has('REWIND')) speedMult = -1.5;
+    this.x = Math.random() * (width - 100) + 50;
+    this.y = -50;
 
-        // Apply physics
-        this.vy = this.baseSpeed * speedMult;
-        
-        if (Effects.has('WIND')) this.vx = Math.sin(Date.now() / 1000) * 150;
-        else this.vx = 0;
+    // Speed from level config; bonus round is slower
+    var spdMult = bonusActive ? 0.55 : cfg.speed;
+    this.baseSpeed = (Math.random() * 0.3 + 0.3) * 60 * spdMult;
 
-        if (Effects.has('MAGNET')) {
-            const centerX = width / 2;
-            const dir = this.x < centerX ? 1 : -1;
-            this.vx += dir * 150; 
-        }
-        
-        if (Effects.has('CHAOS')) {
-             this.vx += (Math.random() - 0.5) * 500;
-             this.vy += (Math.random() - 0.5) * 200;
-        }
+    this.vx = 0;
+    this.vy = 0;
+    this.scale = 1;
+    this.opacity = 1;
+    this.wobble = Math.random() * Math.PI * 2;
+}
 
-        if (Effects.has('BOUNCE')) {
-            this.x += (Math.cos(this.wobble) * 200 * dt);
-            if (this.x < 50 || this.x > width - 50) this.wobble += Math.PI;
-        }
+Word.prototype.update = function(dt) {
+    var speedMult = 1;
+    if (Effects.has('FAST')) speedMult = 2.5;
+    if (Effects.has('SLOW')) speedMult = 0.5;
+    if (Effects.has('FREEZE')) speedMult = 0;
+    if (Effects.has('GRAVITY')) speedMult = 3.0;
+    if (Effects.has('REWIND')) speedMult = -1.5;
 
-        if (Effects.has('DANCE')) {
-            this.x += Math.sin(Date.now() / 200 + this.y) * 5; 
-        }
+    this.vy = this.baseSpeed * speedMult;
 
-        this.x += this.vx * dt;
-        this.y += this.vy * dt;
+    if (Effects.has('WIND')) this.vx = Math.sin(Date.now() / 1000) * 150;
+    else this.vx = 0;
 
-        // Visual wobble
-        this.wobble += dt * 2;
+    if (Effects.has('MAGNET')) {
+        var dir = this.x < width / 2 ? 1 : -1;
+        this.vx += dir * 150;
     }
 
-    draw(ctx) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        
-        if (Effects.has('DIZZY')) ctx.rotate(Math.sin(Date.now()/500) * 0.1);
-        if (Effects.has('WAVE')) ctx.translate(Math.sin(Date.now()/200 + this.y/50) * 20, 0);
-        if (Effects.has('BIG') || Effects.has('ZOOM')) ctx.scale(2, 2);
-        if (Effects.has('TINY')) ctx.scale(0.5, 0.5);
-        
-        let alpha = this.opacity;
+    if (Effects.has('CHAOS')) {
+        this.vx += (Math.random() - 0.5) * 500;
+        this.vy += (Math.random() - 0.5) * 200;
+    }
+
+    if (Effects.has('BOUNCE')) {
+        this.x += Math.cos(this.wobble) * 200 * dt;
+        if (this.x < 50 || this.x > width - 50) this.wobble += Math.PI;
+    }
+
+    if (Effects.has('DANCE')) {
+        this.x += Math.sin(Date.now() / 200 + this.y) * 5;
+    }
+
+    if (Effects.has('DRUNK')) {
+        this.x += Math.sin(Date.now() / 250 + this.y * 0.02 + this.wobble) * 8;
+        this.vy += Math.sin(Date.now() / 400 + this.x * 0.01) * 30;
+    }
+
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.x = Math.max(30, Math.min(width - 30, this.x));
+    this.wobble += dt * 2;
+};
+
+Word.prototype.draw = function(c) {
+    c.save();
+    c.translate(this.x, this.y);
+
+    var focusMode = Effects.has('FOCUS');
+
+    // Positional effects (always apply)
+    if (!focusMode && Effects.has('DIZZY')) c.rotate(Math.sin(Date.now()/500) * 0.1);
+    if (Effects.has('WAVE')) c.translate(Math.sin(Date.now()/200 + this.y/50) * 20, 0);
+    if (Effects.has('BIG') || Effects.has('ZOOM')) c.scale(2, 2);
+    if (!focusMode && Effects.has('TINY')) c.scale(0.5, 0.5);
+    if (Effects.has('PULSE')) {
+        var ps = 1 + Math.sin(Date.now() / 200) * 0.3;
+        c.scale(ps, ps);
+    }
+
+    var alpha = this.opacity;
+    if (!focusMode) {
         if (Effects.has('GHOST')) alpha = 0.3 + Math.sin(Date.now()/200)*0.2;
-        
         if (Effects.has('FOG')) {
-            // Words fade in as they go down
-            const visibility = Math.max(0, (this.y - 100) / (height/2));
-            alpha = Math.min(alpha, visibility);
+            var vis = Math.max(0, (this.y - 100) / (height/2));
+            alpha = Math.min(alpha, vis);
         }
-
         if (Effects.has('BLIND')) {
-            // Only visible in small spotlight around cursor? No, just invisible/dim
-            alpha = 0.1; 
-            // In blind mode, text is barely visible outlines
-            ctx.strokeStyle = '#333';
-            ctx.strokeText(this.text, 0, 0);
+            alpha = 0.1;
+            c.strokeStyle = '#333';
+            c.font = "30px 'Share Tech Mono'";
+            c.textAlign = "center";
+            c.strokeText(this.text, 0, 0);
         }
-
-        ctx.globalAlpha = alpha;
-        
-        if (Effects.has('NEON')) {
-             ctx.fillStyle = `hsl(${(Date.now()/5 + this.x)%360}, 100%, 50%)`;
-        } else {
-             ctx.fillStyle = this.color;
-        }
-        
-        // Glitch effect overrides color
-        if (Effects.has('GLITCH') && Math.random() > 0.8) {
-            ctx.fillStyle = '#fff';
-            ctx.translate(Math.random()*10-5, 0);
-        }
-
-        ctx.font = "30px 'Share Tech Mono'";
-        ctx.textAlign = "center";
-        ctx.fillText(this.text, 0, 0);
-        
-        // Match highlight
-        if (userInput.length > 0 && this.text.startsWith(userInput)) {
-            ctx.fillStyle = '#fff';
-            const matchedPart = userInput;
-            const w = ctx.measureText(this.text).width;
-            const charW = 18; // approx width
-            const offset = (this.text.length * charW) / 2;
-            const matchW = matchedPart.length * charW;
-            
-            ctx.fillStyle = '#fff';
-            ctx.fillText(matchedPart, 0 - offset + (matchW/2), 0);
-            
-            // Draw underline for target
-            ctx.fillRect(-offset, 5, matchW, 2);
-        }
-
-        ctx.restore();
     }
+
+    c.globalAlpha = alpha;
+
+    if (Effects.has('NEON')) {
+        c.fillStyle = 'hsl(' + ((Date.now()/5 + this.x)%360) + ', 100%, 50%)';
+    } else if (focusMode) {
+        c.fillStyle = '#fff';
+    } else {
+        c.fillStyle = this.color;
+    }
+
+    if (!focusMode && Effects.has('GLITCH') && Math.random() > 0.8) {
+        c.fillStyle = '#fff';
+        c.translate(Math.random()*10-5, 0);
+    }
+
+    c.font = "30px 'Share Tech Mono'";
+    c.textAlign = "center";
+
+    // --- Build display text (stacking visual disruptions) ---
+    var displayText = this.text;
+
+    if (!focusMode) {
+        if (Effects.has('SCRAMBLE')) {
+            var tb = Math.floor(Date.now() / 600);
+            var chars = displayText.split('');
+            for (var si = chars.length - 1; si > 0; si--) {
+                var seed = ((tb * 2654435761 + si * 40503 + this.text.charCodeAt(0) * 12289) >>> 0) % (si + 1);
+                var tmp = chars[si]; chars[si] = chars[seed]; chars[seed] = tmp;
+            }
+            displayText = chars.join('');
+        }
+
+        if (Effects.has('REVERSE')) {
+            displayText = displayText.split('').reverse().join('');
+        }
+
+        if (Effects.has('CORRUPT')) {
+            var ctb = Math.floor(Date.now() / 400);
+            var cc = displayText.split('');
+            for (var ci = 0; ci < cc.length; ci++) {
+                var cs = ((ctb * 48271 + ci * 16807 + this.text.charCodeAt(0) * 7) >>> 0);
+                if (cs % 4 === 0) cc[ci] = String.fromCharCode(65 + (cs % 26));
+            }
+            displayText = cc.join('');
+        }
+
+        if (Effects.has('CAPSLOCK')) {
+            var ltb = Math.floor(Date.now() / 300);
+            var lo = '';
+            for (var li = 0; li < displayText.length; li++) {
+                var lh = (ltb * 7 + li * 13 + this.text.charCodeAt(0) * 31) & 1;
+                lo += lh ? displayText[li].toUpperCase() : displayText[li].toLowerCase();
+            }
+            displayText = lo;
+        }
+    }
+
+    // ECHO: trailing afterimages
+    if (Effects.has('ECHO')) {
+        for (var ei = 3; ei > 0; ei--) {
+            c.globalAlpha = alpha * 0.12 * ei;
+            c.fillText(displayText, 0, ei * 18);
+        }
+        c.globalAlpha = alpha;
+    }
+
+    c.fillText(displayText, 0, 0);
+
+    // Match highlight
+    if (userInput.length > 0 && this.text.startsWith(userInput)) {
+        var cw = 18;
+        var off = (displayText.length * cw) / 2;
+        var mw = userInput.length * cw;
+        var md = displayText.substring(0, userInput.length);
+        c.fillStyle = '#fff';
+        c.fillText(md, -off + (mw/2), 0);
+        c.fillRect(-off, 5, mw, 2);
+    }
+
+    c.restore();
+};
+
+function Particle(x, y, color) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    var angle = Math.random() * Math.PI * 2;
+    var speed = Math.random() * 200 + 50;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.life = 1.0;
+    this.decay = Math.random() * 2.0 + 1.0;
 }
+Particle.prototype.update = function(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.life -= this.decay * dt;
+    this.vy += 200 * dt;
+};
+Particle.prototype.draw = function(c) {
+    c.globalAlpha = Math.max(0, this.life);
+    c.fillStyle = this.color;
+    c.fillRect(this.x, this.y, 4, 4);
+    c.globalAlpha = 1;
+};
 
-class Particle {
-    constructor(x, y, color) {
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 200 + 50;
-        this.vx = Math.cos(angle) * speed;
-        this.vy = Math.sin(angle) * speed;
-        this.life = 1.0;
-        this.decay = Math.random() * 2.0 + 1.0;
-    }
+// ============================================================
+//  EFFECTS SYSTEM
+// ============================================================
+var Effects = {
+    active: {},
 
-    update(dt) {
-        this.x += this.vx * dt;
-        this.y += this.vy * dt;
-        this.life -= this.decay * dt;
-        this.vy += 200 * dt; // Gravity
-    }
-
-    draw(ctx) {
-        ctx.globalAlpha = Math.max(0, this.life);
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, 4, 4);
-        ctx.globalAlpha = 1;
-    }
-}
-
-// --- SYSTEMS ---
-
-const Effects = {
-    active: {}, // Map of EffectName -> TimeRemaining
-    
     activate: function(name, duration) {
-        // Instant effects
+        // ===== INSTANT EFFECTS =====
         if (name === 'HEAL') {
             health = Math.min(100, health + 20);
-            updateHUD();
-            Audio.powerup();
+            updateHUD(); Audio.powerup();
             createParticles(width/2, height, '#0f0', 20);
             return;
         }
+        if (name === 'REPAIR') {
+            health = 100;
+            updateHUD(); Audio.powerup();
+            createParticles(width/2, height/2, '#0f0', 40);
+            return;
+        }
+        if (name === 'CALM') {
+            // Gentle clear: remove all words, heal 10
+            words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 5); });
+            words = [];
+            health = Math.min(100, health + 10);
+            updateHUD(); Audio.powerup();
+            return;
+        }
         if (name === 'SWARM') {
-            for(let i=0; i<5; i++) spawnWord();
+            for (var si = 0; si < 5; si++) spawnWord();
             createParticles(width/2, 100, '#f00', 20);
+            Audio.explosion();
             return;
         }
         if (name === 'CLEAR') {
-            words.forEach(w => createParticles(w.x, w.y, w.color, 10));
+            words.forEach(function(w) { createParticles(w.x, w.y, w.color, 10); });
             words = [];
             Audio.explosion();
             createParticles(width/2, height/2, '#fff', 50);
             return;
         }
         if (name === 'SHUFFLE') {
-            words.forEach(w => {
+            words.forEach(function(w) {
                 w.x = Math.random() * (width - 100) + 50;
-                w.y = Math.random() * (height / 2); 
+                w.y = Math.random() * (height / 2);
             });
             Audio.powerup();
             return;
         }
+        if (name === 'PURIFY') {
+            var removed = [];
+            var self = this;
+            Object.keys(this.active).forEach(function(en) {
+                var wd = WORDS.find(function(w) { return w.text === en; });
+                if (wd && wd.type === 'bad') removed.push(en);
+            });
+            removed.forEach(function(r) { delete self.active[r]; });
+            this.renderList();
+            Audio.purify();
+            createParticles(width/2, height/2, '#0f0', 40);
+            cameraShake = 8;
+            return;
+        }
+        if (name === 'ABSORB') {
+            var heal = Math.max(5, words.length * 3);
+            health = Math.min(100, health + heal);
+            words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 8); });
+            words = [];
+            Audio.powerup();
+            createParticles(width/2, height/2, '#0f0', 30);
+            updateHUD();
+            return;
+        }
+        if (name === 'CLONE') {
+            var clones = [];
+            var maxC = Math.min(words.length, 15);
+            for (var ci = 0; ci < maxC; ci++) {
+                var orig = words[ci];
+                var clone = new Word();
+                clone.text = orig.text;
+                clone.color = orig.color;
+                clone.effectType = orig.effectType;
+                clone.effectTemplate = orig.effectTemplate;
+                clone.x = orig.x + (Math.random() - 0.5) * 120;
+                clone.y = orig.y + (Math.random() - 0.5) * 40;
+                clone.baseSpeed = orig.baseSpeed * (0.8 + Math.random() * 0.4);
+                clones.push(clone);
+            }
+            words = words.concat(clones);
+            Audio.explosion();
+            createParticles(width/2, height/2, '#f00', 30);
+            cameraShake = 15;
+            return;
+        }
+        if (name === 'AMNESIA') {
+            userInput = "";
+            updateHUD(); Audio.hit();
+            cameraShake = 12;
+            createParticles(width/2, height * 0.85, '#f0f', 20);
+            return;
+        }
+        if (name === 'BONUS') {
+            // Trigger bonus round
+            bonusActive = true;
+            bonusTimer = BONUS_DURATION;
+            // Clear all bad effects
+            var badKeys = [];
+            Object.keys(this.active).forEach(function(en) {
+                var wd = WORDS.find(function(w) { return w.text === en; });
+                if (wd && wd.type === 'bad') badKeys.push(en);
+            });
+            var bself = this;
+            badKeys.forEach(function(k) { delete bself.active[k]; });
+            this.renderList();
+            Audio.bonus();
+            createParticles(width/2, height/2, '#ffdd00', 60);
+            createParticles(width/2, height/2, '#fff', 30);
+            cameraShake = 10;
+            return;
+        }
 
-        // Duration effects
+        // ===== DURATION EFFECTS =====
         this.active[name] = duration;
         this.renderList();
     },
 
     update: function(dt) {
-        const names = Object.keys(this.active);
-        let changed = false;
-        names.forEach(name => {
-            this.active[name] -= dt * 1000;
-            if (this.active[name] <= 0) {
-                delete this.active[name];
+        var names = Object.keys(this.active);
+        var changed = false;
+        var self = this;
+        names.forEach(function(name) {
+            self.active[name] -= dt * 1000;
+            if (self.active[name] <= 0) {
+                delete self.active[name];
                 changed = true;
             }
         });
@@ -565,40 +888,47 @@ const Effects = {
 
     renderList: function() {
         uiEffects.innerHTML = '';
-        Object.keys(this.active).forEach(name => {
-            const div = document.createElement('div');
+        var self = this;
+        Object.keys(this.active).forEach(function(name) {
+            var div = document.createElement('div');
             div.className = 'effect-tag';
-            const wordData = WORDS.find(w=>w.text===name);
-            const color = wordData ? (wordData.type === 'good' ? '#0f0' : '#f00') : '#fff';
+            var wd = WORDS.find(function(w) { return w.text === name; });
+            var color = wd ? (wd.type === 'good' ? '#0f0' : (wd.type === 'bad' ? '#f00' : '#ff0')) : '#fff';
             div.style.borderColor = color;
             div.style.color = '#fff';
-            div.innerText = `${name} ${(this.active[name]/1000).toFixed(1)}s`;
+            div.innerText = name + ' ' + (self.active[name]/1000).toFixed(1) + 's';
             uiEffects.appendChild(div);
         });
     }
 };
 
-let words = [];
-let particles = [];
-let cameraShake = 0;
+// ============================================================
+//  GAME FUNCTIONS
+// ============================================================
+var words = [];
+var particles = [];
+var cameraShake = 0;
 
 function spawnWord() {
     words.push(new Word());
 }
 
 function createParticles(x, y, color, count) {
-    for (let i = 0; i < count; i++) {
-        particles.push(new Particle(x, y, color));
-    }
+    for (var i = 0; i < count; i++) particles.push(new Particle(x, y, color));
 }
 
 function updateHUD() {
     uiScore.innerText = score;
-    uiHealth.innerText = health;
+    uiHealth.innerText = Math.max(0, Math.floor(health));
     uiInput.innerText = userInput;
-    
-    if (document.getElementById('level-indicator')) {
-        document.getElementById('level-indicator').innerText = `LVL ${level}`;
+    if (bonusActive) {
+        uiLevel.innerText = 'BONUS';
+        uiLevel.style.color = '#ffdd00';
+        uiLevel.style.textShadow = '0 0 10px #ffdd00';
+    } else {
+        uiLevel.innerText = 'LVL ' + level;
+        uiLevel.style.color = '#fff';
+        uiLevel.style.textShadow = '';
     }
 }
 
@@ -607,24 +937,17 @@ function startGame() {
     gameState = 'PLAYING';
     startScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
-    
-    score = 0;
-    health = 100;
-    level = 1;
-    userInput = "";
-    words = [];
-    particles = [];
-    Effects.active = {};
-    Effects.renderList();
-    
+
+    score = 0; health = 100; level = 1;
+    userInput = ""; words = []; particles = [];
+    Effects.active = {}; Effects.renderList();
+    bonusActive = false; bonusTimer = 0;
     difficultyMultiplier = 1;
     lastTime = performance.now();
     requestAnimationFrame(gameLoop);
 }
 
-function resetGame() {
-    startGame();
-}
+function resetGame() { startGame(); }
 
 function triggerGameOver() {
     gameState = 'GAMEOVER';
@@ -632,8 +955,10 @@ function triggerGameOver() {
     finalScoreSpan.innerText = score;
 }
 
-// --- INPUT HANDLING ---
-window.addEventListener('keydown', (e) => {
+// ============================================================
+//  INPUT HANDLING
+// ============================================================
+window.addEventListener('keydown', function(e) {
     if (gameState !== 'PLAYING') return;
 
     if (e.key === 'Backspace') {
@@ -644,21 +969,32 @@ window.addEventListener('keydown', (e) => {
         Audio.type();
     }
 
-    // Check matches
-    const matchIndex = words.findIndex(w => w.text === userInput);
+    var matchIndex = words.findIndex(function(w) { return w.text === userInput; });
     if (matchIndex !== -1) {
-        const word = words[matchIndex];
-        
-        // Success
+        var word = words[matchIndex];
         words.splice(matchIndex, 1);
         userInput = "";
-        
-        // Progression
-        score += word.text.length * 10;
-        const newLevel = Math.floor(score / 500) + 1;
+
+        // Scoring
+        var scoreGain = word.text.length * 10;
+        if (Effects.has('DOUBLE')) scoreGain *= 2;
+        if (bonusActive) scoreGain *= 2;
+        score += scoreGain;
+
+        // Level progression (score thresholds scale up)
+        var newLevel = 1;
+        var threshold = 0;
+        var step = 400;
+        for (var lv = 1; lv < 50; lv++) {
+            threshold += step;
+            if (score >= threshold) {
+                newLevel = lv + 1;
+                step = Math.floor(step * 1.12); // each level needs ~12% more score
+            } else break;
+        }
         if (newLevel > level) {
             level = newLevel;
-            Audio.powerup(); // Level up sound
+            Audio.powerup();
             createParticles(width/2, height/2, '#0ff', 50);
         }
 
@@ -667,60 +1003,77 @@ window.addEventListener('keydown', (e) => {
 
         if (word.effectType !== 'none') {
             Effects.activate(word.text, word.effectTemplate.duration);
-            // Visual flair for activation
             cameraShake = 10;
         }
 
-        difficultyMultiplier += 0.05;
-    } else {
-        // Check if current input matches the START of any word
-        const isPrefix = words.some(w => w.text.startsWith(userInput));
-        if (!isPrefix && userInput.length > 0) {
-            // Error handling - flash red?
-        }
+        difficultyMultiplier += 0.04;
     }
-    
+
     updateHUD();
 });
 
-// --- MAIN LOOP ---
-
+// ============================================================
+//  MAIN GAME LOOP
+// ============================================================
 function gameLoop(timestamp) {
     if (gameState !== 'PLAYING') return;
-    
-    const dt = (timestamp - lastTime) / 1000;
+
+    var dt = (timestamp - lastTime) / 1000;
     lastTime = timestamp;
 
-    // Spawning Logic
-    // Cap spawn rate at 300ms minimum
-    const baseRate = Math.max(300, 2000 - (level * 150)); 
-    // Add chaos if difficulty is high
+    // --- Bonus Round Timer ---
+    if (bonusActive) {
+        bonusTimer -= dt * 1000;
+        if (bonusTimer <= 0) {
+            bonusActive = false;
+            bonusTimer = 0;
+        }
+        // Regen during bonus
+        health = Math.min(100, health + 2 * dt);
+    }
+
+    // --- Spawning ---
+    var cfg = getLevelCfg(level);
+    var baseRate = bonusActive ? 1800 : cfg.spawnMs;
     spawnRate = baseRate;
-    
+    if (Effects.has('RUSH')) spawnRate = baseRate / 3;
+
     spawnTimer -= dt * 1000;
     if (spawnTimer <= 0) {
         spawnWord();
         spawnTimer = spawnRate;
     }
 
-    // Update Entities
-    words.forEach(w => w.update(dt));
-    particles.forEach(p => p.update(dt));
+    // --- Update ---
+    words.forEach(function(w) { w.update(dt); });
+    particles.forEach(function(p) { p.update(dt); });
     Effects.update(dt);
-    
-    // Cleanup
-    particles = particles.filter(p => p.life > 0);
-    
-    // Collision / Damage
-    for (let i = words.length - 1; i >= 0; i--) {
+
+    // LEECH: passive drain (not during bonus)
+    if (Effects.has('LEECH') && !bonusActive) {
+        health -= 3 * dt;
+        if (health <= 0) { health = 0; triggerGameOver(); }
+    }
+
+    // REGEN: passive heal
+    if (Effects.has('REGEN')) {
+        health = Math.min(100, health + 2.5 * dt);
+    }
+
+    particles = particles.filter(function(p) { return p.life > 0; });
+
+    // --- Damage from words hitting bottom ---
+    for (var i = words.length - 1; i >= 0; i--) {
         if (words[i].y > height + 20) {
-            // Hit bottom
-            if (Effects.has('SHIELD')) {
-                // Shield blocks damage
+            if (Effects.has('SHIELD') || bonusActive) {
+                // Shield or bonus blocks damage
                 Audio.shieldHit();
                 cameraShake = 5;
             } else {
-                health -= 10;
+                var dmg = 10;
+                if (Effects.has('HEAVY')) dmg = 20;
+                if (Effects.has('ARMOR')) dmg = Math.floor(dmg / 2);
+                health -= dmg;
                 cameraShake = 20;
                 Audio.hit();
             }
@@ -728,126 +1081,161 @@ function gameLoop(timestamp) {
             if (health <= 0) triggerGameOver();
         }
     }
-    
-    // Cull words flying too high (REWIND effect)
-    words = words.filter(w => w.y > -200);
+
+    words = words.filter(function(w) { return w.y > -200; });
 
     updateHUD();
 
-    // Drawing
+    // ============== DRAWING ==============
     ctx.clearRect(0, 0, width, height);
-    
-    // Global transforms
     ctx.save();
-    
+
     if (Effects.has('MIRROR')) {
         ctx.translate(width, 0);
         ctx.scale(-1, 1);
     }
-    
-    // Background Effects
-    if (Effects.has('BLIND')) {
+
+    // --- Background ---
+    if (Effects.has('BLIND') && !Effects.has('FOCUS')) {
         ctx.fillStyle = '#000';
-        ctx.fillRect(0,0,width,height);
+        ctx.fillRect(0, 0, width, height);
     } else {
-        // Grid background
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+        // Grid color changes during bonus
+        if (bonusActive) {
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.08)';
+        } else {
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+        }
         ctx.lineWidth = 1;
-        
-        // Moving grid
-        const gridOffset = (Date.now() / 50) % 40;
+        var gridOff = (Date.now() / 50) % 40;
         ctx.beginPath();
-        for(let x=0; x<=width; x+=40) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
-        for(let y=gridOffset; y<=height; y+=40) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
+        for (var gx = 0; gx <= width; gx += 40) { ctx.moveTo(gx, 0); ctx.lineTo(gx, height); }
+        for (var gy = gridOff; gy <= height; gy += 40) { ctx.moveTo(0, gy); ctx.lineTo(width, gy); }
         ctx.stroke();
 
         if (Effects.has('RAIN')) {
-           ctx.strokeStyle = '#00f';
-           ctx.lineWidth = 2;
-           ctx.beginPath();
-           for(let i=0; i<30; i++) {
-               let rx = Math.random() * width;
-               let ry = Math.random() * height;
-               ctx.moveTo(rx, ry);
-               ctx.lineTo(rx - 5, ry + 30);
-           }
-           ctx.stroke();
+            ctx.strokeStyle = '#00f'; ctx.lineWidth = 2; ctx.beginPath();
+            for (var ri = 0; ri < 30; ri++) {
+                var rx = Math.random() * width, ry = Math.random() * height;
+                ctx.moveTo(rx, ry); ctx.lineTo(rx - 5, ry + 30);
+            }
+            ctx.stroke();
         }
-        
-        if (Effects.has('FOG')) {
-            const grad = ctx.createLinearGradient(0, 0, 0, height);
-            grad.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
-            grad.addColorStop(0.4, 'rgba(200, 200, 200, 0.5)');
-            grad.addColorStop(0.8, 'rgba(200, 200, 200, 0)');
+
+        if (Effects.has('FOG') && !Effects.has('FOCUS')) {
+            var grad = ctx.createLinearGradient(0, 0, 0, height);
+            grad.addColorStop(0, 'rgba(200,200,200,0.9)');
+            grad.addColorStop(0.4, 'rgba(200,200,200,0.5)');
+            grad.addColorStop(0.8, 'rgba(200,200,200,0)');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, width, height);
         }
+
+        if (Effects.has('MATRIX')) {
+            ctx.font = "14px 'Share Tech Mono'"; ctx.fillStyle = '#0f0';
+            for (var mi = 0; mi < 60; mi++) {
+                var mx = (mi * 37 + mi * mi * 3) % width;
+                var my = (Date.now() / 4 + mi * 137) % (height + 100) - 50;
+                ctx.globalAlpha = 0.25 + Math.sin(mi) * 0.1;
+                ctx.fillText(String.fromCharCode(33 + ((Date.now()/80 + mi * 7) | 0) % 94), mx, my);
+            }
+            ctx.globalAlpha = 1;
+        }
     }
 
-    // Fire Overlay
     if (Effects.has('FIRE')) {
         ctx.fillStyle = 'rgba(255, 50, 0, 0.15)';
-        ctx.fillRect(0,0,width,height);
+        ctx.fillRect(0, 0, width, height);
     }
 
-    // Shield Visual
     if (Effects.has('SHIELD')) {
-        ctx.strokeStyle = `rgba(0, 200, 255, ${0.5 + Math.sin(Date.now()/200)*0.3})`;
+        ctx.strokeStyle = 'rgba(0,200,255,' + (0.5 + Math.sin(Date.now()/200)*0.3) + ')';
         ctx.lineWidth = 10;
         ctx.strokeRect(0, 0, width, height);
     }
 
+    if (Effects.has('LEECH') && !bonusActive) {
+        var la = 0.1 + Math.sin(Date.now()/300) * 0.05;
+        ctx.fillStyle = 'rgba(200,0,0,' + la + ')';
+        ctx.fillRect(0, 0, width, 60);
+        ctx.fillRect(0, height - 60, width, 60);
+        ctx.fillRect(0, 0, 60, height);
+        ctx.fillRect(width - 60, 0, 60, height);
+    }
+
+    // --- Bonus Round Visuals ---
+    if (bonusActive) {
+        // Golden pulsing border
+        var bp = 0.25 + Math.sin(Date.now()/180) * 0.15;
+        ctx.strokeStyle = 'rgba(255,215,0,' + bp + ')';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(3, 3, width - 6, height - 6);
+
+        // Inner glow
+        ctx.fillStyle = 'rgba(255,215,0,0.03)';
+        ctx.fillRect(0, 0, width, height);
+
+        // Timer bar at top
+        var pct = bonusTimer / BONUS_DURATION;
+        ctx.fillStyle = 'rgba(255,215,0,0.5)';
+        ctx.fillRect(0, 0, width * pct, 4);
+
+        // "BONUS ROUND" watermark
+        var ba = 0.08 + Math.sin(Date.now()/250) * 0.03;
+        ctx.fillStyle = 'rgba(255,215,0,' + ba + ')';
+        ctx.font = "80px 'Share Tech Mono'";
+        ctx.textAlign = "center";
+        ctx.fillText("BONUS ROUND", width/2, height/2 - 20);
+        ctx.font = "30px 'Share Tech Mono'";
+        ctx.fillStyle = 'rgba(255,215,0,' + (ba * 1.5) + ')';
+        ctx.fillText("SCORE x2  ·  NO DAMAGE  ·  REGEN", width/2, height/2 + 30);
+    }
+
     // Camera Shake
     if (cameraShake > 0) {
-        const dx = (Math.random() - 0.5) * cameraShake;
-        const dy = (Math.random() - 0.5) * cameraShake;
-        ctx.translate(dx, dy);
+        ctx.translate((Math.random()-0.5)*cameraShake, (Math.random()-0.5)*cameraShake);
         cameraShake -= dt * 60;
         if (cameraShake < 0) cameraShake = 0;
     }
 
     // Draw Entities
-    words.forEach(w => w.draw(ctx));
-    particles.forEach(p => p.draw(ctx));
-    
-    // Restore Mirror/Shake transforms
+    words.forEach(function(w) { w.draw(ctx); });
+    particles.forEach(function(p) { p.draw(ctx); });
+
     ctx.restore();
 
-    // Post-processing overlays (Screen space, not mirrored)
+    // --- Post-processing (screen space) ---
     if (Effects.has('GLITCH') && Math.random() > 0.9) {
-        ctx.fillStyle = `rgba(${Math.random()*255},0,255,0.2)`;
+        ctx.fillStyle = 'rgba(' + (Math.random()*255|0) + ',0,255,0.2)';
         ctx.fillRect(0, Math.random()*height, width, Math.random()*50);
     }
-    
+
     if (Effects.has('PIXEL')) {
-        // Simple mosaic effect logic via sub-sampling
-        // Note: Real-time full canvas mosaic is expensive in JS loop without WebGL.
-        // We will simulate it by drawing a grid overlay.
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.beginPath();
-        for(let x=0; x<width; x+=10) {
-            ctx.moveTo(x, 0); ctx.lineTo(x, height);
-        }
-        for(let y=0; y<height; y+=10) {
-            ctx.moveTo(0, y); ctx.lineTo(width, y);
-        }
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-        ctx.stroke();
-        
-        // Actually, let's try the downscale/upscale trick quickly, it's often fast enough
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(canvas, 0, 0, width, height, 0, 0, width/8, height/8);
         ctx.drawImage(canvas, 0, 0, width/8, height/8, 0, 0, width, height);
         ctx.imageSmoothingEnabled = true;
     }
-    
-    // Shield Text Overlay (optional)
-    if (Effects.has('SHIELD')) {
-        ctx.fillStyle = "rgba(0, 255, 255, 0.1)";
+
+    if (Effects.has('INVERT')) {
+        ctx.globalCompositeOperation = 'difference';
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
+    if (Effects.has('SHIELD') && !bonusActive) {
+        ctx.fillStyle = "rgba(0,255,255,0.1)";
         ctx.font = "100px 'Share Tech Mono'";
         ctx.textAlign = "center";
         ctx.fillText("SHIELD ACTIVE", width/2, height/2);
+    }
+
+    if (Effects.has('DOUBLE') && !bonusActive) {
+        ctx.fillStyle = "rgba(255,215,0,0.08)";
+        ctx.font = "80px 'Share Tech Mono'";
+        ctx.textAlign = "center";
+        ctx.fillText("SCORE x2", width/2, height/2 + 80);
     }
 
     requestAnimationFrame(gameLoop);

@@ -5,42 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Abyss: Deep Blue</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            margin: 0;
             overflow: hidden;
-            background-color: #001e36;
+            background: #001e36;
             font-family: 'Segoe UI', Tahoma, sans-serif;
             user-select: none;
         }
-
-        canvas {
-            display: block;
-        }
+        canvas { display: block; }
 
         #ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 30px;
-            box-sizing: border-box;
+            padding: 24px;
         }
 
-        /* HUD Styling */
         .hud-panel {
-            background: rgba(0, 30, 60, 0.4);
+            background: rgba(0, 30, 60, 0.5);
             border: 1px solid rgba(100, 255, 255, 0.2);
-            padding: 15px;
+            padding: 14px;
             border-radius: 8px;
-            backdrop-filter: blur(5px);
             color: #dff;
-            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-shadow: 0 0 4px rgba(0, 255, 255, 0.4);
         }
 
         #top-bar {
@@ -48,273 +39,261 @@
             justify-content: space-between;
             align-items: flex-start;
         }
+        #status-container { width: 280px; }
 
-        #status-container {
-            width: 300px;
-        }
-
-        /* Oxygen Bar */
-        #oxygen-label {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-            letter-spacing: 1px;
-            color: #0ff;
-        }
-
-        #oxygen-bar-bg {
-            width: 100%;
-            height: 12px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 6px;
-            overflow: hidden;
-            border: 1px solid #0ff;
-            margin-bottom: 15px;
-        }
-
-        #oxygen-bar-fill {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, #0066ff, #00ffff);
-            transition: width 0.2s;
-        }
-
-        /* Dash Bar */
-        #dash-label {
+        .bar-label {
             font-size: 12px;
             font-weight: 600;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             display: flex;
             justify-content: space-between;
             letter-spacing: 1px;
-            color: #ffcc00;
         }
-
-        #dash-bar-bg {
+        .bar-bg {
             width: 100%;
-            height: 8px;
+            height: 10px;
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 4px;
+            border-radius: 5px;
             overflow: hidden;
-            border: 1px solid #ffcc00;
+            margin-bottom: 10px;
         }
+        .bar-fill { height: 100%; }
 
-        #dash-bar-fill {
-            width: 100%;
-            height: 100%;
-            background: #ffcc00;
-            transition: width 0.1s;
-        }
+        #oxygen-label { color: #0ff; }
+        #oxygen-bar-bg { border: 1px solid rgba(0,255,255,0.4); }
+        #oxygen-fill { background: linear-gradient(90deg, #0066ff, #00ffff); width: 100%; }
 
-        #score-display {
-            font-size: 22px;
-            font-weight: bold;
-            text-align: right;
-        }
+        #energy-label { color: #ffcc00; }
+        #energy-bar-bg { border: 1px solid rgba(255,204,0,0.4); }
+        #energy-fill { background: #ffcc00; width: 100%; }
 
-        #depth-display {
-            font-size: 14px;
-            color: rgba(170, 255, 255, 0.7);
-            margin-top: 5px;
-            text-align: right;
-        }
+        #shield-row { display: none; }
+        #shield-label { color: #44ff88; }
+        #shield-bar-bg { border: 1px solid rgba(68,255,136,0.4); }
+        #shield-fill { background: #44ff88; width: 100%; }
 
-        /* Biome Indicator */
+        #score-panel { text-align: right; min-width: 160px; }
+        #score-display { font-size: 22px; font-weight: bold; }
+        #depth-display { font-size: 13px; color: rgba(170, 255, 255, 0.7); margin-top: 4px; }
+        #combo-display { font-size: 13px; color: #ffcc00; margin-top: 4px; opacity: 0; transition: opacity 0.3s; }
+        #multiplier-display { font-size: 11px; color: rgba(255,180,80,0.8); margin-top: 2px; }
+
         #biome-display {
             position: absolute;
-            bottom: 30px;
-            right: 30px;
-            font-size: 24px;
+            bottom: 24px; right: 24px;
+            font-size: 22px;
             font-weight: 300;
-            color: rgba(255,255,255,0.4);
+            color: rgba(255,255,255,0.3);
             text-transform: uppercase;
-            letter-spacing: 6px;
+            letter-spacing: 5px;
             transition: color 1s, text-shadow 1s;
             text-align: right;
         }
 
-        /* Compass */
         #compass-container {
             position: absolute;
-            top: 100px;
-            left: 50%;
+            top: 90px; left: 50%;
             transform: translateX(-50%);
-            width: 60px;
-            height: 60px;
+            width: 50px; height: 50px;
             opacity: 0.8;
         }
-        
         #compass-arrow {
-            width: 100%;
-            height: 100%;
-            border-bottom: 20px solid #00ffff;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            box-sizing: border-box;
-            height: 0;
-            width: 0;
+            border-bottom: 18px solid #00ffff;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            height: 0; width: 0;
             margin: 0 auto;
-            transform-origin: 50% 20px;
-            filter: drop-shadow(0 0 8px #00ffff);
-            transition: transform 0.1s;
+            transform-origin: 50% 18px;
         }
-        
-        #compass-text {
-            text-align: center;
-            font-size: 10px;
-            margin-top: 30px;
-            color: #0ff;
-            letter-spacing: 1px;
-        }
+        #compass-text { text-align: center; font-size: 9px; margin-top: 24px; color: #0ff; letter-spacing: 1px; }
 
         #center-msg {
             position: absolute;
-            top: 40%;
-            left: 50%;
+            top: 38%; left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             opacity: 0;
-            transition: opacity 0.5s;
+            transition: opacity 0.4s;
             pointer-events: none;
         }
-
-        h1 {
-            font-size: 70px;
-            margin: 0;
+        #center-msg h1 {
+            font-size: 64px;
             color: #f0ffff;
             letter-spacing: 8px;
             text-shadow: 0 0 30px #00aaff;
             font-weight: 300;
         }
-        
-        p {
-            font-size: 18px;
+        #center-msg p {
+            font-size: 16px;
             color: #aaddff;
             letter-spacing: 2px;
+        }
+
+        #feedback-msg {
+            position: absolute;
+            top: 52%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.25s;
+            pointer-events: none;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        #screen-flash {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
         }
 
         #game-over-screen {
             display: none;
             flex-direction: column;
             pointer-events: auto;
-            background: linear-gradient(rgba(0, 10, 20, 0.9), rgba(0, 5, 10, 0.95));
-            width: 100%;
-            height: 100%;
+            background: linear-gradient(rgba(0, 10, 20, 0.92), rgba(0, 5, 10, 0.96));
+            width: 100%; height: 100%;
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 0; left: 0;
             justify-content: center;
             align-items: center;
             z-index: 10;
         }
+        #game-over-screen h1 {
+            font-size: 52px; color: #f0ffff; letter-spacing: 6px;
+            text-shadow: 0 0 20px #ff4400; font-weight: 300;
+        }
+        #game-over-screen p {
+            font-size: 16px; color: #aaddff; margin-top: 12px; letter-spacing: 1px;
+        }
+        #stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 24px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #8cf;
+        }
+        #stats-grid .stat-val { color: #fff; font-weight: bold; text-align: right; }
 
         .back-to-games {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 16px; left: 16px;
             z-index: 15;
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 8px 14px;
+            padding: 7px 12px;
             background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(0, 255, 255, 0.4);
+            border: 1px solid rgba(0, 255, 255, 0.35);
             color: #0ff;
             text-decoration: none;
-            font-size: 14px;
+            font-size: 13px;
             letter-spacing: 1px;
             transition: all 0.2s;
         }
         .back-to-games:hover {
-            background: rgba(0, 255, 255, 0.15);
+            background: rgba(0, 255, 255, 0.12);
             border-color: #0ff;
-            box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
         }
 
         button {
             background: rgba(0, 255, 255, 0.1);
             color: #0ff;
             border: 1px solid #0ff;
-            padding: 15px 50px;
-            font-size: 18px;
+            padding: 14px 44px;
+            font-size: 16px;
             font-family: inherit;
             cursor: pointer;
-            margin-top: 30px;
+            margin-top: 28px;
             transition: all 0.3s;
             text-transform: uppercase;
             letter-spacing: 2px;
-            border-radius: 30px;
+            border-radius: 28px;
         }
-
         button:hover {
-            background: rgba(0, 255, 255, 0.3);
-            box-shadow: 0 0 25px #0ff;
-            transform: scale(1.05);
+            background: rgba(0, 255, 255, 0.25);
+            box-shadow: 0 0 20px #0ff;
         }
 
         #vignette {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: radial-gradient(circle, transparent 40%, #000c18 130%);
             pointer-events: none;
         }
-        
+
         #reticle {
             position: absolute;
-            width: 40px;
-            height: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            width: 36px; height: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 50%;
             pointer-events: none;
             transform: translate(-50%, -50%);
-            transition: width 0.1s, height 0.1s, border-color 0.1s;
             z-index: 5;
         }
         #reticle.locked {
             border-color: #ffcc00;
             border-width: 2px;
-            width: 30px;
-            height: 30px;
-            box-shadow: 0 0 15px #ffcc00;
-            background: rgba(255, 204, 0, 0.1);
+            width: 28px; height: 28px;
+            box-shadow: 0 0 12px #ffcc00;
+        }
+        #reticle.shielded {
+            border-color: #44ff88;
+            box-shadow: 0 0 12px #44ff88;
         }
 
+        #near-miss-indicator {
+            position: absolute;
+            top: 60%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff8800;
+            opacity: 0;
+            pointer-events: none;
+            text-shadow: 0 0 10px #ff4400;
+            transition: opacity 0.2s;
+            letter-spacing: 2px;
+        }
     </style>
-    <!-- Import Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-
     <div id="vignette"></div>
     <div id="reticle"></div>
-    
+    <div id="screen-flash"></div>
+
     <div id="ui-layer">
         <div id="top-bar">
             <div id="status-container" class="hud-panel">
-                <div id="oxygen-label"><span>O2 LEVELS</span> <span id="oxy-text">100%</span></div>
-                <div id="oxygen-bar-bg">
-                    <div id="oxygen-bar-fill"></div>
-                </div>
-                
-                <div id="dash-label"><span>ENERGY</span></div>
-                <div id="dash-bar-bg">
-                    <div id="dash-bar-fill"></div>
+                <div id="oxygen-label" class="bar-label"><span>O2 LEVELS</span><span id="oxy-text">100%</span></div>
+                <div id="oxygen-bar-bg" class="bar-bg"><div id="oxygen-fill" class="bar-fill"></div></div>
+
+                <div id="energy-label" class="bar-label"><span>ENERGY</span></div>
+                <div id="energy-bar-bg" class="bar-bg"><div id="energy-fill" class="bar-fill"></div></div>
+
+                <div id="shield-row">
+                    <div id="shield-label" class="bar-label"><span>SHIELD</span></div>
+                    <div id="shield-bar-bg" class="bar-bg"><div id="shield-fill" class="bar-fill"></div></div>
                 </div>
             </div>
-            
+
             <div id="compass-container">
                 <div id="compass-arrow"></div>
                 <div id="compass-text">SONAR</div>
             </div>
 
-            <div class="hud-panel">
+            <div id="score-panel" class="hud-panel">
                 <div id="score-display">0</div>
                 <div id="depth-display">DEPTH: 0m</div>
+                <div id="combo-display">COMBO x1</div>
+                <div id="multiplier-display">DEPTH x1.0</div>
             </div>
         </div>
 
@@ -322,552 +301,843 @@
 
         <div id="center-msg">
             <h1>ABYSS</h1>
-            <p>Move Mouse to Swim.<br>Space/Right-Click to Dash & Destroy Mines.</p>
+            <p>Move Mouse to Swim. Hold Space/Click to Dash.<br>Dash into mines to destroy them. Collect artifacts to score.</p>
         </div>
     </div>
 
+    <div id="feedback-msg"></div>
+    <div id="near-miss-indicator">NEAR MISS!</div>
+
     <div id="game-over-screen">
-        <a class="back-to-games" href="/personal/#games"><span>←</span> Back to games</a>
+        <a class="back-to-games" href="/personal/#games"><span>&#8592;</span> Back to games</a>
         <h1>SYSTEM OFFLINE</h1>
-        <p id="final-score">Artifacts: 0</p>
+        <div id="stats-grid">
+            <span>Depth</span><span class="stat-val" id="stat-depth">0m</span>
+            <span>Score</span><span class="stat-val" id="stat-score">0</span>
+            <span>Best Combo</span><span class="stat-val" id="stat-combo">x0</span>
+            <span>Mines Destroyed</span><span class="stat-val" id="stat-mines">0</span>
+            <span>Near Misses</span><span class="stat-val" id="stat-nearmiss">0</span>
+        </div>
         <button onclick="resetGame()">Initialize Dive</button>
     </div>
 
     <script>
-        // --- Configuration ---
-        const config = {
-            baseSpeed: 0.8,
-            dashSpeed: 2.5,
-            dashDrain: 1.5, 
-            energyRecharge: 0.2,
-            // DRASTICALLY REDUCED FOG for better visibility
-            fogDensity: 0.002, 
-            bounds: { x: 40, y: 25 },
-            spawnDist: 140,
-            despawnDist: 30,
-            oxygenDepletionRate: 0.08,
-            oxygenRestore: 25,
-            floorDepth: -25,
-            surfaceHeight: 30
-        };
+    // ============================================================
+    //  ABYSS: DEEP BLUE — Performance-Optimized
+    // ============================================================
+    'use strict';
 
-        const biomes = [
-            // Brighter colors for the first biome
-            { limit: 1000, name: "The Shallows", color: 0x004466, fog: 0x004466, density: 0.002, light: 0x44eeff },
-            { limit: 2500, name: "The Midnight Zone", color: 0x110022, fog: 0x110022, density: 0.005, light: 0xaa00ff },
-            { limit: Infinity, name: "The Abyssal Rift", color: 0x1a0000, fog: 0x1a0000, density: 0.008, light: 0xff0000 }
-        ];
+    // --- Cached DOM refs ---
+    const dom = {
+        oxyFill: document.getElementById('oxygen-fill'),
+        oxyText: document.getElementById('oxy-text'),
+        energyFill: document.getElementById('energy-fill'),
+        shieldRow: document.getElementById('shield-row'),
+        shieldFill: document.getElementById('shield-fill'),
+        scoreTxt: document.getElementById('score-display'),
+        depthTxt: document.getElementById('depth-display'),
+        comboTxt: document.getElementById('combo-display'),
+        multTxt: document.getElementById('multiplier-display'),
+        biomeTxt: document.getElementById('biome-display'),
+        centerMsg: document.getElementById('center-msg'),
+        feedbackMsg: document.getElementById('feedback-msg'),
+        nearMiss: document.getElementById('near-miss-indicator'),
+        compass: document.getElementById('compass-arrow'),
+        reticle: document.getElementById('reticle'),
+        flash: document.getElementById('screen-flash'),
+        gameOver: document.getElementById('game-over-screen'),
+        statDepth: document.getElementById('stat-depth'),
+        statScore: document.getElementById('stat-score'),
+        statCombo: document.getElementById('stat-combo'),
+        statMines: document.getElementById('stat-mines'),
+        statNearMiss: document.getElementById('stat-nearmiss'),
+    };
 
-        const state = {
-            isPlaying: true,
-            score: 0,
-            depth: 0, 
-            oxygen: 100,
-            energy: 100,
-            isDashing: false,
-            mouseX: 0,
-            mouseY: 0, 
-            targetX: 0,
-            targetY: 0,
-            speed: config.baseSpeed,
-            currentBiomeIndex: 0,
-            shakeIntensity: 0
-        };
+    // --- Configuration ---
+    const cfg = {
+        baseSpeed: 0.6,
+        dashSpeed: 2.0,
+        dashDrain: 1.2,
+        energyRecharge: 0.18,
+        boundsX: 36, boundsY: 22,
+        spawnDist: 120,
+        despawnDist: 28,
+        oxyDrainBase: 0.065,
+        oxyRestore: 22,
+        floorY: -22,
+        surfaceY: 28,
+        nearMissDist: 5.5,
+        hitRadiusOxy: 2.2,
+        hitRadiusMine: 3.2,
+        hitRadiusArtifact: 2.0,
+        hitRadiusShield: 2.5,
+        comboWindow: 2.0,
+        magnetRange: 18,
+        magnetStr: 0.12,
+        maxEntities: 55,
+    };
 
-        // --- Init Scene ---
-        const scene = new THREE.Scene();
-        const initialBiome = biomes[0];
-        scene.fog = new THREE.FogExp2(initialBiome.fog, initialBiome.density);
-        scene.background = new THREE.Color(initialBiome.color);
+    // Pre-compute squared radii (avoid sqrt in collision checks)
+    const HR2_OXY = cfg.hitRadiusOxy * cfg.hitRadiusOxy;
+    const HR2_MINE = cfg.hitRadiusMine * cfg.hitRadiusMine;
+    const HR2_ART = cfg.hitRadiusArtifact * cfg.hitRadiusArtifact;
+    const HR2_SHIELD = cfg.hitRadiusShield * cfg.hitRadiusShield;
+    const HR2_NEAR = cfg.nearMissDist * cfg.nearMissDist;
+    const HR2_MAGNET = cfg.magnetRange * cfg.magnetRange;
 
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 300);
-        camera.position.z = 5;
+    const biomes = [
+        { limit: 800, name: "The Shallows", color: 0x004466, fog: 0x004466, density: 0.0018, light: 0x44eeff },
+        { limit: 2200, name: "The Midnight Zone", color: 0x110022, fog: 0x110022, density: 0.004, light: 0xaa00ff },
+        { limit: 4000, name: "The Abyssal Rift", color: 0x1a0000, fog: 0x1a0000, density: 0.006, light: 0xff0000 },
+        { limit: Infinity, name: "The Void", color: 0x050005, fog: 0x050005, density: 0.008, light: 0x440044 }
+    ];
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+    // Pre-build biome THREE.Color objects (avoids allocation during transitions)
+    for (const b of biomes) {
+        b._fogCol = new THREE.Color(b.fog);
+        b._bgCol = new THREE.Color(b.color);
+        b._lightCol = new THREE.Color(b.light);
+    }
 
-        // --- Lighting ---
-        // Increased intensity
-        const hemiLight = new THREE.HemisphereLight(initialBiome.light, 0x000000, 1.0);
-        scene.add(hemiLight);
+    // --- Game State ---
+    const state = {
+        playing: false,
+        started: false,
+        score: 0,
+        depth: 0,
+        absDepth: 0,
+        oxygen: 100,
+        energy: 100,
+        shield: 0,
+        dashing: false,
+        mouseX: 0, mouseY: 0,
+        targetX: 0, targetY: 0,
+        speed: cfg.baseSpeed,
+        biomeIdx: 0,
+        shakeAmt: 0,
+        combo: 0,
+        comboTimer: 0,
+        bestCombo: 0,
+        minesDestroyed: 0,
+        nearMisses: 0,
+        nearMissTimer: 0,
+        fovTarget: 65,
+        lastTime: 0,
+        hudFrame: 0,          // throttle HUD text updates
+        prevShieldVis: false,  // track shield visibility to avoid redundant DOM writes
+        prevDashing: false,    // track dash state to avoid redundant classList ops
+    };
 
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        sunLight.position.set(0, 50, 20);
-        sunLight.castShadow = true;
-        scene.add(sunLight);
+    // --- Pre-allocated temp objects (zero GC) ---
+    const _tmpVec = new THREE.Vector3();
 
-        const spotLight = new THREE.SpotLight(0xffffff, 3.0);
-        spotLight.position.set(0, 0, 5);
-        spotLight.angle = 0.9;
-        spotLight.penumbra = 0.3;
-        spotLight.decay = 1;
-        spotLight.distance = 200; // Longer range
-        scene.add(spotLight);
-        spotLight.target.position.set(0, 0, -50);
-        scene.add(spotLight.target);
+    // --- Renderer ---
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    document.body.prepend(renderer.domElement);
 
-        // --- Environment ---
-        
-        // Seabed
-        const planeGeo = new THREE.PlaneGeometry(300, 300, 32, 32); // Wider floor
-        const posAttribute = planeGeo.attributes.position;
-        for (let i = 0; i < posAttribute.count; i++) {
-            const x = posAttribute.getX(i);
-            const y = posAttribute.getY(i);
-            const z = Math.sin(x * 0.1) * 2 + Math.cos(y * 0.1) * 2; 
-            posAttribute.setZ(i, z);
+    // --- Scene ---
+    const scene = new THREE.Scene();
+    const b0 = biomes[0];
+    scene.fog = new THREE.FogExp2(b0.fog, b0.density);
+    scene.background = new THREE.Color(b0.color);
+
+    // Tighter far plane — nothing spawns beyond 140
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.5, 180);
+    camera.position.z = 5;
+
+    // --- Lighting (no shadows, minimal lights) ---
+    const hemiLight = new THREE.HemisphereLight(b0.light, 0x000000, 0.9);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    dirLight.position.set(0, 40, 20);
+    scene.add(dirLight);
+
+    // Spotlight follows camera
+    const spotLight = new THREE.SpotLight(0xffffff, 2.5);
+    spotLight.angle = 0.85;
+    spotLight.penumbra = 0.4;
+    spotLight.decay = 1;
+    spotLight.distance = 160;
+    scene.add(spotLight);
+    scene.add(spotLight.target);
+
+    // --- Shared Geometries (created once, reused everywhere) ---
+    const geoSphere = new THREE.SphereGeometry(1, 8, 8);
+    const geoArtifact = new THREE.IcosahedronGeometry(0.8, 0);
+    const geoMine = new THREE.IcosahedronGeometry(1.3, 0);  // Single mesh per mine (was 7 meshes!)
+    const geoBox = new THREE.BoxGeometry(0.5, 7, 0.5);
+    const geoRock = new THREE.DodecahedronGeometry(2, 0);
+    const geoShield = new THREE.OctahedronGeometry(0.7, 0);
+
+    // --- Materials (downgraded for performance) ---
+    // O2 & Shield: MeshBasicMaterial (no lighting calc needed — they glow)
+    const matOxygen = new THREE.MeshBasicMaterial({
+        color: 0x33ddff, transparent: true, opacity: 0.8
+    });
+    const matShield = new THREE.MeshBasicMaterial({
+        color: 0x55ffaa, transparent: true, opacity: 0.75
+    });
+    // Mines & Rocks: MeshLambertMaterial (cheap diffuse shading, no PBR)
+    const matMine = new THREE.MeshLambertMaterial({
+        color: 0x444444, emissive: 0x111111, flatShading: true
+    });
+    const matRock = new THREE.MeshLambertMaterial({
+        color: 0x112233, flatShading: true
+    });
+    // Artifacts keep MeshStandardMaterial for the metallic gold look
+    const matGold = new THREE.MeshStandardMaterial({
+        color: 0xffcc00, emissive: 0xff8800, emissiveIntensity: 0.5,
+        roughness: 0.2, metalness: 0.9
+    });
+    const matSeaweed = new THREE.MeshBasicMaterial({ color: 0x005522, transparent: true, opacity: 0.35 });
+
+    // --- Environment ---
+    const floorGeo = new THREE.PlaneGeometry(280, 280, 20, 20);
+    {
+        const pos = floorGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            pos.setZ(i, Math.sin(pos.getX(i) * 0.1) * 2 + Math.cos(pos.getY(i) * 0.1) * 2);
         }
-        planeGeo.computeVertexNormals();
-        const bedMat = new THREE.MeshStandardMaterial({
-            color: 0x001122,
-            roughness: 0.9,
-            metalness: 0.1,
-            flatShading: true
-        });
-        const seaBed = new THREE.Mesh(planeGeo, bedMat);
-        seaBed.rotation.x = -Math.PI / 2;
-        seaBed.position.y = config.floorDepth;
-        scene.add(seaBed);
+        floorGeo.computeVertexNormals();
+    }
+    const seaBed = new THREE.Mesh(floorGeo, new THREE.MeshLambertMaterial({
+        color: 0x001122, flatShading: true
+    }));
+    seaBed.rotation.x = -Math.PI / 2;
+    seaBed.position.y = cfg.floorY;
+    scene.add(seaBed);
 
-        // Surface
-        const surfaceMat = new THREE.MeshBasicMaterial({
-            color: 0x006688,
-            transparent: true,
-            opacity: 0.2,
-            side: THREE.DoubleSide
-        });
-        const surface = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), surfaceMat);
-        surface.rotation.x = Math.PI / 2;
-        surface.position.y = config.surfaceHeight;
-        scene.add(surface);
+    const surface = new THREE.Mesh(
+        new THREE.PlaneGeometry(280, 280),
+        new THREE.MeshBasicMaterial({ color: 0x006688, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
+    );
+    surface.rotation.x = Math.PI / 2;
+    surface.position.y = cfg.surfaceY;
+    scene.add(surface);
 
-        // --- Assets ---
-        const entities = []; 
-        const geoSphere = new THREE.SphereGeometry(1, 16, 16);
-        const geoSpike = new THREE.ConeGeometry(1, 4, 6);
-        const geoArtifact = new THREE.IcosahedronGeometry(0.8, 0);
-        const geoBox = new THREE.BoxGeometry(0.5, 8, 0.5); // For Seaweed
+    // --- Particles: Marine Snow (reduced) ---
+    const snowCount = 800;
+    const snowGeo = new THREE.BufferGeometry();
+    const snowArr = new Float32Array(snowCount * 3);
+    for (let i = 0; i < snowCount; i++) {
+        snowArr[i * 3] = (Math.random() - 0.5) * 90;
+        snowArr[i * 3 + 1] = (Math.random() - 0.5) * 50;
+        snowArr[i * 3 + 2] = (Math.random() - 0.5) * 220;
+    }
+    snowGeo.setAttribute('position', new THREE.BufferAttribute(snowArr, 3));
+    const snowSystem = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+        color: 0xaaccff, size: 0.2, transparent: true, opacity: 0.45
+    }));
+    scene.add(snowSystem);
 
-        const matOxygen = new THREE.MeshPhysicalMaterial({
-            color: 0x00ffff, emissive: 0x0088aa, metalness: 0.2, roughness: 0.1,
-            transmission: 0.6, opacity: 0.9, transparent: true
-        });
-        const matSpike = new THREE.MeshStandardMaterial({
-            color: 0x222222, roughness: 0.5, metalness: 0.8
-        });
-        const matGold = new THREE.MeshStandardMaterial({
-            color: 0xffcc00, emissive: 0xff8800, emissiveIntensity: 0.4,
-            roughness: 0.2, metalness: 1.0
-        });
-        const matSeaweed = new THREE.MeshBasicMaterial({
-             color: 0x005522, transparent: true, opacity: 0.4 
-        });
+    // --- Explosion Particles (reduced) ---
+    const explCount = 80;
+    const explGeo = new THREE.BufferGeometry();
+    const explArr = new Float32Array(explCount * 3);
+    explArr.fill(9999);
+    explGeo.setAttribute('position', new THREE.BufferAttribute(explArr, 3));
+    const explSystem = new THREE.Points(explGeo, new THREE.PointsMaterial({
+        color: 0xffaa00, size: 0.45, transparent: true
+    }));
+    scene.add(explSystem);
+    let explActive = false, explTime = 0;
+    const explCenter = new THREE.Vector3();
 
-        // --- Particle Systems ---
-        // Snow - INCREASED COUNT
-        const snowGeo = new THREE.BufferGeometry();
-        const snowCount = 3000;
-        const snowPos = new Float32Array(snowCount * 3);
-        for(let i=0; i<snowCount; i++) {
-            snowPos[i*3] = (Math.random() - 0.5) * 120;
-            snowPos[i*3+1] = (Math.random() - 0.5) * 80;
-            snowPos[i*3+2] = (Math.random() - 0.5) * 300;
+    // Pre-compute sin/cos lookup for explosion (avoids trig per particle per frame)
+    const explSinT = new Float32Array(explCount);
+    const explCosT = new Float32Array(explCount);
+    const explSinP = new Float32Array(explCount);
+    const explCosP = new Float32Array(explCount);
+    for (let i = 0; i < explCount; i++) {
+        const theta = i * 0.1, phi = i * 0.2;
+        explSinT[i] = Math.sin(theta); explCosT[i] = Math.cos(theta);
+        explSinP[i] = Math.sin(phi);   explCosP[i] = Math.cos(phi);
+    }
+
+    // ===========================================================
+    //  Entity System — Separate interactable vs decor
+    // ===========================================================
+    const entities = [];  // Only oxygen, artifact, mine, shield
+    const decorArr = [];  // Seaweed, rocks (no collision, no animation)
+
+    function setRandPos(obj, z) {
+        obj.position.x = (Math.random() - 0.5) * cfg.boundsX * 2;
+        obj.position.y = (Math.random() - 0.5) * cfg.boundsY * 2;
+        obj.position.z = z;
+    }
+
+    // --- Spawn functions ---
+    function spawnOxygen(z) {
+        const m = new THREE.Mesh(geoSphere, matOxygen);
+        setRandPos(m, z);
+        m.userData.type = 'oxygen';
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnMine(z) {
+        // Single mesh! Was previously a Group with 7 children = 7 draw calls.
+        const m = new THREE.Mesh(geoMine, matMine);
+        setRandPos(m, z);
+        m.scale.setScalar(1.3 + Math.random() * 0.8);
+        m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+        m.userData.type = 'mine';
+        m.userData.rotSpd = 0.015 + Math.random() * 0.01;
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnArtifact(z) {
+        const m = new THREE.Mesh(geoArtifact, matGold);
+        setRandPos(m, z);
+        m.userData.type = 'artifact';
+        m.userData.rotSpd = 0.04;
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnShield(z) {
+        const m = new THREE.Mesh(geoShield, matShield);
+        setRandPos(m, z);
+        m.userData.type = 'shield';
+        m.userData.rotSpd = 0.03;
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnDecor(z) {
+        const isWeed = Math.random() > 0.35;
+        let m;
+        if (isWeed) {
+            m = new THREE.Mesh(geoBox, matSeaweed);
+            m.scale.y = 1 + Math.random() * 2;
+            m.rotation.z = (Math.random() - 0.5) * 0.5;
+        } else {
+            m = new THREE.Mesh(geoRock, matRock);
+            m.scale.set(1.2, 0.6, 1.2);
         }
-        snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
-        const snowSystem = new THREE.Points(snowGeo, new THREE.PointsMaterial({
-            color: 0xaaccff, size: 0.25, transparent: true, opacity: 0.6
-        }));
-        scene.add(snowSystem);
+        m.position.x = (Math.random() - 0.5) * cfg.boundsX * 3;
+        m.position.y = cfg.floorY + (isWeed ? 3.5 : 0.8);
+        m.position.z = z;
+        // Decor is static — disable per-frame matrix recalc
+        m.matrixAutoUpdate = false;
+        m.updateMatrix();
+        scene.add(m);
+        decorArr.push(m);
+    }
 
-        // Explosion Particles
-        const explosionCount = 200;
-        const explosionGeo = new THREE.BufferGeometry();
-        const exPos = new Float32Array(explosionCount * 3);
-        for(let i=0; i<explosionCount*3; i++) exPos[i] = 9999; 
-        explosionGeo.setAttribute('position', new THREE.BufferAttribute(exPos, 3));
-        const explosionSystem = new THREE.Points(explosionGeo, new THREE.PointsMaterial({
-            color: 0xffaa00, size: 0.5, transparent: true
-        }));
-        scene.add(explosionSystem);
-        
-        let explosionActive = false;
-        let explosionTime = 0;
-        let explosionCenter = new THREE.Vector3();
+    // --- Swap-and-pop removal (O(1) instead of splice O(n)) ---
+    function removeEntity(i) {
+        scene.remove(entities[i]);
+        const last = entities.length - 1;
+        if (i !== last) entities[i] = entities[last];
+        entities.length = last;
+    }
 
-        // --- Spawners ---
+    function removeDecor(i) {
+        scene.remove(decorArr[i]);
+        const last = decorArr.length - 1;
+        if (i !== last) decorArr[i] = decorArr[last];
+        decorArr.length = last;
+    }
 
-        function spawnOxygen(z) {
-            const mesh = new THREE.Mesh(geoSphere, matOxygen);
-            setRandomPos(mesh, z);
-            mesh.add(new THREE.PointLight(0x00ffff, 1.5, 15));
-            mesh.userData = { type: 'oxygen', baseScale: 1 };
-            scene.add(mesh);
-            entities.push(mesh);
+    // --- Explosion ---
+    function triggerExplosion(pos) {
+        explActive = true;
+        explTime = 0;
+        explCenter.copy(pos);
+        explSystem.material.opacity = 1;
+    }
+
+    function updateExplosion(dt) {
+        if (!explActive) return;
+        explTime += dt * 2.5;
+        const arr = explGeo.attributes.position.array;
+        if (explTime > 1) {
+            explActive = false;
+            arr.fill(9999);
+            explGeo.attributes.position.needsUpdate = true;
+            return;
+        }
+        const r = 1.5 + explTime * 14;
+        const cx = explCenter.x, cy = explCenter.y, cz = explCenter.z;
+        for (let i = 0; i < explCount; i++) {
+            const i3 = i * 3;
+            arr[i3]     = cx + r * explSinT[i] * explCosP[i];
+            arr[i3 + 1] = cy + r * explSinT[i] * explSinP[i];
+            arr[i3 + 2] = cz + r * explCosT[i];
+        }
+        explSystem.material.opacity = 1 - explTime;
+        explGeo.attributes.position.needsUpdate = true;
+    }
+
+    // --- Screen Flash ---
+    let flashTimer = 0;
+    function screenFlash(color, duration) {
+        dom.flash.style.background = color;
+        dom.flash.style.opacity = '0.3';
+        flashTimer = duration || 0.2;
+    }
+
+    // --- Feedback Text ---
+    let feedbackTimer = 0;
+    function showFeedback(text, color) {
+        dom.feedbackMsg.textContent = text;
+        dom.feedbackMsg.style.color = color;
+        dom.feedbackMsg.style.textShadow = '0 0 12px ' + color;
+        dom.feedbackMsg.style.opacity = '1';
+        feedbackTimer = 0.7;
+    }
+
+    // --- Near Miss ---
+    function showNearMiss() {
+        state.nearMisses++;
+        state.nearMissTimer = 0.6;
+        dom.nearMiss.style.opacity = '1';
+        const bonus = Math.ceil(getDepthMult());
+        state.score += bonus;
+        bumpCombo();
+    }
+
+    // --- Combo ---
+    function bumpCombo() {
+        state.combo++;
+        state.comboTimer = cfg.comboWindow;
+        if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+        dom.comboTxt.style.opacity = '1';
+        dom.comboTxt.textContent = 'COMBO x' + state.combo;
+    }
+
+    function getComboMult() {
+        return 1 + (state.combo / 3 | 0) * 0.5;
+    }
+    function getDepthMult() {
+        return 1 + (state.absDepth / 500 | 0) * 0.5;
+    }
+    function getDiff() {
+        return state.absDepth / 3000;  // unclamped — used with Math.min where needed
+    }
+
+    // --- Biome Transition ---
+    function updateBiome() {
+        const dist = state.absDepth;
+        const curB = biomes[state.biomeIdx];
+        if (biomes[state.biomeIdx + 1] && dist > curB.limit) {
+            state.biomeIdx++;
+            const b = biomes[state.biomeIdx];
+            dom.biomeTxt.textContent = b.name;
+            dom.biomeTxt.style.color = '#fff';
+            dom.biomeTxt.style.textShadow = '0 0 16px ' + b._lightCol.getStyle();
+            setTimeout(function() { dom.biomeTxt.style.color = 'rgba(255,255,255,0.3)'; }, 2500);
+        }
+        const tb = biomes[state.biomeIdx];
+        scene.fog.color.lerp(tb._fogCol, 0.008);
+        scene.background.lerp(tb._bgCol, 0.008);
+        hemiLight.color.lerp(tb._lightCol, 0.008);
+        scene.fog.density += (tb.density - scene.fog.density) * 0.008;
+    }
+
+    // --- Spawning & Despawning ---
+    function manageSpawning() {
+        const camZ = camera.position.z;
+        const spawnZ = camZ - cfg.spawnDist;
+        const deleteZ = camZ + cfg.despawnDist;
+
+        // Despawn decor (swap-and-pop, reverse iteration)
+        for (let i = decorArr.length - 1; i >= 0; i--) {
+            if (decorArr[i].position.z > deleteZ) removeDecor(i);
         }
 
-        function spawnMineCluster(z) {
-            const group = new THREE.Group();
-            group.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), matSpike));
-            // Add spikes
-            const spike = new THREE.Mesh(geoSpike, matSpike);
-            const dirs = [[0,1,0],[0,-1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]];
-            dirs.forEach(d => {
-                const s = spike.clone();
-                s.position.set(d[0], d[1], d[2]);
-                s.lookAt(0,0,0);
-                s.rotateX(-Math.PI/2);
-                group.add(s);
-            });
-            setRandomPos(group, z);
-            group.scale.setScalar(1.5 + Math.random());
-            group.rotation.set(Math.random(), Math.random(), Math.random());
-            group.userData = { type: 'obstacle', rotSpeed: 0.02 };
-            scene.add(group);
-            entities.push(group);
+        // Despawn entities (swap-and-pop, reverse iteration)
+        for (let i = entities.length - 1; i >= 0; i--) {
+            if (entities[i].position.z > deleteZ) removeEntity(i);
         }
 
-        function spawnArtifact(z) {
-            const mesh = new THREE.Mesh(geoArtifact, matGold);
-            setRandomPos(mesh, z);
-            mesh.userData = { type: 'artifact', rotSpeed: 0.05 };
-            mesh.add(new THREE.PointLight(0xffaa00, 1, 10));
-            scene.add(mesh);
-            entities.push(mesh);
+        const diff = Math.min(getDiff(), 1.5);
+        const cap = cfg.maxEntities + (diff * 15 | 0);
+
+        if (entities.length + decorArr.length < cap) {
+            const r = Math.random();
+            const pz = spawnZ - Math.random() * 20;
+
+            if (r < 0.08) spawnOxygen(pz);
+            else if (r < 0.16) spawnArtifact(pz);
+            else if (r < 0.18 && Math.random() < 0.3 + diff * 0.1) spawnShield(pz);
+            else if (r < 0.35 + diff * 0.2) spawnMine(pz);
+            else if (r < 0.75) spawnDecor(pz);
         }
-        
-        function spawnFloorDecor(z) {
-            // Adds seaweed/rocks to floor to prevent "empty" feel
-            const isSeaweed = Math.random() > 0.3;
-            let mesh;
-            
-            if (isSeaweed) {
-                 mesh = new THREE.Mesh(geoBox, matSeaweed);
-                 mesh.scale.y = 1 + Math.random() * 2;
-                 mesh.rotation.z = (Math.random() - 0.5) * 0.5;
-            } else {
-                 // Rock
-                 mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(2, 0), matSpike);
-                 mesh.scale.set(1.5, 0.8, 1.5);
+    }
+
+    // ===========================================================
+    //  Unified Entity Loop — animate + collide + compass + magnet
+    //  Single iteration over entities[] per frame
+    // ===========================================================
+    let nearOxyObj = null;
+    let nearOxyDistSq = 0;
+
+    function processEntities(timeSec) {
+        const px = camera.position.x;
+        const py = camera.position.y;
+        const pz = camera.position.z - 1;
+        const camZ = camera.position.z;
+        const isDash = state.dashing;
+        const sinT3 = 1 + Math.sin(timeSec * 3) * 0.15;
+        const sinT4 = 0.8 + Math.sin(timeSec * 4) * 0.15;
+
+        nearOxyObj = null;
+        nearOxyDistSq = Infinity;
+
+        for (let i = 0; i < entities.length; ) {
+            const e = entities[i];
+            const ud = e.userData;
+            const t = ud.type;
+            const ep = e.position;
+
+            // --- Animation ---
+            if (ud.rotSpd) {
+                e.rotation.x += ud.rotSpd;
+                e.rotation.y += ud.rotSpd;
             }
-            
-            mesh.position.x = (Math.random() - 0.5) * config.bounds.x * 3; 
-            mesh.position.y = config.floorDepth + (isSeaweed ? 4 : 1);
-            mesh.position.z = z;
-            mesh.userData = { type: 'decor' }; // Non interactive
-            scene.add(mesh);
-            entities.push(mesh);
-        }
+            if (t === 'oxygen') e.scale.setScalar(sinT3);
+            else if (t === 'shield') e.scale.setScalar(sinT4);
 
-        function setRandomPos(obj, z) {
-            obj.position.x = (Math.random() - 0.5) * config.bounds.x * 2;
-            obj.position.y = (Math.random() - 0.5) * config.bounds.y * 2;
-            obj.position.z = z;
-        }
-
-        // --- Visual Effects ---
-
-        function triggerExplosion(pos) {
-            explosionActive = true;
-            explosionTime = 0;
-            explosionCenter.copy(pos);
-            explosionSystem.material.opacity = 1;
-        }
-
-        function updateExplosion() {
-            if (!explosionActive) return;
-            explosionTime += 0.05;
-            const positions = explosionSystem.geometry.attributes.position.array;
-            
-            if (explosionTime > 1) {
-                explosionActive = false;
-                for(let i=0; i<explosionCount*3; i++) positions[i] = 9999;
-                explosionSystem.geometry.attributes.position.needsUpdate = true;
-                return;
-            }
-
-            for(let i=0; i<explosionCount; i++) {
-                const r = 2 + explosionTime * 12; // Faster expansion
-                const theta = i * 0.1; 
-                const phi = i * 0.2;
-                positions[i*3] = explosionCenter.x + r * Math.sin(theta) * Math.cos(phi);
-                positions[i*3+1] = explosionCenter.y + r * Math.sin(theta) * Math.sin(phi);
-                positions[i*3+2] = explosionCenter.z + r * Math.cos(theta);
-            }
-            explosionSystem.material.opacity = 1 - explosionTime;
-            explosionSystem.geometry.attributes.position.needsUpdate = true;
-        }
-
-        // --- Core Logic ---
-
-        function updateBiomes() {
-            const distance = Math.abs(camera.position.z) + Math.abs(state.depth)*5;
-            
-            let targetBiome = biomes[state.currentBiomeIndex];
-            if (biomes[state.currentBiomeIndex + 1] && distance > biomes[state.currentBiomeIndex].limit) {
-                state.currentBiomeIndex++;
-                targetBiome = biomes[state.currentBiomeIndex];
-                
-                const biomeText = document.getElementById('biome-display');
-                biomeText.innerText = targetBiome.name;
-                biomeText.style.color = '#fff';
-                biomeText.style.textShadow = `0 0 20px ${new THREE.Color(targetBiome.light).getStyle()}`;
-                setTimeout(() => { biomeText.style.color = 'rgba(255,255,255,0.4)'; }, 3000);
-            }
-
-            scene.fog.color.lerp(new THREE.Color(targetBiome.fog), 0.01);
-            scene.background.lerp(new THREE.Color(targetBiome.color), 0.01);
-            hemiLight.color.lerp(new THREE.Color(targetBiome.light), 0.01);
-            scene.fog.density += (targetBiome.density - scene.fog.density) * 0.01;
-        }
-
-        function updateState() {
-            if(!state.isPlaying) return;
-
-            document.getElementById('oxygen-bar-fill').style.width = state.oxygen + '%';
-            document.getElementById('oxy-text').innerText = Math.floor(state.oxygen) + '%';
-            document.getElementById('dash-bar-fill').style.width = state.energy + '%';
-
-            state.oxygen -= config.oxygenDepletionRate;
-            if (state.oxygen <= 0) { state.oxygen = 0; gameOver(); }
-
-            if (state.isDashing) {
-                state.energy -= config.dashDrain;
-                state.speed = config.dashSpeed;
-                state.shakeIntensity = 0.5;
-                document.getElementById('reticle').classList.add('locked');
-                
-                camera.fov += (90 - camera.fov) * 0.1;
-                camera.updateProjectionMatrix();
-
-                if (state.energy <= 0) {
-                    state.isDashing = false;
+            // --- Magnet (dash pulls collectibles) ---
+            if (isDash && t !== 'mine') {
+                const mdx = px - ep.x, mdy = py - ep.y, mdz = pz - ep.z;
+                const mdsq = mdx * mdx + mdy * mdy + mdz * mdz;
+                if (mdsq < HR2_MAGNET && mdsq > 1) {
+                    ep.x += mdx * cfg.magnetStr;
+                    ep.y += mdy * cfg.magnetStr;
+                    ep.z += mdz * cfg.magnetStr;
                 }
-            } else {
-                state.speed = config.baseSpeed;
-                state.energy = Math.min(state.energy + config.energyRecharge, 100);
-                state.shakeIntensity = 0;
-                document.getElementById('reticle').classList.remove('locked');
-
-                camera.fov += (65 - camera.fov) * 0.1;
-                camera.updateProjectionMatrix();
             }
 
-            if (state.shakeIntensity > 0) {
-                camera.position.x += (Math.random() - 0.5) * state.shakeIntensity;
-                camera.position.y += (Math.random() - 0.5) * state.shakeIntensity;
-            }
-        }
+            // --- Distance for collision ---
+            const dx = px - ep.x, dy = py - ep.y, dz = pz - ep.z;
+            const dsq = dx * dx + dy * dy + dz * dz;
 
-        function manageSpawning() {
-            const spawnZ = camera.position.z - config.spawnDist;
-            const deleteZ = camera.position.z + config.despawnDist;
+            let removed = false;
 
-            for (let i = entities.length - 1; i >= 0; i--) {
-                if (entities[i].position.z > deleteZ) {
-                    scene.remove(entities[i]);
-                    entities.splice(i, 1);
+            // --- Collision ---
+            if (t === 'oxygen') {
+                if (dsq < HR2_OXY) {
+                    state.oxygen = Math.min(state.oxygen + cfg.oxyRestore, 100);
+                    showFeedback('O2 REPLENISHED', '#0ff');
+                    screenFlash('rgba(0,255,255,0.4)', 0.15);
+                    removed = true;
+                } else if (ep.z < camZ) {
+                    // Compass: track nearest O2 ahead
+                    const cdist = (camZ - ep.z); // rough forward distance
+                    const cd2 = dx * dx + dy * dy + cdist * cdist;
+                    if (cd2 < nearOxyDistSq) { nearOxyDistSq = cd2; nearOxyObj = e; }
                 }
             }
-
-            const densityMult = 1 + (state.currentBiomeIndex * 0.5);
-            
-            // Increased spawn cap
-            if (entities.length < 60 * densityMult) {
-                const r = Math.random();
-                const posZ = spawnZ - Math.random() * 20;
-                
-                if (r < 0.1) spawnOxygen(posZ);
-                else if (r < 0.2) spawnArtifact(posZ);
-                else if (r < 0.4 * densityMult) spawnMineCluster(posZ);
-                else if (r < 0.8) spawnFloorDecor(posZ); // High chance for decor
+            else if (t === 'artifact' && dsq < HR2_ART) {
+                bumpCombo();
+                const pts = Math.ceil((isDash ? 3 : 1) * getComboMult() * getDepthMult());
+                state.score += pts;
+                dom.scoreTxt.textContent = state.score;
+                showFeedback(state.combo > 2 ? 'COMBO x' + state.combo + '! +' + pts : '+' + pts, '#fb0');
+                screenFlash('rgba(255,200,0,0.3)', 0.12);
+                removed = true;
             }
-        }
-
-        function checkCollisions() {
-            const playerPos = camera.position.clone();
-            playerPos.z -= 1;
-
-            for (let i = entities.length - 1; i >= 0; i--) {
-                const e = entities[i];
-                if (e.userData.type === 'decor') continue; // Ignore decor
-
-                const dist = playerPos.distanceTo(e.position);
-                let hitRadius = 2.0;
-                if (e.userData.type === 'obstacle') hitRadius = 3.5;
-
-                if (dist < hitRadius) {
-                    if (e.userData.type === 'oxygen') {
-                        state.oxygen = Math.min(state.oxygen + config.oxygenRestore, 100);
-                        triggerFeedback('O2 REPLENISHED', '#0ff');
-                        scene.remove(e); entities.splice(i, 1);
-                    }
-                    else if (e.userData.type === 'artifact') {
-                        const pts = state.isDashing ? 2 : 1;
+            else if (t === 'shield' && dsq < HR2_SHIELD) {
+                state.shield = Math.min(state.shield + 50, 100);
+                showFeedback('SHIELD ACTIVE', '#44ff88');
+                screenFlash('rgba(68,255,136,0.3)', 0.15);
+                removed = true;
+            }
+            else if (t === 'mine') {
+                if (dsq < HR2_MINE) {
+                    if (isDash) {
+                        triggerExplosion(ep);
+                        state.minesDestroyed++;
+                        bumpCombo();
+                        const pts = Math.ceil(5 * getComboMult() * getDepthMult());
                         state.score += pts;
-                        document.getElementById('score-display').innerText = state.score;
-                        triggerFeedback(state.isDashing ? 'COMBO GRAB!' : 'ARTIFACT COLLECTED', '#fb0');
-                        scene.remove(e); entities.splice(i, 1);
+                        dom.scoreTxt.textContent = state.score;
+                        showFeedback('MINE DESTROYED! +' + pts, '#ff4400');
+                        screenFlash('rgba(255,100,0,0.3)', 0.15);
+                    } else if (state.shield > 0) {
+                        state.shield = Math.max(state.shield - 40, 0);
+                        showFeedback('SHIELD HIT!', '#44ff88');
+                        screenFlash('rgba(68,255,136,0.4)', 0.2);
+                    } else {
+                        state.oxygen -= 25;
+                        showFeedback('HULL BREACH!', '#f33');
+                        screenFlash('rgba(255,0,0,0.4)', 0.3);
+                        camera.position.z += 4;
                     }
-                    else if (e.userData.type === 'obstacle') {
-                        if (state.isDashing) {
-                            triggerExplosion(e.position);
-                            state.score += 5; 
-                            document.getElementById('score-display').innerText = state.score;
-                            triggerFeedback('MINE DESTROYED!', '#ff4400');
-                            scene.remove(e); entities.splice(i, 1);
-                        } else {
-                            state.oxygen -= 30;
-                            triggerFeedback('HULL BREACH!', '#f33');
-                            camera.position.z += 5; 
-                            scene.remove(e); entities.splice(i, 1);
-                        }
-                    }
+                    removed = true;
+                }
+                else if (dsq < HR2_NEAR && ep.z > pz && state.nearMissTimer <= 0) {
+                    showNearMiss();
                 }
             }
-        }
 
-        function triggerFeedback(text, color) {
-            const el = document.getElementById('center-msg');
-            const h1 = el.querySelector('h1');
-            const p = el.querySelector('p');
-            h1.style.display = 'none';
-            p.innerHTML = text;
-            p.style.color = color;
-            p.style.fontSize = '28px';
-            p.style.fontWeight = 'bold';
-            p.style.textShadow = `0 0 15px ${color}`;
-            el.style.opacity = 1;
-            setTimeout(() => { el.style.opacity = 0; }, 800);
-        }
-
-        function gameOver() {
-            state.isPlaying = false;
-            document.getElementById('game-over-screen').style.display = 'flex';
-            document.getElementById('final-score').innerText = `Depth: ${Math.floor(Math.abs(state.depth))}m | Score: ${state.score}`;
-        }
-
-        window.resetGame = function() {
-            state.score = 0; state.oxygen = 100; state.depth = 0; state.energy = 100;
-            state.isPlaying = true; state.currentBiomeIndex = 0;
-            camera.position.set(0, 0, 5); camera.rotation.set(0,0,0);
-            
-            entities.forEach(e => scene.remove(e)); entities.length = 0;
-            document.getElementById('game-over-screen').style.display = 'none';
-            document.getElementById('score-display').innerText = '0';
-            document.getElementById('biome-display').innerText = "The Shallows";
-            
-            // Initial spawn
-            for(let i=0; i<15; i++) {
-                spawnOxygen(-20 - i*10);
-                spawnFloorDecor(-20 - i*10);
-            }
-        }
-
-        // --- Inputs ---
-        document.addEventListener('mousemove', (e) => {
-            if (!state.isPlaying) return;
-            const reticle = document.getElementById('reticle');
-            reticle.style.left = e.clientX + 'px';
-            reticle.style.top = e.clientY + 'px';
-            state.mouseX = (e.clientX / window.innerWidth) * 2 - 1;
-            state.mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
-        });
-
-        function activateDash() {
-            if (state.energy > 20) state.isDashing = true;
-        }
-        function deactivateDash() {
-            state.isDashing = false;
-        }
-
-        document.addEventListener('mousedown', (e) => { 
-            if(e.button === 0 || e.button === 2) activateDash(); 
-        });
-        document.addEventListener('mouseup', deactivateDash);
-        document.addEventListener('keydown', (e) => { if(e.code === 'Space') activateDash(); });
-        document.addEventListener('keyup', (e) => { if(e.code === 'Space') deactivateDash(); });
-        window.addEventListener('contextmenu', e => e.preventDefault()); 
-
-        // --- Loop ---
-        setTimeout(() => { document.getElementById('center-msg').style.opacity = 1; }, 500);
-        setTimeout(() => { document.getElementById('center-msg').style.opacity = 0; }, 4000);
-
-        function animate(time) {
-            requestAnimationFrame(animate);
-            if (!state.isPlaying) return;
-
-            camera.position.z -= state.speed;
-            state.depth = camera.position.z; 
-            document.getElementById('depth-display').innerText = `DEPTH: ${Math.floor(Math.abs(state.depth))}m`;
-
-            state.targetX = state.mouseX * config.bounds.x;
-            state.targetY = state.mouseY * config.bounds.y;
-            camera.position.x += (state.targetX - camera.position.x) * 0.08;
-            camera.position.y += (state.targetY - camera.position.y) * 0.08;
-
-            const targetRotY = (state.targetX - camera.position.x) * -0.05;
-            const targetRotX = (state.targetY - camera.position.y) * 0.05;
-            const targetRotZ = (state.targetX - camera.position.x) * -0.02;
-
-            camera.rotation.y += (targetRotY - camera.rotation.y) * 0.1;
-            camera.rotation.x += (targetRotX - camera.rotation.x) * 0.1;
-            camera.rotation.z += (targetRotZ - camera.rotation.z) * 0.1;
-
-            spotLight.position.copy(camera.position);
-            spotLight.target.position.set(camera.position.x, camera.position.y, camera.position.z - 50);
-            spotLight.target.updateMatrixWorld();
-
-            entities.forEach(e => {
-                if(e.userData.rotSpeed) {
-                    e.rotation.x += e.userData.rotSpeed;
-                    e.rotation.y += e.userData.rotSpeed;
-                }
-                if (e.userData.type === 'oxygen') {
-                    const s = 1 + Math.sin(time * 0.003) * 0.2;
-                    e.scale.setScalar(s);
-                }
-            });
-
-            const offset = camera.position.z;
-            if (offset % 300 > -5) {
-                seaBed.position.z = camera.position.z;
-                surface.position.z = camera.position.z;
-            }
-            snowSystem.position.z = camera.position.z;
-
-            let nearestDist = Infinity; let nearestObj = null;
-            entities.forEach(e => {
-                if (e.userData.type === 'oxygen' && e.position.z < camera.position.z) {
-                    const d = camera.position.distanceTo(e.position);
-                    if (d < nearestDist) { nearestDist = d; nearestObj = e; }
-                }
-            });
-            const arrow = document.getElementById('compass-arrow');
-            if (nearestObj && nearestDist < 200) {
-                arrow.style.opacity = 1;
-                const local = nearestObj.position.clone().applyMatrix4(camera.matrixWorldInverse);
-                const angle = Math.atan2(local.y, local.x);
-                arrow.style.transform = `rotate(${(angle * 180 / Math.PI) - 90}deg)`;
+            if (removed) {
+                // Swap-and-pop: O(1) removal
+                scene.remove(e);
+                const last = entities.length - 1;
+                if (i !== last) entities[i] = entities[last];
+                entities.length = last;
+                // Don't increment — re-check swapped element at index i
             } else {
-                arrow.style.opacity = 0.2;
-                arrow.style.transform = `rotate(0deg)`;
+                i++;
             }
+        }
+    }
 
-            updateBiomes();
-            updateState();
-            manageSpawning();
-            checkCollisions();
-            updateExplosion();
+    // --- Update Compass ---
+    function updateCompass() {
+        if (nearOxyObj && nearOxyDistSq < 40000) {
+            dom.compass.style.opacity = '1';
+            _tmpVec.copy(nearOxyObj.position).applyMatrix4(camera.matrixWorldInverse);
+            const ang = Math.atan2(_tmpVec.y, _tmpVec.x);
+            dom.compass.style.transform = 'rotate(' + ((ang * 57.2958) - 90) + 'deg)'; // 180/PI = 57.2958
+        } else {
+            dom.compass.style.opacity = '0.2';
+            dom.compass.style.transform = 'rotate(0deg)';
+        }
+    }
 
-            renderer.render(scene, camera);
+    // --- Update HUD (some text throttled to every 3rd frame) ---
+    function updateHUD(dt) {
+        const diff = Math.min(getDiff(), 1.5);
+        const dt60 = dt * 60;
+        state.oxygen -= (cfg.oxyDrainBase + diff * 0.04) * dt60;
+        if (state.oxygen <= 0) { state.oxygen = 0; gameOver(); return; }
+
+        // Bar widths — cheap style writes
+        dom.oxyFill.style.width = state.oxygen + '%';
+        dom.energyFill.style.width = state.energy + '%';
+
+        // Shield visibility — only write DOM when state changes
+        const showShield = state.shield > 0;
+        if (showShield !== state.prevShieldVis) {
+            state.prevShieldVis = showShield;
+            dom.shieldRow.style.display = showShield ? 'block' : 'none';
+            if (showShield) dom.reticle.classList.add('shielded');
+            else dom.reticle.classList.remove('shielded');
+        }
+        if (showShield) dom.shieldFill.style.width = state.shield + '%';
+
+        // Dash state
+        if (state.dashing) {
+            state.energy -= cfg.dashDrain * dt60;
+            state.speed = cfg.dashSpeed;
+            state.shakeAmt = 0.35;
+            state.fovTarget = 85;
+            if (state.energy <= 0) { state.energy = 0; state.dashing = false; }
+        } else {
+            state.speed = cfg.baseSpeed + diff * 0.25;
+            state.energy = Math.min(state.energy + cfg.energyRecharge * dt60, 100);
+            state.shakeAmt = 0;
+            state.fovTarget = 65;
         }
 
-        animate(0);
+        // Dash reticle class — only toggle on change
+        if (state.dashing !== state.prevDashing) {
+            state.prevDashing = state.dashing;
+            if (state.dashing) dom.reticle.classList.add('locked');
+            else dom.reticle.classList.remove('locked');
+        }
 
+        // FOV — only update projection matrix when actually changing
+        const fovDelta = state.fovTarget - camera.fov;
+        if (fovDelta * fovDelta > 0.25) { // abs > 0.5
+            camera.fov += fovDelta * 0.08;
+            camera.updateProjectionMatrix();
+        }
+
+        // Combo timer
+        if (state.comboTimer > 0) {
+            state.comboTimer -= dt;
+            if (state.comboTimer <= 0) {
+                state.combo = 0;
+                dom.comboTxt.style.opacity = '0';
+            }
+        }
+
+        // Flash / feedback timers
+        if (flashTimer > 0) { flashTimer -= dt; if (flashTimer <= 0) dom.flash.style.opacity = '0'; }
+        if (feedbackTimer > 0) { feedbackTimer -= dt; if (feedbackTimer <= 0) dom.feedbackMsg.style.opacity = '0'; }
+        if (state.nearMissTimer > 0) { state.nearMissTimer -= dt; if (state.nearMissTimer <= 0) dom.nearMiss.style.opacity = '0'; }
+
+        // Camera shake
+        if (state.shakeAmt > 0) {
+            camera.position.x += (Math.random() - 0.5) * state.shakeAmt;
+            camera.position.y += (Math.random() - 0.5) * state.shakeAmt;
+        }
+
+        // Throttle text DOM updates to every 3rd frame (~20fps text, still smooth visually)
+        state.hudFrame++;
+        if (state.hudFrame % 3 === 0) {
+            dom.oxyText.textContent = (state.oxygen | 0) + '%';
+            dom.depthTxt.textContent = 'DEPTH: ' + (state.absDepth | 0) + 'm';
+            dom.multTxt.textContent = 'DEPTH x' + getDepthMult().toFixed(1);
+        }
+    }
+
+    // --- Game Over ---
+    function gameOver() {
+        state.playing = false;
+        dom.statDepth.textContent = (state.absDepth | 0) + 'm';
+        dom.statScore.textContent = state.score;
+        dom.statCombo.textContent = 'x' + state.bestCombo;
+        dom.statMines.textContent = state.minesDestroyed;
+        dom.statNearMiss.textContent = state.nearMisses;
+        dom.gameOver.style.display = 'flex';
+    }
+
+    // --- Reset ---
+    window.resetGame = function () {
+        state.score = 0; state.oxygen = 100; state.depth = 0; state.absDepth = 0;
+        state.energy = 100; state.shield = 0; state.combo = 0; state.comboTimer = 0;
+        state.bestCombo = 0; state.minesDestroyed = 0; state.nearMisses = 0;
+        state.nearMissTimer = 0; state.playing = true; state.started = true;
+        state.biomeIdx = 0; state.dashing = false; state.prevDashing = false;
+        state.fovTarget = 65; state.lastTime = 0; state.hudFrame = 0;
+        state.prevShieldVis = false;
+        camera.position.set(0, 0, 5);
+        camera.rotation.set(0, 0, 0);
+        camera.fov = 65;
+        camera.updateProjectionMatrix();
+
+        for (let i = entities.length - 1; i >= 0; i--) scene.remove(entities[i]);
+        entities.length = 0;
+        for (let i = decorArr.length - 1; i >= 0; i--) scene.remove(decorArr[i]);
+        decorArr.length = 0;
+
+        scene.fog.color.set(b0.fog);
+        scene.fog.density = b0.density;
+        scene.background.set(b0.color);
+        hemiLight.color.set(b0.light);
+
+        dom.gameOver.style.display = 'none';
+        dom.scoreTxt.textContent = '0';
+        dom.biomeTxt.textContent = 'The Shallows';
+        dom.biomeTxt.style.color = 'rgba(255,255,255,0.3)';
+        dom.comboTxt.style.opacity = '0';
+        dom.flash.style.opacity = '0';
+        dom.feedbackMsg.style.opacity = '0';
+        dom.nearMiss.style.opacity = '0';
+        dom.shieldRow.style.display = 'none';
+        dom.reticle.classList.remove('locked', 'shielded');
+
+        for (let i = 0; i < 12; i++) {
+            spawnOxygen(-18 - i * 10);
+            spawnDecor(-18 - i * 10);
+        }
+    };
+
+    // --- Input ---
+    document.addEventListener('mousemove', function (e) {
+        if (!state.playing) return;
+        dom.reticle.style.left = e.clientX + 'px';
+        dom.reticle.style.top = e.clientY + 'px';
+        state.mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        state.mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    function dashOn() { if (state.energy > 15 && state.playing) state.dashing = true; }
+    function dashOff() { state.dashing = false; }
+
+    document.addEventListener('mousedown', function (e) {
+        if (!state.started) { resetGame(); return; }
+        if (e.button === 0 || e.button === 2) dashOn();
+    });
+    document.addEventListener('mouseup', dashOff);
+    document.addEventListener('keydown', function (e) {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            if (!state.started) { resetGame(); return; }
+            dashOn();
+        }
+    });
+    document.addEventListener('keyup', function (e) { if (e.code === 'Space') dashOff(); });
+    window.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+    // --- Resize ---
+    window.addEventListener('resize', function () {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- Page Visibility: pause rendering when tab is hidden ---
+    let tabVisible = true;
+    document.addEventListener('visibilitychange', function () {
+        tabVisible = !document.hidden;
+        if (tabVisible) state.lastTime = 0; // reset dt to avoid time jump
+    });
+
+    // --- Title ---
+    setTimeout(function () { dom.centerMsg.style.opacity = '1'; }, 400);
+
+    // ===========================================================
+    //  Main Loop
+    // ===========================================================
+    function animate(time) {
+        requestAnimationFrame(animate);
+        if (!tabVisible) return; // Skip rendering entirely when tab is hidden
+
+        const timeSec = time * 0.001;
+        const dt = state.lastTime > 0 ? Math.min(timeSec - state.lastTime, 0.05) : 0.016;
+        state.lastTime = timeSec;
+
+        if (!state.playing) {
+            renderer.render(scene, camera);
+            return;
+        }
+
+        // Hide title
+        if (state.absDepth > 20) dom.centerMsg.style.opacity = '0';
+
+        // Movement
+        camera.position.z -= state.speed * dt * 60;
+        state.depth = camera.position.z;
+        state.absDepth = -state.depth; // cache once, used everywhere
+
+        state.targetX = state.mouseX * cfg.boundsX;
+        state.targetY = state.mouseY * cfg.boundsY;
+        camera.position.x += (state.targetX - camera.position.x) * 0.07;
+        camera.position.y += (state.targetY - camera.position.y) * 0.07;
+
+        // Camera tilt
+        const diffX = state.targetX - camera.position.x;
+        const diffY = state.targetY - camera.position.y;
+        camera.rotation.y += (diffX * -0.04 - camera.rotation.y) * 0.08;
+        camera.rotation.x += (diffY * 0.04 - camera.rotation.x) * 0.08;
+        camera.rotation.z += (diffX * -0.015 - camera.rotation.z) * 0.08;
+
+        // Spotlight follows camera
+        spotLight.position.copy(camera.position);
+        spotLight.target.position.set(camera.position.x, camera.position.y, camera.position.z - 50);
+        spotLight.target.updateMatrixWorld();
+
+        // Environment tracking
+        seaBed.position.z = camera.position.z;
+        surface.position.z = camera.position.z;
+        snowSystem.position.z = camera.position.z;
+
+        // Unified entity processing (animate + collide + compass + magnet — single pass)
+        processEntities(timeSec);
+
+        // Systems
+        updateCompass();
+        updateBiome();
+        updateHUD(dt);
+        manageSpawning();
+        updateExplosion(dt);
+
+        renderer.render(scene, camera);
+    }
+
+    animate(0);
     </script>
 </body>
 </html>
