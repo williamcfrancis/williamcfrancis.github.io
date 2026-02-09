@@ -74,6 +74,14 @@ sections:
           label: Play Abyss
           url: "/games/abyss.html"
         image: "/games/abyss.jpg"
+      - title: Algorithm Simulator
+        genre: Dark simulation
+        summary: "Maximize engagement and ad revenue by manipulating a subject's digital experience. A satirical take on attention economy mechanics."
+        tags: ["browser", "simulation", "dark"]
+        link:
+          label: Play Algorithm Simulator
+          url: "/games/algorithm_simulator.html"
+        image: "/games/algorithm_simulator.png"
   - section:
       name: Photo Gallery
       id: gallery

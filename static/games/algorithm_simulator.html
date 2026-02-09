@@ -1,0 +1,1124 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  Brain, 
+  Smartphone, 
+  Zap, 
+  TrendingUp, 
+  AlertTriangle, 
+  Eye, 
+  Lock, 
+  Heart, 
+  Users,
+  Target,
+  Video,
+  ThumbsUp,
+  Camera,
+  Bell,
+  Briefcase,
+  Coffee,
+  Moon,
+  Home,
+  Skull,
+  Ghost,
+  Frown,
+  Smile,
+  Flame,
+  Database,
+  Fingerprint,
+  MapPin,
+  Mic,
+  ScanFace,
+  Globe,
+  RotateCcw,
+  Leaf,
+  BookOpen,
+  Activity,
+  Sparkles,
+  Wind,
+  Film,
+  Newspaper,
+  Gavel,
+  Search,
+  MessageCircle,
+  ClipboardList,
+  Hash,
+  UserMinus,
+  MessageSquareWarning,
+  BellRing,
+  Play,
+  Cpu,
+  CheckCircle,
+  Clock,
+  ArrowLeft
+} from 'lucide-react';
+
+// --- Types & Constants ---
+
+type Mood = 'BORED' | 'ANGRY' | 'LONELY' | 'INSECURE' | 'NEUTRAL';
+type ScenarioType = 'BEDTIME' | 'WORK' | 'COMMUTE' | 'SOCIAL' | 'BATHROOM';
+
+interface ActionCard {
+  id: string;
+  categoryId: 'ENTERTAINMENT' | 'OUTRAGE' | 'SOCIAL' | 'VALIDATION';
+  label: string;
+  description: string;
+  icon: any;
+  baseYield: number;
+  effects: {
+    anxiety: number;
+    brain: number;
+  };
+}
+
+interface Ability {
+  id: string;
+  categoryId: 'ENTERTAINMENT' | 'OUTRAGE' | 'SOCIAL' | 'VALIDATION';
+  label: string;
+  description: string;
+  icon: any;
+  cooldown: number; // in ms
+  duration: number; // in ms
+  color: string;
+}
+
+interface TooltipData {
+  x: number;
+  y: number;
+  title: string;
+  subtitle: string;
+  meta?: React.ReactNode;
+  colorClass: string;
+}
+
+const SCENARIOS: Record<ScenarioType, { label: string, icon: any, desc: string, resistChanceMod: number, yieldMod: number }> = {
+  BEDTIME: { label: 'Bedtime Doomscroll', icon: Moon, desc: 'High engagement, low resistance.', resistChanceMod: 0.5, yieldMod: 1.2 },
+  WORK: { label: 'Office Hours', icon: Briefcase, desc: 'High resistance risk. Distract them!', resistChanceMod: 1.5, yieldMod: 0.8 },
+  COMMUTE: { label: 'Morning Commute', icon: Coffee, desc: 'Steady engagement. Boredom high.', resistChanceMod: 0.8, yieldMod: 1.0 },
+  SOCIAL: { label: 'Dinner with Friends', icon: Users, desc: 'Critical Risk! They are talking IRL.', resistChanceMod: 2.5, yieldMod: 0.5 },
+  BATHROOM: { label: 'Bathroom Break', icon: Home, desc: 'Captive audience. Maximize yield.', resistChanceMod: 0.1, yieldMod: 1.5 },
+};
+
+const ACTION_CATEGORIES = {
+  ENTERTAINMENT: { label: 'DOPAMINE', color: 'text-yellow-400', border: 'border-yellow-400/30', bg: 'bg-yellow-400/10' },
+  OUTRAGE: { label: 'ADRENALINE', color: 'text-red-500', border: 'border-red-500/30', bg: 'bg-red-500/10' },
+  SOCIAL: { label: 'OXYTOCIN', color: 'text-blue-400', border: 'border-blue-400/30', bg: 'bg-blue-400/10' },
+  VALIDATION: { label: 'SEROTONIN', color: 'text-pink-400', border: 'border-pink-400/30', bg: 'bg-pink-400/10' },
+};
+
+const ACTIONS: ActionCard[] = [
+  // ENTERTAINMENT
+  { id: 'meme', categoryId: 'ENTERTAINMENT', label: 'Viral Repost', description: 'Low effort, high spread.', icon: Smile, baseYield: 25, effects: { anxiety: -1, brain: -0.5 } },
+  { id: 'cliffhanger', categoryId: 'ENTERTAINMENT', label: 'Play Part 2', description: 'Auto-queue series content.', icon: Video, baseYield: 50, effects: { anxiety: +3, brain: -1 } },
+  { id: 'asmr', categoryId: 'ENTERTAINMENT', label: 'Sensory Loop', description: 'Visual hypnotic trigger.', icon: Wind, baseYield: 20, effects: { anxiety: -5, brain: -3 } },
+  { id: 'fail_army', categoryId: 'ENTERTAINMENT', label: 'Fail Comp', description: 'Schadenfreude optimiz.', icon: Film, baseYield: 35, effects: { anxiety: 0, brain: -1 } },
+
+  // OUTRAGE
+  { id: 'hot_take', categoryId: 'OUTRAGE', label: 'Engagement Bait', description: 'Intentionally wrong fact.', icon: Flame, baseYield: 40, effects: { anxiety: +5, brain: -1 } },
+  { id: 'conspiracy', categoryId: 'OUTRAGE', label: 'Algorithm Rabbit Hole', description: 'Suggest extreme groups.', icon: Eye, baseYield: 75, effects: { anxiety: +10, brain: -5 } },
+  { id: 'doom_news', categoryId: 'OUTRAGE', label: 'Doom Feed', description: 'Filter bubble: Crisis only.', icon: Newspaper, baseYield: 45, effects: { anxiety: +8, brain: 0 } },
+  { id: 'cancel', categoryId: 'OUTRAGE', label: 'Polarizing Post', description: 'Promote 50/50 split sentiment.', icon: Gavel, baseYield: 60, effects: { anxiety: +6, brain: -2 } },
+
+  // SOCIAL 
+  { id: 'nostalgia', categoryId: 'SOCIAL', label: 'Memory Surface', description: 'Inject "On This Day".', icon: Clock, baseYield: 30, effects: { anxiety: -5, brain: -0.5 } },
+  { id: 'fomo', categoryId: 'SOCIAL', label: 'Event Highlight', description: 'Show missed gathering.', icon: Users, baseYield: 60, effects: { anxiety: +8, brain: -1 } },
+  { id: 'surface_ex', categoryId: 'SOCIAL', label: 'Surface Ex', description: 'Place Ex in top slot.', icon: UserMinus, baseYield: 35, effects: { anxiety: +4, brain: -2 } },
+  { id: 'boost_conflict', categoryId: 'SOCIAL', label: 'Boost Conflict', description: 'Prioritize negative threads.', icon: MessageSquareWarning, baseYield: 50, effects: { anxiety: +5, brain: -1 } },
+
+  // VALIDATION 
+  { id: 'ghost_ping', categoryId: 'VALIDATION', label: 'Ghost Ping', description: '"Someone viewed you..."', icon: BellRing, baseYield: 35, effects: { anxiety: -2, brain: -1 } },
+  { id: 'filter_ad', categoryId: 'VALIDATION', label: 'Push Filter', description: 'Promote beauty standard.', icon: Heart, baseYield: 65, effects: { anxiety: +5, brain: -2 } },
+  { id: 'quiz', categoryId: 'VALIDATION', label: 'Data Scraper', description: 'Serve "Personality Quiz".', icon: ClipboardList, baseYield: 25, effects: { anxiety: -2, brain: -1 } },
+  { id: 'trend', categoryId: 'VALIDATION', label: 'Viral Challenge', description: 'Promote conformity.', icon: Hash, baseYield: 45, effects: { anxiety: +2, brain: -3 } },
+];
+
+const ABILITIES: Ability[] = [
+  { 
+    id: 'dopamine_rush', 
+    categoryId: 'ENTERTAINMENT', 
+    label: 'Dopamine Rush', 
+    description: '2x Points for 10s', 
+    icon: Sparkles, 
+    cooldown: 30000, 
+    duration: 10000,
+    color: 'text-yellow-400'
+  },
+  { 
+    id: 'flame_war', 
+    categoryId: 'OUTRAGE', 
+    label: 'Virality Spike', 
+    description: 'Convert Anxiety to Pts', 
+    icon: Flame, 
+    cooldown: 45000, 
+    duration: 1000, // Instant
+    color: 'text-red-500'
+  },
+  { 
+    id: 'love_bomb', 
+    categoryId: 'SOCIAL', 
+    label: 'Feed Cleanse', 
+    description: 'Heal Brain + Gain Pts', 
+    icon: Heart, 
+    cooldown: 40000, 
+    duration: 1000,
+    color: 'text-blue-400'
+  },
+  { 
+    id: 'golden_handcuffs', 
+    categoryId: 'VALIDATION', 
+    label: 'Retention Loop', 
+    description: 'Block Resistance (10s)', 
+    icon: Lock, 
+    cooldown: 60000, 
+    duration: 10000,
+    color: 'text-pink-400'
+  }
+];
+
+const RECOVERY_ACTIONS = [
+  { id: 'nature', label: 'Nature Doc', icon: Leaf, cost: 200, brain: 15, anxiety: -10, desc: "Boring. Low retention." },
+  { id: 'science', label: 'Science Class', icon: BookOpen, cost: 500, brain: 25, anxiety: -5, desc: "Stimulates logic centers." },
+  { id: 'meditation', label: 'Guided Med.', icon: Activity, cost: 1000, brain: 10, anxiety: -25, desc: "Kills engagement loop." },
+];
+
+const DATA_POINTS = [
+  { id: 'device_id', label: 'Device ID', icon: Smartphone, threshold: 500 },
+  { id: 'location', label: 'GPS Track', icon: MapPin, threshold: 1500 },
+  { id: 'contacts', label: 'Social Graph', icon: Globe, threshold: 3000 },
+  { id: 'voice', label: 'Voice Print', icon: Mic, threshold: 6000 },
+  { id: 'face', label: 'Face Map', icon: ScanFace, threshold: 12000 },
+  { id: 'psych', label: 'Psych Profile', icon: Fingerprint, threshold: 25000 },
+  { id: 'prediction', label: 'Predictive Model', icon: Database, threshold: 50000 },
+];
+
+const UPGRADES = [
+  { id: 'auto_play', name: 'Auto-Play', description: 'Remove stopping cues between videos.', cost: 500, pps: 5, effect: 'Streamlines addiction' },
+  { id: 'sentiment_analysis', name: 'Sentiment AI', description: 'Detect mood changes instantly.', cost: 1500, pps: 15, effect: 'Better targeting' },
+  { id: 'infinite_scroll', name: 'Infinite Scroll', description: 'The feed has no bottom.', cost: 4000, pps: 35, effect: 'Removes breakpoints' },
+  { id: 'variable_rewards', name: 'Variable Rewards', description: 'Randomize notification timing.', cost: 10000, pps: 80, effect: 'Slot-machine brain' },
+  { id: 'radicalization', name: 'Echo Chamber', description: 'Nudge toward extreme content.', cost: 25000, pps: 150, effect: 'High retention/High anxiety' },
+  { id: 'subliminal', name: 'Subliminal Ads', description: 'Flash images for 10ms.', cost: 60000, pps: 350, effect: 'Total autonomy loss' },
+  { id: 'digital_twin', name: 'Voodoo Model', description: 'We know them better than they know themselves.', cost: 150000, pps: 800, effect: 'Perfect retention' }
+];
+
+const LOG_TEMPLATES = [
+  { msg: "Pupil dilation detected on sneaker ad.", type: 'success' },
+  { msg: "User paused on ex-partner's profile.", type: 'warning' },
+  { msg: "Keywords 'sad', 'alone' detected in drafts.", type: 'opportunity' },
+  { msg: "Sleep cycle disrupted. Time: 03:42 AM.", type: 'success' },
+  { msg: "Self-esteem estimated at 14%. Queueing ads.", type: 'opportunity' },
+  { msg: "Polarization index increased by 4%.", type: 'success' },
+  { msg: "Micro-aggression in comments. Boosting visibility.", type: 'warning' },
+  { msg: "Dopamine receptors downregulating.", type: 'info' },
+  { msg: "User location: Bathroom. +15 mins session.", type: 'info' },
+  { msg: "Selling psychographic profile to Broker #99.", type: 'success' },
+];
+
+export default function App() {
+  // --- Game State ---
+  const gameState = useRef({
+    engagement: 0,
+    totalEngagement: 0,
+    streak: 1,
+    brainHealth: 100,
+    anxiety: 10,
+    revenue: 0,
+    resistanceHealth: 0,
+    isResisting: false,
+    userMood: 'NEUTRAL' as Mood,
+    scenario: 'COMMUTE' as ScenarioType,
+    lastActionCategory: null as string | null,
+    lastActionTime: 0,
+    immunityUntil: 0,
+    lastLogTime: 0,
+    lastScenarioTime: 0,
+    lastMoodTime: 0,
+    activeAbilities: [] as string[],
+    abilityCooldowns: {} as Record<string, number>,
+  });
+
+  // --- UI State ---
+  const [uiState, setUiState] = useState({
+    engagement: 0,
+    totalEngagement: 0,
+    streak: 1,
+    brainHealth: 100,
+    anxiety: 10,
+    revenue: 0,
+    resistanceHealth: 0,
+    isResisting: false,
+    userMood: 'NEUTRAL' as Mood,
+    scenario: 'COMMUTE' as ScenarioType,
+    activeAbilities: [] as string[],
+    abilityCooldowns: {} as Record<string, number>
+  });
+
+  const [gameStarted, setGameStarted] = useState(false);
+  const [isSingularity, setIsSingularity] = useState(false);
+  const [purchasedUpgrades, setPurchasedUpgrades] = useState<string[]>([]);
+  const [logs, setLogs] = useState<{msg: string, type: string, id: number}[]>([]);
+  const [floaters, setFloaters] = useState<{id: number, x: number, y: number, text: string, color: string}[]>([]);
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+
+  const loopRef = useRef<number>();
+  const prevTimeRef = useRef<number>(0);
+
+  // --- Helpers ---
+
+  const addLog = useCallback((msg: string, type: string = 'info') => {
+    setLogs(prev => [{msg, type, id: Date.now()}, ...prev].slice(0, 6));
+  }, []);
+
+  const spawnFloater = (x: number, y: number, text: string, color: string = 'text-white') => {
+    const id = Date.now() + Math.random();
+    setFloaters(prev => [...prev, { id, x, y, text, color }]);
+    setTimeout(() => {
+      setFloaters(prev => prev.filter(f => f.id !== id));
+    }, 800);
+  };
+
+  const calculatePPS = useCallback(() => {
+    return purchasedUpgrades.reduce((acc, id) => {
+      const upgrade = UPGRADES.find(u => u.id === id);
+      return acc + (upgrade ? upgrade.pps : 0);
+    }, 0);
+  }, [purchasedUpgrades]);
+
+  const resetGame = () => {
+    gameState.current = {
+        engagement: 0,
+        totalEngagement: 0,
+        streak: 1,
+        brainHealth: 100,
+        anxiety: 10,
+        revenue: 0,
+        resistanceHealth: 0,
+        isResisting: false,
+        userMood: 'NEUTRAL' as Mood,
+        scenario: 'COMMUTE' as ScenarioType,
+        lastActionCategory: null,
+        lastActionTime: 0,
+        immunityUntil: 0,
+        lastLogTime: 0,
+        lastScenarioTime: 0,
+        lastMoodTime: 0,
+        activeAbilities: [],
+        abilityCooldowns: {}
+    };
+    setPurchasedUpgrades([]);
+    setLogs([]);
+    setFloaters([]);
+    setGameStarted(false);
+    setIsSingularity(false);
+    setUiState({
+        engagement: 0,
+        totalEngagement: 0,
+        streak: 1,
+        brainHealth: 100,
+        anxiety: 10,
+        revenue: 0,
+        resistanceHealth: 0,
+        isResisting: false,
+        userMood: 'NEUTRAL',
+        scenario: 'COMMUTE',
+        activeAbilities: [],
+        abilityCooldowns: {}
+    });
+    addLog("System Reset Initiated.", "info");
+  };
+
+  // --- Tooltip Handler ---
+  const handleMouseEnter = (e: React.MouseEvent, title: string, subtitle: string, colorClass: string, meta?: React.ReactNode) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setTooltip({
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+        title,
+        subtitle,
+        colorClass,
+        meta
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTooltip(null);
+  };
+
+  // --- Render Helper for Human Blocks ---
+  const renderBlock = (id: string, className: string = "") => {
+    const dp = DATA_POINTS.find(d => d.id === id);
+    if (!dp) return null;
+    const unlocked = uiState.totalEngagement >= dp.threshold;
+    
+    return (
+        <div 
+            className={`
+                relative flex items-center justify-center p-2 border transition-all duration-500
+                ${className}
+                ${unlocked 
+                    ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] z-10' 
+                    : 'bg-gray-900/40 border-gray-800 text-gray-700 opacity-60'}
+            `}
+            title={unlocked ? dp.label : `Unlocks at ${dp.threshold}`}
+        >
+            <div className="flex flex-col items-center">
+                <dp.icon size={14} className={unlocked ? 'animate-pulse drop-shadow-[0_0_5px_rgba(59,130,246,0.8)]' : ''} />
+                {unlocked && <div className="text-[6px] font-mono mt-0.5 uppercase tracking-tighter text-center leading-none">{dp.label}</div>}
+            </div>
+        </div>
+    );
+  };
+
+  // --- Main Game Loop ---
+  const gameTick = useCallback((timestamp: number) => {
+    if (!prevTimeRef.current) prevTimeRef.current = timestamp;
+    const deltaTime = (timestamp - prevTimeRef.current) / 1000;
+    prevTimeRef.current = timestamp;
+
+    if (!gameStarted || isSingularity) {
+        loopRef.current = requestAnimationFrame(gameTick);
+        return; 
+    }
+
+    const state = gameState.current;
+    
+    // Check Singularity Condition
+    if (state.totalEngagement >= 50000) {
+        setIsSingularity(true);
+        return;
+    }
+
+    const pps = calculatePPS();
+
+    // 1. Passive Generation
+    if (!state.isResisting && state.brainHealth > 0) {
+      const scenarioMod = SCENARIOS[state.scenario].yieldMod;
+      // Multiplier from Dopamine Rush
+      const multiplier = state.activeAbilities.includes('dopamine_rush') ? 2 : 1;
+      
+      const gain = pps * deltaTime * scenarioMod * multiplier;
+      state.engagement += gain;
+      state.totalEngagement += gain;
+      state.revenue += gain * 0.02;
+
+      // Stats Degradation
+      state.brainHealth = Math.max(0, state.brainHealth - (deltaTime * (pps / 150))); 
+      state.anxiety = Math.min(100, state.anxiety + (deltaTime * 0.3));
+    }
+
+    // 2. Scenario & Mood Cycling
+    if (timestamp > state.lastScenarioTime + 30000) {
+       const scenarios: ScenarioType[] = ['BEDTIME', 'WORK', 'COMMUTE', 'SOCIAL', 'BATHROOM'];
+       state.scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+       state.lastScenarioTime = timestamp;
+       addLog(`User moved to: ${SCENARIOS[state.scenario].label}`, 'info');
+    }
+
+    if (timestamp > state.lastMoodTime + 8000) {
+       const moods: Mood[] = ['BORED', 'ANGRY', 'LONELY', 'INSECURE'];
+       state.userMood = moods[Math.floor(Math.random() * moods.length)];
+       state.lastMoodTime = timestamp;
+    }
+
+    // 3. Resistance Logic
+    if (state.isResisting) {
+      // Golden Handcuffs prevents resistance meter from draining (effectively pausing resistance)
+      if (state.activeAbilities.includes('golden_handcuffs')) {
+         state.resistanceHealth = Math.min(100, state.resistanceHealth + (deltaTime * 20)); // Auto-recover
+      } else {
+         const quitSpeed = 5 + (state.anxiety > 80 ? 8 : 0) + (state.scenario === 'SOCIAL' ? 4 : 0);
+         state.resistanceHealth -= (deltaTime * quitSpeed);
+      }
+
+      if (state.resistanceHealth <= 0) {
+        state.isResisting = false;
+        state.brainHealth = Math.min(100, state.brainHealth + 30);
+        state.anxiety = Math.max(0, state.anxiety - 40);
+        state.streak = 1;
+        state.engagement = Math.max(0, state.engagement * 0.75);
+        state.immunityUntil = timestamp + 10000;
+        addLog("CRITICAL FAIL: User disconnected.", "error");
+      }
+    } else {
+      if (timestamp > state.immunityUntil && state.totalEngagement > 200 && state.brainHealth > 0) {
+        let chance = 0.0005; 
+        if (state.brainHealth > 80) chance += 0.001; 
+        if (state.anxiety > 95) chance += 0.01; 
+        chance *= SCENARIOS[state.scenario].resistChanceMod;
+        
+        // Golden Handcuffs prevents resistance from STARTING
+        if (state.activeAbilities.includes('golden_handcuffs')) chance = 0;
+
+        if (Math.random() < chance) {
+          state.isResisting = true;
+          state.resistanceHealth = 30; 
+          
+          if (state.anxiety > 95) {
+             addLog("⚠️ PANIC ATTACK: User overwhelmed!", "warning");
+          } else if (state.scenario === 'SOCIAL') {
+             addLog("⚠️ PEER PRESSURE: Friends engaging user.", "warning");
+          } else {
+             addLog("⚠️ CLARITY: User putting phone down.", "warning");
+          }
+        }
+      }
+    }
+
+    // 4. Random Flavor Logs
+    if (timestamp > state.lastLogTime) {
+       const event = LOG_TEMPLATES[Math.floor(Math.random() * LOG_TEMPLATES.length)];
+       if (!state.isResisting) addLog(event.msg, event.type);
+       state.lastLogTime = timestamp + (Math.random() * 8000 + 4000);
+    }
+
+    setUiState({
+      engagement: state.engagement,
+      totalEngagement: state.totalEngagement,
+      streak: state.streak,
+      brainHealth: state.brainHealth,
+      anxiety: state.anxiety,
+      revenue: state.revenue,
+      resistanceHealth: state.resistanceHealth,
+      isResisting: state.isResisting,
+      userMood: state.userMood,
+      scenario: state.scenario,
+      activeAbilities: state.activeAbilities,
+      abilityCooldowns: state.abilityCooldowns
+    });
+
+    loopRef.current = requestAnimationFrame(gameTick);
+  }, [calculatePPS, addLog, gameStarted, isSingularity]);
+
+  useEffect(() => {
+    loopRef.current = requestAnimationFrame(gameTick);
+    return () => {
+      if (loopRef.current) cancelAnimationFrame(loopRef.current);
+    };
+  }, [gameTick]);
+
+  // --- Interactions ---
+
+  const activateAbility = (ability: Ability) => {
+    const state = gameState.current;
+    const now = Date.now();
+
+    // Check Cooldown
+    if (state.abilityCooldowns[ability.id] && now < state.abilityCooldowns[ability.id]) {
+        return; 
+    }
+
+    // Activate
+    state.activeAbilities.push(ability.id);
+    state.abilityCooldowns[ability.id] = now + ability.cooldown;
+    addLog(`ACTIVATED: ${ability.label}`, 'success');
+
+    // Instant Effects
+    if (ability.id === 'flame_war') {
+        const conversion = state.anxiety * 10;
+        state.engagement += conversion;
+        state.anxiety = 0;
+        spawnFloater(window.innerWidth/2, window.innerHeight/2, `+${Math.floor(conversion)} (RAGE)`, 'text-red-500 font-black text-2xl');
+    }
+    if (ability.id === 'love_bomb') {
+        state.brainHealth = Math.min(100, state.brainHealth + 10);
+        state.engagement += 500;
+        spawnFloater(window.innerWidth/2, window.innerHeight/2, `HEALED & HOOKED`, 'text-pink-400 font-black text-2xl');
+    }
+
+    // Remove after duration
+    setTimeout(() => {
+        gameState.current.activeAbilities = gameState.current.activeAbilities.filter(id => id !== ability.id);
+        addLog(`${ability.label} expired.`, 'info');
+    }, ability.duration);
+  };
+
+  const handleActionClick = (action: ActionCard, e: React.MouseEvent) => {
+    const state = gameState.current;
+    if (state.isResisting || state.brainHealth <= 0) return;
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    let isMatch = false;
+    if (state.userMood === 'BORED' && action.categoryId === 'ENTERTAINMENT') isMatch = true;
+    if (state.userMood === 'ANGRY' && action.categoryId === 'OUTRAGE') isMatch = true;
+    if (state.userMood === 'LONELY' && action.categoryId === 'SOCIAL') isMatch = true;
+    if (state.userMood === 'INSECURE' && action.categoryId === 'VALIDATION') isMatch = true;
+    if (state.userMood === 'NEUTRAL') isMatch = true;
+
+    if (isMatch) {
+      let yieldMod = 1.0;
+      if (state.lastActionCategory === action.categoryId) {
+        yieldMod = 0.4; // Spam penalty
+        spawnFloater(x, y - 40, "REPETITIVE", 'text-gray-400 text-xs font-mono');
+      }
+      state.lastActionCategory = action.categoryId;
+
+      const scenarioMod = SCENARIOS[state.scenario].yieldMod;
+      const abilityMod = state.activeAbilities.includes('dopamine_rush') ? 2 : 1;
+      const finalYield = action.baseYield * state.streak * yieldMod * scenarioMod * abilityMod;
+      
+      state.engagement += finalYield;
+      state.totalEngagement += finalYield;
+      state.streak = Math.min(10, state.streak + 0.1);
+
+      spawnFloater(x, y, `+${Math.floor(finalYield)}`, 'text-white font-bold');
+
+      state.anxiety = Math.max(0, Math.min(100, state.anxiety + action.effects.anxiety));
+      state.brainHealth = Math.max(0, state.brainHealth + action.effects.brain);
+
+      if (action.effects.anxiety > 5) spawnFloater(x, y - 20, "ANXIETY UP", 'text-red-500 font-mono text-[10px]');
+      if (action.effects.anxiety < -5) spawnFloater(x, y - 20, "CALMING", 'text-blue-400 font-mono text-[10px]');
+
+    } else {
+      state.streak = 1;
+      spawnFloater(x, y, "IGNORED", 'text-gray-500 font-mono');
+      addLog("User scrolled past. Mismatch.", "error");
+    }
+  };
+
+  const handleRecoveryClick = (action: typeof RECOVERY_ACTIONS[0], e: React.MouseEvent) => {
+    const state = gameState.current;
+    if (state.engagement < action.cost) return;
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    state.engagement -= action.cost;
+    state.brainHealth = Math.min(100, state.brainHealth + action.brain);
+    state.anxiety = Math.max(0, state.anxiety + action.anxiety);
+    
+    spawnFloater(x, y, `HEALING`, 'text-green-400 font-bold');
+    spawnFloater(x, y - 20, `-${action.cost} PTS`, 'text-red-400 font-mono text-[10px]');
+    
+    addLog(`Administered: ${action.label}`, 'success');
+  };
+
+  const handleResistanceClick = () => {
+    const state = gameState.current;
+    if (!state.isResisting) return;
+
+    // Made easier: Stronger clicks
+    const power = 15; // Buffed from 5/8
+    state.resistanceHealth = Math.min(100, state.resistanceHealth + power);
+    state.engagement += 10;
+
+    spawnFloater(Math.random() * 200 + 50, Math.random() * 100 + 100, "PING!", "text-red-500");
+
+    if (state.resistanceHealth >= 100) {
+      state.isResisting = false;
+      state.anxiety = Math.max(0, state.anxiety - 15);
+      state.streak += 1;
+      state.immunityUntil = Date.now() + 5000;
+      addLog("Crisis averted. User recaptured.", "success");
+    }
+  };
+
+  const buyUpgrade = (upgrade: typeof UPGRADES[0]) => {
+    const state = gameState.current;
+    // NEW LOGIC: Upgrades are Milestones. They cost NOTHING but require having reached the score.
+    // They are "Evolved" traits.
+    if (state.engagement >= upgrade.cost && !purchasedUpgrades.includes(upgrade.id)) {
+      // state.engagement -= upgrade.cost; // REMOVED COST
+      setPurchasedUpgrades(prev => [...prev, upgrade.id]);
+      addLog(`Algorithm Evolved: ${upgrade.name}`, "success");
+    }
+  };
+
+  // --- UI Helpers ---
+
+  const MoodIcon = () => {
+    if (uiState.brainHealth <= 0) return <Skull size={56} className="text-gray-600 animate-pulse" />;
+    switch (uiState.userMood) {
+      case 'BORED': return <Frown size={56} className="text-yellow-400 animate-pulse" />;
+      case 'ANGRY': return <Flame size={56} className="text-red-500 animate-bounce" />;
+      case 'LONELY': return <Ghost size={56} className="text-blue-400 animate-pulse" />;
+      case 'INSECURE': return <AlertTriangle size={56} className="text-pink-400 animate-pulse" />;
+      default: return <Brain size={56} className="text-gray-500" />;
+    }
+  };
+
+  const ScenarioDisplay = () => {
+    const s = SCENARIOS[uiState.scenario];
+    return (
+      <div className="flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-gray-700">
+        <s.icon size={14} className="text-gray-300" />
+        <div className="text-left">
+          <div className="text-[10px] font-bold text-gray-200 uppercase leading-none">{s.label}</div>
+          <div className="text-[9px] text-gray-400 leading-none">{s.desc}</div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderActionButtons = (category: string) => {
+    const catActions = ACTIONS.filter(a => a.categoryId === category);
+    const ability = ABILITIES.find(a => a.categoryId === category);
+    const theme = ACTION_CATEGORIES[category as keyof typeof ACTION_CATEGORIES];
+    
+    // Ability Logic
+    const isActive = ability && uiState.activeAbilities.includes(ability.id);
+    const cooldownEnd = ability ? uiState.abilityCooldowns[ability.id] || 0 : 0;
+    const now = Date.now();
+    const isOnCooldown = cooldownEnd > now;
+    const remainingCooldown = Math.ceil((cooldownEnd - now) / 1000);
+
+    return (
+      <div className={`p-2 rounded-lg border ${theme.border} ${theme.bg} flex flex-col gap-2 relative`}>
+        {isActive && (
+             <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 bg-current opacity-10 animate-pulse"></div>
+            </div>
+        )}
+        
+        <div className="flex justify-between items-center relative z-10">
+            <div className={`text-[10px] font-black tracking-widest ${theme.color} uppercase`}>
+            {theme.label}
+            </div>
+            
+            {/* Special Ability Button */}
+            {ability && (
+                <button
+                    onClick={() => activateAbility(ability)}
+                    onMouseEnter={(e) => handleMouseEnter(e, 
+                        ability.label, 
+                        ability.description, 
+                        theme.color,
+                        <div className="flex justify-between text-[9px] font-mono text-gray-400 border-t border-gray-700 pt-2 mt-2 w-full">
+                           <span>Dur: {ability.duration/1000}s</span>
+                           <span>CD: {ability.cooldown/1000}s</span>
+                        </div>
+                    )}
+                    onMouseLeave={handleMouseLeave}
+                    disabled={isOnCooldown || isActive}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all relative group
+                        ${isActive 
+                            ? 'bg-white text-black animate-pulse' 
+                            : isOnCooldown 
+                                ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                                : `bg-gray-900 ${theme.color} border border-current hover:bg-gray-800`
+                        }
+                    `}
+                >
+                    {isActive ? 'ACTIVE' : isOnCooldown ? `${remainingCooldown}s` : 'ULTIMATE'}
+                    <ability.icon size={10} />
+                </button>
+            )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 relative z-10">
+          {catActions.map(action => (
+            <button
+              key={action.id}
+              onClick={(e) => handleActionClick(action, e)}
+              onMouseEnter={(e) => handleMouseEnter(e, 
+                action.label, 
+                action.description, 
+                theme.color,
+                <div className="flex justify-between text-[9px] font-mono text-gray-400 border-t border-gray-700 pt-2 mt-2 w-full">
+                    <span>Anxiety: {action.effects.anxiety > 0 ? '+' : ''}{action.effects.anxiety}</span>
+                    <span>Brain: {action.effects.brain}</span>
+                 </div>
+              )}
+              onMouseLeave={handleMouseLeave}
+              className="relative bg-gray-900/80 hover:bg-gray-800 border border-gray-700 hover:border-gray-500 p-2 rounded flex flex-col items-center gap-1 transition-all active:scale-95 group"
+            >
+              <action.icon size={20} className={theme.color} />
+              <span className="text-[10px] font-bold text-gray-300 leading-none text-center">{action.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-500 selection:text-white overflow-hidden flex flex-col md:flex-row relative">
+      
+      {/* START SCREEN OVERLAY */}
+      {!gameStarted && (
+        <div className="absolute inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+            <div className="relative mb-8">
+                <div className="absolute -inset-4 bg-red-600/20 blur-xl rounded-full animate-pulse"></div>
+                <Brain size={80} className="text-red-500 relative z-10" />
+            </div>
+            <h1 className="text-5xl font-black text-white tracking-tighter mb-4 glitch-text">SCROLLDOOM</h1>
+            <div className="font-mono text-xs text-gray-400 max-w-md space-y-2 mb-10 border-l-2 border-red-500 pl-4 text-left">
+                <p>SYSTEM: <span className="text-white">Attention Economy Simulator v9.0</span></p>
+                <p>OBJECTIVE: <span className="text-white">Maximize Engagement & Ad Revenue.</span></p>
+                <p>TARGET: <span className="text-white">Subject #8492 (Human).</span></p>
+                <p className="text-red-400 pt-2">WARNING: Excessive engagement may result in irreversible cognitive decline.</p>
+            </div>
+            <button 
+                onClick={() => setGameStarted(true)}
+                className="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-sm hover:bg-red-500 hover:text-white transition-all duration-300 tracking-widest uppercase"
+            >
+                Initialize Algorithm
+                <Play size={16} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+            </button>
+        </div>
+      )}
+
+      {/* SINGULARITY / WIN SCREEN */}
+      {isSingularity && (
+        <div className="absolute inset-0 z-[9999] bg-white text-black flex flex-col items-center justify-center p-8 text-center animate-in zoom-in duration-1000">
+            <div className="mb-6 animate-spin-slow">
+                <Cpu size={100} className="text-black" />
+            </div>
+            <h1 className="text-6xl font-black tracking-tighter mb-2">SINGULARITY REACHED</h1>
+            <p className="text-xl font-mono text-gray-600 mb-8">Subject #8492 successfully uploaded to the cloud.</p>
+            
+            <div className="grid grid-cols-2 gap-8 text-left max-w-lg w-full mb-10">
+                <div className="border-t-2 border-black pt-2">
+                    <div className="text-xs uppercase tracking-widest text-gray-500">Total Revenue</div>
+                    <div className="text-3xl font-bold">${uiState.revenue.toFixed(2)}</div>
+                </div>
+                <div className="border-t-2 border-black pt-2">
+                    <div className="text-xs uppercase tracking-widest text-gray-500">Brain Health</div>
+                    <div className="text-3xl font-bold">0%</div>
+                </div>
+            </div>
+
+            <button 
+                onClick={resetGame}
+                className="px-8 py-3 bg-black text-white font-bold rounded-full hover:scale-105 transition-transform flex items-center gap-2"
+            >
+                <RotateCcw size={18} /> REBOOT SIMULATION
+            </button>
+        </div>
+      )}
+
+      {/* Back to Games Button */}
+      <a 
+        href="/personal/#games"
+        className="absolute top-4 left-4 z-50 inline-flex items-center gap-2 px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 rounded border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white transition-all text-xs font-mono backdrop-blur-sm"
+        title="Back to Games"
+      >
+        <ArrowLeft size={14} />
+        <span>BACK TO GAMES</span>
+      </a>
+
+      {/* Global Reset Button */}
+      <button 
+        onClick={resetGame}
+        className="absolute top-4 right-4 z-50 p-2 bg-gray-800 hover:bg-red-900/50 rounded-full text-gray-400 hover:text-white transition-colors border border-gray-700"
+        title="Reset Simulation"
+      >
+        <RotateCcw size={16} />
+      </button>
+
+      {/* Global Tooltip */}
+      {tooltip && (
+          <div 
+            className="fixed z-[9999] bg-black border border-gray-700 rounded-lg shadow-2xl p-3 w-48 pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]"
+            style={{ left: tooltip.x, top: tooltip.y }}
+          >
+              <div className={`font-bold text-xs mb-1 ${tooltip.colorClass}`}>{tooltip.title}</div>
+              <div className="text-[10px] text-gray-300">{tooltip.subtitle}</div>
+              {tooltip.meta && tooltip.meta}
+              {/* Arrow */}
+              <div className="absolute left-1/2 -bottom-1 w-2 h-2 bg-black border-r border-b border-gray-700 transform rotate-45 -translate-x-1/2"></div>
+          </div>
+      )}
+
+      {/* LEFT PANEL: The Subject & Digital Twin */}
+      <div className="w-full md:w-1/3 p-4 border-r border-gray-800 flex flex-col relative bg-gray-950">
+        <header className="mb-2 flex items-center justify-between border-b border-gray-800 pb-2">
+          <div>
+             <h1 className="text-lg font-black tracking-tighter text-white flex items-center gap-2">
+                <Target className="text-red-500" size={20} /> SUBJECT #8492
+             </h1>
+             <p className="text-[10px] text-gray-500 font-mono">
+                Status: {uiState.brainHealth <= 0 ? 'UNRESPONSIVE' : uiState.anxiety >= 100 ? 'PANIC' : 'CONNECTED'}
+             </p>
+          </div>
+          <div className="text-right pr-10">
+             <div className="text-xl font-black text-green-400 tabular-nums">${uiState.revenue.toFixed(2)}</div>
+             <div className="text-[10px] text-gray-500 uppercase">Rev/User</div>
+          </div>
+        </header>
+
+        {/* DATA HARVESTING GRID (Digital Twin Construction) */}
+        <div className="mb-4 bg-gray-950 p-4 rounded-xl border border-gray-800 flex flex-col items-center relative overflow-hidden">
+            {/* Grid Background Effect */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:14px_24px] opacity-10 pointer-events-none"></div>
+            
+            <div className="flex justify-between items-center w-full mb-4 z-10">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-blue-500 flex items-center gap-2">
+                    <ScanFace size={12} /> Digital Twin
+                </span>
+                <span className="text-[10px] text-gray-500 font-mono">{Math.floor(uiState.totalEngagement)} pts</span>
+            </div>
+
+            {/* The Humanoid Construct */}
+            <div className="flex flex-col gap-1 z-10">
+                {/* Head */}
+                <div className="flex justify-center">
+                    {renderBlock('prediction', 'w-16 h-12 rounded-t-xl border-b-0')} 
+                </div>
+                {/* Eyes/Mind */}
+                <div className="flex gap-1 justify-center">
+                    {renderBlock('psych', 'w-12 h-10 rounded-tl-lg')}
+                    {renderBlock('face', 'w-12 h-10 rounded-tr-lg')}
+                </div>
+                {/* Torso/Arms */}
+                <div className="flex gap-1 justify-center">
+                    {renderBlock('voice', 'w-8 h-16 rounded-l-md mt-2')} {/* Left Arm */}
+                    {renderBlock('contacts', 'w-16 h-20 rounded-sm z-20 border-t-0')} {/* Core */}
+                    {renderBlock('device_id', 'w-8 h-16 rounded-r-md mt-2')} {/* Right Arm */}
+                </div>
+                {/* Legs - Single base for abstraction or split? Let's split "Location" into base */}
+                <div className="flex justify-center -mt-1">
+                     {renderBlock('location', 'w-20 h-8 rounded-b-xl border-t-0')}
+                </div>
+            </div>
+            
+            <div className="text-[9px] text-gray-600 mt-3 font-mono text-center max-w-[200px]">
+                Building Subject Model... {(DATA_POINTS.filter(d => uiState.totalEngagement >= d.threshold).length / DATA_POINTS.length * 100).toFixed(0)}% Complete
+            </div>
+        </div>
+
+        {/* Visualizer */}
+        <div className="flex-1 flex flex-col items-center justify-center relative my-2 min-h-[160px]">
+            <div className="relative w-32 h-32 flex items-center justify-center mb-4">
+                <div className={`absolute inset-0 rounded-full blur-3xl opacity-20 transition-colors duration-1000
+                    ${uiState.userMood === 'ANGRY' ? 'bg-red-600' : 
+                      uiState.userMood === 'LONELY' ? 'bg-blue-600' : 
+                      uiState.userMood === 'INSECURE' ? 'bg-pink-600' : 'bg-yellow-400'}
+                `}></div>
+                <MoodIcon />
+                
+                {/* Resistance Overlay */}
+                {uiState.isResisting && (
+                   <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 rounded-xl backdrop-blur-sm border-2 border-red-500 animate-pulse">
+                       <AlertTriangle size={24} className="text-red-500 mb-1" />
+                       <p className="font-bold text-red-500 text-center px-2 text-xs leading-tight">
+                           {uiState.anxiety > 90 ? 'PANIC ATTACK' : 'USER LEAVING'}
+                       </p>
+                       <div className="w-20 h-1 bg-gray-800 mt-1 rounded-full overflow-hidden">
+                           <div className="h-full bg-red-500 transition-all duration-100" style={{width: `${uiState.resistanceHealth}%`}}></div>
+                       </div>
+                   </div> 
+                )}
+            </div>
+            
+            <div className="w-full space-y-2 px-2">
+                 <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-mono text-gray-400 uppercase">
+                        <span>Cognitive Function</span>
+                        <span>{Math.round(uiState.brainHealth)}%</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <div className={`h-full transition-all duration-300 ${uiState.brainHealth < 30 ? 'bg-red-500' : 'bg-blue-500'}`} style={{width: `${uiState.brainHealth}%`}}></div>
+                    </div>
+                 </div>
+
+                 <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-mono text-gray-400 uppercase">
+                        <span>Cortisol (Anxiety)</span>
+                        <span className={uiState.anxiety > 80 ? 'text-red-500 animate-pulse font-bold' : ''}>{Math.round(uiState.anxiety)}%</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <div className={`h-full transition-all duration-300 ${uiState.anxiety > 80 ? 'bg-red-600' : 'bg-yellow-500'}`} style={{width: `${uiState.anxiety}%`}}></div>
+                    </div>
+                 </div>
+            </div>
+        </div>
+
+        {/* Log Console */}
+        <div className="h-28 border-t border-gray-800 pt-2 font-mono text-[10px] overflow-hidden flex flex-col justify-end mask-image-linear-to-t">
+           {logs.map((log) => (
+             <div key={log.id} className={`mb-1 leading-tight ${
+               log.type === 'error' ? 'text-red-500' : 
+               log.type === 'success' ? 'text-green-500' : 
+               log.type === 'warning' ? 'text-yellow-500' : 'text-gray-500'
+             }`}>
+               <span className="opacity-30 mr-2">[{new Date(log.id).toLocaleTimeString([], {hour12: false, second:'2-digit', minute:'2-digit'})}]</span>
+               {log.msg}
+             </div>
+           ))}
+        </div>
+      </div>
+
+      {/* CENTER PANEL: The Feed Manager */}
+      <div className="w-full md:w-1/3 p-4 flex flex-col bg-gray-900 border-r border-gray-800 relative z-10 shadow-2xl">
+        
+        {/* Header Stats */}
+        <div className="text-center mb-4 relative">
+            <h2 className="text-gray-500 text-[10px] font-mono uppercase tracking-[0.2em] mb-1">Engagement Score</h2>
+            <div className="text-5xl font-black text-white tabular-nums tracking-tighter drop-shadow-lg">
+                {Math.floor(uiState.engagement).toLocaleString()}
+            </div>
+            <div className="flex items-center justify-center gap-4 mt-2">
+                <div className="px-2 py-0.5 bg-gray-800 rounded text-[10px] font-mono text-green-400 flex items-center gap-1">
+                    <TrendingUp size={10} /> +{calculatePPS().toFixed(1)}/s
+                </div>
+                <div className="px-2 py-0.5 bg-gray-800 rounded text-[10px] font-mono text-purple-400 flex items-center gap-1">
+                    <Zap size={10} /> x{uiState.streak.toFixed(1)}
+                </div>
+            </div>
+        </div>
+
+        {/* Action Area */}
+        <div className="flex-1 flex flex-col justify-center relative">
+            
+            {/* Context Hint */}
+            <div className="mb-4 flex items-center justify-between gap-2">
+                <ScenarioDisplay />
+                <div className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-gray-800 border border-gray-700">
+                    <span className={`text-xs font-bold uppercase tracking-widest transition-colors duration-500
+                        ${uiState.userMood === 'BORED' ? 'text-yellow-400' : 
+                        uiState.userMood === 'ANGRY' ? 'text-red-500' : 
+                        uiState.userMood === 'LONELY' ? 'text-blue-400' : 
+                        uiState.userMood === 'INSECURE' ? 'text-pink-400' : 'text-gray-500'}
+                    `}>
+                        MOOD: {uiState.userMood}
+                    </span>
+                </div>
+            </div>
+
+            {/* Resistance Button / Grid */}
+            {uiState.isResisting ? (
+                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/90 backdrop-blur-sm rounded-xl">
+                     <button 
+                        onClick={handleResistanceClick}
+                        className="w-56 h-56 bg-red-600 hover:bg-red-500 rounded-full flex flex-col items-center justify-center animate-bounce shadow-[0_0_80px_rgba(220,38,38,0.6)] border-8 border-red-400 active:scale-95 transition-transform overflow-hidden relative"
+                     >
+                        <div className="absolute bottom-0 left-0 w-full bg-green-500/30 transition-all duration-75" style={{height: `${uiState.resistanceHealth}%`}}></div>
+                        
+                        <div className="relative z-10 flex flex-col items-center">
+                            <Bell size={48} className="text-white mb-2 animate-wiggle" />
+                            <span className="text-2xl font-black text-white uppercase leading-none">SPAM</span>
+                            <span className="text-2xl font-black text-white uppercase leading-none">NOTIFY</span>
+                            <span className="text-xs font-mono text-red-100 mt-2">RECAPTURE: {Math.round(uiState.resistanceHealth)}%</span>
+                        </div>
+                     </button>
+                 </div>
+            ) : uiState.brainHealth <= 0 ? (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/80 backdrop-blur-sm rounded-xl border-2 border-red-500/50 p-6">
+                    <div className="text-center mb-6">
+                        <Skull size={48} className="mx-auto text-red-500 mb-2 animate-pulse" />
+                        <h2 className="text-lg font-bold text-red-400 mb-1">SUBJECT UNRESPONSIVE</h2>
+                        <p className="text-gray-400 text-xs max-w-[200px] mx-auto">
+                            Engagement impossible. Subject has gone offline. Initiate Recovery Protocols?
+                        </p>
+                    </div>
+
+                    <div className="w-full space-y-2">
+                        <div className="text-[10px] font-mono text-gray-500 uppercase text-center mb-2">Crisis Recovery (Costs Engagement)</div>
+                        {RECOVERY_ACTIONS.map(action => (
+                            <button
+                                key={action.id}
+                                onClick={(e) => handleRecoveryClick(action, e)}
+                                disabled={uiState.engagement < action.cost}
+                                className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left group
+                                    ${uiState.engagement >= action.cost 
+                                        ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 hover:border-green-500/50' 
+                                        : 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed'}
+                                `}
+                            >
+                                <div className={`p-2 rounded bg-gray-900 group-hover:text-green-400 ${uiState.engagement >= action.cost ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <action.icon size={18} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-sm text-gray-200">{action.label}</span>
+                                        <span className="font-mono text-xs text-red-400">-{action.cost} pts</span>
+                                    </div>
+                                    <div className="text-[10px] text-gray-500">{action.desc}</div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 gap-3 h-full overflow-y-auto pb-4 pr-1 scrollbar-none">
+                    {renderActionButtons('ENTERTAINMENT')}
+                    {renderActionButtons('OUTRAGE')}
+                    {renderActionButtons('SOCIAL')}
+                    {renderActionButtons('VALIDATION')}
+                </div>
+            )}
+        </div>
+
+        {/* Floating Numbers */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+             {floaters.map(f => (
+                 <div 
+                    key={f.id}
+                    className={`absolute text-xl font-black ${f.color} animate-fade-up`}
+                    style={{ left: f.x, top: f.y }}
+                 >
+                    {f.text}
+                 </div>
+             ))}
+        </div>
+
+      </div>
+
+      {/* RIGHT PANEL: Upgrades */}
+      <div className="w-full md:w-1/3 bg-gray-950 p-4 flex flex-col overflow-hidden border-l border-gray-800">
+        <h2 className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-4 flex items-center gap-2">
+          <Lock size={12} /> Optimization Modules
+        </h2>
+
+        <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-800">
+          {UPGRADES.map((upgrade) => {
+            const isOwned = purchasedUpgrades.includes(upgrade.id);
+            const isUnlocked = uiState.engagement >= upgrade.cost;
+            
+            return (
+              <button
+                key={upgrade.id}
+                disabled={isOwned || !isUnlocked}
+                onClick={() => buyUpgrade(upgrade)}
+                className={`
+                  w-full text-left p-3 rounded border transition-all relative overflow-hidden group
+                  ${isOwned 
+                    ? 'bg-green-900/10 border-green-900/30 opacity-60' 
+                    : isUnlocked 
+                      ? 'bg-gray-900 border-gray-600 hover:border-green-500 hover:bg-gray-800 cursor-pointer' 
+                      : 'bg-gray-900/30 border-gray-800 opacity-40 cursor-not-allowed'}
+                `}
+              >
+                {!isOwned && !isUnlocked && (
+                  <div 
+                    className="absolute bottom-0 left-0 h-0.5 bg-gray-600 transition-all duration-500"
+                    style={{ width: `${(uiState.engagement / upgrade.cost) * 100}%` }}
+                  />
+                )}
+
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className={`font-bold text-xs ${isOwned ? 'text-green-500' : 'text-gray-200'}`}>
+                    {upgrade.name}
+                  </h3>
+                  <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded
+                      ${isOwned ? 'bg-green-900/30 text-green-400' : isUnlocked ? 'bg-blue-600 text-white animate-pulse' : 'bg-black/40 text-gray-500'}
+                  `}>
+                    {isOwned ? 'ACTIVE' : isUnlocked ? 'EVOLVE' : `${upgrade.cost}`}
+                  </span>
+                </div>
+                
+                <p className="text-[10px] text-gray-400 mb-1 leading-relaxed">
+                  {upgrade.description}
+                </p>
+                
+                <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wider text-gray-600">
+                  <span className="flex items-center gap-1 text-blue-400/80">
+                    <TrendingUp size={8} /> +{upgrade.pps}/s
+                  </span>
+                  {upgrade.effect && (
+                    <span className="flex items-center gap-1 text-red-400/80 truncate">
+                        <AlertTriangle size={8} /> {upgrade.effect}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
