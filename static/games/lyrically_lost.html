@@ -1,0 +1,667 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Pause, Music, Globe, Trophy, RefreshCw, Volume2, CheckCircle, XCircle, Mic } from 'lucide-react';
+
+/**
+ * SONG DATABASE
+ * Structure:
+ * - originalLang: The language of the song title (what user guesses)
+ * - ttsLang: The language the lyrics are written in (what TTS speaks)
+ * - title: The correct answer
+ * - lyrics: The translated lyrics to be spoken
+ */
+
+const GAME_DATA = {
+  // GUESS THE HINDI SONG (Lyrics are in English)
+  hi: [
+    {
+      id: 'h1',
+      title: "Tum Hi Ho",
+      artist: "Arijit Singh",
+      lyrics: "Because you are the one, now you are only the one. You are the life, you are the peace, and you are also my pain.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h2',
+      title: "Kal Ho Naa Ho",
+      artist: "Sonu Nigam",
+      lyrics: "Every moment is a new season, why assume that moment will stay? Whether there is a tomorrow or not.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h3',
+      title: "Chaiyya Chaiyya",
+      artist: "Sukhwinder Singh",
+      lyrics: "Those who walk in the shade of love create heaven. Let's walk in the shade, walk in the shade.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h4',
+      title: "Jai Ho",
+      artist: "A.R. Rahman",
+      lyrics: "May there be victory, may there be victory. Let your destiny open up. Defeat the enemies completely.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h5',
+      title: "Tujhe Dekha Toh",
+      artist: "Kumar Sanu",
+      lyrics: "When I saw you, I realized this. Love implies craziness, doesn't it?",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h6',
+      title: "Apna Time Aayega",
+      artist: "Ranveer Singh",
+      lyrics: "My time will come. I have risen from the streets, I will reach the volcano.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h7',
+      title: "Sheila Ki Jawani",
+      artist: "Sunidhi Chauhan",
+      lyrics: "My name is Sheila, Sheila's youth. I am too sexy for you, I am too sexy for you.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h8',
+      title: "Chamak Challo",
+      artist: "Akon",
+      lyrics: "Girl, you are my shiny one. Don't be shy, show me some moves. You are my shiny one.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h9',
+      title: "Kabira",
+      artist: "Arijit Singh",
+      lyrics: "Oh Kabira calling you, look the mystics differ. The ashes of the river water flow with the water.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 'h10',
+      title: "Gerua",
+      artist: "Arijit Singh",
+      lyrics: "The sun has melted and fallen. Evening has happened. Just because of you, I have been painted in saffron color.",
+      ttsLang: 'en-US'
+    }
+  ],
+
+  // GUESS THE SPANISH SONG (Lyrics are in English)
+  es: [
+    {
+      id: 's1',
+      title: "Despacito",
+      artist: "Luis Fonsi",
+      lyrics: "Slowly. I want to breathe in your neck slowly. Let me tell you things in your ears.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's2',
+      title: "La Bamba",
+      artist: "Ritchie Valens",
+      lyrics: "To dance the Bamba, you need a little bit of grace. A little bit of grace for me and for you.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's3',
+      title: "Gasolina",
+      artist: "Daddy Yankee",
+      lyrics: "She likes gasoline. Give me more gasoline. How she loves the gasoline.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's4',
+      title: "Bailando",
+      artist: "Enrique Iglesias",
+      lyrics: "I look at you and my breath stops. When you look at me, my heart goes up. Dancing, dancing, dancing.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's5',
+      title: "Feliz Navidad",
+      artist: "José Feliciano",
+      lyrics: "Merry Christmas, Merry Christmas. I want to wish you a merry Christmas from the bottom of my heart.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's6',
+      title: "Macarena",
+      artist: "Los Del Rio",
+      lyrics: "Give your body joy, Macarena. Because your body is meant to be given joy and good things.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's7',
+      title: "Livin' La Vida Loca",
+      artist: "Ricky Martin",
+      lyrics: "She's into superstitions, black cats and voodoo dolls. She's living the crazy life.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's8',
+      title: "Hips Don't Lie",
+      artist: "Shakira",
+      lyrics: "I never really knew that she could dance like this. She makes a man want to speak Spanish.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's9',
+      title: "Suavemente",
+      artist: "Elvis Crespo",
+      lyrics: "Softly, kiss me. I want to feel your lips kissing me again. Softly, kiss me.",
+      ttsLang: 'en-US'
+    },
+    {
+      id: 's10',
+      title: "Danza Kuduro",
+      artist: "Don Omar",
+      lyrics: "The hand up, waist alone. Give a half turn, dance kuduro. Do not get tired now.",
+      ttsLang: 'en-US'
+    }
+  ],
+
+  // GUESS THE ENGLISH SONG (Lyrics are in Hindi for the challenge)
+  en: [
+    {
+      id: 'e1',
+      title: "Shape of You",
+      artist: "Ed Sheeran",
+      lyrics: "क्लब प्रेमी ढूंढने के लिए सबसे अच्छी जगह नहीं है, इसलिए मैं बार जाता हूँ।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e2',
+      title: "Baby",
+      artist: "Justin Bieber",
+      lyrics: "और मैं ऐसी थी जैसे बेबी, बेबी, बेबी ओह। जैसे बेबी, बेबी, बेबी नहीं।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e3',
+      title: "Hello",
+      artist: "Adele",
+      lyrics: "नमस्ते, यह मैं हूँ। मैं सोच रही थी कि इन सब सालों के बाद क्या तुम मिलना चाहोगे।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e4',
+      title: "Old Town Road",
+      artist: "Lil Nas X",
+      lyrics: "मैं अपना घोड़ा पुराने शहर की सड़क पर ले जाऊंगा। मैं तब तक सवारी करूँगा जब तक और नहीं कर सकता।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e5',
+      title: "Bad Guy",
+      artist: "Billie Eilish",
+      lyrics: "मैं वो बुरी किस्म का हूँ। तुम्हारी माँ को दुखी करने वाला। तुम्हारी गर्लफ्रेंड को पागल करने वाला।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e6',
+      title: "Let It Go",
+      artist: "Idina Menzel",
+      lyrics: "जाने दो, जाने दो। अब इसे और नहीं रोक सकती। जाने दो, जाने दो।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e7',
+      title: "Rolling in the Deep",
+      artist: "Adele",
+      lyrics: "मेरे दिल में एक आग लग रही है। बुखार की हद तक पहुँच रही है और मुझे अंधेरे से बाहर ला रही है।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e8',
+      title: "Shake It Off",
+      artist: "Taylor Swift",
+      lyrics: "क्योंकि खिलाड़ी तो खेलेंगे, खेलेंगे, खेलेंगे। और नफरत करने वाले नफरत करेंगे, नफरत करेंगे। मैं बस इसे झाड़ दूंगी।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e9',
+      title: "Roar",
+      artist: "Katy Perry",
+      lyrics: "मेरे पास बाघ की आंख है, एक लड़ाकू। आग के बीच नाच रही हूँ। क्योंकि मैं एक चैंपियन हूँ।",
+      ttsLang: 'hi-IN'
+    },
+    {
+      id: 'e10',
+      title: "Happy",
+      artist: "Pharrell Williams",
+      lyrics: "क्योंकि मैं खुश हूँ। अगर तुम्हें लगता है कि तुम्हारे बिना छत वाला कमरा है तो ताली बजाओ।",
+      ttsLang: 'hi-IN'
+    }
+  ]
+};
+
+// Utility to shuffle array
+const shuffle = (array) => {
+  return [...array].sort(() => Math.random() - 0.5);
+};
+
+// Colors for UI
+const THEMES = {
+  hi: "from-emerald-600 to-teal-800",
+  es: "from-orange-500 to-red-700",
+  en: "from-blue-600 to-indigo-800"
+};
+
+export default function App() {
+  const [gameState, setGameState] = useState('menu'); // menu, playing, end
+  const [category, setCategory] = useState('hi'); // 'hi' = Guess Hindi Songs, etc.
+  const [score, setScore] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questions, setQuestions] = useState([]);
+  const [voices, setVoices] = useState([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
+  
+  // Confetti effect ref (simulated with CSS)
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  useEffect(() => {
+    // Load voices
+    const loadVoices = () => {
+      const availVoices = window.speechSynthesis.getVoices();
+      setVoices(availVoices);
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  const startGame = (selectedCategory) => {
+    setCategory(selectedCategory);
+    const categorySongs = GAME_DATA[selectedCategory];
+    const shuffledSongs = shuffle(categorySongs);
+    
+    // Prepare questions: 1 correct + 3 wrong options from the SAME category
+    const gameQuestions = shuffledSongs.slice(0, 5).map(song => {
+      const otherSongs = categorySongs.filter(s => s.id !== song.id);
+      const wrongOptions = shuffle(otherSongs).slice(0, 3).map(s => s.title);
+      const options = shuffle([song.title, ...wrongOptions]);
+      return {
+        song: song,
+        options: options
+      };
+    });
+
+    setQuestions(gameQuestions);
+    setScore(0);
+    setCurrentQuestionIndex(0);
+    setGameState('playing');
+    setIsPlaying(false);
+  };
+
+  const getVoiceForCode = (langCode) => {
+    // Try to find exact match first, then close match
+    // langCode might be 'en-US' or 'hi-IN'
+    
+    // Prioritize high quality voices if identifiable (like Google, Microsoft)
+    const exactMatches = voices.filter(v => v.lang === langCode);
+    if (exactMatches.length > 0) return exactMatches[0];
+
+    const softMatches = voices.filter(v => v.lang.startsWith(langCode.split('-')[0]));
+    return softMatches[0] || null;
+  };
+
+  const speakLyrics = () => {
+    window.speechSynthesis.cancel(); // Stop any previous
+    const currentQ = questions[currentQuestionIndex];
+    if (!currentQ) return;
+
+    const text = currentQ.song.lyrics;
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // IMPORTANT: We use the song's defined TTS language, NOT the category language
+    // e.g. Hindi songs have 'en-US' TTS language
+    const voice = getVoiceForCode(currentQ.song.ttsLang);
+    if (voice) {
+      utterance.voice = voice;
+    } else {
+        // Fallback: set lang attribute
+        utterance.lang = currentQ.song.ttsLang;
+    }
+
+    utterance.rate = 0.85; // Slightly slower for dramatic effect
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => setIsPlaying(false);
+    
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel();
+    setIsPlaying(false);
+  };
+
+  const handleGuess = (guess) => {
+    const currentQ = questions[currentQuestionIndex];
+    setSelectedOption(guess);
+    stopSpeaking();
+
+    const isCorrect = guess === currentQ.song.title;
+    if (isCorrect) {
+      setScore(s => s + 10);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2000);
+    }
+
+    setTimeout(() => {
+        if (currentQuestionIndex < questions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+            setSelectedOption(null);
+        } else {
+            setGameState('end');
+        }
+    }, 1500);
+  };
+
+  // --- COMPONENT SECTIONS ---
+
+  const MenuScreen = () => (
+    <div className="flex flex-col items-center justify-center space-y-8 animate-fade-in text-center p-6 w-full max-w-4xl">
+      <div className="bg-white/10 p-6 rounded-full mb-4 ring-4 ring-white/20 shadow-xl backdrop-blur-sm animate-bounce-slow">
+        <Globe size={64} className="text-white" />
+      </div>
+      
+      <div className="space-y-4">
+        <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md">
+          Lyrically Lost
+        </h1>
+        <p className="text-xl text-blue-100 font-medium opacity-90 max-w-2xl mx-auto leading-relaxed">
+          We took famous songs, translated their lyrics, and asked a robot to read them.
+          <br/>Can you guess the original song?
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-12">
+        {/* Hindi Card */}
+        <button
+            onClick={() => startGame('hi')}
+            className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/80 to-teal-700/80 hover:from-emerald-400 hover:to-teal-600 transition-all duration-300 rounded-3xl p-8 border-2 border-white/10 hover:border-white/40 shadow-xl hover:shadow-2xl hover:-translate-y-2"
+        >
+            <div className="absolute top-0 right-0 p-4 opacity-20">
+                <Music size={100} />
+            </div>
+            <div className="flex flex-col items-start text-left relative z-10">
+                <span className="text-6xl mb-4 filter drop-shadow-md">🇮🇳</span>
+                <span className="text-3xl font-bold text-white mb-2">Hindi Songs</span>
+                <p className="text-sm text-white/80 font-medium">
+                    You hear <strong>English</strong> lyrics.<br/>
+                    You guess the <strong>Hindi</strong> song.
+                </p>
+            </div>
+        </button>
+
+        {/* Spanish Card */}
+        <button
+            onClick={() => startGame('es')}
+            className="group relative overflow-hidden bg-gradient-to-br from-orange-500/80 to-red-700/80 hover:from-orange-400 hover:to-red-600 transition-all duration-300 rounded-3xl p-8 border-2 border-white/10 hover:border-white/40 shadow-xl hover:shadow-2xl hover:-translate-y-2"
+        >
+             <div className="absolute top-0 right-0 p-4 opacity-20">
+                <Music size={100} />
+            </div>
+            <div className="flex flex-col items-start text-left relative z-10">
+                <span className="text-6xl mb-4 filter drop-shadow-md">🇪🇸</span>
+                <span className="text-3xl font-bold text-white mb-2">Spanish Songs</span>
+                <p className="text-sm text-white/80 font-medium">
+                    You hear <strong>English</strong> lyrics.<br/>
+                    You guess the <strong>Spanish</strong> song.
+                </p>
+            </div>
+        </button>
+
+        {/* English Card */}
+        <button
+            onClick={() => startGame('en')}
+            className="group relative overflow-hidden bg-gradient-to-br from-blue-500/80 to-indigo-700/80 hover:from-blue-400 hover:to-indigo-600 transition-all duration-300 rounded-3xl p-8 border-2 border-white/10 hover:border-white/40 shadow-xl hover:shadow-2xl hover:-translate-y-2"
+        >
+             <div className="absolute top-0 right-0 p-4 opacity-20">
+                <Music size={100} />
+            </div>
+            <div className="flex flex-col items-start text-left relative z-10">
+                <span className="text-6xl mb-4 filter drop-shadow-md">🇺🇸</span>
+                <span className="text-3xl font-bold text-white mb-2">English Songs</span>
+                <p className="text-sm text-white/80 font-medium">
+                    You hear <strong>Hindi</strong> lyrics.<br/>
+                    You guess the <strong>English</strong> song.
+                </p>
+            </div>
+        </button>
+      </div>
+    </div>
+  );
+
+  const PlayingScreen = () => {
+    const currentQ = questions[currentQuestionIndex];
+    if (!currentQ) return null;
+
+    return (
+      <div className="flex flex-col items-center w-full max-w-3xl mx-auto p-4 animate-fade-in">
+        {/* Header / Score */}
+        <div className="flex justify-between items-center w-full mb-8 bg-black/20 p-4 rounded-2xl backdrop-blur-sm border border-white/10">
+          <div className="flex items-center gap-3 text-white/90">
+            <Trophy size={24} className="text-yellow-400" />
+            <div className="flex flex-col">
+                <span className="text-xs uppercase tracking-wider opacity-70">Score</span>
+                <span className="font-bold font-mono text-xl leading-none">{score}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-white/90">
+             <div className="flex flex-col items-end">
+                <span className="text-xs uppercase tracking-wider opacity-70">Round</span>
+                <span className="font-bold font-mono text-xl leading-none">{currentQuestionIndex + 1}<span className="text-white/50 text-sm"> / {questions.length}</span></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Player Section */}
+        <div className="relative mb-12 w-full flex flex-col items-center">
+          <div className={`
+            relative w-56 h-56 rounded-full flex items-center justify-center 
+            transition-all duration-500 shadow-2xl cursor-pointer
+            ${isPlaying ? 'scale-105 bg-white/20 shadow-[0_0_60px_rgba(255,255,255,0.4)]' : 'bg-black/20 hover:bg-black/30 hover:scale-105'}
+          `}
+          onClick={isPlaying ? stopSpeaking : speakLyrics}
+          >
+            {/* Ripples when playing */}
+            {isPlaying && (
+              <>
+                <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping opacity-75"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-ping delay-75 opacity-50"></div>
+              </>
+            )}
+
+            <div className="z-10 flex flex-col items-center justify-center">
+              {isPlaying ? (
+                <Pause size={80} className="text-white drop-shadow-lg" fill="white" />
+              ) : (
+                <Play size={80} className="text-white drop-shadow-lg ml-2" fill="white" />
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-8 text-center h-16 flex items-center justify-center">
+             {isPlaying ? (
+                 <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-1 h-8">
+                        {[...Array(7)].map((_, i) => (
+                            <div key={i} className="w-2 bg-white rounded-full animate-music-bar" style={{ animationDelay: `${i * 0.1}s` }}></div>
+                        ))}
+                    </div>
+                    <span className="text-white font-medium animate-pulse tracking-wide mt-2">
+                        Speaking Translated Lyrics...
+                    </span>
+                 </div>
+             ) : (
+                 <div className="flex flex-col items-center animate-pulse">
+                     <span className="text-white/90 text-lg font-medium">Tap to Listen</span>
+                     <span className="text-white/50 text-sm">Hear the translation</span>
+                 </div>
+             )}
+          </div>
+        </div>
+
+        {/* Options Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          {currentQ.options.map((option, idx) => {
+            let btnClass = "bg-white/10 hover:bg-white/20 border-white/10 text-white";
+            const isSelected = selectedOption === option;
+            const isCorrect = option === currentQ.song.title;
+
+            if (selectedOption) {
+              // Reveal phase
+              if (isCorrect) {
+                 btnClass = "bg-green-500 border-green-400 text-white shadow-lg shadow-green-500/30 transform scale-105 z-10";
+              } else if (isSelected && !isCorrect) {
+                 btnClass = "bg-red-500 border-red-400 text-white opacity-80";
+              } else {
+                 btnClass = "bg-black/20 border-transparent text-white/20";
+              }
+            }
+
+            return (
+              <button
+                key={idx}
+                disabled={!!selectedOption}
+                onClick={() => handleGuess(option)}
+                className={`
+                  relative p-6 rounded-2xl border-2 font-bold text-lg text-left transition-all duration-300
+                  flex justify-between items-center shadow-lg
+                  ${btnClass}
+                `}
+              >
+                <span className="pr-4">{option}</span>
+                {selectedOption && isCorrect && <CheckCircle size={28} />}
+                {selectedOption && isSelected && !isCorrect && <XCircle size={28} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const EndScreen = () => {
+    // Generate a rank based on score
+    let rank = "Novice Listener";
+    let message = "Keep listening!";
+    const maxScore = questions.length * 10;
+    const percentage = (score / maxScore) * 100;
+
+    if (percentage === 100) { rank = "Translation Master"; message = "Your ears are universal!"; }
+    else if (percentage >= 80) { rank = "Lyric Legend"; message = "Amazing work!"; }
+    else if (percentage >= 50) { rank = "Casual Crooner"; message = "Not bad at all."; }
+
+    return (
+        <div className="flex flex-col items-center justify-center text-center animate-slide-up p-10 bg-white/10 rounded-[2rem] backdrop-blur-md border border-white/20 shadow-2xl max-w-lg mx-auto w-full">
+          <div className="mb-8 relative">
+            <Trophy size={100} className="text-yellow-300 drop-shadow-xl animate-bounce-slow" />
+            <div className="absolute top-0 right-0 -mt-2 -mr-4 bg-red-500 rounded-full w-10 h-10 flex items-center justify-center border-4 border-white text-white font-bold text-lg shadow-md">
+                {questions.length}
+            </div>
+          </div>
+          
+          <h2 className="text-4xl font-extrabold text-white mb-2 tracking-tight">{rank}</h2>
+          <p className="text-blue-100 mb-10 text-xl italic font-serif">"{message}"</p>
+          
+          <div className="bg-black/20 p-8 rounded-3xl w-full mb-10 border border-white/5">
+            <div className="text-sm text-blue-200 uppercase tracking-widest mb-2 font-semibold">Final Score</div>
+            <div className="text-6xl font-mono font-bold text-white">{score} <span className="text-2xl text-white/40">/ {maxScore}</span></div>
+          </div>
+          
+          <button
+            onClick={() => setGameState('menu')}
+            className="group flex items-center justify-center gap-3 bg-white text-indigo-900 w-full py-4 rounded-2xl font-bold text-xl hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
+          >
+            <RefreshCw size={24} className="group-hover:rotate-180 transition-transform duration-500" />
+            Play Again
+          </button>
+        </div>
+    );
+  };
+
+  return (
+    <div className={`min-h-screen w-full bg-gradient-to-br ${THEMES[category]} font-sans flex flex-col transition-colors duration-1000`}>
+      {/* Background decoration */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-white/10 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-black/20 rounded-full blur-[120px]"></div>
+      </div>
+
+      {/* Confetti Overlay */}
+      {showConfetti && (
+          <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center overflow-hidden">
+              {[...Array(30)].map((_, i) => (
+                  <div key={i} className={`absolute w-3 h-3 bg-yellow-400 rounded-full animate-confetti`} style={{
+                      left: `${50 + (Math.random() * 40 - 20)}%`,
+                      top: '50%',
+                      backgroundColor: ['#FCD34D', '#F87171', '#60A5FA', '#34D399'][Math.floor(Math.random() * 4)]
+                  }}></div>
+              ))}
+          </div>
+      )}
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 w-full">
+        {gameState === 'menu' && <MenuScreen />}
+        {gameState === 'playing' && <PlayingScreen />}
+        {gameState === 'end' && <EndScreen />}
+      </main>
+
+      {/* Footer */}
+      <footer className="p-6 text-center text-white/30 text-xs font-medium uppercase tracking-widest relative z-10">
+        <div className="flex items-center justify-center gap-2">
+            <Volume2 size={12} />
+            <span>Powered by Web Speech API</span>
+        </div>
+      </footer>
+
+      {/* Global CSS for custom animations */}
+      <style>{`
+        @keyframes music-bar {
+          0%, 100% { height: 8px; opacity: 0.5; }
+          50% { height: 32px; opacity: 1; }
+        }
+        .animate-music-bar {
+          animation: music-bar 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out forwards;
+        }
+        @keyframes slide-up {
+          from { opacity: 0; transform: translateY(40px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 3s infinite ease-in-out;
+        }
+        @keyframes confetti {
+            0% { transform: translate(0,0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(${Math.random()*400 - 200}px, ${Math.random()*400 - 200}px) rotate(720deg); opacity: 0; }
+        }
+        .animate-confetti {
+            animation: confetti 1.2s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+}

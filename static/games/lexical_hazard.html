@@ -53,25 +53,7 @@
         .score-box { color: #0ff; }
         .health-box { color: #f0f; }
 
-        .hud-controls {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            pointer-events: auto;
-        }
-        .hud-btn {
-            background: rgba(0,0,0,0.5);
-            border: 1px solid #555;
-            color: #aaa;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: clamp(13px, 2vw, 18px);
-            padding: 4px 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            line-height: 1;
-        }
-        .hud-btn:hover { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px rgba(0,255,255,0.3); }
-        .hud-btn.muted { border-color: #f00; color: #f00; }
+        .hud-controls { display: none; }
 
         #start-screen, #game-over-screen, #pause-screen, #settings-screen, #help-screen {
             position: absolute;
@@ -295,10 +277,7 @@
     <div id="ui-layer">
         <div class="hud-top">
             <div class="score-box">SCORE: <span id="score">0</span> <span id="level-indicator" style="font-size:0.6em;color:#fff;margin-left:10px;">LVL 1</span></div>
-            <div class="hud-controls">
-                <button class="hud-btn" id="btn-mute" title="Mute">&#9835;</button>
-                <button class="hud-btn" id="btn-help-hud" title="Help">?</button>
-            </div>
+            <div class="hud-controls"></div>
             <div class="health-box">Integrity: <span id="health">100</span>%</div>
         </div>
         <div class="active-effects" id="effects-list"></div>
@@ -317,7 +296,11 @@
            <span style="color:#aaa;font-size:0.85em">Same word appears twice? Destroy ALL copies at once!</span></p>
         <div class="highscores" id="start-highscores"></div>
         <button class="btn" id="btn-start">Initialize Defense</button>
-        <button class="btn btn-small" id="btn-settings-open">Settings</button>
+        <div style="display:flex;gap:10px;margin-top:10px">
+            <button class="btn btn-small" id="btn-settings-open">Settings</button>
+            <button class="btn btn-small" id="btn-help-menu">How to Play</button>
+            <button class="btn btn-small" id="btn-mute" style="min-width:40px">&#9835;</button>
+        </div>
     </div>
 
     <div id="game-over-screen" class="hidden">
@@ -492,7 +475,7 @@ var WORD_TIERS = {
         "PALACE","TEMPLE","SCHOOL","OFFICE","MARKET","STREET","BRIDGE","TUNNEL",
         "GARDEN","FLOWER","ANIMAL","TIGER","WOLF","HORSE","MONKEY","RABBIT",
         "MOUSE","SNAKE","EAGLE","SHARK","WHALE","ROBOT","ALIEN","GHOST",
-        "ZOMBIE","WITCH","FAIRY","ANGEL","DEMON","MAGIC","POWER","FORCE",
+        "UNDEAD","WITCH","FAIRY","ANGEL","DEMON","MAGIC","POWER","FORCE",
         "SPEED","DANGER","ACTION","COMEDY","DRAMA","HORROR","MUSIC","DANCE",
         "PARTY","PIRATE","CIPHER","CYBORG","PORTAL","NEBULA","QUASAR","PRISM",
         "EMBER","THORN","FORGE","CRYPT","BLADE","ROGUE","VAULT","STORM",
@@ -1004,7 +987,29 @@ var Effects = {
         if (name === 'HOPE') { var blessings = WORDS.filter(function(w) { return w.type === 'good' && w.duration > 0; }); var chosen = blessings[Math.floor(Math.random()*blessings.length)]; health = Math.min(100, health + 15); createParticles(width/2, height/2, '#0ff', 30); Audio.powerup(); updateHUD(); if (chosen) this.activate(chosen.text, chosen.duration); return; }
         if (name === 'NUMBERS') { words.forEach(function(w) { w.text = '' + (Math.floor(Math.random()*10000)+1); w.color = '#ff0'; w.effectType = 'none'; w.effectTemplate = null; createParticles(w.x, w.y, '#ff0', 5); }); Audio.powerup(); createParticles(width/2, height/2, '#ff0', 20); return; }
         if (name === 'SHOOT') { shootMode = true; canvas.style.cursor = 'none'; Audio.powerup(); createParticles(width/2, height/2, '#f80', 40); this.active['SHOOT'] = duration; this.renderList(); return; }
-        if (name === 'ZOMBIE') { words.forEach(function(w) { w.text = 'ZOMBIE'; w.color = '#4a0'; w.effectType = 'none'; w.effectTemplate = null; createParticles(w.x, w.y, '#4a0', 3); }); Audio.zombieGroan(); cameraShake = reducedMotion ? 0 : 10; createParticles(width/2, height/2, '#4a0', 30); return; }
+        if (name === 'ZOMBIE') {
+            // If most words are already ZOMBIE, nuke them all
+            var zombieCount = 0;
+            words.forEach(function(w) { if (w.text === 'ZOMBIE') zombieCount++; });
+            if (words.length > 0 && zombieCount >= words.length * 0.5) {
+                // Destroy all words — the payoff
+                words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 10); });
+                score += words.length * 50;
+                words = [];
+                Audio.explosion();
+                createParticles(width/2, height/2, '#0f0', 60);
+                cameraShake = reducedMotion ? 0 : 20;
+                comboText = 'ZOMBIE PURGE!';
+                comboTimer = 2000;
+            } else {
+                // Convert all words to ZOMBIE
+                words.forEach(function(w) { w.text = 'ZOMBIE'; w.color = '#4a0'; w.effectType = 'none'; w.effectTemplate = null; createParticles(w.x, w.y, '#4a0', 3); });
+                Audio.zombieGroan();
+                cameraShake = reducedMotion ? 0 : 10;
+                createParticles(width/2, height/2, '#4a0', 30);
+            }
+            return;
+        }
         if (name === 'ABRACADABRA') {
             health = 100;
             var magicBadKeys = []; var magicSelf = this;
@@ -1569,9 +1574,15 @@ function gameLoop(timestamp) {
 function toggleMute() {
     Audio.muted = !Audio.muted;
     var btn = document.getElementById('btn-mute');
-    btn.classList.toggle('muted', Audio.muted);
-    btn.innerHTML = Audio.muted ? '&#9835;<span style="text-decoration:line-through;"></span>' : '&#9835;';
-    btn.title = Audio.muted ? 'Unmute' : 'Mute';
+    if (Audio.muted) {
+        btn.innerHTML = '&#9835; OFF';
+        btn.style.borderColor = '#f00';
+        btn.style.color = '#f00';
+    } else {
+        btn.innerHTML = '&#9835; ON';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+    }
     try { localStorage.setItem('lexical_hazard_muted', Audio.muted); } catch(e) {}
 }
 
@@ -1595,16 +1606,15 @@ document.getElementById('btn-restart').addEventListener('click', resetGame);
 document.getElementById('btn-resume').addEventListener('click', resumeGame);
 document.getElementById('btn-quit').addEventListener('click', quitToMenu);
 
-document.getElementById('btn-mute').addEventListener('click', function(e) { e.stopPropagation(); toggleMute(); });
+document.getElementById('btn-mute').addEventListener('click', function(e) { e.stopPropagation(); Audio.init(); toggleMute(); });
 
-document.getElementById('btn-help-hud').addEventListener('click', function(e) {
-    e.stopPropagation();
-    if (gameState === 'PLAYING') pauseGame();
+document.getElementById('btn-help-menu').addEventListener('click', function() {
+    startScreen.classList.add('hidden');
     helpScreen.classList.remove('hidden');
 });
 document.getElementById('btn-help-back').addEventListener('click', function() {
     helpScreen.classList.add('hidden');
-    if (gameState === 'PAUSED') resumeGame();
+    startScreen.classList.remove('hidden');
 });
 
 document.getElementById('btn-settings-open').addEventListener('click', function() {
@@ -1623,8 +1633,9 @@ try {
     if (localStorage.getItem('lexical_hazard_muted') === 'true') {
         Audio.muted = true;
         var mb = document.getElementById('btn-mute');
-        mb.classList.add('muted');
-        mb.title = 'Unmute';
+        mb.innerHTML = '&#9835; OFF';
+        mb.style.borderColor = '#f00';
+        mb.style.color = '#f00';
     }
 } catch(e) {}
 

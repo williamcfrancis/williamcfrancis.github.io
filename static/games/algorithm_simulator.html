@@ -281,7 +281,8 @@
         ];
 
         const QTE_KEYS = ['F', 'J', 'D', 'K', 'S', 'L', 'G', 'H'];
-        const NOTIFICATION_ICONS = [Bell, BellRing, MessageCircle, Heart, ThumbsUp, Camera];
+        const NOTIFICATION_ICONS = [Bell, BellRing, MessageCircle, Heart, ThumbsUp, Camera, Flame, Zap, Eye];
+        const NOTIF_LABELS = ['Like!', 'Alert!', 'DM!', 'Love!', 'Share!', 'Snap!', 'Hot!', 'Zap!', 'View!'];
         const MOOD_TO_CATEGORY = { BORED: 'ENTERTAINMENT', ANGRY: 'OUTRAGE', LONELY: 'SOCIAL', INSECURE: 'VALIDATION' };
 
         // ============================================================
@@ -315,8 +316,11 @@
             qteNextTime: 0,
             qteInitialized: false,
             autoRecoverAt: 0,
-            resistGrid: [false, false, false, false, false, false],
+            resistGrid: [false, false, false, false, false, false, false, false, false],
             lastResistToggle: 0,
+            resistDeadline: 0,
+            resistHits: 0,
+            resistHitsNeeded: 12,
         };
 
         function App() {
@@ -505,49 +509,56 @@
                     state.autoRecoverAt = 0;
                 }
 
-                // 5. Resistance Logic
+                // 5. Resistance Logic (timer-based: hit enough targets before time runs out)
                 if (state.isResisting) {
-                    // Manage resistance grid (whack-a-mole targets)
-                    if (now - state.lastResistToggle > 900) {
-                        const newGrid = [false, false, false, false, false, false];
-                        const count = 2 + Math.floor(Math.random() * 2);
+                    // Rapidly cycle targets in the 3x3 grid
+                    const cycleSpeed = state.activeAbilities.includes('golden_handcuffs') ? 800 : 500;
+                    if (now - state.lastResistToggle > cycleSpeed) {
+                        const gridSize = 9;
+                        const newGrid = new Array(gridSize).fill(false);
+                        const count = 3 + Math.floor(Math.random() * 3); // 3-5 lit at once
                         const positions = new Set();
                         while (positions.size < count) {
-                            positions.add(Math.floor(Math.random() * 6));
+                            positions.add(Math.floor(Math.random() * gridSize));
                         }
                         positions.forEach(function(p) { newGrid[p] = true; });
                         state.resistGrid = newGrid;
                         state.lastResistToggle = now;
                     }
 
+                    // Update progress bar based on hits
+                    state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
+
+                    // Golden handcuffs: auto-hit a target every second
                     if (state.activeAbilities.includes('golden_handcuffs')) {
-                        state.resistanceHealth = Math.min(100, state.resistanceHealth + (deltaTime * 20));
-                    } else {
-                        const quitSpeed = 5 + (state.anxiety > 80 ? 8 : 0) + (state.scenario === 'SOCIAL' ? 4 : 0);
-                        state.resistanceHealth -= (deltaTime * quitSpeed);
+                        state.resistHits = Math.min(state.resistHitsNeeded, state.resistHits + deltaTime * 2);
+                        state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
                     }
 
-                    if (state.resistanceHealth <= 0) {
+                    // WIN: hit enough targets
+                    if (state.resistHits >= state.resistHitsNeeded) {
+                        state.isResisting = false;
+                        state.anxiety = Math.max(0, state.anxiety - 15);
+                        state.streak = Math.min(10, state.streak + 1);
+                        state.immunityUntil = now + 5000;
+                        state.resistGrid = new Array(9).fill(false);
+                        state.engagement += 200;
+                        addLog("Crisis averted. User recaptured! +200 bonus", "success");
+                    }
+
+                    // LOSE: time ran out
+                    if (state.isResisting && now > state.resistDeadline) {
                         state.isResisting = false;
                         state.brainHealth = Math.min(100, state.brainHealth + 30);
                         state.anxiety = Math.max(0, state.anxiety - 40);
                         state.streak = 1;
                         state.engagement = Math.max(0, state.engagement * 0.75);
-                        state.immunityUntil = timestamp + 10000;
-                        state.resistGrid = [false, false, false, false, false, false];
+                        state.immunityUntil = now + 10000;
+                        state.resistGrid = new Array(9).fill(false);
                         addLog("CRITICAL FAIL: User disconnected.", "error");
                     }
-
-                    if (state.resistanceHealth >= 100) {
-                        state.isResisting = false;
-                        state.anxiety = Math.max(0, state.anxiety - 15);
-                        state.streak = Math.min(10, state.streak + 1);
-                        state.immunityUntil = timestamp + 5000;
-                        state.resistGrid = [false, false, false, false, false, false];
-                        addLog("Crisis averted. User recaptured.", "success");
-                    }
                 } else {
-                    if (timestamp > state.immunityUntil && state.totalEngagement > 200 && state.brainHealth > 0) {
+                    if (now > state.immunityUntil && state.totalEngagement > 200 && state.brainHealth > 0) {
                         let chance = 0.0005;
                         if (state.brainHealth > 80) chance += 0.001;
                         if (state.anxiety > 95) chance += 0.01;
@@ -557,13 +568,18 @@
 
                         if (Math.random() < chance) {
                             state.isResisting = true;
-                            state.resistanceHealth = 30;
-                            // Immediately populate resistance grid
-                            const newGrid = [false, false, false, false, false, false];
-                            const count = 2 + Math.floor(Math.random() * 2);
+                            state.resistHits = 0;
+                            state.resistHitsNeeded = 10 + Math.floor(Math.random() * 6); // 10-15 hits needed
+                            state.resistDeadline = now + 8000; // 8 seconds to win
+                            state.resistanceHealth = 0;
+
+                            // Immediately populate 3x3 grid
+                            const gridSize = 9;
+                            const newGrid = new Array(gridSize).fill(false);
+                            const count = 3 + Math.floor(Math.random() * 3);
                             const positions = new Set();
                             while (positions.size < count) {
-                                positions.add(Math.floor(Math.random() * 6));
+                                positions.add(Math.floor(Math.random() * gridSize));
                             }
                             positions.forEach(function(p) { newGrid[p] = true; });
                             state.resistGrid = newGrid;
@@ -607,6 +623,9 @@
                     qteActive: state.qteActive ? { ...state.qteActive } : null,
                     resistGrid: [...state.resistGrid],
                     autoRecoverAt: state.autoRecoverAt,
+                    resistDeadline: state.resistDeadline,
+                    resistHits: state.resistHits,
+                    resistHitsNeeded: state.resistHitsNeeded,
                 });
 
                 loopRef.current = requestAnimationFrame(gameTick);
@@ -635,19 +654,7 @@
                         }
                         if (litPositions.length > 0) {
                             const pos = litPositions[Math.floor(Math.random() * litPositions.length)];
-                            state.resistGrid[pos] = false;
-                            const gain = 12 + Math.floor(Math.random() * 8);
-                            state.resistanceHealth = Math.min(100, state.resistanceHealth + gain);
-                            state.engagement += 15;
-                            if (spawnFloaterRef.current) {
-                                const labels = ['PING!', 'BUZZ!', 'DING!', 'ALERT!', 'NOTIFY!'];
-                                spawnFloaterRef.current(
-                                    window.innerWidth / 2 + (Math.random() - 0.5) * 120,
-                                    window.innerHeight / 2 + (Math.random() - 0.5) * 60,
-                                    labels[Math.floor(Math.random() * labels.length)],
-                                    'text-red-400 font-bold'
-                                );
-                            }
+                            handleResistGridClick(pos);
                         }
                         return;
                     }
@@ -801,30 +808,52 @@
                 if (!state.isResisting) return;
 
                 if (!state.resistGrid[position]) {
+                    // Penalty for misclick: small time cost
+                    state.resistDeadline = Math.max(performance.now(), state.resistDeadline - 300);
                     if (spawnFloaterRef.current) {
                         spawnFloaterRef.current(
                             window.innerWidth / 2 + (Math.random() - 0.5) * 80,
                             window.innerHeight / 2,
-                            "MISS!",
+                            "MISS! -0.3s",
                             'text-gray-500 font-mono text-sm'
                         );
                     }
                     return;
                 }
 
+                // Successful hit
                 state.resistGrid[position] = false;
-                const gain = 12 + Math.floor(Math.random() * 8);
-                state.resistanceHealth = Math.min(100, state.resistanceHealth + gain);
-                state.engagement += 15;
+                state.resistHits += 1;
+                state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
+                state.engagement += 20;
 
-                const labels = ['PING!', 'BUZZ!', 'DING!', 'ALERT!', 'NOTIFY!'];
+                const labels = ['PING!', 'BUZZ!', 'DING!', 'ALERT!', 'NOTIFY!', 'SENT!', 'READ!', 'OPEN!'];
                 if (spawnFloaterRef.current) {
                     spawnFloaterRef.current(
-                        window.innerWidth / 2 + (Math.random() - 0.5) * 120,
-                        window.innerHeight / 2 + (Math.random() - 0.5) * 60,
+                        window.innerWidth / 2 + (Math.random() - 0.5) * 140,
+                        window.innerHeight / 2 + (Math.random() - 0.5) * 80,
                         labels[Math.floor(Math.random() * labels.length)],
-                        'text-red-400 font-bold'
+                        'text-red-400 font-bold text-lg'
                     );
+                }
+
+                // Immediate win check
+                if (state.resistHits >= state.resistHitsNeeded) {
+                    state.isResisting = false;
+                    state.anxiety = Math.max(0, state.anxiety - 15);
+                    state.streak = Math.min(10, state.streak + 1);
+                    state.immunityUntil = performance.now() + 5000;
+                    state.resistGrid = new Array(9).fill(false);
+                    state.engagement += 200;
+                    addLog("Crisis averted. User recaptured! +200 bonus", "success");
+                    if (spawnFloaterRef.current) {
+                        spawnFloaterRef.current(
+                            window.innerWidth / 2,
+                            window.innerHeight / 2 - 40,
+                            'RECAPTURED!',
+                            'text-green-400 font-black text-2xl'
+                        );
+                    }
                 }
             };
 
@@ -838,6 +867,36 @@
             };
 
             // --- UI Helpers ---
+
+            const ResistTimer = ({ deadline }) => {
+                const [remaining, setRemaining] = useState(0);
+                useEffect(() => {
+                    const interval = setInterval(() => {
+                        const left = Math.max(0, deadline - performance.now());
+                        setRemaining(left);
+                    }, 50);
+                    return () => clearInterval(interval);
+                }, [deadline]);
+                const secs = (remaining / 1000).toFixed(1);
+                const pct = deadline > 0 ? Math.max(0, Math.min(100, (remaining / 8000) * 100)) : 0;
+                const isLow = remaining < 3000;
+                return (
+                    <div className="mb-2">
+                        <div className="flex justify-between items-center mb-1">
+                            <span className={'text-xs font-mono font-bold uppercase ' + (isLow ? 'text-red-500 animate-pulse' : 'text-gray-400')}>
+                                <Clock size={12} className="inline mr-1" />{secs}s
+                            </span>
+                            <span className="text-[10px] text-gray-500 font-mono uppercase">Time Left</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                                className={'h-full rounded-full transition-all duration-100 ' + (isLow ? 'bg-red-500' : 'bg-cyan-500')}
+                                style={{ width: pct + '%' }}
+                            />
+                        </div>
+                    </div>
+                );
+            };
 
             const MoodIcon = () => {
                 if (uiState.brainHealth <= 0) return <Skull size={72} className="text-gray-600 animate-pulse" />;
@@ -988,7 +1047,7 @@
                                 <p><span className="text-yellow-400">CLICK</span> actions matching the Subject's <span className="text-white">MOOD</span></p>
                                 <p><span className="text-cyan-400">PRESS KEYS</span> for Quick-Time Events</p>
                                 <p><span className="text-purple-400">CHAIN</span> all 4 types for <span className="text-white">COMBO BONUS</span></p>
-                                <p><span className="text-red-400">SPACE</span> or <span className="text-red-400">CLICK</span> lit notifications during resistance</p>
+                                <p><span className="text-red-400">SPACE</span> or <span className="text-red-400">CLICK</span> lit notifications to recapture the user before time runs out!</p>
                                 <p><span className="text-green-400">SURGE</span> windows give <span className="text-white">3x</span> bonus on mood change</p>
                             </div>
                             <button
@@ -1265,43 +1324,56 @@
                                 </div>
                             </div>
 
-                            {/* Resistance Whack-a-Mole / Grid / Normal Actions */}
+                            {/* Resistance Notification Frenzy / Normal Actions */}
                             {uiState.isResisting ? (
                                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/95 backdrop-blur-sm rounded-xl p-4">
-                                    <AlertTriangle size={32} className="text-red-500 mb-2 animate-bounce" />
-                                    <p className="text-base font-bold text-red-400 mb-1">
-                                        {uiState.anxiety > 90 ? 'PANIC ATTACK!' : 'USER LEAVING!'}
-                                    </p>
-                                    <p className="text-[11px] text-gray-400 mb-3">Click lit notifications or press <span className="text-white font-bold bg-gray-700 px-1.5 py-0.5 rounded">SPACE</span></p>
+                                    {/* Header */}
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <AlertTriangle size={24} className="text-red-500 animate-bounce" />
+                                        <p className="text-lg font-black text-red-400 uppercase tracking-wider">
+                                            {uiState.anxiety > 90 ? 'Panic Attack!' : 'User Leaving!'}
+                                        </p>
+                                    </div>
+                                    <p className="text-[11px] text-gray-400 mb-3">Spam notifications! Click targets or press <span className="text-white font-bold bg-gray-700 px-1.5 py-0.5 rounded text-xs">SPACE</span></p>
 
-                                    <div className="w-full max-w-[300px] mb-4">
-                                        <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                                    {/* Timer + Progress */}
+                                    <div className="w-full max-w-[320px] mb-3">
+                                        {/* Countdown Timer */}
+                                        <ResistTimer deadline={uiState.resistDeadline} />
+
+                                        {/* Progress Bar */}
+                                        <div className="h-3 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
                                             <div
-                                                className="h-full bg-gradient-to-r from-red-500 to-green-500 transition-all duration-200 rounded-full"
+                                                className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 transition-all duration-150 rounded-full"
                                                 style={{ width: uiState.resistanceHealth + '%' }}
                                             />
                                         </div>
-                                        <div className="text-[11px] font-mono text-gray-500 text-center mt-1">
-                                            RECAPTURE: {Math.round(uiState.resistanceHealth)}%
+                                        <div className="flex justify-between text-[11px] font-mono mt-1">
+                                            <span className="text-gray-500">{uiState.resistHits || 0} / {uiState.resistHitsNeeded || 0} hits</span>
+                                            <span className={'font-bold ' + (uiState.resistanceHealth > 66 ? 'text-green-400' : uiState.resistanceHealth > 33 ? 'text-yellow-400' : 'text-red-400')}>
+                                                {Math.round(uiState.resistanceHealth)}%
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-3 w-full max-w-[300px]">
+                                    {/* 3x3 Notification Grid */}
+                                    <div className="grid grid-cols-3 gap-2.5 w-full max-w-[320px]">
                                         {uiState.resistGrid.map((lit, i) => {
-                                            const NotifIcon = NOTIFICATION_ICONS[i];
+                                            const NotifIcon = NOTIFICATION_ICONS[i % NOTIFICATION_ICONS.length];
+                                            const label = NOTIF_LABELS[i % NOTIF_LABELS.length];
                                             return (
                                                 <button
                                                     key={i}
                                                     onClick={() => handleResistGridClick(i)}
                                                     className={
-                                                        'aspect-square rounded-xl border-2 flex flex-col items-center justify-center transition-all duration-150 ' +
+                                                        'aspect-square rounded-xl border-2 flex flex-col items-center justify-center transition-all duration-100 select-none ' +
                                                         (lit
-                                                            ? 'bg-red-600/30 border-red-500 text-red-400 shadow-[0_0_25px_rgba(239,68,68,0.5)] animate-target-pop cursor-pointer hover:bg-red-500/50 active:scale-90'
-                                                            : 'bg-gray-900/80 border-gray-800 text-gray-700 cursor-default')
+                                                            ? 'bg-red-600/30 border-red-500 text-red-400 shadow-[0_0_30px_rgba(239,68,68,0.5)] animate-target-pop cursor-pointer hover:bg-red-500/50 hover:scale-105 active:scale-90'
+                                                            : 'bg-gray-900/80 border-gray-800 text-gray-700 cursor-default opacity-40')
                                                     }
                                                 >
-                                                    <NotifIcon size={28} />
-                                                    {lit && <span className="text-[10px] font-bold mt-1 uppercase">Tap!</span>}
+                                                    <NotifIcon size={26} />
+                                                    {lit && <span className="text-[9px] font-bold mt-0.5 uppercase tracking-wide">{label}</span>}
                                                 </button>
                                             );
                                         })}
