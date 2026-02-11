@@ -206,9 +206,10 @@
         <p><strong>WARNING:</strong> Semantic containment breach detected.</p>
         <p>Type the falling words to neutralize them. <br>
            <span style="color:#f0f">CAUTION:</span> Neutralizing a word triggers its meaning.</p>
-        <p style="color:#0f0">HEAL, SHIELD, PURIFY, BONUS &rarr; Help you survive.<br>
+        <p style="color:#0f0">HEAL, SHIELD, SHOOT, ABRACADABRA &rarr; Help you survive.<br>
            <span style="color:#f00">FAST, SCRAMBLE, CLONE, LEECH</span> &rarr; Make life harder.<br>
-           <span style="color:#ff0">NEON, MATRIX, DANCE</span> &rarr; Pure chaos.</p>
+           <span style="color:#ff0">ZOMBIE, NUMBERS, EASY</span> &rarr; Game changers.<br>
+           <span style="color:#aaa; font-size:0.85em">Same word appears twice? Destroy ALL copies at once!</span></p>
         <button class="btn" onclick="startGame()">Initialize Defense</button>
     </div>
 
@@ -246,7 +247,12 @@ var WORDS = [
     { text: "FOCUS",   type: "good", desc: "Clear Vision",     duration: 6000 },
     { text: "REGEN",   type: "good", desc: "Health Regen",     duration: 8000 },
     { text: "CALM",    type: "good", desc: "Peace & Heal",     duration: 0 },
-    { text: "LUCKY",   type: "good", desc: "Good Fortune",     duration: 8000 },
+    { text: "LUCKY",       type: "good", desc: "Good Fortune",     duration: 8000 },
+    { text: "EASY",        type: "good", desc: "Simplify All",     duration: 0 },
+    { text: "REVIVE",      type: "good", desc: "Second Wind",      duration: 0 },
+    { text: "HOPE",        type: "good", desc: "Random Blessing",  duration: 0 },
+    { text: "SHOOT",       type: "good", desc: "Gunship Mode",     duration: 8000 },
+    { text: "ABRACADABRA", type: "good", desc: "Pure Magic",       duration: 0 },
 
     // ===== BAD (27) — Harmful =====
     { text: "FAST",     type: "bad", desc: "Speed Up",         duration: 5000 },
@@ -288,11 +294,23 @@ var WORDS = [
     { text: "DANCE",    type: "neutral", desc: "Groovy Moves",   duration: 5000 },
     { text: "ECHO",     type: "neutral", desc: "Afterimages",    duration: 6000 },
     { text: "PULSE",    type: "neutral", desc: "Size Pulse",     duration: 7000 },
-    { text: "MATRIX",   type: "neutral", desc: "Digital Rain",   duration: 8000 }
+    { text: "MATRIX",   type: "neutral", desc: "Digital Rain",   duration: 8000 },
+    { text: "NUMBERS",  type: "neutral", desc: "Number Swap",    duration: 0 },
+    { text: "ZOMBIE",   type: "neutral", desc: "Zombie Horde",   duration: 0 }
 ];
 
 // Pre-filter for LUCKY effect
 var GOOD_NEUTRAL_WORDS = WORDS.filter(function(w) { return w.type !== 'bad'; });
+
+// Rescue pool — weighted toward HEAL & REWIND for end-game balance
+var RESCUE_POOL_NAMES = [
+    'HEAL','HEAL','HEAL','REWIND','REWIND','REWIND',
+    'SHIELD','SHIELD','REPAIR','REGEN','REGEN',
+    'ARMOR','ABSORB','CALM','EASY','REVIVE','REVIVE','SHOOT','HOPE'
+];
+var RESCUE_WORDS = RESCUE_POOL_NAMES.map(function(n) {
+    return WORDS.find(function(w) { return w.text === n; });
+}).filter(Boolean);
 
 // ============================================================
 //  WORD TIERS — 5 tiers, generous tier 1
@@ -468,6 +486,18 @@ var bonusActive = false;
 var bonusTimer = 0;
 var BONUS_DURATION = 12000;
 
+// Shoot mode state
+var shootMode = false;
+var mouseX = 0, mouseY = 0;
+var bullets = [];
+
+// Magic aura (abracadabra)
+var magicAuraTimer = 0;
+
+// Combo display
+var comboText = '';
+var comboTimer = 0;
+
 // ============================================================
 //  AUDIO
 // ============================================================
@@ -508,6 +538,22 @@ var Audio = {
         this.playTone(1000, 'sine', 0.15, 0.08);
         this.playTone(1200, 'sine', 0.15, 0.08);
         this.playTone(1600, 'sine', 0.3, 0.1);
+    },
+    magic: function() {
+        this.playTone(523, 'sine', 0.15, 0.08);
+        this.playTone(659, 'sine', 0.15, 0.08);
+        this.playTone(784, 'sine', 0.15, 0.08);
+        this.playTone(1047, 'sine', 0.2, 0.1);
+        this.playTone(1319, 'sine', 0.25, 0.1);
+        this.playTone(1568, 'sine', 0.4, 0.12);
+    },
+    zombieGroan: function() {
+        this.playTone(80, 'sawtooth', 0.5, 0.15);
+        this.playTone(60, 'sawtooth', 0.6, 0.1);
+    },
+    gunshot: function() {
+        this.playTone(150, 'sawtooth', 0.08, 0.15);
+        this.playTone(1200, 'square', 0.05, 0.08);
     }
 };
 
@@ -520,9 +566,25 @@ function Word() {
     var specialChance = bonusActive ? 0.25 : cfg.special;
     var isSpecial = Math.random() < specialChance;
 
+    // Rescue mechanic: when close to losing, spawn rescue words with increasing chance
+    var forceRescue = false;
+    if (health < 40 && !bonusActive) {
+        var rescueChance = ((40 - health) / 40) * 0.5; // up to 50% at near-death
+        if (Math.random() < rescueChance) {
+            isSpecial = true;
+            forceRescue = true;
+        }
+    }
+    // End-game balance: boost heal/rewind chances at high levels
+    if (level >= 10 && isSpecial && Math.random() < 0.3) {
+        forceRescue = true;
+    }
+
     if (isSpecial) {
         var pool;
-        if (bonusActive || Effects.has('LUCKY')) {
+        if (forceRescue) {
+            pool = RESCUE_WORDS;
+        } else if (bonusActive || Effects.has('LUCKY')) {
             // During bonus or LUCKY: only good/neutral specials
             pool = GOOD_NEUTRAL_WORDS;
         } else {
@@ -742,6 +804,12 @@ Particle.prototype.draw = function(c) {
     c.globalAlpha = 1;
 };
 
+function Bullet(x1, y1, x2, y2) {
+    this.x1 = x1; this.y1 = y1;
+    this.x2 = x2; this.y2 = y2;
+    this.life = 0.3;
+}
+
 // ============================================================
 //  EFFECTS SYSTEM
 // ============================================================
@@ -862,6 +930,123 @@ var Effects = {
             cameraShake = 10;
             return;
         }
+        if (name === 'EASY') {
+            // Simplify all on-screen words to easy tier-1
+            var easyList = WORD_TIERS[1];
+            words.forEach(function(w) {
+                w.text = easyList[Math.floor(Math.random() * easyList.length)];
+                w.color = '#0f0';
+                w.effectType = 'none';
+                w.effectTemplate = null;
+                createParticles(w.x, w.y, '#0f0', 5);
+            });
+            Audio.powerup();
+            createParticles(width/2, height/2, '#0f0', 30);
+            return;
+        }
+        if (name === 'REVIVE') {
+            // Second wind: +50 health with dramatic effect
+            health = Math.min(100, health + 50);
+            createParticles(width/2, height/2, '#0ff', 40);
+            createParticles(width/2, height, '#0ff', 20);
+            Audio.powerup();
+            cameraShake = 8;
+            updateHUD();
+            return;
+        }
+        if (name === 'HOPE') {
+            // Random blessing: picks a random good timed effect + heals 15
+            var blessings = WORDS.filter(function(w) { return w.type === 'good' && w.duration > 0; });
+            var chosen = blessings[Math.floor(Math.random() * blessings.length)];
+            health = Math.min(100, health + 15);
+            createParticles(width/2, height/2, '#0ff', 30);
+            Audio.powerup();
+            updateHUD();
+            if (chosen) this.activate(chosen.text, chosen.duration);
+            return;
+        }
+        if (name === 'NUMBERS') {
+            // Turn all words into random numbers
+            words.forEach(function(w) {
+                w.text = '' + (Math.floor(Math.random() * 10000) + 1);
+                w.color = '#ff0';
+                w.effectType = 'none';
+                w.effectTemplate = null;
+                createParticles(w.x, w.y, '#ff0', 5);
+            });
+            Audio.powerup();
+            createParticles(width/2, height/2, '#ff0', 20);
+            return;
+        }
+        if (name === 'SHOOT') {
+            // Gunship mode: click to destroy words
+            shootMode = true;
+            canvas.style.cursor = 'none';
+            Audio.powerup();
+            createParticles(width/2, height/2, '#f80', 40);
+            this.active['SHOOT'] = duration;
+            this.renderList();
+            return;
+        }
+        if (name === 'ZOMBIE') {
+            // Turn all words into ZOMBIE
+            words.forEach(function(w) {
+                w.text = 'ZOMBIE';
+                w.color = '#4a0';
+                w.effectType = 'none';
+                w.effectTemplate = null;
+                createParticles(w.x, w.y, '#4a0', 3);
+            });
+            Audio.zombieGroan();
+            cameraShake = 10;
+            createParticles(width/2, height/2, '#4a0', 30);
+            return;
+        }
+        if (name === 'ABRACADABRA') {
+            // PURE MAGIC — the ultimate rescue spell
+            // 1. Full heal
+            health = 100;
+            // 2. Remove all bad effects
+            var magicBadKeys = [];
+            var magicSelf = this;
+            Object.keys(this.active).forEach(function(en) {
+                var wd = WORDS.find(function(w) { return w.text === en; });
+                if (wd && wd.type === 'bad') magicBadKeys.push(en);
+            });
+            magicBadKeys.forEach(function(k) { delete magicSelf.active[k]; });
+            // 3. Transform all words into easy sparkle words and slow them down
+            var magicEasyPool = WORD_TIERS[1];
+            words.forEach(function(w) {
+                w.text = magicEasyPool[Math.floor(Math.random() * magicEasyPool.length)];
+                w.color = '#f0f';
+                w.effectType = 'none';
+                w.effectTemplate = null;
+                w.baseSpeed *= 0.3;
+                createParticles(w.x, w.y, '#f0f', 5);
+                createParticles(w.x, w.y, '#ff0', 3);
+            });
+            // 4. Grant shield + double score + regen
+            this.active['SHIELD'] = 5000;
+            this.active['DOUBLE'] = 8000;
+            this.active['REGEN'] = 8000;
+            // 5. Score bonus
+            score += 500;
+            // 6. Massive sparkle explosion
+            for (var ai = 0; ai < 10; ai++) {
+                createParticles(
+                    Math.random() * width,
+                    Math.random() * height,
+                    ['#f0f','#ff0','#0ff','#fff','#f80'][ai % 5],
+                    25
+                );
+            }
+            magicAuraTimer = 3000;
+            this.renderList();
+            Audio.magic();
+            cameraShake = 30;
+            updateHUD();
+            return;
+        }
 
         // ===== DURATION EFFECTS =====
         this.active[name] = duration;
@@ -942,6 +1127,9 @@ function startGame() {
     userInput = ""; words = []; particles = [];
     Effects.active = {}; Effects.renderList();
     bonusActive = false; bonusTimer = 0;
+    shootMode = false; bullets = [];
+    magicAuraTimer = 0; comboText = ''; comboTimer = 0;
+    canvas.style.cursor = 'default';
     difficultyMultiplier = 1;
     lastTime = performance.now();
     requestAnimationFrame(gameLoop);
@@ -953,6 +1141,8 @@ function triggerGameOver() {
     gameState = 'GAMEOVER';
     gameOverScreen.classList.remove('hidden');
     finalScoreSpan.innerText = score;
+    canvas.style.cursor = 'default';
+    shootMode = false;
 }
 
 // ============================================================
@@ -964,19 +1154,37 @@ window.addEventListener('keydown', function(e) {
     if (e.key === 'Backspace') {
         userInput = userInput.slice(0, -1);
         Audio.type();
-    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z0-9]/)) {
         userInput += e.key.toUpperCase();
         Audio.type();
     }
 
-    var matchIndex = words.findIndex(function(w) { return w.text === userInput; });
-    if (matchIndex !== -1) {
-        var word = words[matchIndex];
-        words.splice(matchIndex, 1);
+    // Find ALL matching words (same word = destroy all copies at once)
+    var matchingIndices = [];
+    var firstMatch = null;
+    for (var wi = words.length - 1; wi >= 0; wi--) {
+        if (words[wi].text === userInput) {
+            if (!firstMatch) firstMatch = words[wi];
+            matchingIndices.push(wi);
+        }
+    }
+    if (matchingIndices.length > 0) {
+        var word = firstMatch;
+        // Remove all matching words (indices already descending)
+        for (var ri = 0; ri < matchingIndices.length; ri++) {
+            var rw = words[matchingIndices[ri]];
+            createParticles(rw.x, rw.y, rw.color, 15);
+            words.splice(matchingIndices[ri], 1);
+        }
         userInput = "";
 
-        // Scoring
-        var scoreGain = word.text.length * 10;
+        // Scoring — combo bonus for multi-kill
+        var scoreGain = word.text.length * 10 * matchingIndices.length;
+        if (matchingIndices.length > 1) {
+            scoreGain += matchingIndices.length * 25;
+            comboText = matchingIndices.length + 'x MULTI-KILL!';
+            comboTimer = 1500;
+        }
         if (Effects.has('DOUBLE')) scoreGain *= 2;
         if (bonusActive) scoreGain *= 2;
         score += scoreGain;
@@ -1013,6 +1221,53 @@ window.addEventListener('keydown', function(e) {
 });
 
 // ============================================================
+//  SHOOT MODE — Mouse Handlers
+// ============================================================
+canvas.addEventListener('mousemove', function(e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+});
+
+canvas.addEventListener('click', function(e) {
+    if (!shootMode || gameState !== 'PLAYING') return;
+
+    // Find closest word within hit radius
+    var hitIdx = -1;
+    var hitDist = 80;
+    for (var si = 0; si < words.length; si++) {
+        var dx = words[si].x - e.clientX;
+        var dy = words[si].y - e.clientY;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < hitDist) {
+            hitDist = d;
+            hitIdx = si;
+        }
+    }
+
+    // Create bullet trail
+    var tx = hitIdx !== -1 ? words[hitIdx].x : e.clientX;
+    var ty = hitIdx !== -1 ? words[hitIdx].y : e.clientY;
+    bullets.push(new Bullet(e.clientX, height, tx, ty));
+    Audio.gunshot();
+
+    if (hitIdx !== -1) {
+        var shotWord = words[hitIdx];
+        createParticles(shotWord.x, shotWord.y, '#f80', 20);
+        var shotScore = shotWord.text.length * 10;
+        if (Effects.has('DOUBLE')) shotScore *= 2;
+        if (bonusActive) shotScore *= 2;
+        score += shotScore;
+        if (shotWord.effectType !== 'none') {
+            Effects.activate(shotWord.text, shotWord.effectTemplate.duration);
+            cameraShake = 10;
+        }
+        words.splice(hitIdx, 1);
+        cameraShake = 5;
+    }
+    updateHUD();
+});
+
+// ============================================================
 //  MAIN GAME LOOP
 // ============================================================
 function gameLoop(timestamp) {
@@ -1030,6 +1285,23 @@ function gameLoop(timestamp) {
         }
         // Regen during bonus
         health = Math.min(100, health + 2 * dt);
+    }
+
+    // --- Shoot Mode Sync ---
+    var wasShootMode = shootMode;
+    shootMode = Effects.has('SHOOT');
+    if (wasShootMode && !shootMode) {
+        canvas.style.cursor = 'default';
+    }
+
+    // --- Magic Aura Timer ---
+    if (magicAuraTimer > 0) {
+        magicAuraTimer -= dt * 1000;
+    }
+
+    // --- Combo Timer ---
+    if (comboTimer > 0) {
+        comboTimer -= dt * 1000;
     }
 
     // --- Spawning ---
@@ -1236,6 +1508,104 @@ function gameLoop(timestamp) {
         ctx.font = "80px 'Share Tech Mono'";
         ctx.textAlign = "center";
         ctx.fillText("SCORE x2", width/2, height/2 + 80);
+    }
+
+    // --- Shoot Mode Visuals ---
+    if (shootMode) {
+        // Crosshair
+        ctx.save();
+        ctx.strokeStyle = '#f80';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#f80';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(mouseX, mouseY, 20, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(mouseX - 30, mouseY); ctx.lineTo(mouseX - 10, mouseY);
+        ctx.moveTo(mouseX + 10, mouseY); ctx.lineTo(mouseX + 30, mouseY);
+        ctx.moveTo(mouseX, mouseY - 30); ctx.lineTo(mouseX, mouseY - 10);
+        ctx.moveTo(mouseX, mouseY + 10); ctx.lineTo(mouseX, mouseY + 30);
+        ctx.stroke();
+        // Center dot
+        ctx.fillStyle = '#f80';
+        ctx.beginPath();
+        ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Draw bullet trails
+        ctx.save();
+        bullets.forEach(function(b) { b.life -= dt; });
+        bullets = bullets.filter(function(b) { return b.life > 0; });
+        bullets.forEach(function(b) {
+            ctx.strokeStyle = '#f80';
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = b.life / 0.3;
+            ctx.shadowColor = '#f80';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(b.x1, b.y1);
+            ctx.lineTo(b.x2, b.y2);
+            ctx.stroke();
+        });
+        ctx.restore();
+
+        // GUNSHIP MODE label
+        var sp = 0.5 + Math.sin(Date.now() / 200) * 0.3;
+        ctx.fillStyle = 'rgba(255,136,0,' + (0.08 + sp * 0.04) + ')';
+        ctx.font = "80px 'Share Tech Mono'";
+        ctx.textAlign = "center";
+        ctx.fillText("GUNSHIP MODE", width/2, height/2);
+        ctx.font = "24px 'Share Tech Mono'";
+        ctx.fillStyle = 'rgba(255,136,0,0.15)';
+        ctx.fillText("CLICK TO DESTROY", width/2, height/2 + 40);
+    }
+
+    // --- Magic Aura (Abracadabra) ---
+    if (magicAuraTimer > 0) {
+        var ma = magicAuraTimer / 3000;
+        // Floating sparkle characters
+        ctx.save();
+        var sparkleChars = ['\u2726','\u2727','\u2728','\u2605','\u2606','\u273B','\u273C','\u2748'];
+        for (var si = 0; si < 6; si++) {
+            var sx = (Date.now() / 3 + si * 237) % width;
+            var sy = (Date.now() / 5 + si * 419) % height;
+            ctx.globalAlpha = ma * (0.3 + Math.sin(Date.now()/200 + si) * 0.2);
+            ctx.fillStyle = ['#f0f','#ff0','#0ff','#fff','#f80','#0f0'][si];
+            ctx.font = (16 + Math.sin(Date.now()/300 + si) * 6) + "px 'Share Tech Mono'";
+            ctx.fillText(sparkleChars[si % sparkleChars.length], sx, sy);
+        }
+        ctx.restore();
+        // Purple-gold border glow
+        ctx.save();
+        ctx.strokeStyle = 'rgba(200,0,255,' + (ma * 0.4) + ')';
+        ctx.lineWidth = 4 + Math.sin(Date.now()/150) * 2;
+        ctx.shadowColor = '#f0f';
+        ctx.shadowBlur = 20;
+        ctx.strokeRect(2, 2, width - 4, height - 4);
+        ctx.restore();
+        // "ABRACADABRA" watermark
+        ctx.save();
+        ctx.globalAlpha = ma * 0.1;
+        ctx.fillStyle = '#f0f';
+        ctx.font = "60px 'Share Tech Mono'";
+        ctx.textAlign = "center";
+        ctx.fillText("ABRACADABRA", width/2, height/2 - 60);
+        ctx.restore();
+    }
+
+    // --- Combo Text ---
+    if (comboTimer > 0) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, comboTimer / 500);
+        ctx.fillStyle = '#ff0';
+        ctx.font = "48px 'Share Tech Mono'";
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ff0';
+        ctx.shadowBlur = 20;
+        ctx.fillText(comboText, width/2, height/2 - 60);
+        ctx.restore();
     }
 
     requestAnimationFrame(gameLoop);
