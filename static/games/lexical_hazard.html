@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lexical Hazard</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -14,84 +16,104 @@
             color: #fff;
             font-family: 'Share Tech Mono', monospace;
             user-select: none;
+            height: 100vh;
+            height: 100dvh;
         }
 
         #game-container {
             position: relative;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        canvas {
-            box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
-        }
+        canvas { box-shadow: 0 0 50px rgba(0, 255, 255, 0.1); }
 
         #ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             padding: 20px;
-            box-sizing: border-box;
         }
 
         .hud-top {
             display: flex;
             justify-content: space-between;
-            font-size: 24px;
+            align-items: flex-start;
+            font-size: clamp(14px, 2.5vw, 24px);
             text-shadow: 0 0 10px currentColor;
         }
-
         .score-box { color: #0ff; }
         .health-box { color: #f0f; }
 
-        #start-screen, #game-over-screen {
+        .hud-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        .hud-btn {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #555;
+            color: #aaa;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: clamp(13px, 2vw, 18px);
+            padding: 4px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            line-height: 1;
+        }
+        .hud-btn:hover { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px rgba(0,255,255,0.3); }
+        .hud-btn.muted { border-color: #f00; color: #f00; }
+
+        #start-screen, #game-over-screen, #pause-screen, #settings-screen, #help-screen {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(5, 5, 5, 0.9);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5, 5, 5, 0.92);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 10;
             pointer-events: auto;
+            overflow-y: auto;
+            padding: 20px;
         }
 
         h1 {
-            font-size: 64px;
-            margin: 0 0 20px 0;
+            font-size: clamp(32px, 8vw, 64px);
+            margin: 0 0 15px 0;
             background: linear-gradient(45deg, #0ff, #f0f);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
             text-transform: uppercase;
             letter-spacing: 5px;
+            text-align: center;
         }
 
         p {
-            font-size: 18px;
+            font-size: clamp(13px, 2vw, 18px);
             color: #aaa;
             max-width: 600px;
             text-align: center;
             line-height: 1.6;
+            padding: 0 10px;
         }
 
         .btn {
-            margin-top: 40px;
-            padding: 15px 40px;
+            margin-top: 20px;
+            padding: 12px 30px;
             font-family: 'Share Tech Mono', monospace;
-            font-size: 24px;
+            font-size: clamp(16px, 3vw, 24px);
             background: transparent;
             color: #0ff;
             border: 2px solid #0ff;
@@ -100,27 +122,20 @@
             text-transform: uppercase;
             box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
         }
+        .btn:hover { background: #0ff; color: #000; box-shadow: 0 0 30px rgba(0,255,255,0.8); }
+        .btn-small { margin-top: 10px; padding: 8px 20px; font-size: clamp(12px, 2vw, 16px); }
 
-        .btn:hover {
-            background: #0ff;
-            color: #000;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
-        }
-
-        .hidden {
-            display: none !important;
-        }
+        .hidden { display: none !important; }
 
         .back-to-games {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 20px; left: 20px;
             z-index: 15;
             display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 8px 14px;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0,0,0,0.6);
             border: 1px solid #333;
             color: #0ff;
             text-decoration: none;
@@ -128,72 +143,162 @@
             font-family: 'Share Tech Mono', monospace;
             transition: all 0.2s;
         }
-        .back-to-games:hover {
-            background: rgba(0, 255, 255, 0.15);
-            border-color: #0ff;
-            box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
-        }
+        .back-to-games:hover { background: rgba(0,255,255,0.15); border-color: #0ff; box-shadow: 0 0 12px rgba(0,255,255,0.3); }
 
         .active-effects {
             position: absolute;
-            top: 50%;
-            right: 20px;
+            top: 50%; right: 10px;
             transform: translateY(-50%);
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 10px;
+            gap: 6px;
+            max-height: 50vh;
+            overflow-y: auto;
         }
-
         .effect-tag {
-            padding: 5px 10px;
-            background: rgba(0, 0, 0, 0.7);
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.7);
             border-left: 3px solid;
-            font-size: 14px;
+            font-size: clamp(10px, 1.5vw, 14px);
             animation: slideIn 0.3s ease-out;
             text-transform: uppercase;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            white-space: nowrap;
         }
-
         @keyframes slideIn {
             from { transform: translateX(50px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+            to   { transform: translateX(0); opacity: 1; }
         }
 
         #input-display {
             position: absolute;
-            bottom: 10%;
-            left: 50%;
+            bottom: 10%; left: 50%;
             transform: translateX(-50%);
-            font-size: 48px;
+            font-size: clamp(24px, 5vw, 48px);
             color: #fff;
             text-shadow: 0 0 20px #fff;
             letter-spacing: 5px;
             height: 60px;
         }
-
         .caret {
             display: inline-block;
-            width: 15px;
-            height: 40px;
+            width: 15px; height: 40px;
             background: #f0f;
             animation: blink 1s infinite;
             vertical-align: middle;
             margin-left: 5px;
         }
-
         @keyframes blink { 50% { opacity: 0; } }
 
+        .highscores { margin-top: 12px; text-align: center; }
+        .highscores h3 { color: #0ff; font-size: clamp(14px, 2vw, 18px); margin: 0 0 6px 0; }
+        .highscores ol { list-style: none; padding: 0; margin: 0; }
+        .highscores li { font-size: clamp(12px, 1.8vw, 16px); color: #888; padding: 2px 0; }
+        .highscores li.new-score { color: #ff0; text-shadow: 0 0 8px #ff0; }
+
+        .stats-panel { margin-top: 15px; width: 90%; max-width: 500px; }
+        .stats-title {
+            text-align: center; font-size: clamp(14px, 2.5vw, 20px);
+            margin-bottom: 12px; letter-spacing: 3px;
+        }
+        .stats-rank {
+            text-align: center; font-size: clamp(18px, 3.5vw, 28px);
+            margin-bottom: 14px; letter-spacing: 2px;
+            animation: rankPulse 2s ease-in-out infinite;
+        }
+        @keyframes rankPulse {
+            0%, 100% { opacity: 1; text-shadow: 0 0 10px currentColor; }
+            50%      { opacity: 0.7; text-shadow: 0 0 20px currentColor; }
+        }
+        .stats-row {
+            display: flex; justify-content: space-between; align-items: baseline;
+            padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+            opacity: 0; animation: statReveal 0.4s ease-out forwards;
+        }
+        .stats-row .sl {
+            color: #888; font-size: clamp(11px, 1.5vw, 14px);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .stats-row .sv {
+            font-size: clamp(13px, 2vw, 18px); font-weight: bold;
+        }
+        .stats-row .sv.good { color: #0f0; }
+        .stats-row .sv.bad  { color: #f55; }
+        .stats-row .sv.info { color: #0ff; }
+        .stats-row .sv.gold { color: #ffdd00; }
+        .stats-row .sv.magic { color: #f0f; }
+        @keyframes statReveal {
+            from { opacity: 0; transform: translateX(20px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        .stats-divider {
+            border: none; border-top: 1px solid rgba(0,255,255,0.15);
+            margin: 10px 0 6px 0;
+        }
+        .stats-funfact {
+            text-align: center; font-size: clamp(11px, 1.5vw, 14px);
+            color: #ff0; margin-top: 10px; font-style: italic;
+            opacity: 0; animation: statReveal 0.5s ease-out 1.8s forwards;
+        }
+
+        .level-banner {
+            position: absolute;
+            top: 50%; left: 0; width: 100%;
+            transform: translateY(-50%);
+            text-align: center;
+            font-size: clamp(40px, 8vw, 80px);
+            color: #0ff;
+            text-shadow: 0 0 30px #0ff;
+            pointer-events: none;
+            z-index: 5;
+            animation: lvlAnim 2s ease-out forwards;
+        }
+        @keyframes lvlAnim {
+            0%   { opacity: 0; transform: translateY(-50%) scale(0.5); }
+            15%  { opacity: 1; transform: translateY(-50%) scale(1.1); }
+            30%  { transform: translateY(-50%) scale(1); }
+            70%  { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .settings-content { text-align: left; max-width: 400px; width: 90%; }
+        .settings-content label {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; color: #aaa; font-size: clamp(12px, 2vw, 16px);
+            border-bottom: 1px solid #222;
+        }
+        .settings-content select, .settings-content input[type="range"] {
+            font-family: 'Share Tech Mono', monospace;
+            background: #111; color: #0ff; border: 1px solid #333;
+            padding: 4px 8px; font-size: 14px;
+        }
+        .settings-content input[type="range"] { width: 120px; accent-color: #0ff; }
+        .settings-content input[type="checkbox"] { accent-color: #0ff; width: 18px; height: 18px; }
+
+        .help-content { max-width: 500px; width: 90%; text-align: left; }
+        .help-content h3 { color: #0ff; margin: 12px 0 6px 0; font-size: clamp(14px, 2vw, 18px); }
+        .help-content p { text-align: left; font-size: clamp(11px, 1.5vw, 14px); margin: 3px 0; padding: 0; }
+
+        #mobile-input {
+            position: absolute; top: -100px; left: -100px;
+            width: 1px; height: 1px; opacity: 0; border: none;
+        }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
+    <input type="text" id="mobile-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 
     <div id="ui-layer">
         <div class="hud-top">
-            <div class="score-box">SCORE: <span id="score">0</span> <span id="level-indicator" style="font-size: 0.6em; color: #fff; margin-left: 10px;">LVL 1</span></div>
+            <div class="score-box">SCORE: <span id="score">0</span> <span id="level-indicator" style="font-size:0.6em;color:#fff;margin-left:10px;">LVL 1</span></div>
+            <div class="hud-controls">
+                <button class="hud-btn" id="btn-mute" title="Mute">&#9835;</button>
+                <button class="hud-btn" id="btn-help-hud" title="Help">?</button>
+            </div>
             <div class="health-box">Integrity: <span id="health">100</span>%</div>
         </div>
         <div class="active-effects" id="effects-list"></div>
@@ -201,7 +306,7 @@
     </div>
 
     <div id="start-screen">
-        <a class="back-to-games" href="/personal/#games"><span>←</span> Back to games</a>
+        <a class="back-to-games" href="/personal/#games"><span>&larr;</span> Back to games</a>
         <h1>Lexical Hazard</h1>
         <p><strong>WARNING:</strong> Semantic containment breach detected.</p>
         <p>Type the falling words to neutralize them. <br>
@@ -209,29 +314,79 @@
         <p style="color:#0f0">HEAL, SHIELD, SHOOT, ABRACADABRA &rarr; Help you survive.<br>
            <span style="color:#f00">FAST, SCRAMBLE, CLONE, LEECH</span> &rarr; Make life harder.<br>
            <span style="color:#ff0">ZOMBIE, NUMBERS, EASY</span> &rarr; Game changers.<br>
-           <span style="color:#aaa; font-size:0.85em">Same word appears twice? Destroy ALL copies at once!</span></p>
-        <button class="btn" onclick="startGame()">Initialize Defense</button>
+           <span style="color:#aaa;font-size:0.85em">Same word appears twice? Destroy ALL copies at once!</span></p>
+        <div class="highscores" id="start-highscores"></div>
+        <button class="btn" id="btn-start">Initialize Defense</button>
+        <button class="btn btn-small" id="btn-settings-open">Settings</button>
     </div>
 
     <div id="game-over-screen" class="hidden">
-        <a class="back-to-games" href="/personal/#games"><span>←</span> Back to games</a>
+        <a class="back-to-games" href="/personal/#games"><span>&larr;</span> Back to games</a>
         <h1>SYSTEM FAILURE</h1>
         <p>Final Score: <span id="final-score">0</span></p>
-        <p>The meaning of the words became too heavy to bear.</p>
-        <button class="btn" onclick="resetGame()">Reboot System</button>
+        <p id="death-cause"></p>
+        <div id="gameover-stats"></div>
+        <div class="highscores" id="gameover-highscores"></div>
+        <button class="btn" id="btn-restart">Reboot System</button>
+    </div>
+
+    <div id="pause-screen" class="hidden">
+        <h1 style="font-size:clamp(40px,8vw,80px)">PAUSED</h1>
+        <p>Press ESC to resume</p>
+        <button class="btn" id="btn-resume">Resume</button>
+        <button class="btn btn-small" id="btn-quit">Quit to Menu</button>
+    </div>
+
+    <div id="settings-screen" class="hidden">
+        <h1 style="font-size:clamp(24px,5vw,40px)">Settings</h1>
+        <div class="settings-content">
+            <label>Difficulty
+                <select id="setting-difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </label>
+            <label>Volume
+                <input type="range" id="setting-volume" min="0" max="100" value="80">
+            </label>
+            <label>Screen Effects
+                <input type="checkbox" id="setting-effects" checked>
+            </label>
+        </div>
+        <button class="btn btn-small" id="btn-settings-back">Back</button>
+    </div>
+
+    <div id="help-screen" class="hidden">
+        <h1 style="font-size:clamp(24px,5vw,40px)">How to Play</h1>
+        <div class="help-content">
+            <h3>Basics</h3>
+            <p>Type the falling words to destroy them before they reach the bottom.</p>
+            <p>Destroying a special word triggers its semantic meaning as a game effect.</p>
+            <h3>Word Colors</h3>
+            <p style="color:#0f0">GREEN = helpful (heal, shield, slow&hellip;)</p>
+            <p style="color:#f00">RED = harmful (fast, scramble, leech&hellip;)</p>
+            <p style="color:#ff0">YELLOW = chaotic / neutral</p>
+            <p style="color:#0099ff">BLUE / CYAN / etc. = regular words (by tier)</p>
+            <h3>Controls</h3>
+            <p>TYPE = destroy words &nbsp;|&nbsp; ESC = pause</p>
+            <p>Same word x2? Type once, destroy ALL copies!</p>
+        </div>
+        <button class="btn btn-small" id="btn-help-back">Back</button>
     </div>
 </div>
 
 <script>
 /**
  * LEXICAL HAZARD — Semantic Survival Game
+ * Production Build
  */
 
 // ============================================================
-//  SPECIAL WORDS — Effects triggered when typed
+//  1. CONFIGURATION
 // ============================================================
 var WORDS = [
-    // ===== GOOD (16) — Helpful =====
+    // ===== GOOD — Helpful =====
     { text: "SLOW",    type: "good", desc: "Slow Down",        duration: 5000 },
     { text: "HEAL",    type: "good", desc: "Repair +20",       duration: 0 },
     { text: "CLEAR",   type: "good", desc: "Nuke Screen",      duration: 0 },
@@ -254,7 +409,7 @@ var WORDS = [
     { text: "SHOOT",       type: "good", desc: "Gunship Mode",     duration: 8000 },
     { text: "ABRACADABRA", type: "good", desc: "Pure Magic",       duration: 0 },
 
-    // ===== BAD (27) — Harmful =====
+    // ===== BAD — Harmful =====
     { text: "FAST",     type: "bad", desc: "Speed Up",         duration: 5000 },
     { text: "SWARM",    type: "bad", desc: "Spawn Enemies",    duration: 0 },
     { text: "GRAVITY",  type: "bad", desc: "Heavy Fall",       duration: 6000 },
@@ -284,7 +439,7 @@ var WORDS = [
     { text: "INVERT",   type: "bad", desc: "Color Invert",     duration: 5000 },
     { text: "DRUNK",    type: "bad", desc: "Wobbly Words",     duration: 6000 },
 
-    // ===== NEUTRAL (10) — Chaotic / Fun =====
+    // ===== NEUTRAL — Chaotic / Fun =====
     { text: "SHUFFLE",  type: "neutral", desc: "Swap Positions", duration: 0 },
     { text: "RAIN",     type: "neutral", desc: "Heavy Rain",     duration: 8000 },
     { text: "WAVE",     type: "neutral", desc: "Wobbly World",   duration: 7000 },
@@ -299,10 +454,8 @@ var WORDS = [
     { text: "ZOMBIE",   type: "neutral", desc: "Zombie Horde",   duration: 0 }
 ];
 
-// Pre-filter for LUCKY effect
 var GOOD_NEUTRAL_WORDS = WORDS.filter(function(w) { return w.type !== 'bad'; });
 
-// Rescue pool — weighted toward HEAL & REWIND for end-game balance
 var RESCUE_POOL_NAMES = [
     'HEAL','HEAL','HEAL','REWIND','REWIND','REWIND',
     'SHIELD','SHIELD','REPAIR','REGEN','REGEN',
@@ -312,9 +465,6 @@ var RESCUE_WORDS = RESCUE_POOL_NAMES.map(function(n) {
     return WORDS.find(function(w) { return w.text === n; });
 }).filter(Boolean);
 
-// ============================================================
-//  WORD TIERS — 5 tiers, generous tier 1
-// ============================================================
 var WORD_TIERS = {
     1: [
         "CAT","DOG","SUN","SKY","RED","RUN","JUMP","PLAY","GAME","LOVE",
@@ -396,59 +546,128 @@ var WORD_TIERS = {
 
 var TIER_COLORS = ['#0099ff', '#00ffff', '#ff00ff', '#ff8800', '#ffdd00'];
 
-// ============================================================
-//  LEVEL CONFIG — Non-linear tier mix, breather levels
-//  tiers = [t1%, t2%, t3%, t4%, t5%], spawnMs, speedMult, specialChance
-// ============================================================
 var LEVEL_CONFIG = [
-    { tiers: [90,10, 0, 0, 0], spawnMs: 2400, speed: 0.75, special: 0.12 }, // L1:  Gentle intro
-    { tiers: [70,25, 5, 0, 0], spawnMs: 2100, speed: 0.80, special: 0.13 }, // L2:  Ease in tier 2
-    { tiers: [55,30,15, 0, 0], spawnMs: 1900, speed: 0.85, special: 0.14 }, // L3:  Tier 3 appears
-    { tiers: [40,30,25, 5, 0], spawnMs: 1750, speed: 0.95, special: 0.15 }, // L4:  Getting harder
-    { tiers: [75,15,10, 0, 0], spawnMs: 2200, speed: 0.75, special: 0.20 }, // L5:  ** BREATHER **
-    { tiers: [30,30,25,15, 0], spawnMs: 1650, speed: 1.00, special: 0.16 }, // L6:  Tier 4 push
-    { tiers: [25,25,25,20, 5], spawnMs: 1550, speed: 1.05, special: 0.17 }, // L7:  All 5 tiers
-    { tiers: [20,20,25,25,10], spawnMs: 1450, speed: 1.10, special: 0.18 }, // L8:  Hard
-    { tiers: [65,20,10, 5, 0], spawnMs: 2000, speed: 0.80, special: 0.22 }, // L9:  ** BREATHER **
-    { tiers: [20,20,20,20,20], spawnMs: 1350, speed: 1.15, special: 0.19 }, // L10: Even chaos
-    { tiers: [15,20,25,25,15], spawnMs: 1300, speed: 1.20, special: 0.20 }, // L11: Heavy tiers
-    { tiers: [60,25,10, 5, 0], spawnMs: 1800, speed: 0.85, special: 0.24 }, // L12: ** BREATHER **
-    { tiers: [15,15,25,25,20], spawnMs: 1200, speed: 1.25, special: 0.21 }, // L13: Endgame ramp
-    { tiers: [10,15,20,25,30], spawnMs: 1100, speed: 1.30, special: 0.22 }, // L14: Intense
-    { tiers: [10,10,20,30,30], spawnMs: 1000, speed: 1.35, special: 0.23 }, // L15: Hardest
+    { tiers: [90,10, 0, 0, 0], spawnMs: 2400, speed: 0.75, special: 0.12 },
+    { tiers: [70,25, 5, 0, 0], spawnMs: 2100, speed: 0.80, special: 0.13 },
+    { tiers: [55,30,15, 0, 0], spawnMs: 1900, speed: 0.85, special: 0.14 },
+    { tiers: [40,30,25, 5, 0], spawnMs: 1750, speed: 0.95, special: 0.15 },
+    { tiers: [75,15,10, 0, 0], spawnMs: 2200, speed: 0.75, special: 0.20 },
+    { tiers: [30,30,25,15, 0], spawnMs: 1650, speed: 1.00, special: 0.16 },
+    { tiers: [25,25,25,20, 5], spawnMs: 1550, speed: 1.05, special: 0.17 },
+    { tiers: [20,20,25,25,10], spawnMs: 1450, speed: 1.10, special: 0.18 },
+    { tiers: [65,20,10, 5, 0], spawnMs: 2000, speed: 0.80, special: 0.22 },
+    { tiers: [20,20,20,20,20], spawnMs: 1350, speed: 1.15, special: 0.19 },
+    { tiers: [15,20,25,25,15], spawnMs: 1300, speed: 1.20, special: 0.20 },
+    { tiers: [60,25,10, 5, 0], spawnMs: 1800, speed: 0.85, special: 0.24 },
+    { tiers: [15,15,25,25,20], spawnMs: 1200, speed: 1.25, special: 0.21 },
+    { tiers: [10,15,20,25,30], spawnMs: 1100, speed: 1.30, special: 0.22 },
+    { tiers: [10,10,20,30,30], spawnMs: 1000, speed: 1.35, special: 0.23 },
 ];
+
+var DIFFICULTY_MULTS = {
+    easy:   { speed: 0.7, spawnMs: 1.3, special: 1.2 },
+    normal: { speed: 1.0, spawnMs: 1.0, special: 1.0 },
+    hard:   { speed: 1.3, spawnMs: 0.8, special: 0.8 }
+};
+
+var MAX_PARTICLES = 500;
+var MAX_BULLETS = 20;
+var MAX_WORDS = 60;
+var BONUS_DURATION = 12000;
 
 function getLevelCfg(lvl) {
     var idx = Math.min(lvl - 1, LEVEL_CONFIG.length - 1);
     var cfg = LEVEL_CONFIG[idx];
-    // Beyond defined levels: keep tightening
+    var base;
     if (lvl > LEVEL_CONFIG.length) {
         var extra = lvl - LEVEL_CONFIG.length;
-        return {
+        base = {
             tiers: cfg.tiers,
             spawnMs: Math.max(600, cfg.spawnMs - extra * 30),
             speed: cfg.speed + extra * 0.03,
             special: Math.min(0.30, cfg.special + extra * 0.01)
         };
+    } else {
+        base = { tiers: cfg.tiers, spawnMs: cfg.spawnMs, speed: cfg.speed, special: cfg.special };
     }
-    return cfg;
+    var dm = DIFFICULTY_MULTS[settings.difficulty] || DIFFICULTY_MULTS.normal;
+    return {
+        tiers: base.tiers,
+        spawnMs: Math.max(400, Math.round(base.spawnMs * dm.spawnMs)),
+        speed: base.speed * dm.speed,
+        special: Math.min(0.35, base.special * dm.special)
+    };
 }
 
 function pickTier(cfg) {
-    var r = Math.random() * 100;
-    var cum = 0;
-    for (var t = 0; t < 5; t++) {
-        cum += cfg.tiers[t];
-        if (r < cum) return t + 1;
-    }
+    var r = Math.random() * 100, cum = 0;
+    for (var t = 0; t < 5; t++) { cum += cfg.tiers[t]; if (r < cum) return t + 1; }
     return 1;
 }
 
+function jumbleCase(text) {
+    var r = '';
+    for (var i = 0; i < text.length; i++) r += Math.random() < 0.5 ? text[i].toUpperCase() : text[i].toLowerCase();
+    return r;
+}
+
 // ============================================================
-//  ENGINE SETUP
+//  2. SETTINGS & STORAGE
+// ============================================================
+var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+var settings = { difficulty: 'normal', volume: 80, screenEffects: true };
+
+function loadSettings() {
+    try {
+        var s = JSON.parse(localStorage.getItem('lexical_hazard_settings'));
+        if (s) { settings.difficulty = s.difficulty || 'normal'; settings.volume = s.volume != null ? s.volume : 80; settings.screenEffects = s.screenEffects !== false; }
+    } catch(e) {}
+}
+
+function saveSettings() {
+    try { localStorage.setItem('lexical_hazard_settings', JSON.stringify(settings)); } catch(e) {}
+}
+
+function getHighScores() {
+    try { return JSON.parse(localStorage.getItem('lexical_hazard_highscores')) || []; } catch(e) { return []; }
+}
+
+function saveHighScore(newScore, newLevel) {
+    var scores = getHighScores();
+    var entry = { score: newScore, level: newLevel, date: new Date().toLocaleDateString(), _new: true };
+    scores.push(entry);
+    scores.sort(function(a, b) { return b.score - a.score; });
+    scores = scores.slice(0, 5);
+    var newIdx = -1;
+    for (var i = 0; i < scores.length; i++) { if (scores[i]._new) { newIdx = i; delete scores[i]._new; break; } }
+    try { localStorage.setItem('lexical_hazard_highscores', JSON.stringify(scores)); } catch(e) {}
+    return { scores: scores, newIndex: newIdx };
+}
+
+function renderHighScores(containerId, highlightIdx) {
+    var el = document.getElementById(containerId);
+    var scores = getHighScores();
+    if (!scores.length) { el.innerHTML = ''; return; }
+    var h = '<h3>HIGH SCORES</h3><ol>';
+    for (var i = 0; i < scores.length; i++) {
+        var cls = (i === highlightIdx) ? ' class="new-score"' : '';
+        h += '<li' + cls + '>' + (i+1) + '. ' + scores[i].score + ' (Lvl ' + scores[i].level + ') &mdash; ' + scores[i].date + '</li>';
+    }
+    h += '</ol>';
+    el.innerHTML = h;
+}
+
+loadSettings();
+
+// ============================================================
+//  3. ENGINE SETUP
 // ============================================================
 var canvas = document.getElementById('gameCanvas');
 var ctx = canvas.getContext('2d');
+var mobileInput = document.getElementById('mobile-input');
+
 var uiScore = document.getElementById('score');
 var uiHealth = document.getElementById('health');
 var uiInput = document.getElementById('current-input');
@@ -456,6 +675,9 @@ var uiEffects = document.getElementById('effects-list');
 var uiLevel = document.getElementById('level-indicator');
 var startScreen = document.getElementById('start-screen');
 var gameOverScreen = document.getElementById('game-over-screen');
+var pauseScreen = document.getElementById('pause-screen');
+var settingsScreen = document.getElementById('settings-screen');
+var helpScreen = document.getElementById('help-screen');
 var finalScoreSpan = document.getElementById('final-score');
 
 var width, height;
@@ -469,9 +691,9 @@ window.addEventListener('resize', resize);
 resize();
 
 // ============================================================
-//  STATE
+//  4. STATE
 // ============================================================
-var gameState = 'MENU';
+var gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
 var score = 0;
 var health = 100;
 var userInput = "";
@@ -480,47 +702,80 @@ var difficultyMultiplier = 1;
 var level = 1;
 var spawnTimer = 0;
 var spawnRate = 2000;
+var rafId = null;
 
-// Bonus round state
 var bonusActive = false;
 var bonusTimer = 0;
-var BONUS_DURATION = 12000;
-
-// Shoot mode state
 var shootMode = false;
 var mouseX = 0, mouseY = 0;
-var bullets = [];
-
-// Magic aura (abracadabra)
 var magicAuraTimer = 0;
-
-// Combo display
 var comboText = '';
 var comboTimer = 0;
+var deathCause = '';
+
+var words = [];
+var particles = [];
+var bullets = [];
+var cameraShake = 0;
+
+var stats = {
+    wordsTyped: 0,
+    wordsMissed: 0,
+    streak: 0,
+    bestStreak: 0,
+    multiKills: 0,
+    startTime: 0,
+    effectsGood: 0,
+    effectsBad: 0,
+    effectsNeutral: 0,
+    longestWord: '',
+    totalCharsTyped: 0,
+    wordsShot: 0,
+    biggestMultiKill: 0,
+    totalComboBonus: 0,
+    healsUsed: 0,
+    damageBlocked: 0,
+    peakScore: 0,
+    levelsReached: []
+};
 
 // ============================================================
-//  AUDIO
+//  5. AUDIO ENGINE
 // ============================================================
 var Audio = {
     ctx: null,
+    muted: false,
+    volumeMult: 0.8,
+
     init: function() {
-        window.AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
+        if (this.ctx) return;
+        try {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            if (this.ctx.state === 'suspended') { this.ctx.resume(); }
+        } catch(e) { this.ctx = null; }
+        try { this.muted = localStorage.getItem('lexical_hazard_muted') === 'true'; } catch(e) {}
+        this.volumeMult = settings.volume / 100;
     },
+
     playTone: function(freq, type, duration, vol) {
-        if (!this.ctx) return;
-        vol = vol || 0.1;
-        var osc = this.ctx.createOscillator();
-        var gain = this.ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + duration);
+        if (!this.ctx || this.muted) return;
+        try {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            vol = (vol || 0.1) * this.volumeMult;
+            var osc = this.ctx.createOscillator();
+            var gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {}
     },
+
     shoot: function() { this.playTone(800, 'square', 0.1, 0.05); },
     explosion: function() { this.playTone(100, 'sawtooth', 0.3, 0.1); },
     hit: function() { this.playTone(50, 'sawtooth', 0.5, 0.2); },
@@ -528,94 +783,57 @@ var Audio = {
     shieldHit: function() { this.playTone(600, 'sine', 0.1, 0.1); this.playTone(800, 'sine', 0.1, 0.1); },
     type: function() { this.playTone(400 + Math.random()*200, 'sine', 0.05, 0.02); },
     drain: function() { this.playTone(200, 'sawtooth', 0.15, 0.05); },
-    purify: function() {
-        this.playTone(600, 'sine', 0.15, 0.08);
-        this.playTone(900, 'sine', 0.15, 0.08);
-        this.playTone(1200, 'sine', 0.2, 0.08);
-    },
-    bonus: function() {
-        this.playTone(800, 'sine', 0.15, 0.08);
-        this.playTone(1000, 'sine', 0.15, 0.08);
-        this.playTone(1200, 'sine', 0.15, 0.08);
-        this.playTone(1600, 'sine', 0.3, 0.1);
-    },
-    magic: function() {
-        this.playTone(523, 'sine', 0.15, 0.08);
-        this.playTone(659, 'sine', 0.15, 0.08);
-        this.playTone(784, 'sine', 0.15, 0.08);
-        this.playTone(1047, 'sine', 0.2, 0.1);
-        this.playTone(1319, 'sine', 0.25, 0.1);
-        this.playTone(1568, 'sine', 0.4, 0.12);
-    },
-    zombieGroan: function() {
-        this.playTone(80, 'sawtooth', 0.5, 0.15);
-        this.playTone(60, 'sawtooth', 0.6, 0.1);
-    },
-    gunshot: function() {
-        this.playTone(150, 'sawtooth', 0.08, 0.15);
-        this.playTone(1200, 'square', 0.05, 0.08);
-    }
+    purify: function() { this.playTone(600,'sine',0.15,0.08); this.playTone(900,'sine',0.15,0.08); this.playTone(1200,'sine',0.2,0.08); },
+    bonus: function() { this.playTone(800,'sine',0.15,0.08); this.playTone(1000,'sine',0.15,0.08); this.playTone(1200,'sine',0.15,0.08); this.playTone(1600,'sine',0.3,0.1); },
+    magic: function() { this.playTone(523,'sine',0.15,0.08); this.playTone(659,'sine',0.15,0.08); this.playTone(784,'sine',0.15,0.08); this.playTone(1047,'sine',0.2,0.1); this.playTone(1319,'sine',0.25,0.1); this.playTone(1568,'sine',0.4,0.12); },
+    zombieGroan: function() { this.playTone(80,'sawtooth',0.5,0.15); this.playTone(60,'sawtooth',0.6,0.1); },
+    gunshot: function() { this.playTone(150,'sawtooth',0.08,0.15); this.playTone(1200,'square',0.05,0.08); },
+    levelUp: function() { this.playTone(600,'sine',0.12,0.08); this.playTone(800,'sine',0.12,0.08); this.playTone(1000,'sine',0.12,0.08); this.playTone(1200,'sine',0.2,0.1); }
 };
 
 // ============================================================
-//  ENTITIES
+//  6. ENTITIES
 // ============================================================
-
 function Word() {
     var cfg = getLevelCfg(level);
     var specialChance = bonusActive ? 0.25 : cfg.special;
     var isSpecial = Math.random() < specialChance;
 
-    // Rescue mechanic: when close to losing, spawn rescue words with increasing chance
     var forceRescue = false;
-    if (health < 40 && !bonusActive) {
-        var rescueChance = ((40 - health) / 40) * 0.5; // up to 50% at near-death
-        if (Math.random() < rescueChance) {
-            isSpecial = true;
-            forceRescue = true;
-        }
+    if (health < 30 && !bonusActive) {
+        var rescueChance = ((30 - health) / 30) * 0.35;
+        if (Math.random() < rescueChance) { isSpecial = true; forceRescue = true; }
     }
-    // End-game balance: boost heal/rewind chances at high levels
-    if (level >= 10 && isSpecial && Math.random() < 0.3) {
-        forceRescue = true;
-    }
+    if (level >= 10 && isSpecial && Math.random() < 0.3) forceRescue = true;
 
     if (isSpecial) {
         var pool;
-        if (forceRescue) {
-            pool = RESCUE_WORDS;
-        } else if (bonusActive || Effects.has('LUCKY')) {
-            // During bonus or LUCKY: only good/neutral specials
-            pool = GOOD_NEUTRAL_WORDS;
-        } else {
-            pool = WORDS;
-        }
+        if (forceRescue) pool = RESCUE_WORDS;
+        else if (bonusActive || Effects.has('LUCKY')) pool = GOOD_NEUTRAL_WORDS;
+        else pool = WORDS;
+        if (!pool.length) pool = WORDS;
         var template = pool[Math.floor(Math.random() * pool.length)];
         this.text = template.text;
         this.effectType = template.type;
         this.effectTemplate = template;
         this.color = this.effectType === 'good' ? '#0f0' : (this.effectType === 'bad' ? '#f00' : '#ff0');
     } else {
-        var tier;
-        if (bonusActive) {
-            // Bonus round: only tier 1
-            tier = 1;
-        } else {
-            tier = pickTier(cfg);
-        }
-        var list = WORD_TIERS[tier];
+        var tier = bonusActive ? 1 : pickTier(cfg);
+        var list = WORD_TIERS[tier] || WORD_TIERS[1];
         this.text = list[Math.floor(Math.random() * list.length)];
         this.effectType = 'none';
-        this.color = TIER_COLORS[tier - 1];
+        this.color = TIER_COLORS[tier - 1] || TIER_COLORS[0];
+    }
+
+    if (Effects.has('CAPSLOCK')) {
+        this.originalText = this.text;
+        this.text = jumbleCase(this.originalText);
     }
 
     this.x = Math.random() * (width - 100) + 50;
     this.y = -50;
-
-    // Speed from level config; bonus round is slower
     var spdMult = bonusActive ? 0.55 : cfg.speed;
     this.baseSpeed = (Math.random() * 0.3 + 0.3) * 60 * spdMult;
-
     this.vx = 0;
     this.vy = 0;
     this.scale = 1;
@@ -632,32 +850,15 @@ Word.prototype.update = function(dt) {
     if (Effects.has('REWIND')) speedMult = -1.5;
 
     this.vy = this.baseSpeed * speedMult;
-
     if (Effects.has('WIND')) this.vx = Math.sin(Date.now() / 1000) * 150;
     else this.vx = 0;
+    if (Effects.has('MAGNET')) { this.vx += (this.x < width / 2 ? 1 : -1) * 150; }
+    if (Effects.has('CHAOS')) { this.vx += (Math.random() - 0.5) * 500; this.vy += (Math.random() - 0.5) * 200; }
+    if (Effects.has('BOUNCE')) { this.x += Math.cos(this.wobble) * 200 * dt; if (this.x < 50 || this.x > width - 50) this.wobble += Math.PI; }
 
-    if (Effects.has('MAGNET')) {
-        var dir = this.x < width / 2 ? 1 : -1;
-        this.vx += dir * 150;
-    }
-
-    if (Effects.has('CHAOS')) {
-        this.vx += (Math.random() - 0.5) * 500;
-        this.vy += (Math.random() - 0.5) * 200;
-    }
-
-    if (Effects.has('BOUNCE')) {
-        this.x += Math.cos(this.wobble) * 200 * dt;
-        if (this.x < 50 || this.x > width - 50) this.wobble += Math.PI;
-    }
-
-    if (Effects.has('DANCE')) {
-        this.x += Math.sin(Date.now() / 200 + this.y) * 5;
-    }
-
-    if (Effects.has('DRUNK')) {
-        this.x += Math.sin(Date.now() / 250 + this.y * 0.02 + this.wobble) * 8;
-        this.vy += Math.sin(Date.now() / 400 + this.x * 0.01) * 30;
+    if (!reducedMotion) {
+        if (Effects.has('DANCE')) this.x += Math.sin(Date.now() / 200 + this.y) * 5;
+        if (Effects.has('DRUNK')) { this.x += Math.sin(Date.now() / 250 + this.y * 0.02 + this.wobble) * 8; this.vy += Math.sin(Date.now() / 400 + this.x * 0.01) * 30; }
     }
 
     this.x += this.vx * dt;
@@ -669,58 +870,37 @@ Word.prototype.update = function(dt) {
 Word.prototype.draw = function(c) {
     c.save();
     c.translate(this.x, this.y);
-
     var focusMode = Effects.has('FOCUS');
+    var sfx = settings.screenEffects;
 
-    // Positional effects (always apply)
-    if (!focusMode && Effects.has('DIZZY')) c.rotate(Math.sin(Date.now()/500) * 0.1);
-    if (Effects.has('WAVE')) c.translate(Math.sin(Date.now()/200 + this.y/50) * 20, 0);
+    if (!focusMode && sfx && Effects.has('DIZZY')) c.rotate(Math.sin(Date.now()/500) * 0.1);
+    if (sfx && Effects.has('WAVE') && !reducedMotion) c.translate(Math.sin(Date.now()/200 + this.y/50) * 20, 0);
     if (Effects.has('BIG') || Effects.has('ZOOM')) c.scale(2, 2);
     if (!focusMode && Effects.has('TINY')) c.scale(0.5, 0.5);
-    if (Effects.has('PULSE')) {
-        var ps = 1 + Math.sin(Date.now() / 200) * 0.3;
-        c.scale(ps, ps);
-    }
+    if (sfx && Effects.has('PULSE')) { var ps = 1 + Math.sin(Date.now()/200)*0.3; c.scale(ps,ps); }
 
     var alpha = this.opacity;
     if (!focusMode) {
         if (Effects.has('GHOST')) alpha = 0.3 + Math.sin(Date.now()/200)*0.2;
-        if (Effects.has('FOG')) {
-            var vis = Math.max(0, (this.y - 100) / (height/2));
-            alpha = Math.min(alpha, vis);
-        }
-        if (Effects.has('BLIND')) {
-            alpha = 0.1;
-            c.strokeStyle = '#333';
-            c.font = "30px 'Share Tech Mono'";
-            c.textAlign = "center";
-            c.strokeText(this.text, 0, 0);
-        }
+        if (Effects.has('FOG')) { var vis = Math.max(0, (this.y - 100) / (height/2)); alpha = Math.min(alpha, vis); }
+        if (Effects.has('BLIND')) { alpha = 0.1; c.strokeStyle = '#333'; c.font = "30px 'Share Tech Mono'"; c.textAlign = "center"; c.strokeText(this.text, 0, 0); }
     }
-
     c.globalAlpha = alpha;
 
-    if (Effects.has('NEON')) {
-        c.fillStyle = 'hsl(' + ((Date.now()/5 + this.x)%360) + ', 100%, 50%)';
-    } else if (focusMode) {
-        c.fillStyle = '#fff';
-    } else {
-        c.fillStyle = this.color;
-    }
+    if (sfx && Effects.has('NEON')) c.fillStyle = 'hsl(' + ((Date.now()/5 + this.x)%360) + ', 100%, 50%)';
+    else if (focusMode) c.fillStyle = '#fff';
+    else c.fillStyle = this.color;
 
-    if (!focusMode && Effects.has('GLITCH') && Math.random() > 0.8) {
-        c.fillStyle = '#fff';
-        c.translate(Math.random()*10-5, 0);
-    }
+    if (!focusMode && sfx && Effects.has('GLITCH') && Math.random() > 0.8) { c.fillStyle = '#fff'; c.translate(Math.random()*10-5, 0); }
 
     c.font = "30px 'Share Tech Mono'";
     c.textAlign = "center";
 
-    // --- Build display text (stacking visual disruptions) ---
     var displayText = this.text;
-
+    var hasVisualDisruption = false;
     if (!focusMode) {
         if (Effects.has('SCRAMBLE')) {
+            hasVisualDisruption = true;
             var tb = Math.floor(Date.now() / 600);
             var chars = displayText.split('');
             for (var si = chars.length - 1; si > 0; si--) {
@@ -729,12 +909,9 @@ Word.prototype.draw = function(c) {
             }
             displayText = chars.join('');
         }
-
-        if (Effects.has('REVERSE')) {
-            displayText = displayText.split('').reverse().join('');
-        }
-
+        if (Effects.has('REVERSE')) { hasVisualDisruption = true; displayText = displayText.split('').reverse().join(''); }
         if (Effects.has('CORRUPT')) {
+            hasVisualDisruption = true;
             var ctb = Math.floor(Date.now() / 400);
             var cc = displayText.split('');
             for (var ci = 0; ci < cc.length; ci++) {
@@ -743,35 +920,21 @@ Word.prototype.draw = function(c) {
             }
             displayText = cc.join('');
         }
-
-        if (Effects.has('CAPSLOCK')) {
-            var ltb = Math.floor(Date.now() / 300);
-            var lo = '';
-            for (var li = 0; li < displayText.length; li++) {
-                var lh = (ltb * 7 + li * 13 + this.text.charCodeAt(0) * 31) & 1;
-                lo += lh ? displayText[li].toUpperCase() : displayText[li].toLowerCase();
-            }
-            displayText = lo;
-        }
     }
 
-    // ECHO: trailing afterimages
-    if (Effects.has('ECHO')) {
-        for (var ei = 3; ei > 0; ei--) {
-            c.globalAlpha = alpha * 0.12 * ei;
-            c.fillText(displayText, 0, ei * 18);
-        }
+    if (sfx && Effects.has('ECHO')) {
+        for (var ei = 3; ei > 0; ei--) { c.globalAlpha = alpha * 0.12 * ei; c.fillText(displayText, 0, ei * 18); }
         c.globalAlpha = alpha;
     }
 
     c.fillText(displayText, 0, 0);
 
-    // Match highlight
-    if (userInput.length > 0 && this.text.startsWith(userInput)) {
+    // Match highlight — skip when visual disruption active
+    if (userInput.length > 0 && this.text.startsWith(userInput) && !hasVisualDisruption) {
         var cw = 18;
-        var off = (displayText.length * cw) / 2;
+        var off = (this.text.length * cw) / 2;
         var mw = userInput.length * cw;
-        var md = displayText.substring(0, userInput.length);
+        var md = this.text.substring(0, userInput.length);
         c.fillStyle = '#fff';
         c.fillText(md, -off + (mw/2), 0);
         c.fillRect(-off, 5, mw, 2);
@@ -781,9 +944,7 @@ Word.prototype.draw = function(c) {
 };
 
 function Particle(x, y, color) {
-    this.x = x;
-    this.y = y;
-    this.color = color;
+    this.x = x; this.y = y; this.color = color;
     var angle = Math.random() * Math.PI * 2;
     var speed = Math.random() * 200 + 50;
     this.vx = Math.cos(angle) * speed;
@@ -791,261 +952,74 @@ function Particle(x, y, color) {
     this.life = 1.0;
     this.decay = Math.random() * 2.0 + 1.0;
 }
-Particle.prototype.update = function(dt) {
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-    this.life -= this.decay * dt;
-    this.vy += 200 * dt;
-};
-Particle.prototype.draw = function(c) {
-    c.globalAlpha = Math.max(0, this.life);
-    c.fillStyle = this.color;
-    c.fillRect(this.x, this.y, 4, 4);
-    c.globalAlpha = 1;
-};
+Particle.prototype.update = function(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.life -= this.decay * dt; this.vy += 200 * dt; };
+Particle.prototype.draw = function(c) { c.globalAlpha = Math.max(0, this.life); c.fillStyle = this.color; c.fillRect(this.x, this.y, 4, 4); c.globalAlpha = 1; };
 
-function Bullet(x1, y1, x2, y2) {
-    this.x1 = x1; this.y1 = y1;
-    this.x2 = x2; this.y2 = y2;
-    this.life = 0.3;
-}
+function Bullet(x1, y1, x2, y2) { this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2; this.life = 0.3; }
 
 // ============================================================
-//  EFFECTS SYSTEM
+//  7. EFFECTS SYSTEM
 // ============================================================
 var Effects = {
     active: {},
 
     activate: function(name, duration) {
+        // Track stats
+        var wd = WORDS.find(function(w) { return w.text === name; });
+        if (wd) {
+            if (wd.type === 'good') stats.effectsGood++;
+            else if (wd.type === 'bad') stats.effectsBad++;
+            else stats.effectsNeutral++;
+        }
+
         // ===== INSTANT EFFECTS =====
-        if (name === 'HEAL') {
-            health = Math.min(100, health + 20);
-            updateHUD(); Audio.powerup();
-            createParticles(width/2, height, '#0f0', 20);
-            return;
-        }
-        if (name === 'REPAIR') {
-            health = 100;
-            updateHUD(); Audio.powerup();
-            createParticles(width/2, height/2, '#0f0', 40);
-            return;
-        }
-        if (name === 'CALM') {
-            // Gentle clear: remove all words, heal 10
-            words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 5); });
-            words = [];
-            health = Math.min(100, health + 10);
-            updateHUD(); Audio.powerup();
-            return;
-        }
-        if (name === 'SWARM') {
-            for (var si = 0; si < 5; si++) spawnWord();
-            createParticles(width/2, 100, '#f00', 20);
-            Audio.explosion();
-            return;
-        }
-        if (name === 'CLEAR') {
-            words.forEach(function(w) { createParticles(w.x, w.y, w.color, 10); });
-            words = [];
-            Audio.explosion();
-            createParticles(width/2, height/2, '#fff', 50);
-            return;
-        }
-        if (name === 'SHUFFLE') {
-            words.forEach(function(w) {
-                w.x = Math.random() * (width - 100) + 50;
-                w.y = Math.random() * (height / 2);
-            });
-            Audio.powerup();
-            return;
-        }
+        if (name === 'HEAL') { health = Math.min(100, health + 20); stats.healsUsed++; updateHUD(); Audio.powerup(); createParticles(width/2, height, '#0f0', 20); return; }
+        if (name === 'REPAIR') { health = 100; stats.healsUsed++; updateHUD(); Audio.powerup(); createParticles(width/2, height/2, '#0f0', 40); return; }
+        if (name === 'CALM') { words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 5); }); words = []; health = Math.min(100, health + 10); updateHUD(); Audio.powerup(); return; }
+        if (name === 'SWARM') { for (var si = 0; si < 5; si++) spawnWord(); createParticles(width/2, 100, '#f00', 20); Audio.explosion(); return; }
+        if (name === 'CLEAR') { words.forEach(function(w) { createParticles(w.x, w.y, w.color, 10); }); words = []; Audio.explosion(); createParticles(width/2, height/2, '#fff', 50); return; }
+        if (name === 'SHUFFLE') { words.forEach(function(w) { w.x = Math.random()*(width-100)+50; w.y = Math.random()*(height/2); }); Audio.powerup(); return; }
         if (name === 'PURIFY') {
-            var removed = [];
-            var self = this;
-            Object.keys(this.active).forEach(function(en) {
-                var wd = WORDS.find(function(w) { return w.text === en; });
-                if (wd && wd.type === 'bad') removed.push(en);
-            });
+            var removed = []; var self = this;
+            Object.keys(this.active).forEach(function(en) { var w2 = WORDS.find(function(w) { return w.text === en; }); if (w2 && w2.type === 'bad') removed.push(en); });
             removed.forEach(function(r) { delete self.active[r]; });
-            this.renderList();
-            Audio.purify();
-            createParticles(width/2, height/2, '#0f0', 40);
-            cameraShake = 8;
-            return;
+            this.renderList(); Audio.purify(); createParticles(width/2, height/2, '#0f0', 40); cameraShake = reducedMotion ? 0 : 8; return;
         }
-        if (name === 'ABSORB') {
-            var heal = Math.max(5, words.length * 3);
-            health = Math.min(100, health + heal);
-            words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 8); });
-            words = [];
-            Audio.powerup();
-            createParticles(width/2, height/2, '#0f0', 30);
-            updateHUD();
-            return;
-        }
+        if (name === 'ABSORB') { var heal = Math.max(5, words.length * 3); health = Math.min(100, health + heal); words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 8); }); words = []; Audio.powerup(); createParticles(width/2, height/2, '#0f0', 30); updateHUD(); return; }
         if (name === 'CLONE') {
-            var clones = [];
-            var maxC = Math.min(words.length, 15);
-            for (var ci = 0; ci < maxC; ci++) {
-                var orig = words[ci];
-                var clone = new Word();
-                clone.text = orig.text;
-                clone.color = orig.color;
-                clone.effectType = orig.effectType;
-                clone.effectTemplate = orig.effectTemplate;
-                clone.x = orig.x + (Math.random() - 0.5) * 120;
-                clone.y = orig.y + (Math.random() - 0.5) * 40;
-                clone.baseSpeed = orig.baseSpeed * (0.8 + Math.random() * 0.4);
-                clones.push(clone);
-            }
-            words = words.concat(clones);
-            Audio.explosion();
-            createParticles(width/2, height/2, '#f00', 30);
-            cameraShake = 15;
-            return;
+            var clones = []; var maxC = Math.min(words.length, 8);
+            for (var ci = 0; ci < maxC; ci++) { var orig = words[ci]; var clone = new Word(); clone.text = orig.text; clone.color = orig.color; clone.effectType = orig.effectType; clone.effectTemplate = orig.effectTemplate; clone.x = orig.x + (Math.random()-0.5)*120; clone.y = orig.y + (Math.random()-0.5)*40; clone.baseSpeed = orig.baseSpeed * (0.8+Math.random()*0.4); if (orig.originalText) { clone.originalText = orig.originalText; } clones.push(clone); }
+            words = words.concat(clones); Audio.explosion(); createParticles(width/2, height/2, '#f00', 30); cameraShake = reducedMotion ? 0 : 15; return;
         }
-        if (name === 'AMNESIA') {
-            userInput = "";
-            updateHUD(); Audio.hit();
-            cameraShake = 12;
-            createParticles(width/2, height * 0.85, '#f0f', 20);
-            return;
-        }
+        if (name === 'AMNESIA') { userInput = ""; updateHUD(); Audio.hit(); cameraShake = reducedMotion ? 0 : 12; createParticles(width/2, height*0.85, '#f0f', 20); return; }
         if (name === 'BONUS') {
-            // Trigger bonus round
-            bonusActive = true;
-            bonusTimer = BONUS_DURATION;
-            // Clear all bad effects
-            var badKeys = [];
-            Object.keys(this.active).forEach(function(en) {
-                var wd = WORDS.find(function(w) { return w.text === en; });
-                if (wd && wd.type === 'bad') badKeys.push(en);
-            });
-            var bself = this;
+            bonusActive = true; bonusTimer = BONUS_DURATION;
+            var badKeys = []; var bself = this;
+            Object.keys(this.active).forEach(function(en) { var w2 = WORDS.find(function(w) { return w.text === en; }); if (w2 && w2.type === 'bad') badKeys.push(en); });
             badKeys.forEach(function(k) { delete bself.active[k]; });
-            this.renderList();
-            Audio.bonus();
-            createParticles(width/2, height/2, '#ffdd00', 60);
-            createParticles(width/2, height/2, '#fff', 30);
-            cameraShake = 10;
-            return;
+            this.renderList(); Audio.bonus(); createParticles(width/2, height/2, '#ffdd00', 60); createParticles(width/2, height/2, '#fff', 30); cameraShake = reducedMotion ? 0 : 10; return;
         }
-        if (name === 'EASY') {
-            // Simplify all on-screen words to easy tier-1
-            var easyList = WORD_TIERS[1];
-            words.forEach(function(w) {
-                w.text = easyList[Math.floor(Math.random() * easyList.length)];
-                w.color = '#0f0';
-                w.effectType = 'none';
-                w.effectTemplate = null;
-                createParticles(w.x, w.y, '#0f0', 5);
-            });
-            Audio.powerup();
-            createParticles(width/2, height/2, '#0f0', 30);
-            return;
-        }
-        if (name === 'REVIVE') {
-            // Second wind: +50 health with dramatic effect
-            health = Math.min(100, health + 50);
-            createParticles(width/2, height/2, '#0ff', 40);
-            createParticles(width/2, height, '#0ff', 20);
-            Audio.powerup();
-            cameraShake = 8;
-            updateHUD();
-            return;
-        }
-        if (name === 'HOPE') {
-            // Random blessing: picks a random good timed effect + heals 15
-            var blessings = WORDS.filter(function(w) { return w.type === 'good' && w.duration > 0; });
-            var chosen = blessings[Math.floor(Math.random() * blessings.length)];
-            health = Math.min(100, health + 15);
-            createParticles(width/2, height/2, '#0ff', 30);
-            Audio.powerup();
-            updateHUD();
-            if (chosen) this.activate(chosen.text, chosen.duration);
-            return;
-        }
-        if (name === 'NUMBERS') {
-            // Turn all words into random numbers
-            words.forEach(function(w) {
-                w.text = '' + (Math.floor(Math.random() * 10000) + 1);
-                w.color = '#ff0';
-                w.effectType = 'none';
-                w.effectTemplate = null;
-                createParticles(w.x, w.y, '#ff0', 5);
-            });
-            Audio.powerup();
-            createParticles(width/2, height/2, '#ff0', 20);
-            return;
-        }
-        if (name === 'SHOOT') {
-            // Gunship mode: click to destroy words
-            shootMode = true;
-            canvas.style.cursor = 'none';
-            Audio.powerup();
-            createParticles(width/2, height/2, '#f80', 40);
-            this.active['SHOOT'] = duration;
-            this.renderList();
-            return;
-        }
-        if (name === 'ZOMBIE') {
-            // Turn all words into ZOMBIE
-            words.forEach(function(w) {
-                w.text = 'ZOMBIE';
-                w.color = '#4a0';
-                w.effectType = 'none';
-                w.effectTemplate = null;
-                createParticles(w.x, w.y, '#4a0', 3);
-            });
-            Audio.zombieGroan();
-            cameraShake = 10;
-            createParticles(width/2, height/2, '#4a0', 30);
-            return;
-        }
+        if (name === 'EASY') { var easyList = WORD_TIERS[1]; words.forEach(function(w) { w.text = easyList[Math.floor(Math.random()*easyList.length)]; w.color = '#0f0'; w.effectType = 'none'; w.effectTemplate = null; createParticles(w.x, w.y, '#0f0', 5); }); Audio.powerup(); createParticles(width/2, height/2, '#0f0', 30); return; }
+        if (name === 'REVIVE') { health = Math.min(100, health + 50); createParticles(width/2, height/2, '#0ff', 40); createParticles(width/2, height, '#0ff', 20); Audio.powerup(); cameraShake = reducedMotion ? 0 : 8; updateHUD(); return; }
+        if (name === 'HOPE') { var blessings = WORDS.filter(function(w) { return w.type === 'good' && w.duration > 0; }); var chosen = blessings[Math.floor(Math.random()*blessings.length)]; health = Math.min(100, health + 15); createParticles(width/2, height/2, '#0ff', 30); Audio.powerup(); updateHUD(); if (chosen) this.activate(chosen.text, chosen.duration); return; }
+        if (name === 'NUMBERS') { words.forEach(function(w) { w.text = '' + (Math.floor(Math.random()*10000)+1); w.color = '#ff0'; w.effectType = 'none'; w.effectTemplate = null; createParticles(w.x, w.y, '#ff0', 5); }); Audio.powerup(); createParticles(width/2, height/2, '#ff0', 20); return; }
+        if (name === 'SHOOT') { shootMode = true; canvas.style.cursor = 'none'; Audio.powerup(); createParticles(width/2, height/2, '#f80', 40); this.active['SHOOT'] = duration; this.renderList(); return; }
+        if (name === 'ZOMBIE') { words.forEach(function(w) { w.text = 'ZOMBIE'; w.color = '#4a0'; w.effectType = 'none'; w.effectTemplate = null; createParticles(w.x, w.y, '#4a0', 3); }); Audio.zombieGroan(); cameraShake = reducedMotion ? 0 : 10; createParticles(width/2, height/2, '#4a0', 30); return; }
         if (name === 'ABRACADABRA') {
-            // PURE MAGIC — the ultimate rescue spell
-            // 1. Full heal
             health = 100;
-            // 2. Remove all bad effects
-            var magicBadKeys = [];
-            var magicSelf = this;
-            Object.keys(this.active).forEach(function(en) {
-                var wd = WORDS.find(function(w) { return w.text === en; });
-                if (wd && wd.type === 'bad') magicBadKeys.push(en);
-            });
+            var magicBadKeys = []; var magicSelf = this;
+            Object.keys(this.active).forEach(function(en) { var w2 = WORDS.find(function(w) { return w.text === en; }); if (w2 && w2.type === 'bad') magicBadKeys.push(en); });
             magicBadKeys.forEach(function(k) { delete magicSelf.active[k]; });
-            // 3. Transform all words into easy sparkle words and slow them down
-            var magicEasyPool = WORD_TIERS[1];
-            words.forEach(function(w) {
-                w.text = magicEasyPool[Math.floor(Math.random() * magicEasyPool.length)];
-                w.color = '#f0f';
-                w.effectType = 'none';
-                w.effectTemplate = null;
-                w.baseSpeed *= 0.3;
-                createParticles(w.x, w.y, '#f0f', 5);
-                createParticles(w.x, w.y, '#ff0', 3);
-            });
-            // 4. Grant shield + double score + regen
-            this.active['SHIELD'] = 5000;
-            this.active['DOUBLE'] = 8000;
-            this.active['REGEN'] = 8000;
-            // 5. Score bonus
+            var magicPool = WORD_TIERS[1];
+            words.forEach(function(w) { w.text = magicPool[Math.floor(Math.random()*magicPool.length)]; w.color = '#f0f'; w.effectType = 'none'; w.effectTemplate = null; w.baseSpeed *= 0.3; createParticles(w.x, w.y, '#f0f', 5); createParticles(w.x, w.y, '#ff0', 3); });
+            this.active['SHIELD'] = 3000; this.active['DOUBLE'] = 8000; this.active['REGEN'] = 5000;
             score += 500;
-            // 6. Massive sparkle explosion
-            for (var ai = 0; ai < 10; ai++) {
-                createParticles(
-                    Math.random() * width,
-                    Math.random() * height,
-                    ['#f0f','#ff0','#0ff','#fff','#f80'][ai % 5],
-                    25
-                );
-            }
-            magicAuraTimer = 3000;
-            this.renderList();
-            Audio.magic();
-            cameraShake = 30;
-            updateHUD();
-            return;
+            for (var ai = 0; ai < 10; ai++) createParticles(Math.random()*width, Math.random()*height, ['#f0f','#ff0','#0ff','#fff','#f80'][ai%5], 25);
+            magicAuraTimer = 3000; this.renderList(); Audio.magic(); cameraShake = reducedMotion ? 0 : 30; updateHUD(); return;
+        }
+        if (name === 'CAPSLOCK') {
+            words.forEach(function(w) { if (!w.originalText) w.originalText = w.text; w.text = jumbleCase(w.originalText); });
+            this.active[name] = duration; this.renderList(); Audio.hit(); cameraShake = reducedMotion ? 0 : 8; return;
         }
 
         // ===== DURATION EFFECTS =====
@@ -1055,21 +1029,18 @@ var Effects = {
 
     update: function(dt) {
         var names = Object.keys(this.active);
-        var changed = false;
-        var self = this;
+        var changed = false; var self = this;
         names.forEach(function(name) {
             self.active[name] -= dt * 1000;
             if (self.active[name] <= 0) {
-                delete self.active[name];
-                changed = true;
+                delete self.active[name]; changed = true;
+                if (name === 'CAPSLOCK') { words.forEach(function(w) { if (w.originalText) { w.text = w.originalText; delete w.originalText; } }); }
             }
         });
         if (changed) this.renderList();
     },
 
-    has: function(name) {
-        return !!this.active[name];
-    },
+    has: function(name) { return !!this.active[name]; },
 
     renderList: function() {
         uiEffects.innerHTML = '';
@@ -1077,10 +1048,9 @@ var Effects = {
         Object.keys(this.active).forEach(function(name) {
             var div = document.createElement('div');
             div.className = 'effect-tag';
-            var wd = WORDS.find(function(w) { return w.text === name; });
-            var color = wd ? (wd.type === 'good' ? '#0f0' : (wd.type === 'bad' ? '#f00' : '#ff0')) : '#fff';
-            div.style.borderColor = color;
-            div.style.color = '#fff';
+            var w2 = WORDS.find(function(w) { return w.text === name; });
+            var color = (w2 && w2.type === 'good') ? '#0f0' : (w2 && w2.type === 'bad') ? '#f00' : '#ff0';
+            div.style.borderColor = color; div.style.color = '#fff';
             div.innerText = name + ' ' + (self.active[name]/1000).toFixed(1) + 's';
             uiEffects.appendChild(div);
         });
@@ -1088,168 +1058,48 @@ var Effects = {
 };
 
 // ============================================================
-//  GAME FUNCTIONS
+//  8. GAME FUNCTIONS
 // ============================================================
-var words = [];
-var particles = [];
-var cameraShake = 0;
-
 function spawnWord() {
+    if (words.length >= MAX_WORDS) return;
     words.push(new Word());
 }
 
 function createParticles(x, y, color, count) {
-    for (var i = 0; i < count; i++) particles.push(new Particle(x, y, color));
+    if (reducedMotion) count = Math.ceil(count / 4);
+    for (var i = 0; i < count; i++) {
+        if (particles.length >= MAX_PARTICLES) particles.shift();
+        particles.push(new Particle(x, y, color));
+    }
 }
 
 function updateHUD() {
     uiScore.innerText = score;
     uiHealth.innerText = Math.max(0, Math.floor(health));
     uiInput.innerText = userInput;
-    if (bonusActive) {
-        uiLevel.innerText = 'BONUS';
-        uiLevel.style.color = '#ffdd00';
-        uiLevel.style.textShadow = '0 0 10px #ffdd00';
-    } else {
-        uiLevel.innerText = 'LVL ' + level;
-        uiLevel.style.color = '#fff';
-        uiLevel.style.textShadow = '';
-    }
+    if (bonusActive) { uiLevel.innerText = 'BONUS'; uiLevel.style.color = '#ffdd00'; uiLevel.style.textShadow = '0 0 10px #ffdd00'; }
+    else { uiLevel.innerText = 'LVL ' + level; uiLevel.style.color = '#fff'; uiLevel.style.textShadow = ''; }
 }
 
-function startGame() {
-    Audio.init();
-    gameState = 'PLAYING';
-    startScreen.classList.add('hidden');
-    gameOverScreen.classList.add('hidden');
-
-    score = 0; health = 100; level = 1;
-    userInput = ""; words = []; particles = [];
-    Effects.active = {}; Effects.renderList();
-    bonusActive = false; bonusTimer = 0;
-    shootMode = false; bullets = [];
-    magicAuraTimer = 0; comboText = ''; comboTimer = 0;
-    canvas.style.cursor = 'default';
-    difficultyMultiplier = 1;
-    lastTime = performance.now();
-    requestAnimationFrame(gameLoop);
+function showLevelBanner(lvl) {
+    var banner = document.createElement('div');
+    banner.className = 'level-banner';
+    banner.textContent = 'LEVEL ' + lvl;
+    document.getElementById('game-container').appendChild(banner);
+    setTimeout(function() { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 2100);
 }
 
-function resetGame() { startGame(); }
-
-function triggerGameOver() {
-    gameState = 'GAMEOVER';
-    gameOverScreen.classList.remove('hidden');
-    finalScoreSpan.innerText = score;
-    canvas.style.cursor = 'default';
-    shootMode = false;
-}
-
-// ============================================================
-//  INPUT HANDLING
-// ============================================================
-window.addEventListener('keydown', function(e) {
-    if (gameState !== 'PLAYING') return;
-
-    if (e.key === 'Backspace') {
-        userInput = userInput.slice(0, -1);
-        Audio.type();
-    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z0-9]/)) {
-        userInput += e.key.toUpperCase();
-        Audio.type();
-    }
-
-    // Find ALL matching words (same word = destroy all copies at once)
-    var matchingIndices = [];
-    var firstMatch = null;
-    for (var wi = words.length - 1; wi >= 0; wi--) {
-        if (words[wi].text === userInput) {
-            if (!firstMatch) firstMatch = words[wi];
-            matchingIndices.push(wi);
-        }
-    }
-    if (matchingIndices.length > 0) {
-        var word = firstMatch;
-        // Remove all matching words (indices already descending)
-        for (var ri = 0; ri < matchingIndices.length; ri++) {
-            var rw = words[matchingIndices[ri]];
-            createParticles(rw.x, rw.y, rw.color, 15);
-            words.splice(matchingIndices[ri], 1);
-        }
-        userInput = "";
-
-        // Scoring — combo bonus for multi-kill
-        var scoreGain = word.text.length * 10 * matchingIndices.length;
-        if (matchingIndices.length > 1) {
-            scoreGain += matchingIndices.length * 25;
-            comboText = matchingIndices.length + 'x MULTI-KILL!';
-            comboTimer = 1500;
-        }
-        if (Effects.has('DOUBLE')) scoreGain *= 2;
-        if (bonusActive) scoreGain *= 2;
-        score += scoreGain;
-
-        // Level progression (score thresholds scale up)
-        var newLevel = 1;
-        var threshold = 0;
-        var step = 400;
-        for (var lv = 1; lv < 50; lv++) {
-            threshold += step;
-            if (score >= threshold) {
-                newLevel = lv + 1;
-                step = Math.floor(step * 1.12); // each level needs ~12% more score
-            } else break;
-        }
-        if (newLevel > level) {
-            level = newLevel;
-            Audio.powerup();
-            createParticles(width/2, height/2, '#0ff', 50);
-        }
-
-        createParticles(word.x, word.y, word.color, 15);
-        Audio.shoot();
-
-        if (word.effectType !== 'none') {
-            Effects.activate(word.text, word.effectTemplate.duration);
-            cameraShake = 10;
-        }
-
-        difficultyMultiplier += 0.04;
-    }
-
-    updateHUD();
-});
-
-// ============================================================
-//  SHOOT MODE — Mouse Handlers
-// ============================================================
-canvas.addEventListener('mousemove', function(e) {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-});
-
-canvas.addEventListener('click', function(e) {
-    if (!shootMode || gameState !== 'PLAYING') return;
-
-    // Find closest word within hit radius
-    var hitIdx = -1;
-    var hitDist = 80;
+function handleShoot(x, y) {
+    var hitIdx = -1, hitDist = 80;
     for (var si = 0; si < words.length; si++) {
-        var dx = words[si].x - e.clientX;
-        var dy = words[si].y - e.clientY;
-        var d = Math.sqrt(dx * dx + dy * dy);
-        if (d < hitDist) {
-            hitDist = d;
-            hitIdx = si;
-        }
+        var dx = words[si].x - x, dy = words[si].y - y;
+        var d = Math.sqrt(dx*dx + dy*dy);
+        if (d < hitDist) { hitDist = d; hitIdx = si; }
     }
-
-    // Create bullet trail
-    var tx = hitIdx !== -1 ? words[hitIdx].x : e.clientX;
-    var ty = hitIdx !== -1 ? words[hitIdx].y : e.clientY;
-    bullets.push(new Bullet(e.clientX, height, tx, ty));
+    var tx = hitIdx !== -1 ? words[hitIdx].x : x;
+    var ty = hitIdx !== -1 ? words[hitIdx].y : y;
+    if (bullets.length < MAX_BULLETS) bullets.push(new Bullet(x, height, tx, ty));
     Audio.gunshot();
-
     if (hitIdx !== -1) {
         var shotWord = words[hitIdx];
         createParticles(shotWord.x, shotWord.y, '#f80', 20);
@@ -1257,359 +1107,530 @@ canvas.addEventListener('click', function(e) {
         if (Effects.has('DOUBLE')) shotScore *= 2;
         if (bonusActive) shotScore *= 2;
         score += shotScore;
-        if (shotWord.effectType !== 'none') {
-            Effects.activate(shotWord.text, shotWord.effectTemplate.duration);
-            cameraShake = 10;
-        }
+        stats.wordsTyped++;
+        stats.wordsShot++;
+        stats.streak++;
+        if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+        if (shotWord.effectType !== 'none' && shotWord.effectTemplate) { Effects.activate(shotWord.text, shotWord.effectTemplate.duration); cameraShake = reducedMotion ? 0 : 10; }
         words.splice(hitIdx, 1);
-        cameraShake = 5;
+        cameraShake = reducedMotion ? 0 : 5;
     }
     updateHUD();
-});
+}
+
+function checkWordMatch() {
+    var matchingIndices = []; var firstMatch = null;
+    for (var wi = words.length - 1; wi >= 0; wi--) {
+        if (words[wi].text === userInput) { if (!firstMatch) firstMatch = words[wi]; matchingIndices.push(wi); }
+    }
+    if (matchingIndices.length > 0) {
+        var word = firstMatch;
+        for (var ri = 0; ri < matchingIndices.length; ri++) {
+            var rw = words[matchingIndices[ri]]; createParticles(rw.x, rw.y, rw.color, 15);
+            words.splice(matchingIndices[ri], 1);
+        }
+        userInput = "";
+
+        // Track cool stats
+        var origText = word.originalText || word.text;
+        stats.totalCharsTyped += origText.length;
+        if (origText.length > stats.longestWord.length) stats.longestWord = origText;
+
+        var scoreGain = word.text.length * 10 * matchingIndices.length;
+        if (matchingIndices.length > 1) {
+            var comboBonus = matchingIndices.length * 25;
+            scoreGain += comboBonus;
+            stats.totalComboBonus += comboBonus;
+            comboText = matchingIndices.length + 'x MULTI-KILL!';
+            comboTimer = 1500;
+            stats.multiKills++;
+            if (matchingIndices.length > stats.biggestMultiKill) stats.biggestMultiKill = matchingIndices.length;
+        }
+        if (Effects.has('DOUBLE')) scoreGain *= 2;
+        if (bonusActive) scoreGain *= 2;
+        score += scoreGain;
+        if (score > stats.peakScore) stats.peakScore = score;
+
+        stats.wordsTyped += matchingIndices.length;
+        stats.streak += matchingIndices.length;
+        if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+
+        var newLevel = 1; var threshold = 0; var step = 400;
+        for (var lv = 1; lv < 50; lv++) { threshold += step; if (score >= threshold) { newLevel = lv + 1; step = Math.floor(step * 1.12); } else break; }
+        if (newLevel > level) { level = newLevel; stats.levelsReached.push(level); Audio.levelUp(); createParticles(width/2, height/2, '#0ff', 50); showLevelBanner(level); }
+
+        createParticles(word.x, word.y, word.color, 15);
+        Audio.shoot();
+
+        if (word.effectType !== 'none' && word.effectTemplate) {
+            Effects.activate(word.text, word.effectTemplate.duration);
+            cameraShake = reducedMotion ? 0 : 10;
+        }
+        difficultyMultiplier += 0.04;
+    }
+    updateHUD();
+}
 
 // ============================================================
-//  MAIN GAME LOOP
+//  9. INPUT HANDLING
+// ============================================================
+window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (gameState === 'PLAYING') { pauseGame(); e.preventDefault(); }
+        else if (gameState === 'PAUSED') { resumeGame(); e.preventDefault(); }
+        return;
+    }
+
+    if (gameState !== 'PLAYING') return;
+
+    if (e.key === 'Backspace') {
+        e.preventDefault();
+        userInput = userInput.slice(0, -1);
+        Audio.type();
+    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z0-9]/)) {
+        userInput += Effects.has('CAPSLOCK') ? e.key : e.key.toUpperCase();
+        Audio.type();
+    } else {
+        return;
+    }
+
+    checkWordMatch();
+});
+
+// Mobile input support
+mobileInput.addEventListener('input', function() {
+    if (gameState !== 'PLAYING') return;
+    var val = this.value;
+    if (val.length > 0) {
+        for (var i = 0; i < val.length; i++) {
+            var ch = val[i];
+            if (ch.match(/[a-zA-Z0-9]/)) {
+                userInput += Effects.has('CAPSLOCK') ? ch : ch.toUpperCase();
+                Audio.type();
+            }
+        }
+        this.value = '';
+        checkWordMatch();
+    }
+});
+
+// Mouse handlers for shoot mode
+canvas.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; });
+canvas.addEventListener('click', function(e) {
+    if (!shootMode || gameState !== 'PLAYING') return;
+    handleShoot(e.clientX, e.clientY);
+});
+
+// Touch handlers for shoot mode + mobile focus
+canvas.addEventListener('touchstart', function(e) {
+    if (gameState !== 'PLAYING') return;
+    if (shootMode) {
+        e.preventDefault();
+        var t = e.touches[0];
+        mouseX = t.clientX; mouseY = t.clientY;
+        handleShoot(t.clientX, t.clientY);
+    } else if (isTouchDevice) {
+        mobileInput.focus();
+    }
+}, { passive: false });
+canvas.addEventListener('touchmove', function(e) {
+    if (shootMode && gameState === 'PLAYING') { e.preventDefault(); var t = e.touches[0]; mouseX = t.clientX; mouseY = t.clientY; }
+}, { passive: false });
+
+// ============================================================
+//  10. GAME LIFECYCLE
+// ============================================================
+function startGame() {
+    Audio.init();
+    Audio.volumeMult = settings.volume / 100;
+    gameState = 'PLAYING';
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    pauseScreen.classList.add('hidden');
+
+    score = 0; health = 100; level = 1;
+    userInput = ""; words = []; particles = []; bullets = [];
+    Effects.active = {}; Effects.renderList();
+    bonusActive = false; bonusTimer = 0;
+    shootMode = false;
+    magicAuraTimer = 0; comboText = ''; comboTimer = 0;
+    canvas.style.cursor = 'default';
+    difficultyMultiplier = 1; deathCause = '';
+    cameraShake = 0; spawnTimer = 0;
+
+    stats = { wordsTyped: 0, wordsMissed: 0, streak: 0, bestStreak: 0, multiKills: 0, startTime: Date.now(), effectsGood: 0, effectsBad: 0, effectsNeutral: 0, longestWord: '', totalCharsTyped: 0, wordsShot: 0, biggestMultiKill: 0, totalComboBonus: 0, healsUsed: 0, damageBlocked: 0, peakScore: 0, levelsReached: [1] };
+
+    lastTime = performance.now();
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(gameLoop);
+    if (isTouchDevice) mobileInput.focus();
+}
+
+function pauseGame() {
+    if (gameState !== 'PLAYING') return;
+    gameState = 'PAUSED';
+    pauseScreen.classList.remove('hidden');
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+}
+
+function resumeGame() {
+    if (gameState !== 'PAUSED') return;
+    gameState = 'PLAYING';
+    pauseScreen.classList.add('hidden');
+    lastTime = performance.now();
+    rafId = requestAnimationFrame(gameLoop);
+    if (isTouchDevice) mobileInput.focus();
+}
+
+function quitToMenu() {
+    gameState = 'MENU';
+    pauseScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    canvas.style.cursor = 'default';
+    shootMode = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    renderHighScores('start-highscores');
+}
+
+function triggerGameOver() {
+    gameState = 'GAMEOVER';
+    canvas.style.cursor = 'default';
+    shootMode = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+
+    finalScoreSpan.innerText = score;
+    document.getElementById('death-cause').innerText = deathCause || 'The meaning of the words became too heavy to bear.';
+
+    // --- Cool Stats Display ---
+    var elapsed = (Date.now() - stats.startTime) / 1000;
+    var mins = Math.floor(elapsed / 60); var secs = Math.floor(elapsed % 60);
+    var total = stats.wordsTyped + stats.wordsMissed;
+    var accuracy = total > 0 ? Math.round(stats.wordsTyped / total * 100) : 0;
+    var wpm = elapsed > 5 ? Math.round(stats.wordsTyped / (elapsed / 60)) : 0;
+    var cps = elapsed > 5 ? (stats.totalCharsTyped / elapsed).toFixed(1) : '0.0';
+
+    // Determine player rank title
+    var rankTitle, rankColor;
+    if (score >= 10000) { rankTitle = 'LEXICON DEITY'; rankColor = '#f0f'; }
+    else if (score >= 6000) { rankTitle = 'WORD SLAYER'; rankColor = '#ffdd00'; }
+    else if (score >= 3500) { rankTitle = 'SEMANTIC WARRIOR'; rankColor = '#ff8800'; }
+    else if (score >= 2000) { rankTitle = 'SYNTAX KNIGHT'; rankColor = '#0ff'; }
+    else if (score >= 1000) { rankTitle = 'LETTER SCOUT'; rankColor = '#0f0'; }
+    else if (score >= 400)  { rankTitle = 'WORD CADET'; rankColor = '#0099ff'; }
+    else { rankTitle = 'ALPHABET ROOKIE'; rankColor = '#888'; }
+
+    var h = '<div class="stats-panel">';
+    h += '<div class="stats-rank" style="color:' + rankColor + '">' + rankTitle + '</div>';
+
+    var delay = 0.15;
+    function row(label, value, cls) { delay += 0.12; return '<div class="stats-row" style="animation-delay:' + delay.toFixed(2) + 's"><span class="sl">' + label + '</span><span class="sv ' + cls + '">' + value + '</span></div>'; }
+
+    // --- Combat ---
+    h += '<div class="stats-title" style="color:#0ff;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// COMBAT LOG //</div>';
+    h += row('Time Survived', mins + 'm ' + secs + 's', 'info');
+    h += row('Words Neutralized', stats.wordsTyped, 'good');
+    h += row('Words Escaped', stats.wordsMissed, stats.wordsMissed > 10 ? 'bad' : 'info');
+    h += row('Accuracy', accuracy + '%', accuracy >= 80 ? 'good' : accuracy >= 50 ? 'gold' : 'bad');
+    h += row('Words Per Minute', wpm, wpm >= 40 ? 'good' : 'info');
+    h += row('Chars Per Second', cps, 'info');
+
+    // --- Highlights ---
+    h += '<hr class="stats-divider">';
+    h += '<div class="stats-title" style="color:#ff0;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// HIGHLIGHTS //</div>';
+    h += row('Best Streak', stats.bestStreak + ' in a row', stats.bestStreak >= 10 ? 'gold' : 'info');
+    if (stats.longestWord) h += row('Longest Word', stats.longestWord, 'magic');
+    if (stats.multiKills > 0) { h += row('Multi-Kills', stats.multiKills, 'gold'); h += row('Biggest Combo', stats.biggestMultiKill + 'x', 'gold'); }
+    if (stats.wordsShot > 0) h += row('Shot Down', stats.wordsShot + ' words', 'info');
+    if (stats.totalComboBonus > 0) h += row('Combo Bonus Points', '+' + stats.totalComboBonus, 'gold');
+
+    // --- Effects & Survival ---
+    h += '<hr class="stats-divider">';
+    h += '<div class="stats-title" style="color:#f0f;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// EFFECTS & SURVIVAL //</div>';
+    var totalFx = stats.effectsGood + stats.effectsBad + stats.effectsNeutral;
+    if (totalFx > 0) {
+        h += row('Effects Triggered', totalFx + ' total', 'info');
+        h += row('Helpful Effects', stats.effectsGood, 'good');
+        h += row('Harmful Effects', stats.effectsBad, 'bad');
+        h += row('Chaotic Effects', stats.effectsNeutral, 'gold');
+    }
+    if (stats.healsUsed > 0) h += row('Heals Used', stats.healsUsed, 'good');
+    if (stats.damageBlocked > 0) h += row('Damage Blocked', stats.damageBlocked + ' HP', 'good');
+
+    // --- Fun Fact ---
+    var facts = [];
+    if (stats.longestWord.length >= 10) facts.push('You conquered "' + stats.longestWord + '" \u2014 a ' + stats.longestWord.length + '-letter beast!');
+    if (wpm >= 60) facts.push('You type faster than 90% of humans. Fingers of steel!');
+    else if (wpm >= 40) facts.push('Solid typing speed \u2014 your fingers were on fire!');
+    if (accuracy === 100 && stats.wordsTyped >= 10) facts.push('Perfect accuracy! Not a single word escaped. Flawless.');
+    if (stats.bestStreak >= 20) facts.push('A ' + stats.bestStreak + '-word streak? That\u2019s legendary focus.');
+    else if (stats.bestStreak >= 10) facts.push(stats.bestStreak + ' words in a row without missing. Ice cold.');
+    if (stats.multiKills >= 5) facts.push('You triggered ' + stats.multiKills + ' multi-kills. Mass destruction!');
+    if (stats.biggestMultiKill >= 5) facts.push('That ' + stats.biggestMultiKill + 'x combo was absolutely devastating.');
+    if (stats.effectsBad >= 10) facts.push('You survived ' + stats.effectsBad + ' curses. Built different.');
+    if (stats.wordsShot > 0) facts.push('You shot down ' + stats.wordsShot + ' words in gunship mode!');
+    if (stats.totalCharsTyped >= 500) facts.push('You typed ' + stats.totalCharsTyped + ' characters. Your keyboard felt that.');
+    if (stats.healsUsed >= 5) facts.push('Used ' + stats.healsUsed + ' heals \u2014 a true survivor.');
+    if (level >= 10) facts.push('Reaching level ' + level + ' is no joke. Respect.');
+    if (elapsed > 300) facts.push('You fought for over ' + mins + ' minutes. Endurance champion!');
+    if (stats.wordsMissed === 0 && stats.wordsTyped >= 5) facts.push('Zero words escaped. The defense was impenetrable!');
+    if (!facts.length) facts.push('Every journey begins with a single keystroke.');
+
+    var funFact = facts[Math.floor(Math.random() * facts.length)];
+    h += '<div class="stats-funfact">\u201C' + funFact + '\u201D</div>';
+    h += '</div>';
+
+    document.getElementById('gameover-stats').innerHTML = h;
+
+    // High scores
+    var result = saveHighScore(score, level);
+    renderHighScores('gameover-highscores', result.newIndex);
+
+    gameOverScreen.classList.remove('hidden');
+}
+
+function resetGame() { startGame(); }
+
+// ============================================================
+//  11. MAIN GAME LOOP
 // ============================================================
 function gameLoop(timestamp) {
     if (gameState !== 'PLAYING') return;
 
-    var dt = (timestamp - lastTime) / 1000;
-    lastTime = timestamp;
+    try {
+        // Delta-time clamping to prevent physics explosions after tab switch
+        var dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+        lastTime = timestamp;
 
-    // --- Bonus Round Timer ---
-    if (bonusActive) {
-        bonusTimer -= dt * 1000;
-        if (bonusTimer <= 0) {
-            bonusActive = false;
-            bonusTimer = 0;
-        }
-        // Regen during bonus
-        health = Math.min(100, health + 2 * dt);
-    }
-
-    // --- Shoot Mode Sync ---
-    var wasShootMode = shootMode;
-    shootMode = Effects.has('SHOOT');
-    if (wasShootMode && !shootMode) {
-        canvas.style.cursor = 'default';
-    }
-
-    // --- Magic Aura Timer ---
-    if (magicAuraTimer > 0) {
-        magicAuraTimer -= dt * 1000;
-    }
-
-    // --- Combo Timer ---
-    if (comboTimer > 0) {
-        comboTimer -= dt * 1000;
-    }
-
-    // --- Spawning ---
-    var cfg = getLevelCfg(level);
-    var baseRate = bonusActive ? 1800 : cfg.spawnMs;
-    spawnRate = baseRate;
-    if (Effects.has('RUSH')) spawnRate = baseRate / 3;
-
-    spawnTimer -= dt * 1000;
-    if (spawnTimer <= 0) {
-        spawnWord();
-        spawnTimer = spawnRate;
-    }
-
-    // --- Update ---
-    words.forEach(function(w) { w.update(dt); });
-    particles.forEach(function(p) { p.update(dt); });
-    Effects.update(dt);
-
-    // LEECH: passive drain (not during bonus)
-    if (Effects.has('LEECH') && !bonusActive) {
-        health -= 3 * dt;
-        if (health <= 0) { health = 0; triggerGameOver(); }
-    }
-
-    // REGEN: passive heal
-    if (Effects.has('REGEN')) {
-        health = Math.min(100, health + 2.5 * dt);
-    }
-
-    particles = particles.filter(function(p) { return p.life > 0; });
-
-    // --- Damage from words hitting bottom ---
-    for (var i = words.length - 1; i >= 0; i--) {
-        if (words[i].y > height + 20) {
-            if (Effects.has('SHIELD') || bonusActive) {
-                // Shield or bonus blocks damage
-                Audio.shieldHit();
-                cameraShake = 5;
-            } else {
-                var dmg = 10;
-                if (Effects.has('HEAVY')) dmg = 20;
-                if (Effects.has('ARMOR')) dmg = Math.floor(dmg / 2);
-                health -= dmg;
-                cameraShake = 20;
-                Audio.hit();
-            }
-            words.splice(i, 1);
-            if (health <= 0) triggerGameOver();
-        }
-    }
-
-    words = words.filter(function(w) { return w.y > -200; });
-
-    updateHUD();
-
-    // ============== DRAWING ==============
-    ctx.clearRect(0, 0, width, height);
-    ctx.save();
-
-    if (Effects.has('MIRROR')) {
-        ctx.translate(width, 0);
-        ctx.scale(-1, 1);
-    }
-
-    // --- Background ---
-    if (Effects.has('BLIND') && !Effects.has('FOCUS')) {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, width, height);
-    } else {
-        // Grid color changes during bonus
+        // --- Timers ---
         if (bonusActive) {
-            ctx.strokeStyle = 'rgba(255, 215, 0, 0.08)';
+            bonusTimer -= dt * 1000;
+            if (bonusTimer <= 0) { bonusActive = false; bonusTimer = 0; }
+            health = Math.min(100, health + 2 * dt);
+        }
+
+        var wasShootMode = shootMode;
+        shootMode = Effects.has('SHOOT');
+        if (wasShootMode && !shootMode) canvas.style.cursor = 'default';
+
+        if (magicAuraTimer > 0) magicAuraTimer -= dt * 1000;
+        if (comboTimer > 0) comboTimer -= dt * 1000;
+
+        // --- Spawning (wired with difficultyMultiplier) ---
+        var cfg = getLevelCfg(level);
+        var baseRate = bonusActive ? 1800 : cfg.spawnMs;
+        spawnRate = baseRate / (1 + difficultyMultiplier * 0.1);
+        if (Effects.has('RUSH')) spawnRate = spawnRate / 3;
+        spawnRate = Math.max(300, spawnRate);
+
+        spawnTimer -= dt * 1000;
+        if (spawnTimer <= 0) { spawnWord(); spawnTimer = spawnRate; }
+
+        // --- Update ---
+        words.forEach(function(w) { w.update(dt); });
+        particles.forEach(function(p) { p.update(dt); });
+        Effects.update(dt);
+
+        if (Effects.has('LEECH') && !bonusActive) { health -= 3 * dt; if (health <= 0) { health = 0; deathCause = 'The leech drained your last bit of energy.'; triggerGameOver(); return; } }
+        if (Effects.has('REGEN')) { health = Math.min(100, health + 2.5 * dt); }
+
+        particles = particles.filter(function(p) { return p.life > 0; });
+
+        // --- Words hitting bottom ---
+        for (var i = words.length - 1; i >= 0; i--) {
+            if (words[i].y > height + 20) {
+                var missedWord = words[i];
+                if (Effects.has('SHIELD') || bonusActive) { Audio.shieldHit(); cameraShake = reducedMotion ? 0 : 5; stats.damageBlocked += 10; }
+                else {
+                    var dmg = 10;
+                    if (Effects.has('HEAVY')) dmg = 20;
+                    if (Effects.has('ARMOR')) dmg = Math.floor(dmg / 2);
+                    health -= dmg;
+                    score = Math.max(0, score - missedWord.text.length * 2);
+                    cameraShake = reducedMotion ? 0 : 20;
+                    Audio.hit();
+                    stats.wordsMissed++;
+                    stats.streak = 0;
+                }
+                words.splice(i, 1);
+                if (health <= 0) { deathCause = 'The words overwhelmed your defenses.'; triggerGameOver(); return; }
+            }
+        }
+
+        words = words.filter(function(w) { return w.y > -200; });
+        updateHUD();
+
+        // ============== DRAWING ==============
+        var sfx = settings.screenEffects;
+        ctx.clearRect(0, 0, width, height);
+        ctx.save();
+
+        if (sfx && Effects.has('MIRROR')) { ctx.translate(width, 0); ctx.scale(-1, 1); }
+
+        // Background
+        if (Effects.has('BLIND') && !Effects.has('FOCUS')) {
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
         } else {
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
-        }
-        ctx.lineWidth = 1;
-        var gridOff = (Date.now() / 50) % 40;
-        ctx.beginPath();
-        for (var gx = 0; gx <= width; gx += 40) { ctx.moveTo(gx, 0); ctx.lineTo(gx, height); }
-        for (var gy = gridOff; gy <= height; gy += 40) { ctx.moveTo(0, gy); ctx.lineTo(width, gy); }
-        ctx.stroke();
-
-        if (Effects.has('RAIN')) {
-            ctx.strokeStyle = '#00f'; ctx.lineWidth = 2; ctx.beginPath();
-            for (var ri = 0; ri < 30; ri++) {
-                var rx = Math.random() * width, ry = Math.random() * height;
-                ctx.moveTo(rx, ry); ctx.lineTo(rx - 5, ry + 30);
-            }
-            ctx.stroke();
-        }
-
-        if (Effects.has('FOG') && !Effects.has('FOCUS')) {
-            var grad = ctx.createLinearGradient(0, 0, 0, height);
-            grad.addColorStop(0, 'rgba(200,200,200,0.9)');
-            grad.addColorStop(0.4, 'rgba(200,200,200,0.5)');
-            grad.addColorStop(0.8, 'rgba(200,200,200,0)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, width, height);
-        }
-
-        if (Effects.has('MATRIX')) {
-            ctx.font = "14px 'Share Tech Mono'"; ctx.fillStyle = '#0f0';
-            for (var mi = 0; mi < 60; mi++) {
-                var mx = (mi * 37 + mi * mi * 3) % width;
-                var my = (Date.now() / 4 + mi * 137) % (height + 100) - 50;
-                ctx.globalAlpha = 0.25 + Math.sin(mi) * 0.1;
-                ctx.fillText(String.fromCharCode(33 + ((Date.now()/80 + mi * 7) | 0) % 94), mx, my);
-            }
-            ctx.globalAlpha = 1;
-        }
-    }
-
-    if (Effects.has('FIRE')) {
-        ctx.fillStyle = 'rgba(255, 50, 0, 0.15)';
-        ctx.fillRect(0, 0, width, height);
-    }
-
-    if (Effects.has('SHIELD')) {
-        ctx.strokeStyle = 'rgba(0,200,255,' + (0.5 + Math.sin(Date.now()/200)*0.3) + ')';
-        ctx.lineWidth = 10;
-        ctx.strokeRect(0, 0, width, height);
-    }
-
-    if (Effects.has('LEECH') && !bonusActive) {
-        var la = 0.1 + Math.sin(Date.now()/300) * 0.05;
-        ctx.fillStyle = 'rgba(200,0,0,' + la + ')';
-        ctx.fillRect(0, 0, width, 60);
-        ctx.fillRect(0, height - 60, width, 60);
-        ctx.fillRect(0, 0, 60, height);
-        ctx.fillRect(width - 60, 0, 60, height);
-    }
-
-    // --- Bonus Round Visuals ---
-    if (bonusActive) {
-        // Golden pulsing border
-        var bp = 0.25 + Math.sin(Date.now()/180) * 0.15;
-        ctx.strokeStyle = 'rgba(255,215,0,' + bp + ')';
-        ctx.lineWidth = 6;
-        ctx.strokeRect(3, 3, width - 6, height - 6);
-
-        // Inner glow
-        ctx.fillStyle = 'rgba(255,215,0,0.03)';
-        ctx.fillRect(0, 0, width, height);
-
-        // Timer bar at top
-        var pct = bonusTimer / BONUS_DURATION;
-        ctx.fillStyle = 'rgba(255,215,0,0.5)';
-        ctx.fillRect(0, 0, width * pct, 4);
-
-        // "BONUS ROUND" watermark
-        var ba = 0.08 + Math.sin(Date.now()/250) * 0.03;
-        ctx.fillStyle = 'rgba(255,215,0,' + ba + ')';
-        ctx.font = "80px 'Share Tech Mono'";
-        ctx.textAlign = "center";
-        ctx.fillText("BONUS ROUND", width/2, height/2 - 20);
-        ctx.font = "30px 'Share Tech Mono'";
-        ctx.fillStyle = 'rgba(255,215,0,' + (ba * 1.5) + ')';
-        ctx.fillText("SCORE x2  ·  NO DAMAGE  ·  REGEN", width/2, height/2 + 30);
-    }
-
-    // Camera Shake
-    if (cameraShake > 0) {
-        ctx.translate((Math.random()-0.5)*cameraShake, (Math.random()-0.5)*cameraShake);
-        cameraShake -= dt * 60;
-        if (cameraShake < 0) cameraShake = 0;
-    }
-
-    // Draw Entities
-    words.forEach(function(w) { w.draw(ctx); });
-    particles.forEach(function(p) { p.draw(ctx); });
-
-    ctx.restore();
-
-    // --- Post-processing (screen space) ---
-    if (Effects.has('GLITCH') && Math.random() > 0.9) {
-        ctx.fillStyle = 'rgba(' + (Math.random()*255|0) + ',0,255,0.2)';
-        ctx.fillRect(0, Math.random()*height, width, Math.random()*50);
-    }
-
-    if (Effects.has('PIXEL')) {
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(canvas, 0, 0, width, height, 0, 0, width/8, height/8);
-        ctx.drawImage(canvas, 0, 0, width/8, height/8, 0, 0, width, height);
-        ctx.imageSmoothingEnabled = true;
-    }
-
-    if (Effects.has('INVERT')) {
-        ctx.globalCompositeOperation = 'difference';
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, width, height);
-        ctx.globalCompositeOperation = 'source-over';
-    }
-
-    if (Effects.has('SHIELD') && !bonusActive) {
-        ctx.fillStyle = "rgba(0,255,255,0.1)";
-        ctx.font = "100px 'Share Tech Mono'";
-        ctx.textAlign = "center";
-        ctx.fillText("SHIELD ACTIVE", width/2, height/2);
-    }
-
-    if (Effects.has('DOUBLE') && !bonusActive) {
-        ctx.fillStyle = "rgba(255,215,0,0.08)";
-        ctx.font = "80px 'Share Tech Mono'";
-        ctx.textAlign = "center";
-        ctx.fillText("SCORE x2", width/2, height/2 + 80);
-    }
-
-    // --- Shoot Mode Visuals ---
-    if (shootMode) {
-        // Crosshair
-        ctx.save();
-        ctx.strokeStyle = '#f80';
-        ctx.lineWidth = 2;
-        ctx.shadowColor = '#f80';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(mouseX, mouseY, 20, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(mouseX - 30, mouseY); ctx.lineTo(mouseX - 10, mouseY);
-        ctx.moveTo(mouseX + 10, mouseY); ctx.lineTo(mouseX + 30, mouseY);
-        ctx.moveTo(mouseX, mouseY - 30); ctx.lineTo(mouseX, mouseY - 10);
-        ctx.moveTo(mouseX, mouseY + 10); ctx.lineTo(mouseX, mouseY + 30);
-        ctx.stroke();
-        // Center dot
-        ctx.fillStyle = '#f80';
-        ctx.beginPath();
-        ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // Draw bullet trails
-        ctx.save();
-        bullets.forEach(function(b) { b.life -= dt; });
-        bullets = bullets.filter(function(b) { return b.life > 0; });
-        bullets.forEach(function(b) {
-            ctx.strokeStyle = '#f80';
-            ctx.lineWidth = 3;
-            ctx.globalAlpha = b.life / 0.3;
-            ctx.shadowColor = '#f80';
-            ctx.shadowBlur = 8;
+            ctx.strokeStyle = bonusActive ? 'rgba(255,215,0,0.08)' : 'rgba(0,255,255,0.1)';
+            ctx.lineWidth = 1;
+            var gridOff = (Date.now() / 50) % 40;
             ctx.beginPath();
-            ctx.moveTo(b.x1, b.y1);
-            ctx.lineTo(b.x2, b.y2);
+            for (var gx = 0; gx <= width; gx += 40) { ctx.moveTo(gx, 0); ctx.lineTo(gx, height); }
+            for (var gy = gridOff; gy <= height; gy += 40) { ctx.moveTo(0, gy); ctx.lineTo(width, gy); }
             ctx.stroke();
-        });
-        ctx.restore();
 
-        // GUNSHIP MODE label
-        var sp = 0.5 + Math.sin(Date.now() / 200) * 0.3;
-        ctx.fillStyle = 'rgba(255,136,0,' + (0.08 + sp * 0.04) + ')';
-        ctx.font = "80px 'Share Tech Mono'";
-        ctx.textAlign = "center";
-        ctx.fillText("GUNSHIP MODE", width/2, height/2);
-        ctx.font = "24px 'Share Tech Mono'";
-        ctx.fillStyle = 'rgba(255,136,0,0.15)';
-        ctx.fillText("CLICK TO DESTROY", width/2, height/2 + 40);
-    }
-
-    // --- Magic Aura (Abracadabra) ---
-    if (magicAuraTimer > 0) {
-        var ma = magicAuraTimer / 3000;
-        // Floating sparkle characters
-        ctx.save();
-        var sparkleChars = ['\u2726','\u2727','\u2728','\u2605','\u2606','\u273B','\u273C','\u2748'];
-        for (var si = 0; si < 6; si++) {
-            var sx = (Date.now() / 3 + si * 237) % width;
-            var sy = (Date.now() / 5 + si * 419) % height;
-            ctx.globalAlpha = ma * (0.3 + Math.sin(Date.now()/200 + si) * 0.2);
-            ctx.fillStyle = ['#f0f','#ff0','#0ff','#fff','#f80','#0f0'][si];
-            ctx.font = (16 + Math.sin(Date.now()/300 + si) * 6) + "px 'Share Tech Mono'";
-            ctx.fillText(sparkleChars[si % sparkleChars.length], sx, sy);
+            if (sfx && Effects.has('RAIN')) {
+                ctx.strokeStyle = '#00f'; ctx.lineWidth = 2; ctx.beginPath();
+                for (var ri = 0; ri < 30; ri++) { var rx = Math.random()*width, ry = Math.random()*height; ctx.moveTo(rx, ry); ctx.lineTo(rx-5, ry+30); }
+                ctx.stroke();
+            }
+            if (Effects.has('FOG') && !Effects.has('FOCUS')) { var grad = ctx.createLinearGradient(0,0,0,height); grad.addColorStop(0,'rgba(200,200,200,0.9)'); grad.addColorStop(0.4,'rgba(200,200,200,0.5)'); grad.addColorStop(0.8,'rgba(200,200,200,0)'); ctx.fillStyle = grad; ctx.fillRect(0,0,width,height); }
+            if (sfx && Effects.has('MATRIX')) { ctx.font = "14px 'Share Tech Mono'"; ctx.fillStyle = '#0f0'; for (var mi = 0; mi < 60; mi++) { var mx = (mi*37+mi*mi*3)%width; var my = (Date.now()/4+mi*137)%(height+100)-50; ctx.globalAlpha = 0.25+Math.sin(mi)*0.1; ctx.fillText(String.fromCharCode(33+((Date.now()/80+mi*7)|0)%94), mx, my); } ctx.globalAlpha = 1; }
         }
+
+        if (Effects.has('FIRE')) { ctx.fillStyle = 'rgba(255,50,0,0.15)'; ctx.fillRect(0,0,width,height); }
+        if (Effects.has('SHIELD')) { ctx.strokeStyle = 'rgba(0,200,255,' + (0.5+Math.sin(Date.now()/200)*0.3) + ')'; ctx.lineWidth = 10; ctx.strokeRect(0,0,width,height); }
+        if (Effects.has('LEECH') && !bonusActive) { var la = 0.1+Math.sin(Date.now()/300)*0.05; ctx.fillStyle = 'rgba(200,0,0,'+la+')'; ctx.fillRect(0,0,width,60); ctx.fillRect(0,height-60,width,60); ctx.fillRect(0,0,60,height); ctx.fillRect(width-60,0,60,height); }
+
+        if (bonusActive) {
+            var bp = 0.25+Math.sin(Date.now()/180)*0.15; ctx.strokeStyle = 'rgba(255,215,0,'+bp+')'; ctx.lineWidth = 6; ctx.strokeRect(3,3,width-6,height-6);
+            ctx.fillStyle = 'rgba(255,215,0,0.03)'; ctx.fillRect(0,0,width,height);
+            var pct = bonusTimer / BONUS_DURATION; ctx.fillStyle = 'rgba(255,215,0,0.5)'; ctx.fillRect(0,0,width*pct,4);
+            var ba = 0.08+Math.sin(Date.now()/250)*0.03; ctx.fillStyle = 'rgba(255,215,0,'+ba+')'; ctx.font = "80px 'Share Tech Mono'"; ctx.textAlign = "center"; ctx.fillText("BONUS ROUND", width/2, height/2-20);
+            ctx.font = "30px 'Share Tech Mono'"; ctx.fillStyle = 'rgba(255,215,0,'+(ba*1.5)+')'; ctx.fillText("SCORE x2  \u00B7  NO DAMAGE  \u00B7  REGEN", width/2, height/2+30);
+        }
+
+        if (cameraShake > 0) { ctx.translate((Math.random()-0.5)*cameraShake, (Math.random()-0.5)*cameraShake); cameraShake -= dt*60; if (cameraShake < 0) cameraShake = 0; }
+
+        words.forEach(function(w) { w.draw(ctx); });
+        particles.forEach(function(p) { p.draw(ctx); });
+
         ctx.restore();
-        // Purple-gold border glow
-        ctx.save();
-        ctx.strokeStyle = 'rgba(200,0,255,' + (ma * 0.4) + ')';
-        ctx.lineWidth = 4 + Math.sin(Date.now()/150) * 2;
-        ctx.shadowColor = '#f0f';
-        ctx.shadowBlur = 20;
-        ctx.strokeRect(2, 2, width - 4, height - 4);
-        ctx.restore();
-        // "ABRACADABRA" watermark
-        ctx.save();
-        ctx.globalAlpha = ma * 0.1;
-        ctx.fillStyle = '#f0f';
-        ctx.font = "60px 'Share Tech Mono'";
-        ctx.textAlign = "center";
-        ctx.fillText("ABRACADABRA", width/2, height/2 - 60);
-        ctx.restore();
+
+        // Post-processing
+        if (sfx && Effects.has('GLITCH') && Math.random() > 0.9) { ctx.fillStyle = 'rgba('+(Math.random()*255|0)+',0,255,0.2)'; ctx.fillRect(0, Math.random()*height, width, Math.random()*50); }
+        if (sfx && Effects.has('PIXEL')) { ctx.imageSmoothingEnabled = false; ctx.drawImage(canvas,0,0,width,height,0,0,width/8,height/8); ctx.drawImage(canvas,0,0,width/8,height/8,0,0,width,height); ctx.imageSmoothingEnabled = true; }
+        if (sfx && Effects.has('INVERT')) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = '#fff'; ctx.fillRect(0,0,width,height); ctx.globalCompositeOperation = 'source-over'; }
+
+        if (Effects.has('SHIELD') && !bonusActive) { ctx.fillStyle = "rgba(0,255,255,0.1)"; ctx.font = "100px 'Share Tech Mono'"; ctx.textAlign = "center"; ctx.fillText("SHIELD ACTIVE", width/2, height/2); }
+        if (Effects.has('DOUBLE') && !bonusActive) { ctx.fillStyle = "rgba(255,215,0,0.08)"; ctx.font = "80px 'Share Tech Mono'"; ctx.textAlign = "center"; ctx.fillText("SCORE x2", width/2, height/2+80); }
+
+        // Shoot mode visuals
+        if (shootMode) {
+            ctx.save();
+            ctx.strokeStyle = '#f80'; ctx.lineWidth = 2; ctx.shadowColor = '#f80'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(mouseX, mouseY, 20, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mouseX-30,mouseY); ctx.lineTo(mouseX-10,mouseY);
+            ctx.moveTo(mouseX+10,mouseY); ctx.lineTo(mouseX+30,mouseY);
+            ctx.moveTo(mouseX,mouseY-30); ctx.lineTo(mouseX,mouseY-10);
+            ctx.moveTo(mouseX,mouseY+10); ctx.lineTo(mouseX,mouseY+30);
+            ctx.stroke();
+            ctx.fillStyle = '#f80'; ctx.beginPath(); ctx.arc(mouseX, mouseY, 3, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+
+            bullets.forEach(function(b) { b.life -= dt; });
+            bullets = bullets.filter(function(b) { return b.life > 0; });
+            ctx.save();
+            bullets.forEach(function(b) { ctx.strokeStyle = '#f80'; ctx.lineWidth = 3; ctx.globalAlpha = b.life/0.3; ctx.shadowColor = '#f80'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.moveTo(b.x1,b.y1); ctx.lineTo(b.x2,b.y2); ctx.stroke(); });
+            ctx.restore();
+
+            var sp = 0.5+Math.sin(Date.now()/200)*0.3;
+            ctx.fillStyle = 'rgba(255,136,0,'+(0.08+sp*0.04)+')'; ctx.font = "80px 'Share Tech Mono'"; ctx.textAlign = "center";
+            ctx.fillText("GUNSHIP MODE", width/2, height/2);
+            ctx.font = "24px 'Share Tech Mono'"; ctx.fillStyle = 'rgba(255,136,0,0.15)';
+            ctx.fillText(isTouchDevice ? "TAP TO DESTROY" : "CLICK TO DESTROY", width/2, height/2+40);
+        }
+
+        // Magic aura
+        if (magicAuraTimer > 0) {
+            var ma = magicAuraTimer / 3000;
+            var sparkles = ['\u2726','\u2727','\u2728','\u2605','\u2606','\u273B'];
+            ctx.save();
+            for (var ski = 0; ski < 6; ski++) { var skx = (Date.now()/3+ski*237)%width; var sky = (Date.now()/5+ski*419)%height; ctx.globalAlpha = ma*(0.3+Math.sin(Date.now()/200+ski)*0.2); ctx.fillStyle = ['#f0f','#ff0','#0ff','#fff','#f80','#0f0'][ski]; ctx.font = (16+Math.sin(Date.now()/300+ski)*6)+"px 'Share Tech Mono'"; ctx.fillText(sparkles[ski], skx, sky); }
+            ctx.restore();
+            ctx.save(); ctx.strokeStyle = 'rgba(200,0,255,'+(ma*0.4)+')'; ctx.lineWidth = 4+Math.sin(Date.now()/150)*2; ctx.shadowColor = '#f0f'; ctx.shadowBlur = 20; ctx.strokeRect(2,2,width-4,height-4); ctx.restore();
+            ctx.save(); ctx.globalAlpha = ma*0.1; ctx.fillStyle = '#f0f'; ctx.font = "60px 'Share Tech Mono'"; ctx.textAlign = "center"; ctx.fillText("ABRACADABRA", width/2, height/2-60); ctx.restore();
+        }
+
+        // Combo text
+        if (comboTimer > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, comboTimer/500); ctx.fillStyle = '#ff0'; ctx.font = "48px 'Share Tech Mono'"; ctx.textAlign = 'center'; ctx.shadowColor = '#ff0'; ctx.shadowBlur = 20; ctx.fillText(comboText, width/2, height/2-60); ctx.restore(); }
+
+    } catch(err) {
+        console.error('Lexical Hazard game loop error:', err);
     }
 
-    // --- Combo Text ---
-    if (comboTimer > 0) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, comboTimer / 500);
-        ctx.fillStyle = '#ff0';
-        ctx.font = "48px 'Share Tech Mono'";
-        ctx.textAlign = 'center';
-        ctx.shadowColor = '#ff0';
-        ctx.shadowBlur = 20;
-        ctx.fillText(comboText, width/2, height/2 - 60);
-        ctx.restore();
-    }
-
-    requestAnimationFrame(gameLoop);
+    rafId = requestAnimationFrame(gameLoop);
 }
+
+// ============================================================
+//  12. UI & BUTTON HANDLERS
+// ============================================================
+function toggleMute() {
+    Audio.muted = !Audio.muted;
+    var btn = document.getElementById('btn-mute');
+    btn.classList.toggle('muted', Audio.muted);
+    btn.innerHTML = Audio.muted ? '&#9835;<span style="text-decoration:line-through;"></span>' : '&#9835;';
+    btn.title = Audio.muted ? 'Unmute' : 'Mute';
+    try { localStorage.setItem('lexical_hazard_muted', Audio.muted); } catch(e) {}
+}
+
+function applySettingsUI() {
+    document.getElementById('setting-difficulty').value = settings.difficulty;
+    document.getElementById('setting-volume').value = settings.volume;
+    document.getElementById('setting-effects').checked = settings.screenEffects;
+}
+
+function readSettingsUI() {
+    settings.difficulty = document.getElementById('setting-difficulty').value;
+    settings.volume = parseInt(document.getElementById('setting-volume').value, 10);
+    settings.screenEffects = document.getElementById('setting-effects').checked;
+    Audio.volumeMult = settings.volume / 100;
+    saveSettings();
+}
+
+// Button bindings
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-restart').addEventListener('click', resetGame);
+document.getElementById('btn-resume').addEventListener('click', resumeGame);
+document.getElementById('btn-quit').addEventListener('click', quitToMenu);
+
+document.getElementById('btn-mute').addEventListener('click', function(e) { e.stopPropagation(); toggleMute(); });
+
+document.getElementById('btn-help-hud').addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (gameState === 'PLAYING') pauseGame();
+    helpScreen.classList.remove('hidden');
+});
+document.getElementById('btn-help-back').addEventListener('click', function() {
+    helpScreen.classList.add('hidden');
+    if (gameState === 'PAUSED') resumeGame();
+});
+
+document.getElementById('btn-settings-open').addEventListener('click', function() {
+    applySettingsUI();
+    startScreen.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+});
+document.getElementById('btn-settings-back').addEventListener('click', function() {
+    readSettingsUI();
+    settingsScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+});
+
+// Init mute state from storage
+try {
+    if (localStorage.getItem('lexical_hazard_muted') === 'true') {
+        Audio.muted = true;
+        var mb = document.getElementById('btn-mute');
+        mb.classList.add('muted');
+        mb.title = 'Unmute';
+    }
+} catch(e) {}
+
+// Init high scores on start screen
+renderHighScores('start-highscores');
+applySettingsUI();
 
 </script>
 </body>
