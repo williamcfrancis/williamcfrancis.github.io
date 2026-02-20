@@ -48,40 +48,48 @@ sections:
         tags: ["browser", "casual", "sound-on"]
         link:
           label: Play Lily Leap
-          url: "/games/lily_leap.html"
-        image: "/games/lily_leap.png"
+          url: "/games/lily_leap/"
+        image: "/games/lily_leap/lily_leap.png"
       - title: Echo Walker
         genre: Audio-physics
         summary: "The world is silent and intangible. Use sound to create solid matter and reach the portal."
         tags: ["browser", "platformer", "sound-on"]
         link:
           label: Play Echo Walker
-          url: "/games/echo_walker.html"
-        image: "/games/echo_walker.png"
+          url: "/games/echo_walker/"
+        image: "/games/echo_walker/echo_walker.png"
       - title: Lexical Hazard
         genre: Word survival
         summary: "Type the falling words to neutralize them. Each word triggers its meaning—FAST speeds time, BLIND dims the lights."
         tags: ["browser", "typing", "sound-on"]
         link:
           label: Play Lexical Hazard
-          url: "/games/lexical_hazard.html"
-        image: "/games/lexical_hazard.png"
+          url: "/games/lexical_hazard/"
+        image: "/games/lexical_hazard/lexical_hazard.png"
       - title: Abyss
         genre: Deep-dive survival
         summary: "Dive into the deep blue. Manage oxygen, dash to destroy mines, and descend through biomes to the abyssal rift."
         tags: ["browser", "3D", "sound-on"]
         link:
           label: Play Abyss
-          url: "/games/abyss.html"
-        image: "/games/abyss.jpg"
+          url: "/games/abyss/"
+        image: "/games/abyss/abyss.jpg"
       - title: Algorithm Simulator
         genre: Dark simulation
         summary: "Maximize engagement and ad revenue by manipulating a subject's digital experience. A satirical take on attention economy mechanics."
         tags: ["browser", "simulation", "dark"]
         link:
           label: Play Algorithm Simulator
-          url: "/games/algorithm_simulator.html"
-        image: "/games/algorithm_simulator.png"
+          url: "/games/algorithm_simulator/"
+        image: "/games/algorithm_simulator/algorithm_simulator.png"
+      - title: "Boss Fight: Wordplay"
+        genre: LLM-powered RPG
+        summary: "An 8-bit turn-based boss battle where your weapon is language. Type taunts, bluffs, and weird spells to defeat an arrogant pixel boss."
+        tags: ["browser", "AI", "retro"]
+        link:
+          label: "Play Boss Fight: Wordplay"
+          url: "/games/boss_fight_wordplay/"
+        image: "/games/boss_fight_wordplay/boss_fight_wordplay.png"
   - section:
       name: Photo Gallery
       id: gallery

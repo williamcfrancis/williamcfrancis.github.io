@@ -16,8 +16,8 @@
           {{ if .image }}
             {{ $imgPath = .image | relURL }}
           {{ else }}
-            {{ $slug := replace (lower .title) " " "-" }}
-            {{ $imgPath = (printf "/games/%s.png" $slug) | relURL }}
+            {{ $slug := replace (lower .title) " " "_" }}
+            {{ $imgPath = (printf "/games/%s/%s.png" $slug $slug) | relURL }}
           {{ end }}
         <article class="personal-card game-card">
           <div class="card-body">

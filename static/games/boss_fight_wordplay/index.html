@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boss Fight: Wordplay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/games/boss_fight_wordplay/src/style.css" />
+</head>
+<body>
+  <a class="back-link" href="/personal/#games"><span>&larr;</span> Back to games</a>
+
+  <div id="game-container">
+    <div id="title-screen">
+      <h1 class="game-title">Boss Fight: Wordplay</h1>
+      <p class="subtitle">Defeat the boss with your words.</p>
+      <button id="start-btn" class="pixel-btn">START BATTLE</button>
+    </div>
+
+    <div id="battle-screen" class="hidden">
+      <div id="hud">
+        <div class="hud-bar boss-bar">
+          <span class="bar-label">BOSS</span>
+          <div class="bar-track">
+            <div id="boss-hp-fill" class="bar-fill boss-fill"></div>
+          </div>
+          <span id="boss-hp-text" class="bar-value">100 / 100</span>
+        </div>
+        <div class="hud-bar player-bar">
+          <span class="bar-label">YOU</span>
+          <div class="bar-track">
+            <div id="player-hp-fill" class="bar-fill player-fill"></div>
+          </div>
+          <span id="player-hp-text" class="bar-value">30 / 30</span>
+        </div>
+      </div>
+
+      <div id="boss-sprite">
+        <div class="boss-body">
+          <div class="boss-eye left-eye"></div>
+          <div class="boss-eye right-eye"></div>
+          <div class="boss-mouth"></div>
+        </div>
+        <div class="boss-shadow"></div>
+      </div>
+
+      <div id="dialogue-box" class="hidden">
+        <p id="dialogue-text"></p>
+      </div>
+
+      <div id="damage-popup" class="hidden"></div>
+
+      <div id="input-area">
+        <label for="command-input">Command:</label>
+        <div class="input-row">
+          <input type="text" id="command-input" placeholder="Say something..." autocomplete="off" />
+          <button id="submit-btn" class="pixel-btn">SUBMIT</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="victory-screen" class="hidden">
+      <h1 class="game-title">YOU WIN!</h1>
+      <p class="subtitle">The boss has been defeated by your words.</p>
+      <button id="replay-btn" class="pixel-btn">PLAY AGAIN</button>
+    </div>
+
+    <div id="defeat-screen" class="hidden">
+      <h1 class="game-title defeat-title">GAME OVER</h1>
+      <p class="subtitle">The boss crushed you.</p>
+      <button id="retry-btn" class="pixel-btn">TRY AGAIN</button>
+    </div>
+  </div>
+
+  <script type="module" src="/games/boss_fight_wordplay/src/main.js"></script>
+</body>
+</html>
