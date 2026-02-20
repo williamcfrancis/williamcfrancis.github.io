@@ -1,14 +1,19 @@
+const RATE_LIMIT_FALLBACK = {
+  damage: 0,
+  response: "The Boss is gathering immense power. You must wait a minute before attacking again.",
+};
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-  if (!OPENAI_API_KEY) {
+  if (!GEMINI_API_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'OPENAI_API_KEY not configured' }),
+      body: JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
     };
   }
 
@@ -25,35 +30,51 @@ exports.handler = async (event) => {
 
   const systemPrompt = `You are an arrogant 8-bit video game boss. The player attacks you by saying: '${userInput}'. Decide how emotionally or physically damaging this is on a scale of 0 to 25. Return ONLY a valid JSON object in this exact format: {"damage": number, "response": "A short, in-character reaction to what they said."}`;
 
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userInput },
+        systemInstruction: {
+          parts: [{ text: systemPrompt }],
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: userInput }],
+          },
         ],
-        max_tokens: 150,
-        temperature: 0.9,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.9,
+          maxOutputTokens: 150,
+        },
       }),
     });
 
+    if (res.status === 429) {
+      console.warn('Gemini 429 rate limit hit');
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(RATE_LIMIT_FALLBACK),
+      };
+    }
+
     if (!res.ok) {
       const errText = await res.text();
-      console.error('OpenAI API error:', errText);
+      console.error('Gemini API error:', res.status, errText);
       return {
-        statusCode: 502,
-        body: JSON.stringify({ error: 'Upstream API error' }),
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(RATE_LIMIT_FALLBACK),
       };
     }
 
     const data = await res.json();
-    const raw = data.choices?.[0]?.message?.content?.trim() || '';
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -66,7 +87,7 @@ exports.handler = async (event) => {
 
     const parsed = JSON.parse(jsonMatch[0]);
     const damage = Math.min(25, Math.max(0, Math.round(Number(parsed.damage) || 0)));
-    const response = String(parsed.response || "...").slice(0, 200);
+    const response = String(parsed.response || '...').slice(0, 200);
 
     return {
       statusCode: 200,
@@ -76,8 +97,9 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error('Function error:', err);
     return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(RATE_LIMIT_FALLBACK),
     };
   }
 };

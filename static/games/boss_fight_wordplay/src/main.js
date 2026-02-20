@@ -23,6 +23,14 @@ const damagePopup = $('#damage-popup');
 const commandInput = $('#command-input');
 const submitBtn = $('#submit-btn');
 const bossBody = $('.boss-body');
+const apiStatus = $('#api-status');
+const statusLabel = $('#status-label');
+
+function setStatus(mode) {
+  apiStatus.className = mode;
+  const labels = { gemini: 'gemini', fallback: 'offline', thinking: 'thinking...' };
+  statusLabel.textContent = labels[mode] || 'offline';
+}
 
 function updateHud() {
   const bossPct = Math.max(0, (state.bossHp / BOSS_MAX_HP) * 100);
@@ -80,6 +88,7 @@ function triggerScreenShake() {
 }
 
 async function sendAttack(userInput) {
+  setStatus('thinking');
   try {
     const res = await fetch('/.netlify/functions/attack', {
       method: 'POST',
@@ -90,8 +99,10 @@ async function sendAttack(userInput) {
     if (!res.ok) throw new Error('Server error');
 
     const data = await res.json();
+    setStatus('gemini');
     return data;
   } catch {
+    setStatus('fallback');
     return fallbackAttack(userInput);
   }
 }
