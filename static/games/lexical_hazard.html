@@ -448,6 +448,10 @@ var RESCUE_WORDS = RESCUE_POOL_NAMES.map(function(n) {
     return WORDS.find(function(w) { return w.text === n; });
 }).filter(Boolean);
 
+// Ensure special/action words never appear as normal tier words.
+var SPECIAL_WORD_SET = {};
+WORDS.forEach(function(w) { SPECIAL_WORD_SET[w.text] = true; });
+
 var WORD_TIERS = {
     1: [
         "CAT","DOG","SUN","SKY","RED","RUN","JUMP","PLAY","GAME","LOVE",
@@ -526,6 +530,10 @@ var WORD_TIERS = {
         "UNBELIEVABLE","UNPREDICTABLE","WHEREABOUTS"
     ]
 };
+
+Object.keys(WORD_TIERS).forEach(function(k) {
+    WORD_TIERS[k] = WORD_TIERS[k].filter(function(t) { return !SPECIAL_WORD_SET[t]; });
+});
 
 var TIER_COLORS = ['#0099ff', '#00ffff', '#ff00ff', '#ff8800', '#ffdd00'];
 
@@ -1028,6 +1036,15 @@ var Effects = {
         }
 
         // ===== DURATION EFFECTS =====
+        var meta = WORDS.find(function(w) { return w.text === name; });
+        if (meta) {
+            var fxColor = meta.type === 'good' ? '#0f0' : (meta.type === 'bad' ? '#f55' : '#ff0');
+            createParticles(width / 2, height / 2, fxColor, 22);
+            if (meta.type === 'good') Audio.powerup();
+            else if (meta.type === 'bad') Audio.hit();
+            else Audio.shoot();
+            cameraShake = reducedMotion ? 0 : Math.max(cameraShake, 5);
+        }
         this.active[name] = duration;
         this.renderList();
     },
@@ -1124,12 +1141,20 @@ function handleShoot(x, y) {
 }
 
 function checkWordMatch() {
-    var matchingIndices = []; var firstMatch = null;
+    var matchingIndices = [];
+    var firstMatch = null;
+    var firstSpecialMatch = null;
     for (var wi = words.length - 1; wi >= 0; wi--) {
-        if (words[wi].text === userInput) { if (!firstMatch) firstMatch = words[wi]; matchingIndices.push(wi); }
+        if (words[wi].text === userInput) {
+            var candidate = words[wi];
+            if (!firstMatch) firstMatch = candidate;
+            if (!firstSpecialMatch && candidate.effectType !== 'none' && candidate.effectTemplate) firstSpecialMatch = candidate;
+            matchingIndices.push(wi);
+        }
     }
     if (matchingIndices.length > 0) {
-        var word = firstMatch;
+        // Prioritize a special word owner if present, so effects always trigger.
+        var word = firstSpecialMatch || firstMatch;
         for (var ri = 0; ri < matchingIndices.length; ri++) {
             var rw = words[matchingIndices[ri]]; createParticles(rw.x, rw.y, rw.color, 15);
             words.splice(matchingIndices[ri], 1);
