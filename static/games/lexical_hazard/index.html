@@ -153,6 +153,44 @@
             to   { transform: translateX(0); opacity: 1; }
         }
 
+        #effect-toast-container {
+            position: absolute;
+            top: 50px; left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            pointer-events: none;
+            z-index: 4;
+        }
+        .effect-toast {
+            padding: 6px 18px;
+            border-radius: 4px;
+            font-size: clamp(14px, 2.2vw, 20px);
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            white-space: nowrap;
+            animation: toastLife 2.2s ease-out forwards;
+            text-shadow: 0 0 8px currentColor;
+        }
+        .effect-toast.good  { background: rgba(0,60,0,0.85); color: #0f0; border: 1px solid rgba(0,255,0,0.4); }
+        .effect-toast.bad   { background: rgba(60,0,0,0.85); color: #f55; border: 1px solid rgba(255,0,0,0.4); }
+        .effect-toast.neutral { background: rgba(60,60,0,0.85); color: #ff0; border: 1px solid rgba(255,255,0,0.4); }
+        .effect-toast .toast-desc {
+            font-size: clamp(10px, 1.5vw, 13px);
+            opacity: 0.7;
+            margin-left: 8px;
+            letter-spacing: 0;
+        }
+        @keyframes toastLife {
+            0%   { opacity: 0; transform: translateY(-15px) scale(0.9); }
+            10%  { opacity: 1; transform: translateY(0) scale(1); }
+            75%  { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+
         #input-display {
             position: absolute;
             bottom: 10%; left: 50%;
@@ -280,6 +318,7 @@
             <div class="hud-controls"></div>
             <div class="health-box">Integrity: <span id="health">100</span>%</div>
         </div>
+        <div id="effect-toast-container"></div>
         <div class="active-effects" id="effects-list"></div>
         <div id="input-display"><span id="current-input"></span><span class="caret"></span></div>
     </div>
@@ -434,7 +473,19 @@ var WORDS = [
     { text: "PULSE",    type: "neutral", desc: "Size Pulse",     duration: 7000 },
     { text: "MATRIX",   type: "neutral", desc: "Digital Rain",   duration: 8000 },
     { text: "NUMBERS",  type: "neutral", desc: "Number Swap",    duration: 0 },
-    { text: "ZOMBIE",   type: "neutral", desc: "Zombie Horde",   duration: 0 }
+    { text: "ZOMBIE",   type: "neutral", desc: "Zombie Horde",   duration: 0 },
+
+    // ===== WOW — Pure Fun =====
+    { text: "BLACKHOLE",  type: "good",    desc: "Devour All!",       duration: 0 },
+    { text: "SUPERNOVA",  type: "good",    desc: "Cosmic Explosion",  duration: 0 },
+    { text: "THUNDERBOLT",type: "good",    desc: "Chain Lightning",   duration: 0 },
+    { text: "JACKPOT",    type: "good",    desc: "Score Explosion",   duration: 0 },
+    { text: "TIMEWARP",   type: "neutral", desc: "Temporal Chaos",    duration: 0 },
+    { text: "SUPLEX",     type: "good",    desc: "Slam Biggest Word", duration: 0 },
+    { text: "FIREWORKS",  type: "neutral", desc: "Grand Finale",      duration: 0 },
+    { text: "EARTHQUAKE", type: "bad",     desc: "Total Shakedown",   duration: 4000 },
+    { text: "BLACKOUT",   type: "bad",     desc: "Lights Out!",       duration: 5000 },
+    { text: "WHIRLPOOL",  type: "neutral", desc: "Spiral Vortex",     duration: 6000 }
 ];
 
 var GOOD_NEUTRAL_WORDS = WORDS.filter(function(w) { return w.type !== 'bad'; });
@@ -455,23 +506,35 @@ WORDS.forEach(function(w) { SPECIAL_WORD_SET[w.text] = true; });
 var WORD_TIERS = {
     1: [
         "CAT","DOG","SUN","SKY","RED","RUN","JUMP","PLAY","GAME","LOVE",
-        "HOPE","LIFE","TIME","STAR","MOON","WIND","RAIN","SNOW","TREE","BIRD",
-        "FISH","BOOK","PEN","ART","SONG","FOOD","CAKE","MILK","GOLD","COOL",
-        "WARM","HOT","COLD","FAST","SLOW","HARD","SOFT","LOUD","DARK","DAY",
+        "LIFE","TIME","STAR","MOON","SNOW","TREE","BIRD",
+        "FISH","BOOK","PEN","ART","SONG","FOOD","CAKE","MILK","COOL",
+        "WARM","HOT","COLD","HARD","SOFT","LOUD","DARK","DAY",
         "WORK","REST","WALK","TALK","READ","SWIM","FLY","BOX","CUP","HAT",
         "MAP","KEY","GEM","ORB","AXE","BOW","OWL","FOX","ELF","JAM",
         "INK","RAY","ZAP","HUM","DIG","HOP","SIT","MIX","ZIP","WEB",
         "BIT","LOG","NET","PIN","ROD","TIP","WAX","DEN","HUB","RIM",
-        "ACE","AGE","AIR","ANT","APE","ARM","BAG","BAT","BED","BIG",
+        "ACE","AGE","AIR","ANT","APE","ARM","BAG","BAT","BED",
         "BUS","CAN","CAR","COW","CRY","CUT","DAD","DIM","DOT","DRY",
         "EAR","EAT","EGG","END","EYE","FAN","FAR","FAT","FIG","FIT",
-        "FUN","GAS","GUM","HEN","HIT","ICE","JAR","JET","JOB","JOY",
+        "FUN","GAS","GUM","HEN","ICE","JAR","JET","JOB","JOY",
         "KIT","LAP","LAW","LEG","LID","LIP","LOW","MAD","MOM","MUD",
         "NAP","NEW","NUT","OAK","ODD","OLD","ONE","PAD","PAY","PEA",
         "PET","PIE","PIG","POT","PUB","RAN","RAT","RAW","RIB","RIG",
         "RIP","ROW","RUG","SAD","SEA","SET","SIP","SIX","SKI","SON",
         "SPY","SUM","TAN","TAP","TEA","TEN","TIE","TIN","TOE","TON",
-        "TOY","TUB","TWO","VAN","WAR","WET","WIN","WIT","YES","ZOO"
+        "TOY","TUB","TWO","VAN","WAR","WET","WIT","YES","ZOO",
+        "ARC","AWE","BAY","BEE","BIN","BOG","BOX","BUD","BUG","BUN",
+        "CAB","CAP","COG","COT","CUB","CUP","DAM","DEW","DIP","DUG",
+        "DYE","EEL","ELM","ERA","EVE","FIN","FIR","FOB","FOP","FUR",
+        "GAP","GNU","GOB","GYM","HAM","HEX","HEW","HOG","HUE","HUT",
+        "IMP","ION","IRE","IVY","JAB","JAW","JIG","JOG","JOT","JUG",
+        "KEG","KIN","LAB","LAD","LAG","LIT","LOB","LUG","MAT","MOB",
+        "MOP","NAG","NIL","NIT","NOD","OAR","OAT","OPT","ORE","OWE",
+        "PAL","PAN","PAW","PEG","PIT","PLY","POD","POP","PRY","PUN",
+        "RAG","RAM","RAP","REF","RIB","RIM","ROB","ROT","RUB","RUT",
+        "SAG","SAP","SAW","SOB","SOD","SOP","SOT","SOW","SUB","TAB",
+        "TAG","TAR","TUG","URN","USE","VEX","VOW","WAD","WIG","WOE",
+        "WOK","WON","YAK","YAM","YAW","YEW","ZAG","ZEN","ZIT"
     ],
     2: [
         "PLANET","GALAXY","SMILE","ROCKET","ORBIT","FUTURE","SUMMER","WINTER",
@@ -510,7 +573,7 @@ var WORD_TIERS = {
         "OVERTHROW","PENUMBRAL","PROTOTYPE","PUNCTUATE","QUICKSAND","RAZORBLADE",
         "RESONANCE","RETROGRADE","SABOTEUR","SATELLITE","SENTIMENT","SHOCKWAVE",
         "SIDEQUEST","SLINGSHOT","SNOWFLAKE","STALEMATE","STAMPEDE","STARLIGHT",
-        "STOCKPILE","SUNSCREEN","SUPERNOVA","SWORDFISH","TERRAFORM","THRESHOLD",
+        "STOCKPILE","SUNSCREEN","SWORDFISH","TERRAFORM","THRESHOLD","STEAMWORKS",
         "UNDERTONE","VENDETTA","VIGILANTE","WARHAMMER","XENOMORPH"
     ],
     5: [
@@ -791,11 +854,12 @@ function Word() {
     var isSpecial = Math.random() < specialChance;
 
     var forceRescue = false;
-    if (health < 30 && !bonusActive) {
-        var rescueChance = ((30 - health) / 30) * 0.35;
+    if (health < 25 && !bonusActive) {
+        var rescueChance = ((25 - health) / 25) * 0.30;
         if (Math.random() < rescueChance) { isSpecial = true; forceRescue = true; }
     }
-    if (level >= 10 && isSpecial && Math.random() < 0.3) forceRescue = true;
+    // At high levels, only boost rescue if health is also below 50
+    if (level >= 12 && health < 50 && isSpecial && Math.random() < 0.2) forceRescue = true;
 
     if (isSpecial) {
         var pool;
@@ -808,6 +872,7 @@ function Word() {
         this.effectType = template.type;
         this.effectTemplate = template;
         this.color = this.effectType === 'good' ? '#0f0' : (this.effectType === 'bad' ? '#f00' : '#ff0');
+        this.isSpecialWord = true;
     } else {
         var tier = bonusActive ? 1 : pickTier(cfg);
         var list = WORD_TIERS[tier] || WORD_TIERS[1];
@@ -824,7 +889,9 @@ function Word() {
     this.x = Math.random() * (width - 100) + 50;
     this.y = -50;
     var spdMult = bonusActive ? 0.55 : cfg.speed;
-    this.baseSpeed = (Math.random() * 0.3 + 0.3) * 60 * spdMult;
+    // Words get progressively faster as difficultyMultiplier climbs
+    var diffSpeedBoost = 1 + difficultyMultiplier * 0.05;
+    this.baseSpeed = (Math.random() * 0.3 + 0.3) * 60 * spdMult * diffSpeedBoost;
     this.vx = 0;
     this.vy = 0;
     this.scale = 1;
@@ -846,6 +913,16 @@ Word.prototype.update = function(dt) {
     if (Effects.has('MAGNET')) { this.vx += (this.x < width / 2 ? 1 : -1) * 150; }
     if (Effects.has('CHAOS')) { this.vx += (Math.random() - 0.5) * 500; this.vy += (Math.random() - 0.5) * 200; }
     if (Effects.has('BOUNCE')) { this.x += Math.cos(this.wobble) * 200 * dt; if (this.x < 50 || this.x > width - 50) this.wobble += Math.PI; }
+    if (Effects.has('WHIRLPOOL')) {
+        var dx = width / 2 - this.x, dy = height / 2 - this.y;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        var pull = 80 / Math.max(dist / 200, 0.5);
+        this.vx += (dx / dist) * pull + (-dy / dist) * 60;
+        this.vy += (dy / dist) * pull + (dx / dist) * 60;
+    }
+    if (Effects.has('EARTHQUAKE')) {
+        this.vx += (Math.random() - 0.5) * 300;
+    }
 
     if (!reducedMotion) {
         if (Effects.has('DANCE')) this.x += Math.sin(Date.now() / 200 + this.y) * 5;
@@ -878,8 +955,8 @@ Word.prototype.draw = function(c) {
     }
     c.globalAlpha = alpha;
 
-    if (sfx && Effects.has('NEON')) c.fillStyle = 'hsl(' + ((Date.now()/5 + this.x)%360) + ', 100%, 50%)';
-    else if (focusMode) c.fillStyle = '#fff';
+    if (sfx && Effects.has('NEON') && !this.isSpecialWord) c.fillStyle = 'hsl(' + ((Date.now()/5 + this.x)%360) + ', 100%, 50%)';
+    else if (focusMode && !this.isSpecialWord) c.fillStyle = '#fff';
     else c.fillStyle = this.color;
 
     if (!focusMode && sfx && Effects.has('GLITCH') && Math.random() > 0.8) { c.fillStyle = '#fff'; c.translate(Math.random()*10-5, 0); }
@@ -920,6 +997,28 @@ Word.prototype.draw = function(c) {
 
     c.fillText(displayText, 0, 0);
 
+    // Special word glow + description label
+    if (this.isSpecialWord && this.effectTemplate) {
+        // Glow ring behind the word
+        c.save();
+        var glowColor = this.effectType === 'good' ? 'rgba(0,255,0,' : (this.effectType === 'bad' ? 'rgba(255,0,0,' : 'rgba(255,255,0,');
+        var glowPulse = 0.15 + Math.sin(Date.now() / 300) * 0.08;
+        c.shadowColor = this.color;
+        c.shadowBlur = 12 + Math.sin(Date.now() / 250) * 4;
+        c.strokeStyle = glowColor + glowPulse + ')';
+        c.lineWidth = 1;
+        var tw = c.measureText(displayText).width;
+        c.strokeRect(-tw/2 - 6, -16, tw + 12, 26);
+        c.restore();
+        // Tiny description label below
+        c.save();
+        c.font = "11px 'Share Tech Mono'";
+        c.globalAlpha = 0.6;
+        c.fillStyle = this.color;
+        c.fillText(this.effectTemplate.desc, 0, 16);
+        c.restore();
+    }
+
     // Match highlight — skip when visual disruption active
     if (userInput.length > 0 && this.text.startsWith(userInput) && !hasVisualDisruption) {
         var cw = 18;
@@ -955,12 +1054,13 @@ var Effects = {
     active: {},
 
     activate: function(name, duration) {
-        // Track stats
+        // Track stats & show toast
         var wd = WORDS.find(function(w) { return w.text === name; });
         if (wd) {
             if (wd.type === 'good') stats.effectsGood++;
             else if (wd.type === 'bad') stats.effectsBad++;
             else stats.effectsNeutral++;
+            showEffectToast(wd.text, wd.desc, wd.type);
         }
 
         // ===== INSTANT EFFECTS =====
@@ -979,7 +1079,7 @@ var Effects = {
         if (name === 'ABSORB') { var heal = Math.max(5, words.length * 3); health = Math.min(100, health + heal); words.forEach(function(w) { createParticles(w.x, w.y, '#0f0', 8); }); words = []; Audio.powerup(); createParticles(width/2, height/2, '#0f0', 30); updateHUD(); return; }
         if (name === 'CLONE') {
             var clones = []; var maxC = Math.min(words.length, 8);
-            for (var ci = 0; ci < maxC; ci++) { var orig = words[ci]; var clone = new Word(); clone.text = orig.text; clone.color = orig.color; clone.effectType = orig.effectType; clone.effectTemplate = orig.effectTemplate; clone.x = orig.x + (Math.random()-0.5)*120; clone.y = orig.y + (Math.random()-0.5)*40; clone.baseSpeed = orig.baseSpeed * (0.8+Math.random()*0.4); if (orig.originalText) { clone.originalText = orig.originalText; } clones.push(clone); }
+            for (var ci = 0; ci < maxC; ci++) { var orig = words[ci]; var clone = new Word(); clone.text = orig.text; clone.color = orig.color; clone.effectType = orig.effectType; clone.effectTemplate = orig.effectTemplate; clone.isSpecialWord = orig.isSpecialWord; clone.x = orig.x + (Math.random()-0.5)*120; clone.y = orig.y + (Math.random()-0.5)*40; clone.baseSpeed = orig.baseSpeed * (0.8+Math.random()*0.4); if (orig.originalText) { clone.originalText = orig.originalText; } clones.push(clone); }
             words = words.concat(clones); Audio.explosion(); createParticles(width/2, height/2, '#f00', 30); cameraShake = reducedMotion ? 0 : 15; return;
         }
         if (name === 'AMNESIA') { userInput = ""; updateHUD(); Audio.hit(); cameraShake = reducedMotion ? 0 : 12; createParticles(width/2, height*0.85, '#f0f', 20); return; }
@@ -1025,11 +1125,170 @@ var Effects = {
             magicBadKeys.forEach(function(k) { delete magicSelf.active[k]; });
             var magicPool = WORD_TIERS[1];
             words.forEach(function(w) { w.text = magicPool[Math.floor(Math.random()*magicPool.length)]; w.color = '#f0f'; w.effectType = 'none'; w.effectTemplate = null; w.baseSpeed *= 0.3; createParticles(w.x, w.y, '#f0f', 5); createParticles(w.x, w.y, '#ff0', 3); });
-            this.active['SHIELD'] = 3000; this.active['DOUBLE'] = 8000; this.active['REGEN'] = 5000;
+            this.active['SHIELD'] = 5000; this.active['DOUBLE'] = 8000; this.active['REGEN'] = 8000;
             score += 500;
             for (var ai = 0; ai < 10; ai++) createParticles(Math.random()*width, Math.random()*height, ['#f0f','#ff0','#0ff','#fff','#f80'][ai%5], 25);
             magicAuraTimer = 3000; this.renderList(); Audio.magic(); cameraShake = reducedMotion ? 0 : 30; updateHUD(); return;
         }
+
+        // ===== WOW EFFECTS =====
+        if (name === 'BLACKHOLE') {
+            var cx = width / 2, cy = height / 2;
+            words.forEach(function(w) {
+                createParticles(w.x, w.y, '#808', 6);
+                w.x = cx + (Math.random() - 0.5) * 30;
+                w.y = cy + (Math.random() - 0.5) * 30;
+                createParticles(w.x, w.y, '#f0f', 8);
+            });
+            score += words.length * 30;
+            words = [];
+            for (var bhi = 0; bhi < 15; bhi++) {
+                var bha = (bhi / 15) * Math.PI * 2;
+                createParticles(cx + Math.cos(bha) * 80, cy + Math.sin(bha) * 80, '#f0f', 10);
+                createParticles(cx + Math.cos(bha) * 40, cy + Math.sin(bha) * 40, '#808', 8);
+            }
+            createParticles(cx, cy, '#fff', 60);
+            Audio.explosion(); Audio.magic();
+            cameraShake = reducedMotion ? 0 : 35;
+            comboText = 'BLACK HOLE!'; comboTimer = 2500;
+            return;
+        }
+        if (name === 'SUPERNOVA') {
+            words.forEach(function(w) {
+                createParticles(w.x, w.y, '#ff0', 12);
+                createParticles(w.x, w.y, '#f80', 8);
+                createParticles(w.x, w.y, '#fff', 5);
+            });
+            score += words.length * 25;
+            health = Math.min(100, health + 15);
+            words = [];
+            for (var sni = 0; sni < 20; sni++) {
+                var sna = (sni / 20) * Math.PI * 2;
+                createParticles(width/2 + Math.cos(sna)*150, height/2 + Math.sin(sna)*150, '#ffdd00', 8);
+                createParticles(width/2 + Math.cos(sna)*80, height/2 + Math.sin(sna)*80, '#fff', 6);
+            }
+            Audio.explosion(); Audio.bonus();
+            cameraShake = reducedMotion ? 0 : 40;
+            comboText = 'SUPERNOVA!'; comboTimer = 2500;
+            updateHUD(); return;
+        }
+        if (name === 'THUNDERBOLT') {
+            var targets = words.slice().sort(function(a, b) { return b.y - a.y; });
+            var bolts = Math.min(targets.length, 5);
+            var boltScore = 0;
+            for (var tbi = 0; tbi < bolts; tbi++) {
+                var tw = targets[tbi];
+                var tidx = words.indexOf(tw);
+                if (tidx !== -1) {
+                    createParticles(tw.x, tw.y, '#0ff', 15);
+                    createParticles(tw.x, tw.y, '#fff', 10);
+                    for (var lp = 0; lp < 5; lp++) createParticles(tw.x + (Math.random()-0.5)*40, tw.y * (lp/5), '#0ff', 3);
+                    boltScore += tw.text.length * 15;
+                    words.splice(tidx, 1);
+                }
+            }
+            score += boltScore;
+            Audio.powerup(); Audio.shoot();
+            cameraShake = reducedMotion ? 0 : 25;
+            comboText = bolts + ' BOLTS!'; comboTimer = 2000;
+            updateHUD(); return;
+        }
+        if (name === 'JACKPOT') {
+            var jpScore = 0;
+            words.forEach(function(w) {
+                jpScore += w.text.length * 30;
+                createParticles(w.x, w.y, '#ffdd00', 8);
+                createParticles(w.x, w.y, '#fff', 3);
+            });
+            jpScore += level * 100;
+            score += jpScore;
+            for (var ji = 0; ji < 30; ji++) createParticles(Math.random() * width, Math.random() * height * 0.3, '#ffdd00', 5);
+            Audio.bonus(); Audio.powerup();
+            cameraShake = reducedMotion ? 0 : 15;
+            comboText = 'JACKPOT +' + jpScore + '!'; comboTimer = 3000;
+            updateHUD(); return;
+        }
+        if (name === 'TIMEWARP') {
+            words.forEach(function(w) {
+                createParticles(w.x, w.y, '#0ff', 5);
+                w.y = Math.random() * -100 - 20;
+                w.x = Math.random() * (width - 100) + 50;
+                w.baseSpeed *= 0.6;
+                createParticles(w.x, w.y + 50, '#80f', 5);
+            });
+            Effects.active['SLOW'] = 4000;
+            Effects.renderList();
+            Audio.magic();
+            cameraShake = reducedMotion ? 0 : 20;
+            comboText = 'TIME WARP!'; comboTimer = 2000;
+            return;
+        }
+        if (name === 'SUPLEX') {
+            if (words.length > 0) {
+                var hardest = words.reduce(function(a, b) { return a.text.length > b.text.length ? a : b; });
+                var hIdx = words.indexOf(hardest);
+                var suplexScore = hardest.text.length * 50;
+                score += suplexScore;
+                createParticles(hardest.x, hardest.y - 60, '#f80', 20);
+                createParticles(hardest.x, hardest.y, '#ff0', 25);
+                createParticles(hardest.x, hardest.y + 20, '#f00', 15);
+                if (hardest.effectType !== 'none' && hardest.effectTemplate) {
+                    Effects.activate(hardest.text, hardest.effectTemplate.duration);
+                }
+                words.splice(hIdx, 1);
+                Audio.explosion(); Audio.powerup();
+                cameraShake = reducedMotion ? 0 : 30;
+                comboText = 'SUPLEX! "' + (hardest.originalText || hardest.text) + '"'; comboTimer = 2500;
+            }
+            updateHUD(); return;
+        }
+        if (name === 'FIREWORKS') {
+            var fwColors = ['#f00','#0f0','#00f','#ff0','#f0f','#0ff','#f80','#8f0','#08f','#fff'];
+            words.forEach(function(w, idx) {
+                var col = fwColors[idx % fwColors.length];
+                for (var fi = 0; fi < 8; fi++) {
+                    var fa = (fi / 8) * Math.PI * 2;
+                    createParticles(w.x + Math.cos(fa)*20, w.y + Math.sin(fa)*20, col, 6);
+                }
+                createParticles(w.x, w.y, '#fff', 10);
+            });
+            score += words.length * 20;
+            words = [];
+            for (var fj = 0; fj < 10; fj++) createParticles(Math.random()*width, Math.random()*height*0.5, fwColors[fj % fwColors.length], 12);
+            Audio.bonus(); Audio.explosion(); Audio.magic();
+            cameraShake = reducedMotion ? 0 : 20;
+            comboText = 'GRAND FINALE!'; comboTimer = 3000;
+            return;
+        }
+        if (name === 'EARTHQUAKE') {
+            for (var eqi = words.length - 1; eqi >= 0; eqi--) {
+                words[eqi].x = Math.random() * (width - 100) + 50;
+                words[eqi].y = Math.random() * height * 0.7;
+                words[eqi].baseSpeed *= 1.5;
+                if (Math.random() < 0.3) { createParticles(words[eqi].x, words[eqi].y, '#f80', 10); words.splice(eqi, 1); }
+                else createParticles(words[eqi].x, words[eqi].y, '#a50', 4);
+            }
+            Audio.explosion(); Audio.hit();
+            cameraShake = reducedMotion ? 0 : 50;
+            this.active[name] = duration; this.renderList();
+            comboText = 'EARTHQUAKE!'; comboTimer = 2000;
+            return;
+        }
+        if (name === 'BLACKOUT') {
+            this.active[name] = duration; this.renderList();
+            Audio.hit();
+            cameraShake = reducedMotion ? 0 : 15;
+            comboText = 'LIGHTS OUT!'; comboTimer = 1500;
+            return;
+        }
+        if (name === 'WHIRLPOOL') {
+            this.active[name] = duration; this.renderList();
+            Audio.hit(); Audio.powerup();
+            cameraShake = reducedMotion ? 0 : 10;
+            comboText = 'WHIRLPOOL!'; comboTimer = 1500;
+            return;
+        }
+
         if (name === 'CAPSLOCK') {
             words.forEach(function(w) { if (!w.originalText) w.originalText = w.text; w.text = jumbleCase(w.originalText); });
             this.active[name] = duration; this.renderList(); Audio.hit(); cameraShake = reducedMotion ? 0 : 8; return;
@@ -1101,6 +1360,17 @@ function updateHUD() {
     uiInput.innerText = userInput;
     if (bonusActive) { uiLevel.innerText = 'BONUS'; uiLevel.style.color = '#ffdd00'; uiLevel.style.textShadow = '0 0 10px #ffdd00'; }
     else { uiLevel.innerText = 'LVL ' + level; uiLevel.style.color = '#fff'; uiLevel.style.textShadow = ''; }
+}
+
+function showEffectToast(name, desc, type) {
+    var container = document.getElementById('effect-toast-container');
+    var toast = document.createElement('div');
+    toast.className = 'effect-toast ' + (type || 'neutral');
+    toast.innerHTML = name + '<span class="toast-desc">' + desc + '</span>';
+    container.appendChild(toast);
+    setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 2300);
+    // Cap visible toasts at 4
+    while (container.children.length > 4) container.removeChild(container.firstChild);
 }
 
 function showLevelBanner(lvl) {
@@ -1449,9 +1719,9 @@ function gameLoop(timestamp) {
         // --- Spawning (wired with difficultyMultiplier) ---
         var cfg = getLevelCfg(level);
         var baseRate = bonusActive ? 1800 : cfg.spawnMs;
-        spawnRate = baseRate / (1 + difficultyMultiplier * 0.1);
+        spawnRate = baseRate / (1 + difficultyMultiplier * 0.25);
         if (Effects.has('RUSH')) spawnRate = spawnRate / 3;
-        spawnRate = Math.max(300, spawnRate);
+        spawnRate = Math.max(250, spawnRate);
 
         spawnTimer -= dt * 1000;
         if (spawnTimer <= 0) { spawnWord(); spawnTimer = spawnRate; }
@@ -1519,6 +1789,22 @@ function gameLoop(timestamp) {
         }
 
         if (Effects.has('FIRE')) { ctx.fillStyle = 'rgba(255,50,0,0.15)'; ctx.fillRect(0,0,width,height); }
+        if (Effects.has('BLACKOUT')) { ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0,0,width,height); }
+        if (Effects.has('WHIRLPOOL')) {
+            ctx.save(); ctx.globalAlpha = 0.08;
+            ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2;
+            for (var wpi = 0; wpi < 5; wpi++) {
+                var wpr = 40 + wpi * 50 + Math.sin(Date.now()/400 + wpi) * 15;
+                ctx.beginPath(); ctx.arc(width/2, height/2, wpr, 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.restore();
+        }
+        if (Effects.has('EARTHQUAKE')) {
+            ctx.save(); ctx.globalAlpha = 0.06;
+            ctx.fillStyle = '#a50';
+            for (var eqi2 = 0; eqi2 < 5; eqi2++) ctx.fillRect(Math.random()*width, Math.random()*height, Math.random()*width*0.3, 3);
+            ctx.restore();
+        }
         if (Effects.has('SHIELD')) { ctx.strokeStyle = 'rgba(0,200,255,' + (0.5+Math.sin(Date.now()/200)*0.3) + ')'; ctx.lineWidth = 10; ctx.strokeRect(0,0,width,height); }
         if (Effects.has('LEECH') && !bonusActive) { var la = 0.1+Math.sin(Date.now()/300)*0.05; ctx.fillStyle = 'rgba(200,0,0,'+la+')'; ctx.fillRect(0,0,width,60); ctx.fillRect(0,height-60,width,60); ctx.fillRect(0,0,60,height); ctx.fillRect(width-60,0,60,height); }
 
