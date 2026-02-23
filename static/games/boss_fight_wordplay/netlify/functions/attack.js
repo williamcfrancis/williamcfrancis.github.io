@@ -60,6 +60,22 @@ const LORE_FRAGMENTS = [
   "I remember every insult ever thrown at me. Your species is remarkably creative at cruelty.",
 ];
 
+const RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  required: ['damage', 'response', 'category', 'combo', 'lore', 'challenge', 'weakness', 'bossAttackName', 'bossDamage'],
+  properties: {
+    damage: { type: 'NUMBER' },
+    response: { type: 'STRING' },
+    category: { type: 'STRING', enum: ['wit', 'roast', 'flattery', 'philosophy', 'chaos', 'other'] },
+    combo: { type: 'BOOLEAN' },
+    lore: { type: 'STRING', nullable: true },
+    challenge: { type: 'STRING', nullable: true },
+    weakness: { type: 'STRING', nullable: true },
+    bossAttackName: { type: 'STRING' },
+    bossDamage: { type: 'NUMBER' },
+  },
+};
+
 function makeErrorResponse(fallbackData, errorDetail) {
   return {
     statusCode: 200,
@@ -189,10 +205,8 @@ Return ONLY valid JSON:
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-  let res;
-  try {
-    console.log('[attack] Calling Gemini API...', { phase, bossHpPercent, comboCount, inputLength: userInput.length });
-    res = await fetch(endpoint, {
+  async function requestGemini(temperature) {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -200,124 +214,126 @@ Return ONLY valid JSON:
         contents,
         generationConfig: {
           responseMimeType: 'application/json',
-          temperature: 1.0,
-          maxOutputTokens: 400,
+          responseSchema: RESPONSE_SCHEMA,
+          temperature,
+          maxOutputTokens: 220,
         },
       }),
     });
-  } catch (fetchErr) {
-    console.error('[attack] fetch() to Gemini threw:', fetchErr.message, fetchErr.stack);
-    return makeErrorResponse(RATE_LIMIT_FALLBACK, {
-      error: 'Network error calling Gemini API',
-      detail: fetchErr.message,
-      type: fetchErr.name,
-    });
+    return res;
   }
 
   try {
-    if (res.status === 429) {
-      console.warn('[attack] Gemini 429 rate limit');
-      return makeErrorResponse(RATE_LIMIT_FALLBACK, {
-        error: 'Gemini API rate limited (429)',
-        hint: 'Too many requests — wait a moment and try again',
-      });
+    const attempts = [0.9, 0.2];
+    let lastParseError = null;
+    let lastRaw = '';
+    let lastFinishReason = '';
+
+    for (let i = 0; i < attempts.length; i++) {
+      const temp = attempts[i];
+      console.log('[attack] Calling Gemini API...', { phase, bossHpPercent, comboCount, inputLength: userInput.length, attempt: i + 1, temperature: temp });
+
+      let res;
+      try {
+        res = await requestGemini(temp);
+      } catch (fetchErr) {
+        console.error('[attack] fetch() to Gemini threw:', fetchErr.message, fetchErr.stack);
+        return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+          error: 'Network error calling Gemini API',
+          detail: fetchErr.message,
+          type: fetchErr.name,
+        });
+      }
+
+      if (res.status === 429) {
+        console.warn('[attack] Gemini 429 rate limit');
+        return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+          error: 'Gemini API rate limited (429)',
+          hint: 'Too many requests — wait a moment and try again',
+        });
+      }
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('[attack] Gemini API error:', res.status, res.statusText, errText);
+        return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+          error: `Gemini API returned ${res.status} ${res.statusText}`,
+          detail: errText.slice(0, 500),
+          status: res.status,
+        });
+      }
+
+      const data = await res.json();
+      const candidate = data.candidates?.[0];
+      lastFinishReason = candidate?.finishReason || '';
+      if (lastFinishReason && lastFinishReason !== 'STOP') {
+        console.warn('[attack] Non-STOP finish reason:', lastFinishReason);
+      }
+
+      if (!candidate) {
+        console.error('[attack] No candidates in response:', JSON.stringify(data).slice(0, 500));
+        return makeErrorResponse(
+          {
+            damage: 5,
+            bossDamage: profile.bossDamageRange[0],
+            response: "I... I can't even parse what you just said. Consider me mildly annoyed.",
+            category: "other",
+            combo: false,
+            lore: shouldDropLore ? LORE_FRAGMENTS[Math.floor(Math.random() * LORE_FRAGMENTS.length)] : null,
+            challenge: null,
+            weakness: null,
+            bossAttackName: "Confusion Blast",
+          },
+          {
+            error: 'Gemini returned no candidates',
+            detail: JSON.stringify(data).slice(0, 500),
+          }
+        );
+      }
+
+      const raw = (candidate.content?.parts || []).map((p) => p.text || '').join('').trim();
+      lastRaw = raw;
+      console.log('[attack] Raw Gemini text:', raw.slice(0, 300));
+
+      try {
+        const parsed = JSON.parse(raw);
+
+        const damage = Math.min(profile.damageRange[1], Math.max(0, Math.round(Number(parsed.damage) || 0)));
+        const bossDamage = Math.min(profile.bossDamageRange[1], Math.max(profile.bossDamageRange[0], Math.round(Number(parsed.bossDamage) || profile.bossDamageRange[0])));
+        const response = String(parsed.response || '...').slice(0, 300);
+        const category = ['wit', 'roast', 'flattery', 'philosophy', 'chaos', 'other'].includes(parsed.category) ? parsed.category : 'other';
+        const combo = Boolean(parsed.combo);
+        const lore = parsed.lore ? String(parsed.lore).slice(0, 200) : null;
+        const challenge = parsed.challenge ? String(parsed.challenge).slice(0, 250) : null;
+        const weakness = parsed.weakness ? String(parsed.weakness).slice(0, 150) : null;
+        const bossAttackName = String(parsed.bossAttackName || 'Dark Word').slice(0, 50);
+
+        return makeSuccessResponse({ damage, bossDamage, response, category, combo, lore, challenge, weakness, bossAttackName });
+      } catch (jsonErr) {
+        lastParseError = jsonErr;
+        console.warn('[attack] JSON.parse failed, retrying if attempts remain:', jsonErr.message);
+      }
     }
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('[attack] Gemini API error:', res.status, res.statusText, errText);
-      return makeErrorResponse(RATE_LIMIT_FALLBACK, {
-        error: `Gemini API returned ${res.status} ${res.statusText}`,
-        detail: errText.slice(0, 500),
-        status: res.status,
-      });
-    }
-
-    const data = await res.json();
-    console.log('[attack] Gemini response received, candidates:', data.candidates?.length || 0);
-
-    if (!data.candidates || data.candidates.length === 0) {
-      console.error('[attack] No candidates in response:', JSON.stringify(data).slice(0, 500));
-      return makeErrorResponse(
-        {
-          damage: 5,
-          bossDamage: profile.bossDamageRange[0],
-          response: "I... I can't even parse what you just said. Consider me mildly annoyed.",
-          category: "other",
-          combo: false,
-          lore: shouldDropLore ? LORE_FRAGMENTS[Math.floor(Math.random() * LORE_FRAGMENTS.length)] : null,
-          challenge: null,
-          weakness: null,
-          bossAttackName: "Confusion Blast",
-        },
-        {
-          error: 'Gemini returned no candidates',
-          detail: JSON.stringify(data).slice(0, 500),
-        }
-      );
-    }
-
-    const raw = data.candidates[0]?.content?.parts?.[0]?.text?.trim() || '';
-    console.log('[attack] Raw Gemini text:', raw.slice(0, 300));
-
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('[attack] Could not extract JSON from Gemini response:', raw.slice(0, 300));
-      return makeErrorResponse(
-        {
-          damage: 5,
-          bossDamage: profile.bossDamageRange[0],
-          response: "I... I can't even parse what you just said. Consider me mildly annoyed.",
-          category: "other",
-          combo: false,
-          lore: shouldDropLore ? LORE_FRAGMENTS[Math.floor(Math.random() * LORE_FRAGMENTS.length)] : null,
-          challenge: null,
-          weakness: null,
-          bossAttackName: "Confusion Blast",
-        },
-        {
-          error: 'Could not parse JSON from Gemini response',
-          rawText: raw.slice(0, 300),
-        }
-      );
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch (jsonErr) {
-      console.error('[attack] JSON.parse failed on extracted match:', jsonErr.message, jsonMatch[0].slice(0, 300));
-      return makeErrorResponse(
-        {
-          damage: 5,
-          bossDamage: profile.bossDamageRange[0],
-          response: "Your words scrambled my circuits. Try again.",
-          category: "other",
-          combo: false,
-          lore: null,
-          challenge: null,
-          weakness: null,
-          bossAttackName: "Confusion Blast",
-        },
-        {
-          error: 'JSON.parse failed on Gemini output',
-          detail: jsonErr.message,
-          rawText: jsonMatch[0].slice(0, 300),
-        }
-      );
-    }
-
-    const damage = Math.min(profile.damageRange[1], Math.max(0, Math.round(Number(parsed.damage) || 0)));
-    const bossDamage = Math.min(profile.bossDamageRange[1], Math.max(profile.bossDamageRange[0], Math.round(Number(parsed.bossDamage) || profile.bossDamageRange[0])));
-    const response = String(parsed.response || '...').slice(0, 300);
-    const category = ['wit', 'roast', 'flattery', 'philosophy', 'chaos', 'other'].includes(parsed.category) ? parsed.category : 'other';
-    const combo = Boolean(parsed.combo);
-    const lore = parsed.lore ? String(parsed.lore).slice(0, 200) : null;
-    const challenge = parsed.challenge ? String(parsed.challenge).slice(0, 250) : null;
-    const weakness = parsed.weakness ? String(parsed.weakness).slice(0, 150) : null;
-    const bossAttackName = String(parsed.bossAttackName || 'Dark Word').slice(0, 50);
-
-    return makeSuccessResponse({ damage, bossDamage, response, category, combo, lore, challenge, weakness, bossAttackName });
+    return makeErrorResponse(
+      {
+        damage: 5,
+        bossDamage: profile.bossDamageRange[0],
+        response: "Your words scrambled my circuits. Try again.",
+        category: "other",
+        combo: false,
+        lore: null,
+        challenge: null,
+        weakness: null,
+        bossAttackName: "Confusion Blast",
+      },
+      {
+        error: 'JSON.parse failed on Gemini output after retries',
+        detail: lastParseError?.message || 'Unknown parse error',
+        finishReason: lastFinishReason,
+        rawText: lastRaw.slice(0, 300),
+      }
+    );
   } catch (err) {
     console.error('[attack] Unexpected error processing Gemini response:', err.message, err.stack);
     return makeErrorResponse(RATE_LIMIT_FALLBACK, {
