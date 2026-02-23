@@ -216,7 +216,8 @@ Return ONLY valid JSON:
           responseMimeType: 'application/json',
           responseSchema: RESPONSE_SCHEMA,
           temperature,
-          maxOutputTokens: 220,
+          maxOutputTokens: 2048,
+          thinkingConfig: { thinkingBudget: 0 },
         },
       }),
     });
