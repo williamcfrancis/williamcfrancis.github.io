@@ -42,6 +42,14 @@ sections:
       title: Games & sandboxes
       description: Playable experiments I tinker with after hours.
     games:
+      - title: Gravity Golf
+        genre: Cosmic physics puzzle
+        summary: "Launch a comet through space. Planets pull, stars repel, black holes devour. Reach the wormhole in as few shots as possible."
+        tags: ["browser", "physics", "space"]
+        link:
+          label: Play Gravity Golf
+          url: "/games/gravity_golf/"
+        image: "/games/gravity_golf/gravity_golf.png"
       - title: Lily Leap
         genre: Chill arcade
         summary: "Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows."

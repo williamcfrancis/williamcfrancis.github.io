@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gravity Golf</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Space Grotesk',sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+.back-to-games{position:absolute;top:16px;left:16px;z-index:30;background:rgba(0,0,0,.45);color:#fff;text-decoration:none;font-weight:600;letter-spacing:.04em;padding:10px 18px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:auto;transition:transform 120ms ease,background 120ms ease;font-size:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08)}
+.back-to-games:hover{transform:translateX(-2px);background:rgba(0,0,0,.6)}
+
+#overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:20;pointer-events:none;display:flex;align-items:center;justify-content:center}
+#overlay.active{pointer-events:auto}
+
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+.screen.visible{display:flex}
+
+.title-screen .game-title{font-size:clamp(48px,8vw,96px);font-weight:700;letter-spacing:-2px;background:linear-gradient(135deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;line-height:1.1}
+.title-screen .game-subtitle{font-size:clamp(14px,2.5vw,20px);color:rgba(255,255,255,.5);font-weight:300;margin-bottom:48px;letter-spacing:2px}
+.title-screen .tagline{font-size:clamp(16px,2.8vw,22px);color:rgba(255,255,255,.7);max-width:500px;line-height:1.6;margin-bottom:40px}
+
+.btn{padding:16px 48px;border-radius:999px;border:none;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;cursor:pointer;transition:all .2s ease;letter-spacing:.5px;position:relative;overflow:hidden}
+.btn-primary{background:linear-gradient(135deg,#a78bfa,#60a5fa);color:#fff;box-shadow:0 0 30px rgba(96,165,250,.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 50px rgba(96,165,250,.5)}
+.btn-secondary{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.15);padding:12px 32px;font-size:15px;margin-top:12px}
+.btn-secondary:hover{background:rgba(255,255,255,.15);transform:translateY(-1px)}
+
+.hud{position:absolute;top:16px;right:16px;z-index:25;display:flex;gap:16px;align-items:flex-start;font-family:'Space Mono',monospace;font-size:13px;pointer-events:none}
+.hud-item{background:rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);padding:8px 16px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.hud-label{color:rgba(255,255,255,.4);font-size:10px;text-transform:uppercase;letter-spacing:1.5px}
+.hud-value{color:#fff;font-size:18px;font-weight:700;font-family:'Space Grotesk',sans-serif}
+
+.level-intro{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:25;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s ease}
+.level-intro.show{opacity:1}
+.level-intro .level-num{font-size:14px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:3px;margin-bottom:8px}
+.level-intro .level-name{font-size:clamp(28px,5vw,48px);font-weight:700;background:linear-gradient(135deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+.level-intro .level-tip{font-size:clamp(13px,2vw,16px);color:rgba(255,255,255,.5);max-width:400px;line-height:1.5}
+
+.level-complete-screen{background:rgba(0,0,0,.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:40px 48px;max-width:400px}
+.level-complete-screen h2{font-size:32px;font-weight:700;margin-bottom:4px}
+.level-complete-screen .strokes-info{font-size:48px;font-weight:700;font-family:'Space Mono',monospace;margin:16px 0;line-height:1}
+.level-complete-screen .par-info{font-size:15px;color:rgba(255,255,255,.5);margin-bottom:8px}
+.level-complete-screen .score-label{font-size:20px;font-weight:600;margin-bottom:24px}
+.under-par{color:#34d399}
+.on-par{color:#60a5fa}
+.over-par{color:#f87171}
+
+.game-complete-screen{background:rgba(0,0,0,.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:48px;max-width:440px}
+.game-complete-screen h2{font-size:36px;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.game-complete-screen .total-score{font-size:64px;font-weight:700;font-family:'Space Mono',monospace;margin:20px 0 8px;line-height:1}
+.game-complete-screen .total-label{font-size:15px;color:rgba(255,255,255,.5);margin-bottom:24px}
+.game-complete-screen .level-scores{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;margin-bottom:28px;font-size:13px;text-align:left}
+.game-complete-screen .level-scores span{color:rgba(255,255,255,.5)}
+.game-complete-screen .level-scores strong{color:#fff}
+
+.controls-hint{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:25;text-align:center;color:rgba(255,255,255,.35);font-size:13px;pointer-events:none;transition:opacity .6s ease}
+
+.sound-toggle{position:absolute;top:16px;right:16px;z-index:35;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s ease;color:rgba(255,255,255,.7);font-size:18px}
+.sound-toggle:hover{background:rgba(0,0,0,.6);border-color:rgba(255,255,255,.25)}
+
+.restart-btn{position:absolute;bottom:24px;right:24px;z-index:25;padding:10px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer;color:rgba(255,255,255,.7);font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:500;transition:all .2s ease;pointer-events:auto;display:none}
+.restart-btn:hover{background:rgba(0,0,0,.6);color:#fff}
+
+@media(max-width:600px){
+  .back-to-games{padding:8px 14px;font-size:12px;top:12px;left:12px}
+  .hud{top:12px;right:12px;gap:8px}
+  .hud-item{padding:6px 12px;border-radius:8px}
+  .hud-value{font-size:15px}
+  .level-complete-screen,.game-complete-screen{padding:28px 32px;margin:0 16px}
+  .btn{padding:14px 36px;font-size:16px}
+  .sound-toggle{top:12px;width:36px;height:36px;font-size:16px}
+}
+</style>
+</head>
+<body>
+<a class="back-to-games" href="/personal/#games">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+<span>Back</span>
+</a>
+
+<canvas id="canvas"></canvas>
+
+<div class="hud" id="hud" style="display:none">
+  <div class="hud-item"><span class="hud-label">Strokes</span><span class="hud-value" id="hud-strokes">0</span></div>
+  <div class="hud-item"><span class="hud-label">Par</span><span class="hud-value" id="hud-par">3</span></div>
+  <div class="hud-item"><span class="hud-label">Hole</span><span class="hud-value" id="hud-level">1/12</span></div>
+</div>
+
+<div class="level-intro" id="level-intro">
+  <div class="level-num" id="intro-num">Hole 1</div>
+  <div class="level-name" id="intro-name">First Contact</div>
+  <div class="level-tip" id="intro-tip">Click and drag to launch. Planets bend your path with gravity.</div>
+</div>
+
+<div class="controls-hint" id="controls-hint" style="display:none">Click &amp; drag from the ball to launch</div>
+
+<button class="restart-btn" id="restart-btn" onclick="game.restartLevel()">↻ Restart hole</button>
+
+<div id="overlay">
+  <div class="screen title-screen" id="title-screen">
+    <div class="game-title">Gravity Golf</div>
+    <div class="game-subtitle">A cosmic putting game</div>
+    <div class="tagline">Launch your ball through space. Planets pull, stars repel, black holes devour. Reach the wormhole in as few shots as possible.</div>
+    <button class="btn btn-primary" onclick="game.start()">Play</button>
+    <button class="btn btn-secondary" onclick="game.startSandbox()">Sandbox Mode</button>
+  </div>
+
+  <div class="screen" id="level-complete-screen">
+    <div class="level-complete-screen">
+      <h2 id="complete-title">Hole Complete!</h2>
+      <div class="strokes-info" id="complete-strokes">2</div>
+      <div class="par-info" id="complete-par">Par 3</div>
+      <div class="score-label" id="complete-label">Birdie!</div>
+      <button class="btn btn-primary" onclick="game.nextLevel()">Next Hole</button>
+      <button class="btn btn-secondary" onclick="game.restartLevel()">Retry</button>
+    </div>
+  </div>
+
+  <div class="screen" id="game-complete-screen">
+    <div class="game-complete-screen">
+      <h2>Course Complete!</h2>
+      <div class="total-score" id="final-total">+0</div>
+      <div class="total-label" id="final-label">Total vs Par</div>
+      <div class="level-scores" id="final-scores"></div>
+      <button class="btn btn-primary" onclick="game.start()">Play Again</button>
+      <button class="btn btn-secondary" onclick="game.goToMenu()">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('canvas');
+const ctx = C.getContext('2d');
+let W, H, dpr;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  C.width = W * dpr;
+  C.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ─── Audio Engine ─── */
+const audio = {
+  ctx: null,
+  muted: false,
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  },
+  play(type, vol = 0.3) {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    switch(type) {
+      case 'launch':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.15);
+        gain.gain.setValueAtTime(vol * 0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        filter.frequency.value = 2000;
+        osc.start(now);
+        osc.stop(now + 0.3);
+        break;
+      case 'hole':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523, now);
+        osc.frequency.setValueAtTime(659, now + 0.1);
+        osc.frequency.setValueAtTime(784, now + 0.2);
+        osc.frequency.setValueAtTime(1047, now + 0.3);
+        gain.gain.setValueAtTime(vol * 0.5, now);
+        gain.gain.setValueAtTime(vol * 0.5, now + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+        filter.frequency.value = 4000;
+        osc.start(now);
+        osc.stop(now + 0.8);
+        break;
+      case 'bounce':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+        gain.gain.setValueAtTime(vol * 0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        filter.frequency.value = 1500;
+        osc.start(now);
+        osc.stop(now + 0.15);
+        break;
+      case 'absorbed':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.6);
+        gain.gain.setValueAtTime(vol * 0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(3000, now);
+        filter.frequency.exponentialRampToValueAtTime(100, now + 0.6);
+        osc.start(now);
+        osc.stop(now + 0.6);
+        break;
+      case 'oob':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+        gain.gain.setValueAtTime(vol * 0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        filter.frequency.value = 800;
+        osc.start(now);
+        osc.stop(now + 0.3);
+        break;
+      case 'tick':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        gain.gain.setValueAtTime(vol * 0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        filter.frequency.value = 5000;
+        osc.start(now);
+        osc.stop(now + 0.05);
+        break;
+    }
+  }
+};
+
+/* ─── Stars Background ─── */
+const stars = [];
+for (let i = 0; i < 300; i++) {
+  stars.push({
+    x: Math.random() * 4000 - 1000,
+    y: Math.random() * 3000 - 500,
+    r: Math.random() * 1.5 + 0.3,
+    a: Math.random() * 0.6 + 0.2,
+    twinkleSpeed: Math.random() * 2 + 1,
+    twinkleOffset: Math.random() * Math.PI * 2
+  });
+}
+
+function drawStars(t) {
+  for (const s of stars) {
+    const twinkle = 0.5 + 0.5 * Math.sin(t * s.twinkleSpeed + s.twinkleOffset);
+    ctx.globalAlpha = s.a * twinkle;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ─── Nebula Background ─── */
+function drawNebula() {
+  const g1 = ctx.createRadialGradient(W * 0.2, H * 0.3, 0, W * 0.2, H * 0.3, W * 0.5);
+  g1.addColorStop(0, 'rgba(99, 52, 170, 0.08)');
+  g1.addColorStop(1, 'rgba(99, 52, 170, 0)');
+  ctx.fillStyle = g1;
+  ctx.fillRect(0, 0, W, H);
+
+  const g2 = ctx.createRadialGradient(W * 0.8, H * 0.7, 0, W * 0.8, H * 0.7, W * 0.4);
+  g2.addColorStop(0, 'rgba(30, 64, 175, 0.06)');
+  g2.addColorStop(1, 'rgba(30, 64, 175, 0)');
+  ctx.fillStyle = g2;
+  ctx.fillRect(0, 0, W, H);
+}
+
+/* ─── Drawing Helpers ─── */
+function drawGlowCircle(x, y, r, color, glowSize = 1.5) {
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, r * glowSize);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.5, color.replace(/[\d.]+\)$/, '0.3)'));
+  grad.addColorStop(1, color.replace(/[\d.]+\)$/, '0)'));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r * glowSize, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function hexToRgba(hex, alpha = 1) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/* ─── Level Definitions ─── */
+const LEVELS = [
+  {
+    name: "First Contact",
+    tip: "Click and drag from the ball to launch. Aim for the wormhole!",
+    par: 2,
+    ball: { x: 0.15, y: 0.5 },
+    goal: { x: 0.85, y: 0.5 },
+    bodies: []
+  },
+  {
+    name: "Gentle Curve",
+    tip: "Planets attract your ball. Use the gravity to bend your shot.",
+    par: 2,
+    ball: { x: 0.12, y: 0.5 },
+    goal: { x: 0.88, y: 0.5 },
+    bodies: [
+      { x: 0.5, y: 0.35, mass: 3500, radius: 28, type: 'planet', color: '#60a5fa' }
+    ]
+  },
+  {
+    name: "Slingshot",
+    tip: "Use the planet's gravity to slingshot around the corner.",
+    par: 2,
+    ball: { x: 0.15, y: 0.2 },
+    goal: { x: 0.85, y: 0.8 },
+    bodies: [
+      { x: 0.55, y: 0.45, mass: 5000, radius: 35, type: 'planet', color: '#f59e0b' }
+    ]
+  },
+  {
+    name: "The Twins",
+    tip: "Thread the needle between two gravitational fields.",
+    par: 3,
+    ball: { x: 0.1, y: 0.5 },
+    goal: { x: 0.9, y: 0.5 },
+    bodies: [
+      { x: 0.45, y: 0.28, mass: 3000, radius: 24, type: 'planet', color: '#a78bfa' },
+      { x: 0.55, y: 0.72, mass: 3000, radius: 24, type: 'planet', color: '#fb7185' }
+    ]
+  },
+  {
+    name: "Solar Flare",
+    tip: "Stars push your ball away! Use repulsion to your advantage.",
+    par: 3,
+    ball: { x: 0.12, y: 0.5 },
+    goal: { x: 0.88, y: 0.5 },
+    bodies: [
+      { x: 0.5, y: 0.5, mass: 4000, radius: 32, type: 'star', color: '#fbbf24' }
+    ]
+  },
+  {
+    name: "Void Bypass",
+    tip: "Black holes devour everything. Don't get too close!",
+    par: 3,
+    ball: { x: 0.12, y: 0.35 },
+    goal: { x: 0.88, y: 0.65 },
+    bodies: [
+      { x: 0.5, y: 0.5, mass: 6000, radius: 20, type: 'blackhole', color: '#1e1b4b' },
+      { x: 0.3, y: 0.7, mass: 2500, radius: 22, type: 'planet', color: '#34d399' }
+    ]
+  },
+  {
+    name: "Gravitational Slalom",
+    tip: "Navigate through the planet chain. Patience is key.",
+    par: 3,
+    ball: { x: 0.08, y: 0.5 },
+    goal: { x: 0.92, y: 0.5 },
+    bodies: [
+      { x: 0.3, y: 0.3, mass: 2500, radius: 20, type: 'planet', color: '#60a5fa' },
+      { x: 0.5, y: 0.7, mass: 2500, radius: 20, type: 'planet', color: '#a78bfa' },
+      { x: 0.7, y: 0.3, mass: 2500, radius: 20, type: 'planet', color: '#f472b6' }
+    ]
+  },
+  {
+    name: "Event Horizon",
+    tip: "Use the planet to slingshot past the black hole.",
+    par: 3,
+    ball: { x: 0.1, y: 0.8 },
+    goal: { x: 0.9, y: 0.2 },
+    bodies: [
+      { x: 0.5, y: 0.5, mass: 7000, radius: 22, type: 'blackhole', color: '#1e1b4b' },
+      { x: 0.25, y: 0.45, mass: 3500, radius: 26, type: 'planet', color: '#2dd4bf' },
+      { x: 0.75, y: 0.55, mass: 3500, radius: 26, type: 'planet', color: '#818cf8' }
+    ]
+  },
+  {
+    name: "Cosmic Pinball",
+    tip: "Let gravity do the work. Sometimes less power is more.",
+    par: 4,
+    ball: { x: 0.08, y: 0.15 },
+    goal: { x: 0.92, y: 0.85 },
+    bodies: [
+      { x: 0.25, y: 0.35, mass: 3000, radius: 22, type: 'planet', color: '#fb923c' },
+      { x: 0.5, y: 0.55, mass: 4000, radius: 30, type: 'star', color: '#fbbf24' },
+      { x: 0.75, y: 0.35, mass: 3000, radius: 22, type: 'planet', color: '#38bdf8' },
+      { x: 0.5, y: 0.15, mass: 2000, radius: 18, type: 'planet', color: '#c084fc' }
+    ]
+  },
+  {
+    name: "Dark Matter",
+    tip: "Two black holes guard the wormhole. Find the safe corridor.",
+    par: 4,
+    ball: { x: 0.1, y: 0.5 },
+    goal: { x: 0.9, y: 0.5 },
+    bodies: [
+      { x: 0.55, y: 0.25, mass: 5000, radius: 18, type: 'blackhole', color: '#1e1b4b' },
+      { x: 0.45, y: 0.75, mass: 5000, radius: 18, type: 'blackhole', color: '#1e1b4b' },
+      { x: 0.2, y: 0.3, mass: 2000, radius: 18, type: 'planet', color: '#4ade80' },
+      { x: 0.8, y: 0.7, mass: 2000, radius: 18, type: 'planet', color: '#fb7185' }
+    ]
+  },
+  {
+    name: "Supernova Alley",
+    tip: "Stars repel, planets attract. Use both forces wisely.",
+    par: 4,
+    ball: { x: 0.08, y: 0.5 },
+    goal: { x: 0.92, y: 0.5 },
+    bodies: [
+      { x: 0.3, y: 0.3, mass: 3500, radius: 28, type: 'star', color: '#fbbf24' },
+      { x: 0.5, y: 0.7, mass: 3000, radius: 24, type: 'planet', color: '#60a5fa' },
+      { x: 0.7, y: 0.3, mass: 3500, radius: 28, type: 'star', color: '#fb923c' },
+      { x: 0.5, y: 0.35, mass: 2500, radius: 20, type: 'planet', color: '#a78bfa' }
+    ]
+  },
+  {
+    name: "The Gauntlet",
+    tip: "The ultimate challenge. Trust the gravity. Good luck.",
+    par: 5,
+    ball: { x: 0.06, y: 0.5 },
+    goal: { x: 0.94, y: 0.5 },
+    bodies: [
+      { x: 0.2, y: 0.3, mass: 3000, radius: 22, type: 'planet', color: '#34d399' },
+      { x: 0.35, y: 0.7, mass: 4000, radius: 16, type: 'blackhole', color: '#1e1b4b' },
+      { x: 0.5, y: 0.4, mass: 3500, radius: 26, type: 'star', color: '#fbbf24' },
+      { x: 0.65, y: 0.65, mass: 3000, radius: 22, type: 'planet', color: '#818cf8' },
+      { x: 0.8, y: 0.3, mass: 4000, radius: 16, type: 'blackhole', color: '#1e1b4b' }
+    ]
+  }
+];
+
+/* ─── Game State ─── */
+const game = {
+  state: 'menu',       // menu, intro, playing, flying, complete, gameover
+  isSandbox: false,
+  currentLevel: 0,
+  strokes: 0,
+  scores: [],
+  ball: null,
+  goal: null,
+  bodies: [],
+  trail: [],
+  particles: [],
+  wormholeAngle: 0,
+  dragStart: null,
+  dragEnd: null,
+  isDragging: false,
+  introTimer: 0,
+  completeTimer: 0,
+  time: 0,
+
+  init() {
+    this.showScreen('title-screen');
+    document.getElementById('overlay').classList.add('active');
+  },
+
+  showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+    if (id) {
+      document.getElementById(id).classList.add('visible');
+      document.getElementById('overlay').classList.add('active');
+    } else {
+      document.getElementById('overlay').classList.remove('active');
+    }
+  },
+
+  start() {
+    audio.init();
+    this.isSandbox = false;
+    this.currentLevel = 0;
+    this.scores = [];
+    this.loadLevel(0);
+  },
+
+  loadLevel(idx) {
+    const lvl = LEVELS[idx];
+    this.currentLevel = idx;
+    this.strokes = 0;
+    this.trail = [];
+    this.particles = [];
+
+    const pad = 60;
+    const playW = W - pad * 2;
+    const playH = H - pad * 2;
+
+    this.ball = {
+      x: pad + lvl.ball.x * playW,
+      y: pad + lvl.ball.y * playH,
+      vx: 0, vy: 0,
+      radius: 8,
+      active: false,
+      startX: pad + lvl.ball.x * playW,
+      startY: pad + lvl.ball.y * playH
+    };
+
+    this.goal = {
+      x: pad + lvl.goal.x * playW,
+      y: pad + lvl.goal.y * playH,
+      radius: 22
+    };
+
+    this.bodies = lvl.bodies.map(b => ({
+      x: pad + b.x * playW,
+      y: pad + b.y * playH,
+      mass: b.mass,
+      radius: b.radius,
+      type: b.type,
+      color: b.color,
+      pulsePhase: Math.random() * Math.PI * 2
+    }));
+
+    document.getElementById('hud').style.display = 'flex';
+    document.getElementById('hud-strokes').textContent = '0';
+    document.getElementById('hud-par').textContent = lvl.par;
+    document.getElementById('hud-level').textContent = `${idx + 1}/${LEVELS.length}`;
+    document.getElementById('restart-btn').style.display = 'block';
+
+    this.showScreen(null);
+
+    const intro = document.getElementById('level-intro');
+    document.getElementById('intro-num').textContent = `Hole ${idx + 1}`;
+    document.getElementById('intro-name').textContent = lvl.name;
+    document.getElementById('intro-tip').textContent = lvl.tip;
+    intro.classList.add('show');
+
+    this.state = 'intro';
+    this.introTimer = 0;
+
+    const hint = document.getElementById('controls-hint');
+    hint.style.display = idx === 0 ? 'block' : 'none';
+    hint.style.opacity = '1';
+  },
+
+  resetBall() {
+    this.ball.x = this.ball.startX;
+    this.ball.y = this.ball.startY;
+    this.ball.vx = 0;
+    this.ball.vy = 0;
+    this.ball.active = false;
+    this.trail = [];
+  },
+
+  restartLevel() {
+    if (this.isSandbox) {
+      this.ball.x = this.ball.startX;
+      this.ball.y = this.ball.startY;
+      this.ball.vx = 0;
+      this.ball.vy = 0;
+      this.ball.active = false;
+      this.trail = [];
+      this.particles = [];
+      this.state = 'playing';
+      this.showScreen(null);
+      return;
+    }
+    this.strokes = 0;
+    this.particles = [];
+    document.getElementById('hud-strokes').textContent = '0';
+    this.resetBall();
+    this.state = 'playing';
+    this.showScreen(null);
+  },
+
+  launch(power, angle) {
+    const maxSpeed = 12;
+    const speed = Math.min(power / 200, 1) * maxSpeed;
+    this.ball.vx = Math.cos(angle) * speed;
+    this.ball.vy = Math.sin(angle) * speed;
+    this.ball.active = true;
+    this.strokes++;
+    document.getElementById('hud-strokes').textContent = this.strokes;
+    this.state = 'flying';
+    this.trail = [{ x: this.ball.x, y: this.ball.y, t: this.time }];
+    audio.play('launch');
+
+    const hint = document.getElementById('controls-hint');
+    hint.style.opacity = '0';
+  },
+
+  levelComplete() {
+    if (this.isSandbox) {
+      audio.play('hole');
+      for (let i = 0; i < 30; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = Math.random() * 4 + 1;
+        this.particles.push({
+          x: this.goal.x, y: this.goal.y,
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+          life: 1, decay: 0.015,
+          color: ['#a78bfa','#60a5fa','#34d399','#fbbf24'][Math.floor(Math.random()*4)],
+          radius: Math.random() * 3 + 1
+        });
+      }
+      this.resetBall();
+      this.state = 'playing';
+      return;
+    }
+
+    this.state = 'complete';
+    this.completeTimer = 0;
+
+    const lvl = LEVELS[this.currentLevel];
+    const diff = this.strokes - lvl.par;
+    this.scores.push({ strokes: this.strokes, par: lvl.par });
+
+    let label, cls;
+    if (this.strokes === 1) { label = 'Hole in One!!'; cls = 'under-par'; }
+    else if (diff <= -2) { label = 'Eagle!'; cls = 'under-par'; }
+    else if (diff === -1) { label = 'Birdie!'; cls = 'under-par'; }
+    else if (diff === 0) { label = 'Par'; cls = 'on-par'; }
+    else if (diff === 1) { label = 'Bogey'; cls = 'over-par'; }
+    else if (diff === 2) { label = 'Double Bogey'; cls = 'over-par'; }
+    else { label = '+' + diff; cls = 'over-par'; }
+
+    for (let i = 0; i < 40; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = Math.random() * 4 + 1;
+      this.particles.push({
+        x: this.goal.x, y: this.goal.y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 1, decay: Math.random() * 0.015 + 0.008,
+        color: ['#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#fb7185'][Math.floor(Math.random() * 5)],
+        radius: Math.random() * 3 + 1
+      });
+    }
+
+    audio.play('hole');
+
+    setTimeout(() => {
+      if (this.state !== 'complete') return;
+      document.getElementById('complete-strokes').textContent = this.strokes;
+      document.getElementById('complete-par').textContent = `Par ${lvl.par}`;
+      document.getElementById('complete-label').textContent = label;
+      document.getElementById('complete-label').className = 'score-label ' + cls;
+
+      if (this.currentLevel === LEVELS.length - 1) {
+        document.getElementById('complete-title').textContent = 'Final Hole!';
+        document.querySelector('#level-complete-screen .btn-primary').textContent = 'See Results';
+        document.querySelector('#level-complete-screen .btn-primary').onclick = () => this.showFinalScore();
+      } else {
+        document.getElementById('complete-title').textContent = 'Hole Complete!';
+        document.querySelector('#level-complete-screen .btn-primary').textContent = 'Next Hole';
+        document.querySelector('#level-complete-screen .btn-primary').onclick = () => this.nextLevel();
+      }
+
+      this.showScreen('level-complete-screen');
+    }, 1200);
+  },
+
+  nextLevel() {
+    if (this.currentLevel < LEVELS.length - 1) {
+      this.loadLevel(this.currentLevel + 1);
+    } else {
+      this.showFinalScore();
+    }
+  },
+
+  showFinalScore() {
+    let totalDiff = 0;
+    let html = '';
+    this.scores.forEach((s, i) => {
+      const d = s.strokes - s.par;
+      totalDiff += d;
+      const sign = d > 0 ? '+' : '';
+      html += `<span>Hole ${i + 1}</span><strong>${s.strokes} (${sign}${d})</strong>`;
+    });
+
+    const sign = totalDiff > 0 ? '+' : '';
+    document.getElementById('final-total').textContent = `${sign}${totalDiff}`;
+    document.getElementById('final-total').className = 'total-score ' + (totalDiff < 0 ? 'under-par' : totalDiff === 0 ? 'on-par' : 'over-par');
+    document.getElementById('final-scores').innerHTML = html;
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('restart-btn').style.display = 'none';
+
+    this.state = 'gameover';
+    this.showScreen('game-complete-screen');
+  },
+
+  goToMenu() {
+    this.state = 'menu';
+    this.isSandbox = false;
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('restart-btn').style.display = 'none';
+    this.showScreen('title-screen');
+  },
+
+  startSandbox() {
+    audio.init();
+    this.isSandbox = true;
+    this.state = 'playing';
+    this.ball = { x: W * 0.1, y: H * 0.5, vx: 0, vy: 0, radius: 8, active: false, startX: W * 0.1, startY: H * 0.5 };
+    this.goal = { x: W * 0.9, y: H * 0.5, radius: 22 };
+    this.bodies = [];
+    this.trail = [];
+    this.particles = [];
+    this.strokes = 0;
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('restart-btn').style.display = 'block';
+    this.showScreen(null);
+  },
+
+  update(dt) {
+    this.time += dt;
+    this.wormholeAngle += dt * 2;
+
+    this.particles = this.particles.filter(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.98;
+      p.vy *= 0.98;
+      p.life -= p.decay;
+      return p.life > 0;
+    });
+
+    if (this.state === 'intro') {
+      this.introTimer += dt;
+      if (this.introTimer > 2) {
+        document.getElementById('level-intro').classList.remove('show');
+        this.state = 'playing';
+      }
+      return;
+    }
+
+    if (this.state !== 'flying') return;
+
+    const b = this.ball;
+    const substeps = 4;
+    const subDt = 1 / substeps;
+
+    for (let s = 0; s < substeps; s++) {
+      let ax = 0, ay = 0;
+      const G = 1;
+
+      for (const body of this.bodies) {
+        const dx = body.x - b.x;
+        const dy = body.y - b.y;
+        const distSq = dx * dx + dy * dy;
+        const dist = Math.sqrt(distSq);
+
+        if (body.type === 'blackhole' && dist < body.radius * 1.2) {
+          b.active = false;
+          this.state = 'playing';
+          audio.play('absorbed');
+          for (let i = 0; i < 20; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const sp = Math.random() * 2 + 0.5;
+            this.particles.push({
+              x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+              life: 1, decay: 0.02, color: '#a78bfa', radius: 2
+            });
+          }
+          this.resetBall();
+          return;
+        }
+
+        if (body.type !== 'blackhole' && dist < body.radius + b.radius) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const dot = b.vx * nx + b.vy * ny;
+          b.vx -= 2 * dot * nx * 0.7;
+          b.vy -= 2 * dot * ny * 0.7;
+          b.x = body.x - nx * (body.radius + b.radius + 1);
+          b.y = body.y - ny * (body.radius + b.radius + 1);
+          audio.play('bounce');
+          continue;
+        }
+
+        const minDist = Math.max(dist, 30);
+        const force = G * body.mass / (minDist * minDist);
+
+        if (body.type === 'star') {
+          ax -= (dx / dist) * force;
+          ay -= (dy / dist) * force;
+        } else {
+          ax += (dx / dist) * force;
+          ay += (dy / dist) * force;
+        }
+      }
+
+      b.vx += ax * subDt;
+      b.vy += ay * subDt;
+
+      const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      const maxV = 18;
+      if (speed > maxV) {
+        b.vx = (b.vx / speed) * maxV;
+        b.vy = (b.vy / speed) * maxV;
+      }
+
+      b.x += b.vx * subDt;
+      b.y += b.vy * subDt;
+    }
+
+    if (this.time % 0.03 < dt) {
+      this.trail.push({ x: b.x, y: b.y, t: this.time });
+      if (this.trail.length > 300) this.trail.shift();
+    }
+
+    const gdx = this.goal.x - b.x;
+    const gdy = this.goal.y - b.y;
+    if (Math.sqrt(gdx * gdx + gdy * gdy) < this.goal.radius + b.radius) {
+      this.levelComplete();
+      return;
+    }
+
+    const margin = 150;
+    if (b.x < -margin || b.x > W + margin || b.y < -margin || b.y > H + margin) {
+      audio.play('oob');
+      this.resetBall();
+      this.state = 'playing';
+    }
+
+    const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    if (speed < 0.05 && this.trail.length > 10) {
+      b.vx = 0;
+      b.vy = 0;
+      b.active = false;
+      this.state = 'playing';
+    }
+  },
+
+  render(t) {
+    ctx.fillStyle = '#050510';
+    ctx.fillRect(0, 0, W, H);
+
+    drawNebula();
+    drawStars(t);
+
+    for (const body of this.bodies) {
+      body.pulsePhase += 0.02;
+      const pulse = 1 + 0.05 * Math.sin(body.pulsePhase);
+
+      if (body.type === 'planet') {
+        const fieldRadius = Math.sqrt(body.mass) * 1.8;
+        const fieldGrad = ctx.createRadialGradient(body.x, body.y, body.radius, body.x, body.y, fieldRadius);
+        fieldGrad.addColorStop(0, hexToRgba(body.color, 0.08));
+        fieldGrad.addColorStop(1, hexToRgba(body.color, 0));
+        ctx.fillStyle = fieldGrad;
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, fieldRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawGlowCircle(body.x, body.y, body.radius * pulse, hexToRgba(body.color, 0.9), 1.6);
+
+        ctx.fillStyle = hexToRgba(body.color, 0.15);
+        ctx.beginPath();
+        ctx.arc(body.x - body.radius * 0.25, body.y - body.radius * 0.25, body.radius * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (body.type === 'star') {
+        const fieldRadius = Math.sqrt(body.mass) * 2;
+        const fieldGrad = ctx.createRadialGradient(body.x, body.y, body.radius, body.x, body.y, fieldRadius);
+        fieldGrad.addColorStop(0, hexToRgba(body.color, 0.06));
+        fieldGrad.addColorStop(1, hexToRgba(body.color, 0));
+        ctx.fillStyle = fieldGrad;
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, fieldRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        const rayCount = 8;
+        for (let i = 0; i < rayCount; i++) {
+          const angle = (i / rayCount) * Math.PI * 2 + t * 0.3;
+          const len = body.radius * 2 * pulse;
+          ctx.strokeStyle = hexToRgba(body.color, 0.15);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(body.x + Math.cos(angle) * body.radius, body.y + Math.sin(angle) * body.radius);
+          ctx.lineTo(body.x + Math.cos(angle) * len, body.y + Math.sin(angle) * len);
+          ctx.stroke();
+        }
+
+        drawGlowCircle(body.x, body.y, body.radius * pulse, hexToRgba(body.color, 1), 2);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, body.radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (body.type === 'blackhole') {
+        const fieldRadius = Math.sqrt(body.mass) * 2;
+        const fieldGrad = ctx.createRadialGradient(body.x, body.y, body.radius, body.x, body.y, fieldRadius);
+        fieldGrad.addColorStop(0, 'rgba(99, 52, 170, 0.12)');
+        fieldGrad.addColorStop(0.5, 'rgba(99, 52, 170, 0.04)');
+        fieldGrad.addColorStop(1, 'rgba(99, 52, 170, 0)');
+        ctx.fillStyle = fieldGrad;
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, fieldRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(body.x, body.y);
+        ctx.rotate(t * 1.5);
+        const discGrad = ctx.createLinearGradient(-body.radius * 2.5, 0, body.radius * 2.5, 0);
+        discGrad.addColorStop(0, 'rgba(167,139,250,0)');
+        discGrad.addColorStop(0.3, 'rgba(167,139,250,0.3)');
+        discGrad.addColorStop(0.5, 'rgba(251,191,36,0.4)');
+        discGrad.addColorStop(0.7, 'rgba(167,139,250,0.3)');
+        discGrad.addColorStop(1, 'rgba(167,139,250,0)');
+        ctx.strokeStyle = discGrad;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, body.radius * 2.5, body.radius * 0.8, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        const bhGrad = ctx.createRadialGradient(body.x, body.y, 0, body.x, body.y, body.radius * 1.5);
+        bhGrad.addColorStop(0, 'rgba(0,0,0,1)');
+        bhGrad.addColorStop(0.6, 'rgba(0,0,0,0.9)');
+        bhGrad.addColorStop(0.85, 'rgba(99,52,170,0.3)');
+        bhGrad.addColorStop(1, 'rgba(99,52,170,0)');
+        ctx.fillStyle = bhGrad;
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, body.radius * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Wormhole / goal
+    const g = this.goal;
+    if (g) {
+      ctx.save();
+      ctx.translate(g.x, g.y);
+
+      for (let ring = 3; ring >= 0; ring--) {
+        const r = g.radius + ring * 8;
+        const a = this.wormholeAngle + ring * 0.5;
+        ctx.strokeStyle = `rgba(52, 211, 153, ${0.12 - ring * 0.025})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r, r * 0.6, a, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      const whGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, g.radius);
+      whGrad.addColorStop(0, 'rgba(52, 211, 153, 0.5)');
+      whGrad.addColorStop(0.5, 'rgba(96, 165, 250, 0.3)');
+      whGrad.addColorStop(1, 'rgba(167, 139, 250, 0)');
+      ctx.fillStyle = whGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, g.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      const spiralCount = 3;
+      for (let i = 0; i < spiralCount; i++) {
+        const baseAngle = (i / spiralCount) * Math.PI * 2 + this.wormholeAngle * 3;
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let s = 0; s < 30; s++) {
+          const sa = baseAngle + s * 0.2;
+          const sr = (s / 30) * g.radius;
+          const sx = Math.cos(sa) * sr;
+          const sy = Math.sin(sa) * sr;
+          if (s === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // Trail
+    if (this.trail.length > 1) {
+      for (let i = 1; i < this.trail.length; i++) {
+        const alpha = i / this.trail.length;
+        ctx.strokeStyle = `rgba(167, 139, 250, ${alpha * 0.6})`;
+        ctx.lineWidth = 2 * alpha + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(this.trail[i - 1].x, this.trail[i - 1].y);
+        ctx.lineTo(this.trail[i].x, this.trail[i].y);
+        ctx.stroke();
+      }
+    }
+
+    // Ball
+    const b = this.ball;
+    if (b && this.state !== 'menu' && this.state !== 'gameover') {
+      drawGlowCircle(b.x, b.y, b.radius, 'rgba(255, 255, 255, 0.95)', 2.5);
+
+      if (b.active) {
+        for (let i = 0; i < 2; i++) {
+          this.particles.push({
+            x: b.x + (Math.random() - 0.5) * 4,
+            y: b.y + (Math.random() - 0.5) * 4,
+            vx: -b.vx * 0.1 + (Math.random() - 0.5) * 0.5,
+            vy: -b.vy * 0.1 + (Math.random() - 0.5) * 0.5,
+            life: 1, decay: 0.04,
+            color: '#a78bfa', radius: Math.random() * 2 + 0.5
+          });
+        }
+      }
+    }
+
+    // Particles
+    for (const p of this.particles) {
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Aim line + trajectory preview
+    if (b && this.isDragging && this.dragStart && this.dragEnd && this.state === 'playing') {
+      const dx = this.dragStart.x - this.dragEnd.x;
+      const dy = this.dragStart.y - this.dragEnd.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx);
+      const power = Math.min(dist, 200);
+
+      // Simulate trajectory
+      const maxSpeed = 12;
+      const simSpeed = Math.min(power / 200, 1) * maxSpeed;
+      let sx = b.x, sy = b.y;
+      let svx = Math.cos(angle) * simSpeed;
+      let svy = Math.sin(angle) * simSpeed;
+      const predictionPoints = [];
+      const simSteps = 120;
+
+      for (let step = 0; step < simSteps; step++) {
+        let sax = 0, say = 0;
+        let hitBody = false;
+        for (const body of this.bodies) {
+          const bdx = body.x - sx;
+          const bdy = body.y - sy;
+          const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+          if (bdist < body.radius + b.radius) { hitBody = true; break; }
+          const minD = Math.max(bdist, 30);
+          const f = body.mass / (minD * minD);
+          if (body.type === 'star') { sax -= (bdx / bdist) * f; say -= (bdy / bdist) * f; }
+          else { sax += (bdx / bdist) * f; say += (bdy / bdist) * f; }
+        }
+        if (hitBody) break;
+        svx += sax * 0.25; svy += say * 0.25;
+        const spd = Math.sqrt(svx * svx + svy * svy);
+        if (spd > 18) { svx = (svx / spd) * 18; svy = (svy / spd) * 18; }
+        sx += svx * 0.25; sy += svy * 0.25;
+        if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) break;
+        if (step % 3 === 0) predictionPoints.push({ x: sx, y: sy });
+      }
+
+      for (let i = 0; i < predictionPoints.length; i++) {
+        const alpha = (1 - i / predictionPoints.length) * 0.35;
+        const size = (1 - i / predictionPoints.length) * 2.5 + 0.5;
+        ctx.fillStyle = `rgba(167, 139, 250, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(predictionPoints[i].x, predictionPoints[i].y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const powerPct = Math.round((power / 200) * 100);
+      ctx.font = '600 13px Space Grotesk, sans-serif';
+      ctx.fillStyle = `rgba(255,255,255,${0.4 + (power / 200) * 0.4})`;
+      ctx.textAlign = 'center';
+      ctx.fillText(`${powerPct}%`, b.x, b.y - b.radius * 3 - 5);
+    }
+
+    // Sandbox UI
+    if (this.isSandbox) {
+      ctx.font = '500 14px Space Grotesk, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Right-click to place planets • Middle-click for stars • Scroll to resize', W / 2, H - 20);
+      ctx.fillText('Drag from the ball to launch', W / 2, H - 42);
+    }
+  }
+};
+
+/* ─── Input Handling ─── */
+let pointerDown = false;
+
+function getPos(e) {
+  const touch = e.touches ? e.touches[0] : e;
+  return { x: touch.clientX, y: touch.clientY };
+}
+
+function isNearBall(pos) {
+  if (!game.ball) return false;
+  const dx = pos.x - game.ball.x;
+  const dy = pos.y - game.ball.y;
+  return Math.sqrt(dx * dx + dy * dy) < 50;
+}
+
+function onPointerDown(e) {
+  e.preventDefault();
+  const pos = getPos(e);
+
+  if (game.state === 'playing' && !game.ball.active) {
+    if (isNearBall(pos)) {
+      game.isDragging = true;
+      game.dragStart = pos;
+      game.dragEnd = pos;
+      audio.play('tick');
+    }
+  }
+}
+
+function onPointerMove(e) {
+  e.preventDefault();
+  if (game.isDragging) {
+    game.dragEnd = getPos(e);
+  }
+}
+
+function onPointerUp(e) {
+  e.preventDefault();
+  if (game.isDragging && game.dragStart && game.dragEnd) {
+    const dx = game.dragStart.x - game.dragEnd.x;
+    const dy = game.dragStart.y - game.dragEnd.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 15) {
+      const angle = Math.atan2(dy, dx);
+      const power = Math.min(dist, 200);
+      game.launch(power, angle);
+    }
+
+    game.isDragging = false;
+    game.dragStart = null;
+    game.dragEnd = null;
+  }
+}
+
+C.addEventListener('mousedown', onPointerDown);
+C.addEventListener('mousemove', onPointerMove);
+C.addEventListener('mouseup', onPointerUp);
+C.addEventListener('touchstart', onPointerDown, { passive: false });
+C.addEventListener('touchmove', onPointerMove, { passive: false });
+C.addEventListener('touchend', onPointerUp, { passive: false });
+
+C.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (game.isSandbox) {
+    const colors = ['#60a5fa', '#a78bfa', '#fb7185', '#34d399', '#f59e0b', '#818cf8'];
+    game.bodies.push({
+      x: e.clientX, y: e.clientY,
+      mass: 3000, radius: 24,
+      type: 'planet',
+      color: colors[Math.floor(Math.random() * colors.length)],
+      pulsePhase: Math.random() * Math.PI * 2
+    });
+  }
+});
+
+C.addEventListener('auxclick', e => {
+  if (e.button === 1 && game.isSandbox) {
+    e.preventDefault();
+    game.bodies.push({
+      x: e.clientX, y: e.clientY,
+      mass: 4000, radius: 30,
+      type: 'star',
+      color: '#fbbf24',
+      pulsePhase: Math.random() * Math.PI * 2
+    });
+  }
+});
+
+C.addEventListener('wheel', e => {
+  if (game.isSandbox && game.bodies.length > 0) {
+    const last = game.bodies[game.bodies.length - 1];
+    last.radius = Math.max(10, Math.min(60, last.radius + (e.deltaY > 0 ? -2 : 2)));
+    last.mass = last.radius * last.radius * 4;
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'r' || e.key === 'R') {
+    if (game.state === 'playing' || game.state === 'flying') {
+      game.restartLevel();
+    }
+  }
+  if (e.key === 'Escape') {
+    game.goToMenu();
+  }
+  if (e.key === 'Backspace' && game.isSandbox && game.bodies.length > 0) {
+    game.bodies.pop();
+  }
+});
+
+/* ─── Game Loop ─── */
+let lastTime = 0;
+
+function loop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  game.update(dt);
+  game.render(timestamp / 1000);
+
+  requestAnimationFrame(loop);
+}
+
+game.init();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

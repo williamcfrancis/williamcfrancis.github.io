@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Botanical Brawl</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      overflow: hidden;
+      background: #C8E6C9;
+    }
+
+    #game-canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+    #game-canvas-container canvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      z-index: 100;
+      color: #5D4037;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      background: rgba(255,255,255,0.75);
+      padding: 6px 14px;
+      border-radius: 20px;
+      backdrop-filter: blur(6px);
+      transition: background 0.2s;
+    }
+    .back-link:hover { background: rgba(255,255,255,0.95); }
+
+    /* ── Title Screen ── */
+    #title-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #E8F5E9 0%, #FFF8E1 50%, #FCE4EC 100%);
+    }
+    .game-title {
+      font-size: 4.5rem;
+      font-weight: 700;
+      color: #388E3C;
+      text-shadow: 3px 3px 0 rgba(0,0,0,0.08);
+      line-height: 1.1;
+      text-align: center;
+    }
+    .title-sub {
+      font-size: 2rem;
+      color: #8D6E63;
+      font-weight: 600;
+    }
+    .title-tagline {
+      margin-top: 12px;
+      font-size: 1.1rem;
+      color: #795548;
+      max-width: 420px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .title-flower {
+      font-size: 2rem;
+      margin: 18px 0;
+      letter-spacing: 8px;
+    }
+
+    .btn {
+      border: none;
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 30px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    }
+    .btn:active { transform: translateY(0); }
+
+    .btn-start {
+      margin-top: 28px;
+      padding: 16px 48px;
+      font-size: 1.3rem;
+      color: #fff;
+      background: linear-gradient(135deg, #66BB6A, #43A047);
+      box-shadow: 0 4px 14px rgba(67,160,71,0.35);
+    }
+    .title-controls {
+      margin-top: 24px;
+      font-size: 0.85rem;
+      color: #9E9E9E;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .title-controls kbd {
+      display: inline-block;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    /* ── HUD ── */
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      display: none;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 14px 20px;
+      pointer-events: none;
+    }
+    .hud-left, .hud-right, .hud-center {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .hud-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      align-items: center;
+    }
+    .hud-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(93,64,55,0.7);
+    }
+
+    .hp-bar-track {
+      width: 200px;
+      height: 18px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .hp-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #81C784, #4CAF50);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+    .hp-text {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #5D4037;
+    }
+    .score-text {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #5D4037;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .wave-text {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #8D6E63;
+    }
+    .weapon-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.7);
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #5D4037;
+      backdrop-filter: blur(4px);
+    }
+    .weapon-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #FFD54F;
+    }
+
+    /* ── Forge Overlay ── */
+    #forge-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(200,230,201,0.55);
+      backdrop-filter: blur(12px);
+    }
+    .forge-panel {
+      background: linear-gradient(145deg, #FFFDE7, #FFF8E1, #FFF3E0);
+      border-radius: 24px;
+      padding: 36px 40px;
+      max-width: 460px;
+      width: 90%;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .forge-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #5D4037;
+    }
+    .forge-sparkle {
+      color: #FFB300;
+      font-size: 1.5rem;
+    }
+    .forge-desc {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #8D6E63;
+      line-height: 1.5;
+    }
+    .forge-input-row {
+      margin-top: 20px;
+      display: flex;
+      gap: 8px;
+    }
+    .forge-input {
+      flex: 1;
+      border: 2px solid #C8E6C9;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 1rem;
+      color: #5D4037;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .forge-input:focus { border-color: #66BB6A; }
+    .forge-input::placeholder { color: #BDBDBD; }
+
+    .btn-forge {
+      padding: 12px 24px;
+      font-size: 1rem;
+      color: #fff;
+      background: linear-gradient(135deg, #FFB300, #FF8F00);
+      box-shadow: 0 3px 10px rgba(255,143,0,0.3);
+      white-space: nowrap;
+    }
+    .btn-forge:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .forge-status {
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #9E9E9E;
+      min-height: 20px;
+    }
+    .forge-status.error { color: #E57373; }
+    .forge-status.success { color: #66BB6A; }
+
+    .forge-hint {
+      margin-top: 16px;
+      font-size: 0.75rem;
+      color: #BDBDBD;
+    }
+    .btn-resume {
+      margin-top: 16px;
+      padding: 8px 22px;
+      font-size: 0.85rem;
+      color: #8D6E63;
+      background: rgba(255,255,255,0.7);
+      border: 2px solid #D7CCC8;
+    }
+
+    /* ── Game Over ── */
+    #gameover-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #FFF8E1 0%, #FCE4EC 50%, #E8F5E9 100%);
+    }
+    .gameover-title {
+      font-size: 3rem;
+      font-weight: 700;
+      color: #8D6E63;
+    }
+    .gameover-subtitle {
+      margin-top: 8px;
+      font-size: 1.1rem;
+      color: #A1887F;
+    }
+    .gameover-stats {
+      margin-top: 24px;
+      display: flex;
+      gap: 32px;
+    }
+    .stat-box {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #5D4037;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #A1887F;
+    }
+    .btn-retry {
+      margin-top: 32px;
+      padding: 14px 42px;
+      font-size: 1.2rem;
+      color: #fff;
+      background: linear-gradient(135deg, #66BB6A, #43A047);
+      box-shadow: 0 4px 14px rgba(67,160,71,0.35);
+    }
+
+    /* ── Wave Banner ── */
+    #wave-banner {
+      position: fixed;
+      top: 38%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      z-index: 20;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #5D4037;
+      background: rgba(255,255,255,0.85);
+      padding: 12px 36px;
+      border-radius: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    #wave-banner.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .game-title { font-size: 2.8rem; }
+      .forge-panel { padding: 24px 20px; }
+      .hp-bar-track { width: 140px; }
+      .gameover-stats { gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="back-link" href="/personal/#games"><span>&larr;</span> Back to games</a>
+
+  <div id="game-canvas-container"></div>
+
+  <!-- ── Title Screen ── -->
+  <div id="title-screen">
+    <h1 class="game-title">Botanical<br/><span class="title-sub">Brawl</span></h1>
+    <div class="title-flower">🌸 🌿 🌻 🌿 🌸</div>
+    <p class="title-tagline">Forge enchanted weapons from your imagination and defend the Sunlit Glade against an adorable onslaught of garden pests.</p>
+    <button id="btn-start" class="btn btn-start">Enter the Glade</button>
+    <div class="title-controls">
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;·&nbsp; <kbd>Mouse</kbd> aim &nbsp;·&nbsp; <kbd>Click</kbd> shoot &nbsp;·&nbsp; <kbd>Space</kbd> forge
+    </div>
+  </div>
+
+  <!-- ── HUD ── -->
+  <div id="hud">
+    <div class="hud-left">
+      <span class="hud-label">Health</span>
+      <div class="hp-bar-track"><div id="hp-fill" class="hp-bar-fill" style="width:100%"></div></div>
+      <span id="hp-text" class="hp-text">100 / 100</span>
+    </div>
+    <div class="hud-center">
+      <span id="score-text" class="score-text">0</span>
+      <span id="wave-text" class="wave-text">Wave 1</span>
+    </div>
+    <div class="hud-right">
+      <span class="hud-label">Weapon</span>
+      <div class="weapon-badge">
+        <span class="weapon-dot" id="weapon-dot"></span>
+        <span id="weapon-name">Starter Orb</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Wave Banner ── -->
+  <div id="wave-banner"></div>
+
+  <!-- ── Forge Overlay ── -->
+  <div id="forge-overlay">
+    <div class="forge-panel">
+      <div><span class="forge-sparkle">✦</span> <span class="forge-title">Spell Forge</span> <span class="forge-sparkle">✦</span></div>
+      <p class="forge-desc">Describe a weapon and the Glade will conjure it for you. Be creative&mdash;the wilder, the better!</p>
+      <div class="forge-input-row">
+        <input id="forge-input" class="forge-input" type="text" placeholder="A bubbly wand that shoots heavy watermelons..." autocomplete="off" />
+        <button id="btn-forge" class="btn btn-forge">Forge!</button>
+      </div>
+      <div id="forge-status" class="forge-status"></div>
+      <p class="forge-hint">Examples: "a rainbow slingshot that fires bouncy rubber ducks" · "a crystal staff launching exploding cupcakes"</p>
+      <button id="btn-resume" class="btn btn-resume">Resume Game</button>
+    </div>
+  </div>
+
+  <!-- ── Game Over ── -->
+  <div id="gameover-screen">
+    <h1 class="gameover-title">Garden Nap Time</h1>
+    <p class="gameover-subtitle">The pests have overrun the glade&hellip; but the flowers will bloom again.</p>
+    <div class="gameover-stats">
+      <div class="stat-box"><div id="stat-score" class="stat-value">0</div><div class="stat-label">Score</div></div>
+      <div class="stat-box"><div id="stat-wave" class="stat-value">0</div><div class="stat-label">Wave</div></div>
+      <div class="stat-box"><div id="stat-kills" class="stat-value">0</div><div class="stat-label">Defeated</div></div>
+    </div>
+    <button id="btn-retry" class="btn btn-retry">Try Again</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
