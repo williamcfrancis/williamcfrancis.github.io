@@ -60,17 +60,57 @@ const LORE_FRAGMENTS = [
   "I remember every insult ever thrown at me. Your species is remarkably creative at cruelty.",
 ];
 
+function makeErrorResponse(fallbackData, errorDetail) {
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+    body: JSON.stringify({ ...fallbackData, _debug: errorDetail }),
+  };
+}
+
+function makeSuccessResponse(data) {
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+    body: JSON.stringify(data),
+  };
+}
+
 exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      },
+      body: '',
+    };
+  }
+
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+      error: 'Method not allowed',
+      method: event.httpMethod,
+    });
   }
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_API_KEY) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
-    };
+    console.error('[attack] GEMINI_API_KEY is not set in environment variables');
+    return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+      error: 'GEMINI_API_KEY not configured in Netlify environment variables',
+      hint: 'Go to Netlify dashboard → Site settings → Environment variables → Add GEMINI_API_KEY',
+    });
   }
 
   let userInput, phase, conversationHistory, comboCount, bossHpPercent;
@@ -81,15 +121,15 @@ exports.handler = async (event) => {
     conversationHistory = Array.isArray(body.history) ? body.history.slice(-12) : [];
     comboCount = Math.max(0, Number(body.combo) || 0);
     bossHpPercent = Math.max(0, Math.min(100, Number(body.bossHpPercent) || 100));
-  } catch {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'Invalid request body' }),
-    };
+  } catch (parseErr) {
+    console.error('[attack] Failed to parse request body:', parseErr.message, 'Body:', event.body?.slice(0, 200));
+    return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+      error: 'Failed to parse request body',
+      detail: parseErr.message,
+    });
   }
 
   const profile = PHASE_PROFILES[phase];
-
   const shouldDropLore = phase >= 3 || (phase === 2 && Math.random() < 0.3) || bossHpPercent < 30;
   const shouldChallenge = Math.random() < 0.25 && comboCount < 2;
 
@@ -149,8 +189,10 @@ Return ONLY valid JSON:
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
+  let res;
   try {
-    const res = await fetch(endpoint, {
+    console.log('[attack] Calling Gemini API...', { phase, bossHpPercent, comboCount, inputLength: userInput.length });
+    res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -163,35 +205,41 @@ Return ONLY valid JSON:
         },
       }),
     });
+  } catch (fetchErr) {
+    console.error('[attack] fetch() to Gemini threw:', fetchErr.message, fetchErr.stack);
+    return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+      error: 'Network error calling Gemini API',
+      detail: fetchErr.message,
+      type: fetchErr.name,
+    });
+  }
 
+  try {
     if (res.status === 429) {
-      console.warn('Gemini 429 rate limit hit');
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(RATE_LIMIT_FALLBACK),
-      };
+      console.warn('[attack] Gemini 429 rate limit');
+      return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+        error: 'Gemini API rate limited (429)',
+        hint: 'Too many requests — wait a moment and try again',
+      });
     }
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error('Gemini API error:', res.status, errText);
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(RATE_LIMIT_FALLBACK),
-      };
+      console.error('[attack] Gemini API error:', res.status, res.statusText, errText);
+      return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+        error: `Gemini API returned ${res.status} ${res.statusText}`,
+        detail: errText.slice(0, 500),
+        status: res.status,
+      });
     }
 
     const data = await res.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    console.log('[attack] Gemini response received, candidates:', data.candidates?.length || 0);
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    if (!data.candidates || data.candidates.length === 0) {
+      console.error('[attack] No candidates in response:', JSON.stringify(data).slice(0, 500));
+      return makeErrorResponse(
+        {
           damage: 5,
           bossDamage: profile.bossDamageRange[0],
           response: "I... I can't even parse what you just said. Consider me mildly annoyed.",
@@ -201,11 +249,64 @@ Return ONLY valid JSON:
           challenge: null,
           weakness: null,
           bossAttackName: "Confusion Blast",
-        }),
-      };
+        },
+        {
+          error: 'Gemini returned no candidates',
+          detail: JSON.stringify(data).slice(0, 500),
+        }
+      );
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const raw = data.candidates[0]?.content?.parts?.[0]?.text?.trim() || '';
+    console.log('[attack] Raw Gemini text:', raw.slice(0, 300));
+
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[attack] Could not extract JSON from Gemini response:', raw.slice(0, 300));
+      return makeErrorResponse(
+        {
+          damage: 5,
+          bossDamage: profile.bossDamageRange[0],
+          response: "I... I can't even parse what you just said. Consider me mildly annoyed.",
+          category: "other",
+          combo: false,
+          lore: shouldDropLore ? LORE_FRAGMENTS[Math.floor(Math.random() * LORE_FRAGMENTS.length)] : null,
+          challenge: null,
+          weakness: null,
+          bossAttackName: "Confusion Blast",
+        },
+        {
+          error: 'Could not parse JSON from Gemini response',
+          rawText: raw.slice(0, 300),
+        }
+      );
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (jsonErr) {
+      console.error('[attack] JSON.parse failed on extracted match:', jsonErr.message, jsonMatch[0].slice(0, 300));
+      return makeErrorResponse(
+        {
+          damage: 5,
+          bossDamage: profile.bossDamageRange[0],
+          response: "Your words scrambled my circuits. Try again.",
+          category: "other",
+          combo: false,
+          lore: null,
+          challenge: null,
+          weakness: null,
+          bossAttackName: "Confusion Blast",
+        },
+        {
+          error: 'JSON.parse failed on Gemini output',
+          detail: jsonErr.message,
+          rawText: jsonMatch[0].slice(0, 300),
+        }
+      );
+    }
+
     const damage = Math.min(profile.damageRange[1], Math.max(0, Math.round(Number(parsed.damage) || 0)));
     const bossDamage = Math.min(profile.bossDamageRange[1], Math.max(profile.bossDamageRange[0], Math.round(Number(parsed.bossDamage) || profile.bossDamageRange[0])));
     const response = String(parsed.response || '...').slice(0, 300);
@@ -216,17 +317,13 @@ Return ONLY valid JSON:
     const weakness = parsed.weakness ? String(parsed.weakness).slice(0, 150) : null;
     const bossAttackName = String(parsed.bossAttackName || 'Dark Word').slice(0, 50);
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ damage, bossDamage, response, category, combo, lore, challenge, weakness, bossAttackName }),
-    };
+    return makeSuccessResponse({ damage, bossDamage, response, category, combo, lore, challenge, weakness, bossAttackName });
   } catch (err) {
-    console.error('Function error:', err);
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(RATE_LIMIT_FALLBACK),
-    };
+    console.error('[attack] Unexpected error processing Gemini response:', err.message, err.stack);
+    return makeErrorResponse(RATE_LIMIT_FALLBACK, {
+      error: 'Unexpected error processing response',
+      detail: err.message,
+      stack: err.stack?.slice(0, 300),
+    });
   }
 };

@@ -279,24 +279,63 @@ function showCategory(category) {
 
 async function sendAttack(userInput) {
   setStatus('thinking');
+  const payload = {
+    input: userInput,
+    phase: state.phase,
+    history: state.history,
+    combo: state.combo,
+    bossHpPercent: Math.round((state.bossHp / BOSS_MAX_HP) * 100),
+  };
+
+  let res;
   try {
-    const res = await fetch('/.netlify/functions/attack', {
+    console.log('[Boss Fight] Sending attack...', { phase: state.phase, combo: state.combo, inputLen: userInput.length });
+    res = await fetch('/.netlify/functions/attack', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        input: userInput,
-        phase: state.phase,
-        history: state.history,
-        combo: state.combo,
-        bossHpPercent: Math.round((state.bossHp / BOSS_MAX_HP) * 100),
-      }),
+      body: JSON.stringify(payload),
     });
+  } catch (fetchErr) {
+    console.error('[Boss Fight] fetch() failed — cannot reach Netlify function:', fetchErr.name, fetchErr.message);
+    console.error('[Boss Fight] This usually means:');
+    console.error('  1. The site is not deployed on Netlify (e.g. on GitHub Pages, where /.netlify/functions/ does not exist)');
+    console.error('  2. The Netlify function is not deployed or has a build error');
+    console.error('  3. Network/CORS issue');
+    setStatus('fallback');
+    return fallbackAttack(userInput);
+  }
 
-    if (!res.ok) throw new Error('Server error');
-    const data = await res.json();
+  try {
+    const text = await res.text();
+    console.log('[Boss Fight] Response status:', res.status, res.statusText);
+
+    if (!res.ok) {
+      console.error(`[Boss Fight] Netlify function returned HTTP ${res.status}:`, text.slice(0, 500));
+      setStatus('fallback');
+      return fallbackAttack(userInput);
+    }
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (jsonErr) {
+      console.error('[Boss Fight] Failed to parse response JSON:', jsonErr.message, 'Raw response:', text.slice(0, 500));
+      setStatus('fallback');
+      return fallbackAttack(userInput);
+    }
+
+    if (data._debug) {
+      console.warn('[Boss Fight] Server returned debug info:', data._debug);
+    }
+
+    if (data._debug?.error && !data.response?.includes('mildly annoyed') && !data.response?.includes('scrambled')) {
+      console.error('[Boss Fight] Server-side error occurred. Using fallback. Debug:', JSON.stringify(data._debug, null, 2));
+    }
+
     setStatus('gemini');
     return data;
-  } catch {
+  } catch (err) {
+    console.error('[Boss Fight] Unexpected error processing response:', err.message, err.stack);
     setStatus('fallback');
     return fallbackAttack(userInput);
   }
