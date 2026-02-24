@@ -90,12 +90,12 @@ sections:
           label: Play Algorithm Simulator
           url: "/games/algorithm_simulator/"
         image: "/games/algorithm_simulator/algorithm_simulator.png"
-      - title: Junkcode Brawlers
+      - title: "If It Compiles, It Kills"
         genre: LLM-powered arena fighter
-        summary: "1v1 local platformer shooter where the loser codes their own weapons. Type a mod request, the AI compiles it, and chaos stacks every round."
+        summary: "1v1 local arena shooter where the loser types ANY weapon mod they can imagine. The AI compiles it. Mods stack. Chaos ensues."
         tags: ["browser", "AI", "local-multiplayer"]
         link:
-          label: Play Junkcode Brawlers
+          label: "Play If It Compiles, It Kills"
           url: "/games/junkcode_brawlers/"
   - section:
       name: Photo Gallery

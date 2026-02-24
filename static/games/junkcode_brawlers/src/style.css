@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: #0a0a12;
+  background: #060612;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -25,16 +25,20 @@ canvas {
   align-items: center;
   gap: 4px;
   padding: 4px 12px;
-  background: rgba(0,0,0,0.7);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(6, 6, 18, 0.85);
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 3px;
-  color: #666;
+  color: #555;
   text-decoration: none;
   font-size: 14px;
   font-family: 'VT323', monospace;
-  transition: color 0.2s, border-color 0.2s;
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.back-link:hover { color: #f5c842; border-color: #f5c842; }
+.back-link:hover {
+  color: #f5c842;
+  border-color: rgba(245, 200, 66, 0.3);
+  box-shadow: 0 0 8px rgba(245, 200, 66, 0.1);
+}
 
 .hidden { display: none !important; }
 
@@ -46,7 +50,8 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(4, 4, 14, 0.9);
+  backdrop-filter: blur(4px);
   animation: overlay-in 0.3s ease-out;
 }
 
@@ -58,10 +63,13 @@ canvas {
 .terminal {
   width: 90%;
   max-width: 700px;
-  background: #0c0c14;
-  border: 2px solid #2a2a3a;
-  border-radius: 6px;
-  box-shadow: 0 0 40px rgba(0, 255, 100, 0.08), inset 0 0 60px rgba(0, 0, 0, 0.5);
+  background: #0a0a14;
+  border: 1px solid #1e2040;
+  border-radius: 8px;
+  box-shadow:
+    0 0 60px rgba(0, 255, 100, 0.06),
+    0 0 120px rgba(0, 100, 255, 0.03),
+    inset 0 0 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   font-family: 'Share Tech Mono', monospace;
 }
@@ -70,9 +78,9 @@ canvas {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  background: #16161e;
-  border-bottom: 1px solid #2a2a3a;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #141420, #0e0e1a);
+  border-bottom: 1px solid #1e2040;
 }
 
 .term-dot {
@@ -80,22 +88,22 @@ canvas {
   height: 10px;
   border-radius: 50%;
 }
-.term-dot.red { background: #ff5f56; }
-.term-dot.yellow { background: #ffbd2e; }
-.term-dot.green { background: #27c93f; }
+.term-dot.red { background: #ff5f56; box-shadow: 0 0 4px rgba(255, 95, 86, 0.3); }
+.term-dot.yellow { background: #ffbd2e; box-shadow: 0 0 4px rgba(255, 189, 46, 0.3); }
+.term-dot.green { background: #27c93f; box-shadow: 0 0 4px rgba(39, 201, 63, 0.3); }
 
 .term-title {
   margin-left: 8px;
   font-size: 12px;
-  color: #555;
-  letter-spacing: 1px;
+  color: #444;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
 }
 
-#compile-player-label { color: #888; }
+#compile-player-label { color: #777; }
 
 .terminal-body {
-  padding: 16px;
+  padding: 18px;
   max-height: 400px;
   overflow-y: auto;
 }
@@ -108,21 +116,22 @@ canvas {
 }
 
 .term-system { color: #27c93f; font-weight: bold; }
-.term-highlight { color: #f5c842; font-weight: bold; }
+.term-highlight { color: #f5c842; font-weight: bold; text-shadow: 0 0 6px rgba(245, 200, 66, 0.3); }
 .term-error { color: #ff5f56; }
 .term-success { color: #27c93f; }
 
 .term-input-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 12px 0 4px;
+  gap: 8px;
+  margin: 14px 0 6px;
 }
 
 .term-caret {
   color: #27c93f;
   font-size: 18px;
   font-weight: bold;
+  text-shadow: 0 0 4px rgba(39, 201, 63, 0.4);
   animation: blink 1s step-end infinite;
 }
 
@@ -134,44 +143,45 @@ canvas {
   flex: 1;
   font-family: 'Share Tech Mono', monospace;
   font-size: 16px;
-  padding: 8px 10px;
-  background: rgba(0, 255, 100, 0.04);
-  border: 1px solid #2a2a3a;
-  border-radius: 3px;
+  padding: 10px 12px;
+  background: rgba(0, 255, 100, 0.03);
+  border: 1px solid #1e2040;
+  border-radius: 4px;
   color: #c8ffc8;
   outline: none;
   caret-color: #27c93f;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 #compile-input:focus {
   border-color: #27c93f;
-  box-shadow: 0 0 8px rgba(0, 255, 100, 0.15);
+  box-shadow: 0 0 12px rgba(0, 255, 100, 0.12);
 }
 
-#compile-input::placeholder { color: #2a3a2a; }
+#compile-input::placeholder { color: #1e2e1e; }
 
 .term-hint {
   font-size: 11px;
-  color: #333;
+  color: #2a2a3a;
   margin-top: 4px;
   letter-spacing: 0.5px;
 }
 
 #compile-output {
-  margin-top: 12px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid #1a1a2a;
-  border-radius: 3px;
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid #151525;
+  border-radius: 4px;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .compile-mod-name {
   color: #f5c842;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: bold;
+  text-shadow: 0 0 8px rgba(245, 200, 66, 0.2);
 }
 
 .compile-mod-quip {
@@ -192,11 +202,11 @@ canvas {
 
 .existing-mod-tag {
   display: inline-block;
-  padding: 1px 6px;
+  padding: 2px 7px;
   margin: 2px;
-  background: rgba(245, 200, 66, 0.08);
-  border: 1px solid rgba(245, 200, 66, 0.15);
-  border-radius: 2px;
+  background: rgba(245, 200, 66, 0.06);
+  border: 1px solid rgba(245, 200, 66, 0.12);
+  border-radius: 3px;
   color: #887730;
   font-size: 11px;
 }
@@ -204,19 +214,21 @@ canvas {
 /* Compiling animation */
 .compiling-bar {
   width: 100%;
-  height: 8px;
-  background: #111;
-  border-radius: 4px;
+  height: 6px;
+  background: #0a0a14;
+  border-radius: 3px;
   overflow: hidden;
-  margin-top: 8px;
+  margin-top: 10px;
+  border: 1px solid #151525;
 }
 
 .compiling-bar-fill {
   height: 100%;
-  background: #27c93f;
+  background: linear-gradient(90deg, #27c93f, #44eeff);
   width: 0%;
   animation: compile-progress 3s ease-in-out forwards;
-  box-shadow: 0 0 8px #27c93f;
+  box-shadow: 0 0 10px rgba(39, 201, 63, 0.4);
+  border-radius: 3px;
 }
 
 @keyframes compile-progress {

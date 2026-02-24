@@ -1,5 +1,5 @@
 // ============================================================
-//  JUNKCODE BRAWLERS — Game Engine
+//  IF IT COMPILES, IT KILLS — Game Engine
 // ============================================================
 
 const W = 960, H = 540;
@@ -39,6 +39,8 @@ let gameState = 'title';
 let players = [];
 let bullets = [];
 let particles = [];
+let ambientParticles = [];
+let muzzleFlashes = [];
 let score = [0, 0];
 let roundNum = 0;
 let countdownVal = 0;
@@ -54,6 +56,7 @@ let shakeAmount = 0;
 let slowMo = 0;
 let lastTime = 0;
 let bgCanvas = null;
+let frameCount = 0;
 
 // --- Input ---
 const keys = {};
@@ -150,6 +153,67 @@ function updateParticles(dt) {
     p.life -= dt;
     if (p.life <= 0) particles.splice(i, 1);
   }
+}
+
+// --- Ambient particles ---
+function initAmbientParticles() {
+  ambientParticles = [];
+  for (let i = 0; i < 35; i++) {
+    ambientParticles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: -0.1 - Math.random() * 0.2,
+      size: 0.5 + Math.random() * 1.5,
+      alpha: 0.1 + Math.random() * 0.25,
+      color: Math.random() < 0.5 ? '#6688cc' : '#8866cc',
+    });
+  }
+}
+function updateAmbientParticles() {
+  for (const p of ambientParticles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.y < -5) { p.y = H + 5; p.x = Math.random() * W; }
+    if (p.x < -5) p.x = W + 5;
+    if (p.x > W + 5) p.x = -5;
+  }
+}
+function renderAmbientParticles() {
+  for (const p of ambientParticles) {
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- Muzzle flashes ---
+function spawnMuzzleFlash(x, y, color) {
+  muzzleFlashes.push({ x, y, color, life: 6, maxLife: 6 });
+}
+function updateMuzzleFlashes(dt) {
+  for (let i = muzzleFlashes.length - 1; i >= 0; i--) {
+    muzzleFlashes[i].life -= dt;
+    if (muzzleFlashes[i].life <= 0) muzzleFlashes.splice(i, 1);
+  }
+}
+function renderMuzzleFlashes() {
+  for (const f of muzzleFlashes) {
+    const alpha = f.life / f.maxLife;
+    const r = 6 + (1 - alpha) * 10;
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
 // --- Modifier system ---
@@ -253,6 +317,7 @@ function updatePlayers(dt) {
       p.vy = JUMP_FORCE * s.jumpPower;
       p.grounded = false;
       playSound('jump');
+      spawnParticles(p.x, p.y, 4, '#aaa', 2, 12);
     }
 
     p.vy += grav * dt;
@@ -294,6 +359,10 @@ function updatePlayers(dt) {
       p.hp = Math.min(p.maxHp, p.hp + s.regen / 60 * dt);
     }
 
+    if (!p.grounded && Math.random() < 0.3) {
+      spawnParticles(p.x, p.y + 2, 1, p.accentColor, 1, 8);
+    }
+
     if (p.y > KILL_Y) {
       p.alive = false;
       playSound('death');
@@ -308,6 +377,10 @@ function fireBullets(p) {
   const totalSpread = s.bulletSpread;
   const baseAngle = p.facing === 1 ? 0 : Math.PI;
   playSound('shoot');
+
+  const muzzleX = p.x + p.facing * (PW * s.playerSize / 2 + 12 * s.playerSize);
+  const muzzleY = p.y - PH * s.playerSize * 0.55;
+  spawnMuzzleFlash(muzzleX, muzzleY, p.accentColor);
 
   for (let i = 0; i < count; i++) {
     let angle = baseAngle;
@@ -362,7 +435,7 @@ function updateBullets(dt) {
     }
 
     b.trail.push({ x: b.x, y: b.y });
-    if (b.trail.length > 8) b.trail.shift();
+    if (b.trail.length > 10) b.trail.shift();
 
     b.x += b.vx * dt;
     b.y += b.vy * dt;
@@ -431,12 +504,14 @@ function updateBullets(dt) {
         playSound('hit');
         shakeAmount = Math.max(shakeAmount, b.damage * 0.4);
         spawnParticles(b.x, b.y, 8, b.color, 4, 20);
+        spawnParticles(b.x, b.y, 4, '#fff', 3, 10);
         bullets.splice(i, 1);
         if (p.hp <= 0) {
           p.hp = 0;
           p.alive = false;
           playSound('death');
           spawnParticles(p.x, p.y - ph/2, 30, p.accentColor, 6, 50);
+          spawnParticles(p.x, p.y - ph/2, 15, '#fff', 4, 30);
           slowMo = 40;
         }
         break;
@@ -455,43 +530,250 @@ function renderBackground() {
   bgCanvas.width = W; bgCanvas.height = H;
   const c = bgCanvas.getContext('2d');
 
-  c.fillStyle = '#12121e';
+  const bgGrad = c.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#08081a');
+  bgGrad.addColorStop(0.5, '#0d0d22');
+  bgGrad.addColorStop(1, '#12101e');
+  c.fillStyle = bgGrad;
   c.fillRect(0, 0, W, H);
 
-  for (let i = 0; i < 60; i++) {
-    c.fillStyle = `rgba(${30 + Math.random()*20}, ${25 + Math.random()*15}, ${35 + Math.random()*20}, 0.5)`;
-    c.fillRect(Math.random()*W, Math.random()*H, 2 + Math.random()*6, 2 + Math.random()*6);
+  const neb1 = c.createRadialGradient(W * 0.2, H * 0.3, 20, W * 0.2, H * 0.3, 280);
+  neb1.addColorStop(0, 'rgba(80, 40, 120, 0.12)');
+  neb1.addColorStop(0.5, 'rgba(60, 30, 100, 0.06)');
+  neb1.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = neb1;
+  c.fillRect(0, 0, W, H);
+
+  const neb2 = c.createRadialGradient(W * 0.8, H * 0.6, 20, W * 0.8, H * 0.6, 250);
+  neb2.addColorStop(0, 'rgba(30, 60, 120, 0.10)');
+  neb2.addColorStop(0.5, 'rgba(20, 40, 90, 0.05)');
+  neb2.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = neb2;
+  c.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 120; i++) {
+    const brightness = Math.random();
+    const size = brightness > 0.85 ? 2 : 1;
+    const alpha = 0.2 + brightness * 0.6;
+    c.fillStyle = `rgba(${180 + Math.random() * 75}, ${180 + Math.random() * 75}, ${200 + Math.random() * 55}, ${alpha})`;
+    c.fillRect(Math.floor(Math.random() * W), Math.floor(Math.random() * H), size, size);
   }
 
-  c.strokeStyle = '#1a1a28';
+  c.strokeStyle = 'rgba(30, 35, 60, 0.25)';
   c.lineWidth = 1;
   for (let x = 0; x < W; x += 48) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
   for (let y = 0; y < H; y += 48) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
-
-  const grd = c.createRadialGradient(W/2, H + 80, 50, W/2, H + 80, 500);
-  grd.addColorStop(0, 'rgba(255, 120, 30, 0.08)');
-  grd.addColorStop(1, 'rgba(0,0,0,0)');
-  c.fillStyle = grd;
-  c.fillRect(0, 0, W, H);
-
-  for (const plat of PLATFORMS) {
-    c.fillStyle = '#2a2a3a';
-    c.fillRect(plat.x, plat.y, plat.w, plat.h);
-    c.fillStyle = '#3d3d50';
-    c.fillRect(plat.x, plat.y, plat.w, 3);
-    c.fillStyle = '#1a1a24';
-    c.fillRect(plat.x, plat.y + plat.h - 2, plat.w, 2);
-    for (let rx = plat.x + 12; rx < plat.x + plat.w - 6; rx += 24) {
-      c.fillStyle = '#353548';
-      c.fillRect(rx, plat.y + 5, 4, 4);
+  c.fillStyle = 'rgba(50, 60, 100, 0.15)';
+  for (let x = 0; x < W; x += 48) {
+    for (let y = 0; y < H; y += 48) {
+      c.fillRect(x - 1, y - 1, 2, 2);
     }
   }
 
-  const hsx = 5, hsh = 12;
-  for (let sx = 0; sx < W; sx += hsx * 2) {
-    c.fillStyle = (Math.floor(sx / (hsx*2)) % 2 === 0) ? '#c8a820' : '#222';
-    c.fillRect(sx, H - hsh, hsx * 2, hsh);
+  for (const plat of PLATFORMS) {
+    c.fillStyle = '#1e1e2e';
+    c.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+    const platGrad = c.createLinearGradient(plat.x, plat.y, plat.x, plat.y + plat.h);
+    platGrad.addColorStop(0, 'rgba(60, 70, 100, 0.4)');
+    platGrad.addColorStop(1, 'rgba(20, 20, 35, 0.4)');
+    c.fillStyle = platGrad;
+    c.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+    c.shadowColor = '#00ccaa';
+    c.shadowBlur = 8;
+    c.fillStyle = '#00ccaa';
+    c.fillRect(plat.x, plat.y, plat.w, 2);
+    c.shadowBlur = 0;
+
+    c.fillStyle = 'rgba(0, 204, 170, 0.15)';
+    c.fillRect(plat.x, plat.y + 2, plat.w, 3);
+
+    c.fillStyle = '#111118';
+    c.fillRect(plat.x, plat.y + plat.h - 2, plat.w, 2);
+
+    for (let rx = plat.x + 16; rx < plat.x + plat.w - 8; rx += 32) {
+      c.fillStyle = 'rgba(0, 204, 170, 0.08)';
+      c.fillRect(rx, plat.y + 5, 6, 3);
+      c.fillRect(rx + 10, plat.y + 5, 3, 3);
+    }
+
+    c.fillStyle = 'rgba(0, 204, 170, 0.2)';
+    c.fillRect(plat.x, plat.y, 2, plat.h);
+    c.fillRect(plat.x + plat.w - 2, plat.y, 2, plat.h);
   }
+
+  const floorGrad = c.createLinearGradient(0, H - 20, 0, H);
+  floorGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  floorGrad.addColorStop(0.4, 'rgba(200, 50, 20, 0.08)');
+  floorGrad.addColorStop(1, 'rgba(255, 80, 20, 0.25)');
+  c.fillStyle = floorGrad;
+  c.fillRect(0, H - 20, W, 20);
+
+  c.fillStyle = '#cc3311';
+  c.shadowColor = '#ff4400';
+  c.shadowBlur = 6;
+  c.fillRect(0, H - 2, W, 2);
+  c.shadowBlur = 0;
+}
+
+// --- Draw a single player ---
+function drawPlayer(p) {
+  const ps = p.stats.playerSize;
+  const pw = PW * ps, ph = PH * ps;
+  const bx = p.x - pw / 2, by = p.y - ph;
+
+  const headH = Math.floor(ph * 0.38);
+  const torsoH = Math.floor(ph * 0.37);
+  const legH = ph - headH - torsoH;
+
+  if (p.damageTaken > 0) {
+    ctx.globalAlpha = (Math.floor(p.damageTaken) % 4 < 2) ? 0.5 : 1;
+    p.damageTaken -= 0.5;
+  }
+
+  ctx.fillStyle = p.color;
+  ctx.globalAlpha = 0.1;
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y + 2, pw * 0.5, 2.5 * ps, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = p.damageTaken > 0 ? ((Math.floor(p.damageTaken) % 4 < 2) ? 0.5 : 1) : 1;
+
+  const legW = Math.floor(pw * 0.28);
+  const legGap = Math.floor(pw * 0.12);
+  const legX1 = Math.floor(p.x - legW - legGap / 2);
+  const legX2 = Math.floor(p.x + legGap / 2);
+  const legY = by + headH + torsoH;
+
+  ctx.fillStyle = '#1a1a26';
+  ctx.fillRect(legX1, legY, legW, legH);
+  ctx.fillRect(legX2, legY, legW, legH);
+  ctx.fillStyle = '#2a2a38';
+  ctx.fillRect(legX1 + 1, legY, legW - 2, 2 * ps);
+  ctx.fillRect(legX2 + 1, legY, legW - 2, 2 * ps);
+  ctx.fillStyle = p.color;
+  ctx.fillRect(legX1 - 1, legY + legH - 3 * ps, legW + 2, 3 * ps);
+  ctx.fillRect(legX2 - 1, legY + legH - 3 * ps, legW + 2, 3 * ps);
+
+  if (!p.grounded) {
+    const flicker = 0.4 + Math.random() * 0.4;
+    ctx.globalAlpha = flicker;
+    const flameH = (3 + Math.random() * 5) * ps;
+    ctx.fillStyle = p.accentColor;
+    ctx.fillRect(legX1 + legW * 0.15, legY + legH, legW * 0.7, flameH);
+    ctx.fillRect(legX2 + legW * 0.15, legY + legH, legW * 0.7, flameH);
+    ctx.fillStyle = '#ffe8cc';
+    ctx.fillRect(legX1 + legW * 0.3, legY + legH, legW * 0.4, flameH * 0.4);
+    ctx.fillRect(legX2 + legW * 0.3, legY + legH, legW * 0.4, flameH * 0.4);
+    ctx.globalAlpha = p.damageTaken > 0 ? ((Math.floor(p.damageTaken) % 4 < 2) ? 0.5 : 1) : 1;
+  }
+
+  const torsoY = by + headH;
+  ctx.fillStyle = '#1c1c28';
+  ctx.fillRect(bx + 2, torsoY, pw - 4, torsoH);
+
+  ctx.fillStyle = p.color;
+  ctx.globalAlpha = Math.min(ctx.globalAlpha || 1, 0.6);
+  ctx.fillRect(bx - 1, torsoY, pw + 2, 3 * ps);
+  ctx.globalAlpha = p.damageTaken > 0 ? ((Math.floor(p.damageTaken) % 4 < 2) ? 0.5 : 1) : 1;
+
+  ctx.fillStyle = p.accentColor;
+  ctx.fillRect(bx + pw * 0.3, torsoY + torsoH * 0.4, pw * 0.4, 2);
+
+  ctx.save();
+  ctx.fillStyle = p.accentColor;
+  ctx.shadowColor = p.accentColor;
+  ctx.shadowBlur = 5 * ps;
+  ctx.fillRect(bx + pw / 2 - 1.5 * ps, torsoY + torsoH * 0.55, 3 * ps, 3 * ps);
+  ctx.restore();
+
+  const gunArmY = torsoY + torsoH * 0.2;
+  const gunLen = 12 * ps;
+  const armLen = 5 * ps;
+  const gunBarrelH = 4 * ps;
+  if (p.facing === 1) {
+    ctx.fillStyle = '#2e2e3c';
+    ctx.fillRect(bx + pw, gunArmY, armLen, 3 * ps);
+    ctx.fillStyle = '#3a3a4a';
+    ctx.fillRect(bx + pw + armLen - 1, gunArmY - 1, gunLen, gunBarrelH);
+    ctx.fillStyle = '#505060';
+    ctx.fillRect(bx + pw + armLen + gunLen - 3, gunArmY, 3, gunBarrelH - 2);
+    ctx.fillStyle = p.accentColor;
+    ctx.fillRect(bx + pw + armLen + gunLen - 1, gunArmY + gunBarrelH * 0.2, 2, gunBarrelH * 0.5);
+  } else {
+    ctx.fillStyle = '#2e2e3c';
+    ctx.fillRect(bx - armLen, gunArmY, armLen, 3 * ps);
+    ctx.fillStyle = '#3a3a4a';
+    ctx.fillRect(bx - armLen - gunLen + 1, gunArmY - 1, gunLen, gunBarrelH);
+    ctx.fillStyle = '#505060';
+    ctx.fillRect(bx - armLen - gunLen + 1, gunArmY, 3, gunBarrelH - 2);
+    ctx.fillStyle = p.accentColor;
+    ctx.fillRect(bx - armLen - gunLen, gunArmY + gunBarrelH * 0.2, 2, gunBarrelH * 0.5);
+  }
+
+  if (p.facing === 1) {
+    ctx.fillStyle = '#2e2e3c';
+    ctx.fillRect(bx - 3, gunArmY + 3 * ps, 3, 3 * ps);
+  } else {
+    ctx.fillStyle = '#2e2e3c';
+    ctx.fillRect(bx + pw, gunArmY + 3 * ps, 3, 3 * ps);
+  }
+
+  ctx.fillStyle = '#111118';
+  ctx.fillRect(bx, by, pw, headH);
+  ctx.fillStyle = p.color;
+  ctx.fillRect(bx + 2, by + 2, pw - 4, headH - 3);
+
+  const visorPad = 3 * ps;
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(bx + visorPad, by + visorPad, pw - visorPad * 2, headH - visorPad * 2 - 1);
+
+  const screenColor = p.damageTaken > 5 ? '#ff4444' : p.eyeColor;
+  const eyeSize = 3 * ps;
+  const eyeY = by + headH * 0.35;
+  ctx.save();
+  ctx.fillStyle = screenColor;
+  ctx.shadowColor = screenColor;
+  ctx.shadowBlur = 5 * ps;
+  ctx.fillRect(bx + pw * 0.2, eyeY, eyeSize, eyeSize);
+  ctx.fillRect(bx + pw * 0.58, eyeY, eyeSize, eyeSize);
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  for (let sy = by + visorPad; sy < by + headH - visorPad; sy += 2) {
+    ctx.fillRect(bx + visorPad, sy, pw - visorPad * 2, 1);
+  }
+
+  const antennaH = 5 * ps;
+  ctx.fillStyle = '#555';
+  ctx.fillRect(p.x - 0.5, by - antennaH, 1.5, antennaH);
+  ctx.save();
+  ctx.fillStyle = p.accentColor;
+  ctx.shadowColor = p.accentColor;
+  ctx.shadowBlur = 5;
+  ctx.beginPath();
+  ctx.arc(p.x + 0.25, by - antennaH - 1, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.globalAlpha = 1;
+
+  const hpFrac = Math.max(0, p.hp / p.maxHp);
+  const barW = 34 * Math.max(1, ps * 0.8);
+  const barH = 4;
+  const barX = p.x - barW / 2, barY = by - antennaH - 8;
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+  const hpColor = hpFrac > 0.5 ? '#22c55e' : hpFrac > 0.25 ? '#eab308' : '#ef4444';
+  ctx.save();
+  ctx.fillStyle = hpColor;
+  ctx.shadowColor = hpColor;
+  ctx.shadowBlur = 3;
+  ctx.fillRect(barX, barY, barW * hpFrac, barH);
+  ctx.restore();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX - 1, barY - 1, barW + 2, barH + 2);
 }
 
 // --- Main render ---
@@ -505,91 +787,54 @@ function render() {
 
   ctx.drawImage(bgCanvas, 0, 0);
 
+  const floorPulse = 0.6 + Math.sin(frameCount * 0.03) * 0.4;
+  ctx.fillStyle = `rgba(255, 60, 20, ${0.03 * floorPulse})`;
+  ctx.fillRect(0, H - 16, W, 16);
+
+  renderAmbientParticles();
+
+  renderMuzzleFlashes();
+
   for (const b of bullets) {
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.15;
     for (let t = 0; t < b.trail.length; t++) {
       const pt = b.trail[t];
-      const frac = t / b.trail.length;
+      const frac = (t + 1) / b.trail.length;
       ctx.fillStyle = b.color;
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, b.r * frac * 0.7, 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y, b.r * frac * 0.6, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
 
+    ctx.save();
     ctx.fillStyle = b.color;
     ctx.shadowColor = b.color;
-    ctx.shadowBlur = b.r * 3;
+    ctx.shadowBlur = b.r * 4;
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
   for (const p of players) {
     if (!p.alive) continue;
-    const ps = p.stats.playerSize;
-    const pw = PW * ps, ph = PH * ps;
-    const bx = p.x - pw/2, by = p.y - ph;
-    const headH = ph * 0.45;
-    const bodyH = ph * 0.55;
-
-    if (p.damageTaken > 0) {
-      ctx.globalAlpha = (Math.floor(p.damageTaken) % 4 < 2) ? 0.5 : 1;
-      p.damageTaken -= 0.5;
-    }
-
-    ctx.fillStyle = '#2a2a32';
-    ctx.fillRect(bx + 2, by + headH, pw - 4, bodyH);
-    ctx.fillStyle = '#3a3a44';
-    ctx.fillRect(bx + 4, by + headH + 2, pw - 8, bodyH - 4);
-
-    const gunLen = 10 * ps;
-    const gunY = by + headH + bodyH * 0.3;
-    const gunX = p.facing === 1 ? bx + pw : bx;
-    ctx.fillStyle = '#555';
-    ctx.fillRect(
-      p.facing === 1 ? gunX - 2 : gunX - gunLen + 2,
-      gunY - 2 * ps,
-      gunLen, 4 * ps
-    );
-    ctx.fillStyle = p.accentColor;
-    const muzzleX = p.facing === 1 ? gunX + gunLen - 2 : gunX - gunLen + 2;
-    ctx.fillRect(muzzleX - 1, gunY - 1 * ps, 2, 2 * ps);
-
-    ctx.fillStyle = '#1a1a22';
-    ctx.fillRect(bx, by, pw, headH);
-    ctx.fillStyle = p.color;
-    ctx.fillRect(bx + 2, by + 2, pw - 4, headH - 4);
-
-    const screenColor = p.damageTaken > 5 ? '#ff4444' : p.eyeColor;
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(bx + 4, by + 4, pw - 8, headH - 8);
-    const eyeSize = 3 * ps;
-    const eyeY = by + headH * 0.4;
-    ctx.fillStyle = screenColor;
-    ctx.fillRect(bx + pw * 0.25, eyeY, eyeSize, eyeSize);
-    ctx.fillRect(bx + pw * 0.6, eyeY, eyeSize, eyeSize);
-
-    ctx.globalAlpha = 1;
-
-    const hpFrac = Math.max(0, p.hp / p.maxHp);
-    const barW = 36, barH = 4;
-    const barX = p.x - barW/2, barY = by - 10;
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(barX, barY, barW, barH);
-    ctx.fillStyle = hpFrac > 0.5 ? '#22c55e' : hpFrac > 0.25 ? '#f5c842' : '#e94560';
-    ctx.fillRect(barX, barY, barW * hpFrac, barH);
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(barX, barY, barW, barH);
+    drawPlayer(p);
   }
 
   for (const p of particles) {
     const alpha = p.life / p.maxLife;
     ctx.globalAlpha = alpha;
     ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    const s = p.size * (0.5 + alpha * 0.5);
+    ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
   }
   ctx.globalAlpha = 1;
 
@@ -598,8 +843,10 @@ function render() {
 }
 
 function renderHud() {
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(0, 0, W, 32);
+  ctx.fillStyle = 'rgba(6, 6, 16, 0.65)';
+  ctx.fillRect(0, 0, W, 34);
+  ctx.fillStyle = 'rgba(0, 204, 170, 0.08)';
+  ctx.fillRect(0, 33, W, 1);
 
   ctx.font = '18px "VT323", monospace';
   ctx.textBaseline = 'middle';
@@ -608,116 +855,148 @@ function renderHud() {
   if (p1) {
     ctx.fillStyle = p1.color;
     ctx.textAlign = 'left';
-    ctx.fillText(`P1  HP: ${Math.ceil(Math.max(0, p1.hp))}/${p1.maxHp}`, 10, 16);
-    const modCount = p1.mods.length;
-    if (modCount > 0) {
-      ctx.fillStyle = '#886';
-      ctx.fillText(`[${modCount} mod${modCount > 1 ? 's' : ''}]`, 180, 16);
+    const hp1 = Math.ceil(Math.max(0, p1.hp));
+    ctx.fillText(`P1  HP: ${hp1}/${p1.maxHp}`, 12, 17);
+    if (p1.mods.length > 0) {
+      ctx.fillStyle = '#776633';
+      ctx.fillText(`[${p1.mods.length} mod${p1.mods.length > 1 ? 's' : ''}]`, 180, 17);
     }
   }
   if (p2) {
     ctx.fillStyle = p2.color;
     ctx.textAlign = 'right';
-    ctx.fillText(`HP: ${Math.ceil(Math.max(0, p2.hp))}/${p2.maxHp}  P2`, W - 10, 16);
-    const modCount = p2.mods.length;
-    if (modCount > 0) {
-      ctx.fillStyle = '#886';
-      ctx.fillText(`[${modCount} mod${modCount > 1 ? 's' : ''}]`, W - 180, 16);
+    const hp2 = Math.ceil(Math.max(0, p2.hp));
+    ctx.fillText(`HP: ${hp2}/${p2.maxHp}  P2`, W - 12, 17);
+    if (p2.mods.length > 0) {
+      ctx.fillStyle = '#776633';
+      ctx.fillText(`[${p2.mods.length} mod${p2.mods.length > 1 ? 's' : ''}]`, W - 180, 17);
     }
   }
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#f5c842';
   ctx.font = '22px "VT323", monospace';
-  ctx.fillText(`${score[0]}  -  ${score[1]}`, W/2, 16);
+  ctx.fillText(`${score[0]}  —  ${score[1]}`, W / 2, 15);
 
   ctx.fillStyle = '#444';
-  ctx.font = '14px "VT323", monospace';
-  ctx.fillText(`Round ${roundNum}`, W/2, 30);
+  ctx.font = '13px "VT323", monospace';
+  ctx.fillText(`ROUND ${roundNum}`, W / 2, 29);
 }
 
 // --- Title Screen ---
 function renderTitle() {
-  ctx.fillStyle = '#0e0e18';
+  ctx.fillStyle = '#080816';
   ctx.fillRect(0, 0, W, H);
 
-  for (let i = 0; i < 30; i++) {
-    ctx.fillStyle = `rgba(255, 130, 40, ${0.03 + Math.random() * 0.04})`;
-    ctx.fillRect(Math.random()*W, Math.random()*H, 1 + Math.random()*3, 1 + Math.random()*3);
+  const neb1 = ctx.createRadialGradient(W * 0.25, H * 0.35, 10, W * 0.25, H * 0.35, 220);
+  neb1.addColorStop(0, 'rgba(100, 40, 140, 0.10)');
+  neb1.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = neb1;
+  ctx.fillRect(0, 0, W, H);
+  const neb2 = ctx.createRadialGradient(W * 0.75, H * 0.65, 10, W * 0.75, H * 0.65, 200);
+  neb2.addColorStop(0, 'rgba(30, 60, 140, 0.08)');
+  neb2.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = neb2;
+  ctx.fillRect(0, 0, W, H);
+
+  const t = Date.now() * 0.001;
+  for (let i = 0; i < 50; i++) {
+    const sx = ((i * 137.508) % W);
+    const sy = ((i * 97.31 + Math.sin(t + i) * 3) % H);
+    const bright = 0.15 + (Math.sin(t * 0.5 + i * 0.7) * 0.5 + 0.5) * 0.5;
+    ctx.fillStyle = `rgba(200, 210, 255, ${bright})`;
+    ctx.fillRect(sx, sy, bright > 0.4 ? 2 : 1, bright > 0.4 ? 2 : 1);
   }
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '56px "VT323", monospace';
+
+  ctx.save();
+  ctx.font = '52px "VT323", monospace';
   ctx.fillStyle = '#f5c842';
   ctx.shadowColor = '#f5c842';
-  ctx.shadowBlur = 20;
-  ctx.fillText('JUNKCODE BRAWLERS', W/2, H * 0.28);
+  ctx.shadowBlur = 25;
+  ctx.fillText('IF IT COMPILES, IT KILLS', W / 2, H * 0.24);
   ctx.shadowBlur = 0;
+  ctx.restore();
 
-  ctx.font = '20px "VT323", monospace';
-  ctx.fillStyle = '#666';
-  ctx.fillText('1v1 Arena Shooter — Code Your Own Weapons', W/2, H * 0.38);
+  ctx.font = '16px "VT323", monospace';
+  ctx.fillStyle = '#00ccaa';
+  ctx.fillText('1v1 Arena  ·  Type Any Weapon  ·  The AI Builds It  ·  All Bets Are Off', W / 2, H * 0.33);
 
-  ctx.font = '18px "VT323", monospace';
+  ctx.font = '17px "VT323", monospace';
   ctx.fillStyle = '#e8563a';
-  ctx.fillText('PLAYER 1:  W/A/S/D to move  •  F to shoot', W/2, H * 0.52);
+  ctx.fillText('PLAYER 1:  W/A/S/D to move  ·  F to shoot', W / 2, H * 0.46);
   ctx.fillStyle = '#3a8ae8';
-  ctx.fillText('PLAYER 2:  Arrow Keys to move  •  / to shoot', W/2, H * 0.58);
+  ctx.fillText('PLAYER 2:  Arrow Keys to move  ·  / to shoot', W / 2, H * 0.52);
 
   ctx.fillStyle = '#555';
-  ctx.font = '16px "VT323", monospace';
-  ctx.fillText('Lose a round → Open the Compiler → Type your weapon mod', W/2, H * 0.68);
-  ctx.fillText('The AI builds it. Mods stack. Chaos ensues.', W/2, H * 0.73);
+  ctx.font = '15px "VT323", monospace';
+  ctx.fillText('Lose a round  →  The Compiler opens  →  Describe ANYTHING', W / 2, H * 0.64);
+  ctx.fillStyle = '#444';
+  ctx.font = '14px "VT323", monospace';
+  ctx.fillText('Banana cannon? Homing bees? Gravity hammer? If you can type it, it\'s yours.', W / 2, H * 0.70);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '13px "VT323", monospace';
+  ctx.fillText('Mods stack. Each round gets wilder. First to 3 wins.', W / 2, H * 0.77);
 
   const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
-  ctx.fillStyle = `rgba(245, 200, 66, ${0.5 + pulse * 0.5})`;
+  ctx.fillStyle = `rgba(245, 200, 66, ${0.45 + pulse * 0.55})`;
   ctx.font = '24px "VT323", monospace';
-  ctx.fillText('[ PRESS SPACE TO START ]', W/2, H * 0.86);
+  ctx.fillText('[ PRESS SPACE TO START ]', W / 2, H * 0.89);
 }
 
 // --- Round Over Display ---
 function renderRoundOverDisplay() {
   render();
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillStyle = 'rgba(6, 6, 20, 0.65)';
   ctx.fillRect(0, 0, W, H);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '42px "VT323", monospace';
+
   const winner = players[roundWinner];
+  ctx.save();
+  ctx.font = '44px "VT323", monospace';
   ctx.fillStyle = winner ? winner.color : '#fff';
-  ctx.fillText(`PLAYER ${roundWinner + 1} WINS THE ROUND`, W/2, H * 0.4);
+  ctx.shadowColor = winner ? winner.color : '#fff';
+  ctx.shadowBlur = 15;
+  ctx.fillText(`PLAYER ${roundWinner + 1} WINS THE ROUND`, W / 2, H * 0.4);
+  ctx.restore();
 
-  ctx.font = '20px "VT323", monospace';
+  ctx.font = '22px "VT323", monospace';
   ctx.fillStyle = '#f5c842';
-  ctx.fillText(`Score: ${score[0]} - ${score[1]}   (First to ${WINS_NEEDED})`, W/2, H * 0.5);
+  ctx.fillText(`Score: ${score[0]} — ${score[1]}   (First to ${WINS_NEEDED})`, W / 2, H * 0.52);
 
-  ctx.fillStyle = '#666';
-  ctx.font = '18px "VT323", monospace';
-  ctx.fillText('Press SPACE to continue', W/2, H * 0.62);
+  ctx.fillStyle = '#555';
+  ctx.font = '17px "VT323", monospace';
+  ctx.fillText('Press SPACE to continue', W / 2, H * 0.64);
 }
 
 // --- Game Over ---
 function renderGameOver() {
   render();
-  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillStyle = 'rgba(6, 6, 20, 0.8)';
   ctx.fillRect(0, 0, W, H);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   const winnerIdx = score[0] >= WINS_NEEDED ? 0 : 1;
-  ctx.font = '52px "VT323", monospace';
-  ctx.fillStyle = players[winnerIdx]?.color || '#f5c842';
-  ctx.shadowColor = players[winnerIdx]?.color || '#f5c842';
-  ctx.shadowBlur = 20;
-  ctx.fillText(`PLAYER ${winnerIdx + 1} WINS!`, W/2, H * 0.35);
-  ctx.shadowBlur = 0;
+  const wColor = players[winnerIdx]?.color || '#f5c842';
+
+  ctx.save();
+  ctx.font = '54px "VT323", monospace';
+  ctx.fillStyle = wColor;
+  ctx.shadowColor = wColor;
+  ctx.shadowBlur = 25;
+  ctx.fillText(`PLAYER ${winnerIdx + 1} WINS!`, W / 2, H * 0.32);
+  ctx.restore();
 
   ctx.font = '28px "VT323", monospace';
   ctx.fillStyle = '#f5c842';
-  ctx.fillText(`Final Score: ${score[0]} - ${score[1]}`, W/2, H * 0.48);
+  ctx.fillText(`Final Score: ${score[0]} — ${score[1]}`, W / 2, H * 0.45);
 
   for (let pi = 0; pi < 2; pi++) {
     const p = players[pi];
@@ -725,34 +1004,40 @@ function renderGameOver() {
     const baseX = pi === 0 ? W * 0.25 : W * 0.75;
     ctx.fillStyle = p.color;
     ctx.font = '18px "VT323", monospace';
-    ctx.fillText(`P${pi + 1} Mods:`, baseX, H * 0.58);
-    ctx.fillStyle = '#888';
+    ctx.fillText(`P${pi + 1} Mods:`, baseX, H * 0.56);
+    ctx.fillStyle = '#777';
     ctx.font = '14px "VT323", monospace';
     p.mods.forEach((m, i) => {
-      ctx.fillText(m.name, baseX, H * 0.63 + i * 16);
+      ctx.fillText(m.name, baseX, H * 0.61 + i * 16);
     });
   }
 
   const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
-  ctx.fillStyle = `rgba(245, 200, 66, ${0.5 + pulse * 0.5})`;
+  ctx.fillStyle = `rgba(245, 200, 66, ${0.45 + pulse * 0.55})`;
   ctx.font = '22px "VT323", monospace';
-  ctx.fillText('[ PRESS SPACE TO PLAY AGAIN ]', W/2, H * 0.88);
+  ctx.fillText('[ PRESS SPACE TO PLAY AGAIN ]', W / 2, H * 0.88);
 }
 
 // --- Countdown ---
 function renderCountdown() {
   render();
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillStyle = 'rgba(6, 6, 20, 0.45)';
   ctx.fillRect(0, 0, W, H);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '72px "VT323", monospace';
-  ctx.fillStyle = '#f5c842';
-  ctx.shadowColor = '#f5c842';
+
+  const text = countdownVal <= 0 ? 'FIGHT!' : String(countdownVal);
+  const scale = countdownVal <= 0 ? 1.1 + Math.sin(countdownTimer * 0.3) * 0.15 : 1;
+  const size = Math.floor((countdownVal <= 0 ? 80 : 72) * scale);
+
+  ctx.save();
+  ctx.font = `${size}px "VT323", monospace`;
+  ctx.fillStyle = countdownVal <= 0 ? '#ff6644' : '#f5c842';
+  ctx.shadowColor = countdownVal <= 0 ? '#ff6644' : '#f5c842';
   ctx.shadowBlur = 30;
-  ctx.fillText(countdownVal <= 0 ? 'FIGHT!' : String(countdownVal), W/2, H/2);
-  ctx.shadowBlur = 0;
+  ctx.fillText(text, W / 2, H / 2);
+  ctx.restore();
 }
 
 // --- Compiler Phase ---
@@ -838,7 +1123,7 @@ function showCompileResult(mod) {
     <div class="compile-mod-name">✓ ${mod.name}</div>
     <div class="compile-mod-quip">"${mod.quip}"</div>
     <div class="compile-mod-tradeoff">⚠ Tradeoff: ${mod.tradeoff}</div>
-    <div style="color:#555; margin-top:8px; font-size:12px">Press SPACE to start next round</div>
+    <div style="color:#555; margin-top:8px; font-size:12px">Press SPACE to deploy and start next round</div>
   `;
 
   const handleSpace = (e) => {
@@ -874,6 +1159,7 @@ function startGame() {
   players = [createPlayer(0), createPlayer(1)];
   players[0].mods = [];
   players[1].mods = [];
+  initAmbientParticles();
   renderBackground();
   startRound();
 }
@@ -882,6 +1168,7 @@ function startRound() {
   roundNum++;
   bullets = [];
   particles = [];
+  muzzleFlashes = [];
   shakeAmount = 0;
   slowMo = 0;
 
@@ -921,6 +1208,7 @@ function gameLoop(timestamp) {
   lastTime = timestamp;
   const dt = slowMo > 0 ? rawDt * 0.3 : Math.min(rawDt, 3);
   if (slowMo > 0) slowMo -= rawDt;
+  frameCount++;
 
   switch (gameState) {
     case 'title':
@@ -931,6 +1219,7 @@ function gameLoop(timestamp) {
       countdownTimer += rawDt;
       if (countdownTimer > 50) { countdownTimer = 0; countdownVal--; }
       if (countdownVal < 0) { gameState = 'playing'; }
+      updateAmbientParticles();
       render();
       if (gameState === 'countdown') renderCountdown();
       break;
@@ -939,21 +1228,26 @@ function gameLoop(timestamp) {
       updatePlayers(dt);
       updateBullets(dt);
       updateParticles(dt);
+      updateMuzzleFlashes(dt);
+      updateAmbientParticles();
       checkRoundEnd();
       render();
       break;
 
     case 'round_over_display':
       updateParticles(rawDt);
+      updateAmbientParticles();
       renderRoundOverDisplay();
       break;
 
     case 'compiler':
+      updateAmbientParticles();
       render();
       break;
 
     case 'game_over':
       updateParticles(rawDt);
+      updateAmbientParticles();
       renderGameOver();
       break;
   }
@@ -973,5 +1267,6 @@ window.addEventListener('resize', resize);
 resize();
 
 // --- Start ---
+initAmbientParticles();
 gameState = 'title';
 requestAnimationFrame(gameLoop);

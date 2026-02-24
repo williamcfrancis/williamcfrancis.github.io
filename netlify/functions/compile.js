@@ -106,7 +106,7 @@ exports.handler = async (event) => {
     ? `The player already has these mods stacked:\n${existingMods.map((m, i) => `${i + 1}. "${m.name}" — ${m.tradeoff}`).join('\n')}\nConsider synergies and avoid making them completely invincible.`
     : 'The player has no mods yet.';
 
-  const systemPrompt = `You are THE COMPILER in "Junkcode Brawlers," a chaotic 1v1 arena shooter. Players describe weapon modifications in plain English and you translate them into balanced game modifier values.
+  const systemPrompt = `You are THE COMPILER in "If It Compiles, It Kills," a chaotic 1v1 arena shooter. Players describe weapon modifications in plain English and you translate them into balanced game modifier values.
 
 GAME MECHANICS:
 - 2 players on platforms. Base bullet does 10 damage, 100 HP each.
