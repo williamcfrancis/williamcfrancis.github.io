@@ -57,9 +57,15 @@ let bgCanvas = null;
 
 // --- Input ---
 const keys = {};
+const GAME_KEYS = new Set([
+  'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+  ' ', 'f', '/', 'w', 'a', 's', 'd',
+]);
 window.addEventListener('keydown', e => {
-  keys[e.key.toLowerCase()] = true;
+  const k = e.key.toLowerCase();
+  keys[k] = true;
   keys[e.code] = true;
+  if (GAME_KEYS.has(k) && e.target.tagName !== 'INPUT') e.preventDefault();
   if (gameState === 'title' && (e.code === 'Space' || e.key === ' ')) startGame();
   if (gameState === 'game_over' && (e.code === 'Space' || e.key === ' ')) startGame();
   if (gameState === 'round_over_display' && (e.code === 'Space' || e.key === ' ')) advanceFromRoundOver();
@@ -67,6 +73,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => {
   keys[e.key.toLowerCase()] = false;
   keys[e.code] = false;
+  if (GAME_KEYS.has(e.key.toLowerCase()) && e.target.tagName !== 'INPUT') e.preventDefault();
 });
 
 // --- Audio (Web Audio API) ---
@@ -227,8 +234,8 @@ function updatePlayers(dt) {
 
     let moveDir = 0;
     if (p.idx === 0) {
-      if (keys['a'] || keys['arrowleft'] && false) moveDir = -1;
-      if (keys['d'] || keys['arrowright'] && false) moveDir = 1;
+      if (keys['a']) moveDir = -1;
+      if (keys['d']) moveDir = 1;
     } else {
       if (keys['arrowleft']) moveDir = -1;
       if (keys['arrowright']) moveDir = 1;

@@ -44,7 +44,7 @@ sections:
     games:
       - title: Gravity Golf
         genre: Cosmic physics puzzle
-        summary: "Launch a comet through space. Planets pull, stars repel, black holes devour. Reach the wormhole in as few shots as possible."
+        summary: "Launch through space, then grab planets mid-flight to sculpt gravity in real-time. Slow time, chain boost rings, and warp through portals."
         tags: ["browser", "physics", "space"]
         link:
           label: Play Gravity Golf
@@ -90,14 +90,13 @@ sections:
           label: Play Algorithm Simulator
           url: "/games/algorithm_simulator/"
         image: "/games/algorithm_simulator/algorithm_simulator.png"
-      - title: "Boss Fight: Wordplay"
-        genre: LLM-powered RPG
-        summary: "An 8-bit turn-based boss battle where your weapon is language. Type taunts, bluffs, and weird spells to defeat an arrogant pixel boss."
-        tags: ["browser", "AI", "retro"]
+      - title: Junkcode Brawlers
+        genre: LLM-powered arena fighter
+        summary: "1v1 local platformer shooter where the loser codes their own weapons. Type a mod request, the AI compiles it, and chaos stacks every round."
+        tags: ["browser", "AI", "local-multiplayer"]
         link:
-          label: "Play Boss Fight: Wordplay"
-          url: "/games/boss_fight_wordplay/"
-        image: "/games/boss_fight_wordplay/boss_fight_wordplay.png"
+          label: Play Junkcode Brawlers
+          url: "/games/junkcode_brawlers/"
   - section:
       name: Photo Gallery
       id: gallery
