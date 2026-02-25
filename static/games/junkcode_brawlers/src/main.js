@@ -61,6 +61,23 @@ const DEFAULT_WEAPON = {
   effect_intensity: 1,
   sound_pitch: 1,
   sound_release: 1,
+  status_slow: 0,
+  status_slow_duration: 0,
+  status_dot_dps: 0,
+  status_dot_duration: 0,
+  status_stun_duration: 0,
+  lifesteal: 0,
+  splash_radius: 0,
+  splash_damage_mult: 0.4,
+  cloud_radius: 0,
+  cloud_duration: 0,
+  cloud_dps: 0,
+  cloud_slow: 0,
+  projectile_growth: 0,
+  pierce_walls: 0,
+  ground_avoidance: 0,
+  steering: 0,
+  self_damage_on_shoot: 0,
   projectile_color: '#ffd37b',
   trail_color: '#ffe6b9',
   impact_color: '#fff4d7',
@@ -88,6 +105,29 @@ const DEFAULT_WEAPON = {
     K: '#e2c8a5',
     L: '#f8e4c3',
   },
+  projectile_rows: [
+    '.......',
+    '..AAA..',
+    '.AAAAA.',
+    '.AAAAA.',
+    '.AAAAA.',
+    '..AAA..',
+    '.......',
+  ],
+  projectile_palette: {
+    A: '#fff3bf',
+    B: '#ffd37b',
+    C: '#ffe9b0',
+    D: '#8c5f3f',
+    E: '#fff1d6',
+    F: '#5b4133',
+    G: '#d9c0a1',
+    H: '#f3d8b7',
+    I: '#fff8ef',
+    J: '#4f352b',
+    K: '#e2c8a5',
+    L: '#f8e4c3',
+  },
 };
 
 const canvas = document.getElementById('game');
@@ -100,6 +140,7 @@ let players = [];
 let playerWeapons = [DEFAULT_WEAPON, DEFAULT_WEAPON];
 let bullets = [];
 let particles = [];
+let hazardFields = [];
 let fireflies = [];
 let muzzleFlashes = [];
 let score = [0, 0];
@@ -296,8 +337,27 @@ function normalizeWeapon(w) {
   weapon.effect_intensity = clamp(Number(weapon.effect_intensity) || 1, 0.2, 2);
   weapon.sound_pitch = clamp(Number(weapon.sound_pitch) || 1, 0.5, 2);
   weapon.sound_release = clamp(Number(weapon.sound_release) || 1, 0.5, 2);
+  weapon.status_slow = clamp(Number(weapon.status_slow) || 0, 0, 0.75);
+  weapon.status_slow_duration = clamp(Number(weapon.status_slow_duration) || 0, 0, 4);
+  weapon.status_dot_dps = clamp(Number(weapon.status_dot_dps) || 0, 0, 14);
+  weapon.status_dot_duration = clamp(Number(weapon.status_dot_duration) || 0, 0, 7);
+  weapon.status_stun_duration = clamp(Number(weapon.status_stun_duration) || 0, 0, 1.5);
+  weapon.lifesteal = clamp(Number(weapon.lifesteal) || 0, 0, 1);
+  weapon.splash_radius = clamp(Number(weapon.splash_radius) || 0, 0, 130);
+  weapon.splash_damage_mult = clamp(Number(weapon.splash_damage_mult) || 0.4, 0, 1);
+  weapon.cloud_radius = clamp(Number(weapon.cloud_radius) || 0, 0, 140);
+  weapon.cloud_duration = clamp(Number(weapon.cloud_duration) || 0, 0, 6);
+  weapon.cloud_dps = clamp(Number(weapon.cloud_dps) || 0, 0, 12);
+  weapon.cloud_slow = clamp(Number(weapon.cloud_slow) || 0, 0, 0.6);
+  weapon.projectile_growth = clamp(Number(weapon.projectile_growth) || 0, 0, 2);
+  weapon.pierce_walls = clamp(Number(weapon.pierce_walls) || 0, 0, 1);
+  weapon.ground_avoidance = clamp(Number(weapon.ground_avoidance) || 0, 0, 1);
+  weapon.steering = clamp(Number(weapon.steering) || 0, 0, 1);
+  weapon.self_damage_on_shoot = clamp(Number(weapon.self_damage_on_shoot) || 0, 0, 25);
   weapon.pixel_rows = normalizeRows(weapon.pixel_rows);
+  weapon.projectile_rows = normalizeRows(weapon.projectile_rows);
   weapon.palette = normalizePalette(weapon.palette);
+  weapon.projectile_palette = normalizePalette(weapon.projectile_palette);
   weapon.projectile_color = normalizeHex(weapon.projectile_color, '#ffd37b');
   weapon.trail_color = normalizeHex(weapon.trail_color, '#ffe6b9');
   weapon.impact_color = normalizeHex(weapon.impact_color, '#fff4d7');
@@ -350,6 +410,12 @@ function createPlayer(idx) {
     jumpHeld: false,
     coyoteTimer: 0,
     jumpBufferTimer: 0,
+    slowTimer: 0,
+    slowAmount: 0,
+    stunTimer: 0,
+    dotTimer: 0,
+    dotDps: 0,
+    dotOwner: -1,
     weapon,
     alive: true,
     damageTaken: 0,
@@ -364,7 +430,24 @@ function updatePlayers(dt) {
   for (const p of players) {
     if (!p.alive) continue;
     const w = p.weapon;
-    const spd = PLAYER_SPEED * w.move_speed;
+    if (p.slowTimer > 0) p.slowTimer = Math.max(0, p.slowTimer - dt / 60);
+    if (p.stunTimer > 0) p.stunTimer = Math.max(0, p.stunTimer - dt / 60);
+    if (p.dotTimer > 0) {
+      const dotDt = dt / 60;
+      p.dotTimer = Math.max(0, p.dotTimer - dotDt);
+      p.hp -= p.dotDps * dotDt;
+      if (p.hp <= 0) {
+        p.hp = 0;
+        p.alive = false;
+        playSound('death');
+        spawnParticles(p.x, p.y, 24, p.trimColor, 4, 30, 'burst');
+        continue;
+      }
+    }
+
+    const slowMult = p.slowTimer > 0 ? Math.max(0.2, 1 - p.slowAmount) : 1;
+    const isStunned = p.stunTimer > 0;
+    const spd = PLAYER_SPEED * w.move_speed * slowMult;
     const grav = GRAVITY * w.player_gravity;
 
     let moveDir = 0;
@@ -377,12 +460,12 @@ function updatePlayers(dt) {
     }
 
     const accel = p.grounded ? GROUND_ACCEL : AIR_ACCEL;
-    const targetVx = moveDir * spd;
+    const targetVx = isStunned ? 0 : moveDir * spd;
     p.vx += (targetVx - p.vx) * accel * dt;
     if (moveDir !== 0) p.facing = moveDir;
     p.vx *= p.grounded ? GROUND_FRICTION : AIR_FRICTION;
 
-    const jumpKey = p.idx === 0 ? keys.w : keys.arrowup;
+    const jumpKey = isStunned ? false : (p.idx === 0 ? keys.w : keys.arrowup);
     if (jumpKey && !p.jumpHeld) p.jumpBufferTimer = JUMP_BUFFER_FRAMES;
     p.jumpHeld = !!jumpKey;
 
@@ -427,7 +510,7 @@ function updatePlayers(dt) {
     }
 
     if (p.fireCd > 0) p.fireCd -= dt;
-    const shootKey = p.idx === 0 ? keys.f : (keys['/'] || keys.Slash);
+    const shootKey = isStunned ? false : (p.idx === 0 ? keys.f : (keys['/'] || keys.Slash));
     if (shootKey && p.fireCd <= 0 && p.alive) {
       fireBullets(p);
       p.fireCd = FIRE_COOLDOWN / w.fire_rate;
@@ -446,6 +529,15 @@ function updatePlayers(dt) {
 
 function fireBullets(p) {
   const w = p.weapon;
+  if (w.self_damage_on_shoot > 0) {
+    p.hp = Math.max(0, p.hp - w.self_damage_on_shoot);
+    if (p.hp <= 0) {
+      p.alive = false;
+      playSound('death');
+      spawnParticles(p.x, p.y, 24, '#ffb3b3', 4, 30, 'burst');
+      return;
+    }
+  }
   const count = w.bullet_count;
   const spread = w.bullet_spread;
   const baseAngle = p.facing === 1 ? 0 : Math.PI;
@@ -484,6 +576,24 @@ function fireBullets(p) {
       projectileShape: w.projectile_shape,
       trailDensity: w.trail_density,
       effectIntensity: w.effect_intensity,
+      projectileRows: w.projectile_rows,
+      projectilePalette: w.projectile_palette,
+      statusSlow: w.status_slow,
+      statusSlowDuration: w.status_slow_duration,
+      statusDotDps: w.status_dot_dps,
+      statusDotDuration: w.status_dot_duration,
+      statusStunDuration: w.status_stun_duration,
+      lifesteal: w.lifesteal,
+      splashRadius: w.splash_radius,
+      splashDamageMult: w.splash_damage_mult,
+      cloudRadius: w.cloud_radius,
+      cloudDuration: w.cloud_duration,
+      cloudDps: w.cloud_dps,
+      cloudSlow: w.cloud_slow,
+      projectileGrowth: w.projectile_growth,
+      pierceWalls: w.pierce_walls,
+      groundAvoidance: w.ground_avoidance,
+      steering: w.steering,
       trail: [],
     });
   }
@@ -494,8 +604,9 @@ function updateBullets(dt) {
     const b = bullets[i];
     b.life -= dt;
     if (b.life <= 0) { bullets.splice(i, 1); continue; }
+    if (b.projectileGrowth > 0) b.r = Math.min(26, b.r + (b.projectileGrowth * 0.02 * dt));
 
-    if (b.homing > 0) {
+    if (b.homing > 0 || b.steering > 0) {
       const target = players[1 - b.owner];
       if (target?.alive) {
         const tx = target.x - b.x;
@@ -505,7 +616,8 @@ function updateBullets(dt) {
         let diff = desired - current;
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
-        const turn = clamp(diff, -b.homing, b.homing);
+        const turnRate = Math.max(b.homing, b.steering * 0.25);
+        const turn = clamp(diff, -turnRate, turnRate);
         const angle = current + turn;
         const spd = Math.hypot(b.vx, b.vy);
         b.vx = Math.cos(angle) * spd;
@@ -518,11 +630,14 @@ function updateBullets(dt) {
     if (Math.random() < 0.34 * b.trailDensity) spawnTrailParticle(b);
     b.x += b.vx * dt;
     b.y += b.vy * dt;
+    if (b.groundAvoidance > 0 && b.y > H - 70) b.vy -= 0.25 * b.groundAvoidance * dt;
 
     let bounced = false;
     for (const wall of WALLS) {
       if (b.x - b.r < wall.x + wall.w && b.x + b.r > wall.x && b.y > wall.y && b.y < wall.y + wall.h) {
-        if (b.bouncesLeft > 0) {
+        if (b.pierceWalls > 0) {
+          continue;
+        } else if (b.bouncesLeft > 0) {
           b.vx *= -1;
           b.x = b.x < W / 2 ? wall.x + wall.w + b.r : wall.x - b.r;
           b.bouncesLeft--;
@@ -537,7 +652,9 @@ function updateBullets(dt) {
     }
     for (const plat of PLATFORMS) {
       if (b.x + b.r > plat.x && b.x - b.r < plat.x + plat.w && b.y + b.r > plat.y && b.y - b.r < plat.y + plat.h) {
-        if (b.bouncesLeft > 0) {
+        if (b.pierceWalls > 0) {
+          continue;
+        } else if (b.bouncesLeft > 0) {
           const fromTop = b.y < plat.y + plat.h / 2;
           b.vy *= -1;
           b.y = fromTop ? plat.y - b.r : plat.y + plat.h + b.r;
@@ -546,7 +663,7 @@ function updateBullets(dt) {
           playSound('bounce');
           spawnParticles(b.x, b.y, 3, b.impactColor, 1.8, 12, 'spark');
         } else {
-          spawnImpactEffect(b.x, b.y, b.impactStyle, b.impactColor);
+          spawnImpactEffect(b.x, b.y, b.impactStyle, b.impactColor, b);
           bullets.splice(i, 1);
           continue;
         }
@@ -588,7 +705,13 @@ function updateBullets(dt) {
         p.vy -= kb * 0.38;
         playSound('hit');
         shakeAmount = Math.max(shakeAmount, b.damage * 0.35);
-        spawnImpactEffect(b.x, b.y, b.impactStyle, b.impactColor);
+        applyStatusEffects(p, b);
+        if (b.splashRadius > 0) applyAreaDamage(b.x, b.y, b.splashRadius, b.damage * b.splashDamageMult, b.owner);
+        if (b.lifesteal > 0) {
+          const owner = players[b.owner];
+          if (owner?.alive) owner.hp = Math.min(owner.maxHp, owner.hp + b.damage * b.lifesteal);
+        }
+        spawnImpactEffect(b.x, b.y, b.impactStyle, b.impactColor, b);
         bullets.splice(i, 1);
         if (p.hp <= 0) {
           p.hp = 0;
@@ -616,9 +739,105 @@ function spawnTrailParticle(b) {
   const count = b.trailDensity > 1.35 ? 2 : 1;
   spawnParticles(b.x, b.y, count, b.trailColor, 0.5 * b.effectIntensity, 10 * b.effectIntensity, map[b.trailStyle] || 'dot');
 }
-function spawnImpactEffect(x, y, style, color) {
+function applyStatusEffects(target, bullet) {
+  if (bullet.statusSlow > 0 && bullet.statusSlowDuration > 0) {
+    target.slowAmount = Math.max(target.slowAmount, bullet.statusSlow);
+    target.slowTimer = Math.max(target.slowTimer, bullet.statusSlowDuration);
+  }
+  if (bullet.statusStunDuration > 0) {
+    target.stunTimer = Math.max(target.stunTimer, bullet.statusStunDuration);
+  }
+  if (bullet.statusDotDps > 0 && bullet.statusDotDuration > 0) {
+    target.dotDps = Math.max(target.dotDps, bullet.statusDotDps);
+    target.dotTimer = Math.max(target.dotTimer, bullet.statusDotDuration);
+    target.dotOwner = bullet.owner;
+  }
+}
+
+function applyAreaDamage(x, y, radius, damage, ownerIdx) {
+  for (const p of players) {
+    if (!p.alive || p.idx === ownerIdx) continue;
+    const dx = p.x - x;
+    const dy = (p.y - PH * p.weapon.player_size * 0.5) - y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > radius) continue;
+    const falloff = 1 - dist / Math.max(radius, 1);
+    const dealt = damage * (0.4 + falloff * 0.6);
+    p.hp -= dealt;
+    p.damageTaken = 8;
+    if (p.hp <= 0) {
+      p.hp = 0;
+      p.alive = false;
+      playSound('death');
+      spawnParticles(p.x, p.y - 10, 24, p.trimColor, 4, 30, 'burst');
+    }
+  }
+}
+
+function spawnHazardField(x, y, b) {
+  if (b.cloudRadius <= 0 || b.cloudDuration <= 0 || (b.cloudDps <= 0 && b.cloudSlow <= 0)) return;
+  hazardFields.push({
+    x,
+    y,
+    owner: b.owner,
+    radius: b.cloudRadius,
+    timeLeft: b.cloudDuration,
+    dps: b.cloudDps,
+    slow: b.cloudSlow,
+    color: b.trailColor,
+  });
+}
+
+function spawnImpactEffect(x, y, style, color, bullet) {
   const count = style === 'burst' ? 12 : style === 'splash' ? 10 : style === 'puff' ? 8 : 7;
   spawnParticles(x, y, count, color, 3.5, 18, style);
+  if (bullet) spawnHazardField(x, y, bullet);
+}
+
+function updateHazardFields(dt) {
+  const sdt = dt / 60;
+  for (let i = hazardFields.length - 1; i >= 0; i--) {
+    const f = hazardFields[i];
+    f.timeLeft -= sdt;
+    if (f.timeLeft <= 0) {
+      hazardFields.splice(i, 1);
+      continue;
+    }
+    for (const p of players) {
+      if (!p.alive || p.idx === f.owner) continue;
+      const dx = p.x - f.x;
+      const dy = (p.y - PH * p.weapon.player_size * 0.5) - f.y;
+      if (dx * dx + dy * dy > f.radius * f.radius) continue;
+      if (f.dps > 0) p.hp = Math.max(0, p.hp - f.dps * sdt);
+      if (f.slow > 0) {
+        p.slowAmount = Math.max(p.slowAmount, f.slow);
+        p.slowTimer = Math.max(p.slowTimer, 0.12);
+      }
+      if (p.hp <= 0 && p.alive) {
+        p.alive = false;
+        playSound('death');
+        spawnParticles(p.x, p.y - 10, 24, p.trimColor, 4, 30, 'burst');
+      }
+    }
+  }
+}
+
+function renderHazardFields() {
+  for (const f of hazardFields) {
+    const lifeFrac = Math.max(0.15, Math.min(1, f.timeLeft / 2));
+    ctx.globalAlpha = 0.12 * lifeFrac;
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.25 * lifeFrac;
+    ctx.strokeStyle = f.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.radius * 0.85, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 }
 
 function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
@@ -712,6 +931,21 @@ function drawWeaponSprite(weapon, x, y, size, facing) {
 }
 
 function drawProjectile(b) {
+  if (Array.isArray(b.projectileRows) && b.projectileRows.length === 7) {
+    const cell = Math.max(1.1, b.r * 0.34);
+    const half = (7 * cell) / 2;
+    for (let ry = 0; ry < 7; ry++) {
+      for (let rx = 0; rx < 7; rx++) {
+        const key = b.projectileRows[ry][rx];
+        if (!key || key === '.') continue;
+        const col = b.projectilePalette?.[key] || b.color;
+        ctx.fillStyle = col;
+        ctx.fillRect(b.x - half + rx * cell, b.y - half + ry * cell, cell, cell);
+      }
+    }
+    return;
+  }
+
   const shape = b.projectileShape || 'orb';
   if (shape === 'star') {
     ctx.beginPath();
@@ -857,6 +1091,7 @@ function render() {
 
   ctx.drawImage(bgCanvas, 0, 0);
   renderFireflies();
+  renderHazardFields();
   renderMuzzleFlashes();
 
   for (const b of bullets) {
@@ -1131,6 +1366,7 @@ function startRound() {
   roundNum++;
   bullets = [];
   particles = [];
+  hazardFields = [];
   muzzleFlashes = [];
   shakeAmount = 0;
   slowMo = 0;
@@ -1179,6 +1415,7 @@ function gameLoop(timestamp) {
       updatePlayers(dt);
       updateBullets(dt);
       updateParticles(dt);
+      updateHazardFields(dt);
       updateMuzzleFlashes(dt);
       updateFireflies();
       checkRoundEnd();
@@ -1186,15 +1423,18 @@ function gameLoop(timestamp) {
       break;
     case 'round_over_display':
       updateParticles(rawDt);
+      updateHazardFields(rawDt);
       updateFireflies();
       renderRoundOverDisplay();
       break;
     case 'compiler':
+      updateHazardFields(rawDt);
       updateFireflies();
       render();
       break;
     case 'game_over':
       updateParticles(rawDt);
+      updateHazardFields(rawDt);
       updateFireflies();
       renderGameOver();
       break;

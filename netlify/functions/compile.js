@@ -11,7 +11,7 @@ const RESPONSE_SCHEMA = {
     'projectile_shape', 'trail_density', 'effect_intensity',
     'sound_pitch', 'sound_release',
     'projectile_color', 'trail_color', 'impact_color', 'glow_color',
-    'pixel_rows', 'palette',
+    'pixel_rows', 'palette', 'projectile_rows', 'projectile_palette',
   ],
   properties: {
     name: { type: 'STRING' },
@@ -51,6 +51,10 @@ const RESPONSE_SCHEMA = {
       type: 'ARRAY',
       items: { type: 'STRING' },
     },
+    projectile_rows: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+    },
     palette: {
       type: 'OBJECT',
       properties: {
@@ -68,6 +72,40 @@ const RESPONSE_SCHEMA = {
         L: { type: 'STRING' },
       },
     },
+    projectile_palette: {
+      type: 'OBJECT',
+      properties: {
+        A: { type: 'STRING' },
+        B: { type: 'STRING' },
+        C: { type: 'STRING' },
+        D: { type: 'STRING' },
+        E: { type: 'STRING' },
+        F: { type: 'STRING' },
+        G: { type: 'STRING' },
+        H: { type: 'STRING' },
+        I: { type: 'STRING' },
+        J: { type: 'STRING' },
+        K: { type: 'STRING' },
+        L: { type: 'STRING' },
+      },
+    },
+    status_slow: { type: 'NUMBER' },
+    status_slow_duration: { type: 'NUMBER' },
+    status_dot_dps: { type: 'NUMBER' },
+    status_dot_duration: { type: 'NUMBER' },
+    status_stun_duration: { type: 'NUMBER' },
+    lifesteal: { type: 'NUMBER' },
+    splash_radius: { type: 'NUMBER' },
+    splash_damage_mult: { type: 'NUMBER' },
+    cloud_radius: { type: 'NUMBER' },
+    cloud_duration: { type: 'NUMBER' },
+    cloud_dps: { type: 'NUMBER' },
+    cloud_slow: { type: 'NUMBER' },
+    projectile_growth: { type: 'NUMBER' },
+    pierce_walls: { type: 'NUMBER' },
+    ground_avoidance: { type: 'NUMBER' },
+    steering: { type: 'NUMBER' },
+    self_damage_on_shoot: { type: 'NUMBER' },
   },
 };
 
@@ -116,6 +154,33 @@ const FALLBACK_WEAPONS = [
       '...F...',
     ],
     palette: { A: '#ffe59d', B: '#ffd2a3', C: '#f58ec4', D: '#8e5ed6', E: '#fff9cf', F: '#6a4d38', G: '#b6a0ea', H: '#f8b4dc', I: '#fff3e1', J: '#4f3842', K: '#d7c3ff', L: '#fbe0a8' },
+    projectile_rows: [
+      '.......',
+      '..CCC..',
+      '.CCCCC.',
+      '.CCCCC.',
+      '.CCCCC.',
+      '..CCC..',
+      '.......',
+    ],
+    projectile_palette: { A: '#ffe59d', B: '#ffd2a3', C: '#f58ec4', D: '#8e5ed6', E: '#fff9cf', F: '#6a4d38', G: '#b6a0ea', H: '#f8b4dc', I: '#fff3e1', J: '#4f3842', K: '#d7c3ff', L: '#fbe0a8' },
+    status_slow: 0,
+    status_slow_duration: 0,
+    status_dot_dps: 0,
+    status_dot_duration: 0,
+    status_stun_duration: 0,
+    lifesteal: 0,
+    splash_radius: 0,
+    splash_damage_mult: 0.4,
+    cloud_radius: 0,
+    cloud_duration: 0,
+    cloud_dps: 0,
+    cloud_slow: 0,
+    projectile_growth: 0,
+    pierce_walls: 0,
+    ground_avoidance: 0,
+    steering: 0,
+    self_damage_on_shoot: 0,
   },
   {
     name: 'Bubble Kettle',
@@ -161,6 +226,33 @@ const FALLBACK_WEAPONS = [
       '...D...',
     ],
     palette: { A: '#9ad0ff', B: '#5fa8ff', C: '#ffffff', D: '#8d63d2', E: '#d2efff', F: '#4f7ec4', G: '#ffd6ea', H: '#f8f0ff', I: '#fefcff', J: '#5e4b7f', K: '#c4a8ff', L: '#ffe8f5' },
+    projectile_rows: [
+      '.......',
+      '..AAA..',
+      '.ABBA..',
+      '.ABBBA.',
+      '.ABBA..',
+      '..AAA..',
+      '.......',
+    ],
+    projectile_palette: { A: '#9ad0ff', B: '#5fa8ff', C: '#ffffff', D: '#8d63d2', E: '#d2efff', F: '#4f7ec4', G: '#ffd6ea', H: '#f8f0ff', I: '#fefcff', J: '#5e4b7f', K: '#c4a8ff', L: '#ffe8f5' },
+    status_slow: 0.08,
+    status_slow_duration: 0.8,
+    status_dot_dps: 0,
+    status_dot_duration: 0,
+    status_stun_duration: 0,
+    lifesteal: 0,
+    splash_radius: 0,
+    splash_damage_mult: 0.4,
+    cloud_radius: 0,
+    cloud_duration: 0,
+    cloud_dps: 0,
+    cloud_slow: 0,
+    projectile_growth: 0,
+    pierce_walls: 0,
+    ground_avoidance: 0,
+    steering: 0,
+    self_damage_on_shoot: 0,
   },
 ];
 
@@ -231,6 +323,7 @@ function clampWeapon(mod) {
     impact_color: sanitizeHex(mod.impact_color, '#fff3ba'),
     glow_color: sanitizeHex(mod.glow_color, '#ffe8aa'),
     pixel_rows: normalizeRows(mod.pixel_rows),
+    projectile_rows: normalizeRows(mod.projectile_rows),
     palette: {
       A: sanitizeHex(mod.palette?.A, '#ffe59d'),
       B: sanitizeHex(mod.palette?.B, '#ffb870'),
@@ -245,6 +338,37 @@ function clampWeapon(mod) {
       K: sanitizeHex(mod.palette?.K, '#cdb7ff'),
       L: sanitizeHex(mod.palette?.L, '#fbe0a8'),
     },
+    projectile_palette: {
+      A: sanitizeHex(mod.projectile_palette?.A, '#ffe59d'),
+      B: sanitizeHex(mod.projectile_palette?.B, '#ffb870'),
+      C: sanitizeHex(mod.projectile_palette?.C, '#f58ec4'),
+      D: sanitizeHex(mod.projectile_palette?.D, '#8e5ed6'),
+      E: sanitizeHex(mod.projectile_palette?.E, '#f7f2df'),
+      F: sanitizeHex(mod.projectile_palette?.F, '#5c4a44'),
+      G: sanitizeHex(mod.projectile_palette?.G, '#9fb4d8'),
+      H: sanitizeHex(mod.projectile_palette?.H, '#b39cd8'),
+      I: sanitizeHex(mod.projectile_palette?.I, '#fff3e1'),
+      J: sanitizeHex(mod.projectile_palette?.J, '#5b4952'),
+      K: sanitizeHex(mod.projectile_palette?.K, '#cdb7ff'),
+      L: sanitizeHex(mod.projectile_palette?.L, '#fbe0a8'),
+    },
+    status_slow: clamp(mod.status_slow, 0, 0.75),
+    status_slow_duration: clamp(mod.status_slow_duration, 0, 4),
+    status_dot_dps: clamp(mod.status_dot_dps, 0, 14),
+    status_dot_duration: clamp(mod.status_dot_duration, 0, 7),
+    status_stun_duration: clamp(mod.status_stun_duration, 0, 1.5),
+    lifesteal: clamp(mod.lifesteal, 0, 1),
+    splash_radius: clamp(mod.splash_radius, 0, 130),
+    splash_damage_mult: clamp(mod.splash_damage_mult, 0, 1),
+    cloud_radius: clamp(mod.cloud_radius, 0, 140),
+    cloud_duration: clamp(mod.cloud_duration, 0, 6),
+    cloud_dps: clamp(mod.cloud_dps, 0, 12),
+    cloud_slow: clamp(mod.cloud_slow, 0, 0.6),
+    projectile_growth: clamp(mod.projectile_growth, 0, 2),
+    pierce_walls: Math.round(clamp(mod.pierce_walls, 0, 1)),
+    ground_avoidance: clamp(mod.ground_avoidance, 0, 1),
+    steering: clamp(mod.steering, 0, 1),
+    self_damage_on_shoot: clamp(mod.self_damage_on_shoot, 0, 25),
   };
 }
 
@@ -317,6 +441,8 @@ PIXEL ART WEAPON REQUIREMENTS (strict):
 - Use at least 12 non-transparent pixels and avoid random noise.
 - Prefer asymmetry when object shape calls for directionality (blade tip, barrel, wand head).
 - Use warm, cute, storybook fantasy colors (avoid harsh cyber neon).
+- Also output projectile_rows (7x7) and projectile_palette (A-L) for the projectile's own sprite.
+- projectile_rows should represent the flying shot itself (orb, shard, rune, bubble, etc.), not the held weapon.
 
 SFX/VFX MAPPING HINTS:
 - trail_style one of: sparkle, petals, bubbles, smoke, leaf, rainbow, ember
@@ -328,6 +454,17 @@ SFX/VFX MAPPING HINTS:
 - sound_pitch: 0.5 to 2.0 (0.5 low/deep, 2.0 high/cute)
 - sound_release: 0.5 to 2.0 (0.5 short/snappy, 2.0 long/ringing)
 - projectile/trail/impact/glow colors should match the wish concept.
+- status_slow/status_slow_duration for chilling or slowing effects.
+- status_dot_dps/status_dot_duration for poison/burn/parasite style effects.
+- status_stun_duration for dazzle/shock style effects.
+- lifesteal for leech style effects.
+- splash_radius/splash_damage_mult for explosive effects.
+- cloud_radius/cloud_duration/cloud_dps/cloud_slow for toxic/static field effects.
+- projectile_growth for "grow over distance".
+- pierce_walls for drill-through style shots.
+- ground_avoidance for sneaky hovering shots.
+- steering for remote-guided feeling.
+- self_damage_on_shoot for demonic pact style designs.
 
 PROMPT INTERPRETATION:
 - Honor nouns and adjectives from player text literally.
@@ -336,6 +473,8 @@ PROMPT INTERPRETATION:
 - Prioritize silhouette recognizability over abstract patterning.
 - If the request includes materials (wooden, crystal, golden, icy), reflect those in both palette and sound_profile.
 - If request includes emotion (angry, calm, playful), reflect it in projectile_shape, trail_style, sound_pitch and sound_release.
+- The effect system should be composable: combine 2-4 mechanics when requested.
+- Do NOT reference named cards/powerups. Translate intent into mechanics directly.
 
 MODIFIER RANGES (values outside these will be clamped):
 - bullet_size: 0.2–6.0 (multiplier, 1.0=default)
