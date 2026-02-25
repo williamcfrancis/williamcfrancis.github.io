@@ -20,6 +20,8 @@ const MAX_HP = 100;
 const COMPILE_TIME = 60;
 const ROUNDS_PER_GAME = 5;
 const KILL_Y = H + 60;
+const PROFILE_KEY = 'wishforge_profile_v1';
+const CODEX_LIMIT = 40;
 
 const PLATFORMS = [
   { x: 0, y: 468, w: 370, h: 24 },
@@ -34,6 +36,13 @@ const WALLS = [
   { x: W, y: -100, w: 12, h: H + 200 },
 ];
 const SPAWNS = [{ x: 160, y: 420 }, { x: 800, y: 420 }];
+const SEASONAL_OMENS = [
+  { id: 'vernal-calm', name: 'Vernal Calm', desc: 'Balanced skies. No global twist.', color: '#d4c4f2', gravityMult: 1, bulletSpeedMult: 1, fireRateMult: 1, knockbackMult: 1, bounceBonus: 0, windForce: 0 },
+  { id: 'moon-glide', name: 'Moon Glide', desc: 'Low gravity and softer landings.', color: '#c7d9ff', gravityMult: 0.84, bulletSpeedMult: 1, fireRateMult: 1, knockbackMult: 1, bounceBonus: 0, windForce: 0 },
+  { id: 'mana-storm', name: 'Mana Storm', desc: 'Shots come out faster and fly hotter.', color: '#ffd3ad', gravityMult: 1, bulletSpeedMult: 1.14, fireRateMult: 1.12, knockbackMult: 1, bounceBonus: 0, windForce: 0 },
+  { id: 'trickster-mirror', name: 'Trickster Mirror', desc: 'Projectiles rebound more and shove harder.', color: '#f8b7d0', gravityMult: 1, bulletSpeedMult: 1, fireRateMult: 1, knockbackMult: 1.16, bounceBonus: 1, windForce: 0 },
+  { id: 'petal-gale', name: 'Petal Gale', desc: 'A playful sidewind bends movement and shots.', color: '#b8ebcf', gravityMult: 1, bulletSpeedMult: 0.98, fireRateMult: 1, knockbackMult: 1, bounceBonus: 0, windForce: 0.55 },
+];
 
 const DEFAULT_WEAPON = {
   name: 'Wish Twig',
@@ -163,14 +172,174 @@ let slowMo = 0;
 let lastTime = 0;
 let bgCanvas = null;
 let windPhase = 0;
+let wishforgeProfile = loadProfile();
+let activeOmen = SEASONAL_OMENS[0];
+let currentRunStats = createRunStats();
+let lastRunSummary = null;
+
+function createRunStats() {
+  return {
+    shapes: new Set(),
+    trails: new Set(),
+    impacts: new Set(),
+    sounds: new Set(),
+    names: new Set(),
+    flairs: new Set(),
+    wishesByPlayer: [[], []],
+    closeRounds: 0,
+    roundWinners: [],
+  };
+}
+
+function defaultProfile() {
+  return {
+    arcana: 0,
+    totalMatches: 0,
+    totalWishes: 0,
+    bestStyleScore: 0,
+    relicCodex: [],
+    milestones: {
+      shapeTrifecta: false,
+      flairCollector: false,
+      skyDancer: false,
+    },
+    lastOmenId: 'vernal-calm',
+  };
+}
+
+function loadProfile() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
+    const base = defaultProfile();
+    const merged = { ...base, ...(parsed || {}) };
+    merged.arcana = Math.max(0, Math.floor(Number(merged.arcana) || 0));
+    merged.totalMatches = Math.max(0, Math.floor(Number(merged.totalMatches) || 0));
+    merged.totalWishes = Math.max(0, Math.floor(Number(merged.totalWishes) || 0));
+    merged.bestStyleScore = Math.max(0, Math.floor(Number(merged.bestStyleScore) || 0));
+    merged.relicCodex = Array.isArray(merged.relicCodex) ? merged.relicCodex.slice(0, CODEX_LIMIT) : [];
+    merged.milestones = { ...base.milestones, ...(merged.milestones || {}) };
+    merged.lastOmenId = String(merged.lastOmenId || base.lastOmenId);
+    return merged;
+  } catch {
+    return defaultProfile();
+  }
+}
+
+function saveProfile() {
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(wishforgeProfile));
+  } catch (err) {
+    console.warn('[Wishforge] Profile save failed:', err?.message || err);
+  }
+}
+
+function pickSeasonalOmen() {
+  const pool = SEASONAL_OMENS.filter(o => o.id !== wishforgeProfile.lastOmenId);
+  const source = pool.length ? pool : SEASONAL_OMENS;
+  const omen = source[Math.floor(Math.random() * source.length)] || SEASONAL_OMENS[0];
+  wishforgeProfile.lastOmenId = omen.id;
+  saveProfile();
+  return omen;
+}
+
+function addCodexEntry(weapon) {
+  const entry = {
+    name: String(weapon?.name || 'Unknown Relic').slice(0, 40),
+    shape: String(weapon?.projectile_shape || weapon?.shape || 'orb').slice(0, 16),
+    trail: String(weapon?.trail_style || weapon?.trail || 'sparkle').slice(0, 16),
+    impact: String(weapon?.impact_style || weapon?.impact || 'sparkles').slice(0, 16),
+    sound: String(weapon?.sound_profile || weapon?.sound || 'chime').slice(0, 16),
+    flair: String(weapon?.fantasy_flair || weapon?.flair || '').slice(0, 40),
+    omen: activeOmen?.name || 'Vernal Calm',
+  };
+  const seen = new Set();
+  const next = [entry, ...(wishforgeProfile.relicCodex || [])].filter((item) => {
+    const key = `${item.name}|${item.shape}|${item.trail}|${item.sound}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  wishforgeProfile.relicCodex = next.slice(0, CODEX_LIMIT);
+}
+
+function trackWishForRun(playerIdx, weapon) {
+  if (!weapon) return;
+  const row = {
+    name: weapon.name,
+    shape: weapon.projectile_shape,
+    trail: weapon.trail_style,
+    impact: weapon.impact_style,
+    sound: weapon.sound_profile,
+    flair: weapon.fantasy_flair,
+  };
+  currentRunStats.wishesByPlayer[playerIdx].push(row);
+  currentRunStats.shapes.add(row.shape);
+  currentRunStats.trails.add(row.trail);
+  currentRunStats.impacts.add(row.impact);
+  currentRunStats.sounds.add(row.sound);
+  currentRunStats.names.add(row.name.toLowerCase());
+  if (row.flair) currentRunStats.flairs.add(row.flair.toLowerCase());
+}
+
+function computeStyleScore() {
+  const s = currentRunStats;
+  const coverageBonus = s.wishesByPlayer.every(list => list.length > 0) ? 10 : 0;
+  return (
+    s.shapes.size * 8 +
+    s.trails.size * 7 +
+    s.impacts.size * 7 +
+    s.sounds.size * 6 +
+    s.names.size * 4 +
+    s.flairs.size * 5 +
+    s.closeRounds * 3 +
+    coverageBonus
+  );
+}
+
+function finalizeMatchProgression() {
+  const styleScore = computeStyleScore();
+  const closeBonus = currentRunStats.closeRounds * 4;
+  const styleBonus = Math.round(styleScore / 5);
+  const baseArcana = 20 + Math.round(Math.abs(score[0] - score[1]) <= 1 ? 8 : 4);
+  const arcanaGained = baseArcana + closeBonus + styleBonus;
+  wishforgeProfile.arcana += arcanaGained;
+  wishforgeProfile.totalMatches += 1;
+  wishforgeProfile.totalWishes += currentRunStats.wishesByPlayer[0].length + currentRunStats.wishesByPlayer[1].length;
+  wishforgeProfile.bestStyleScore = Math.max(wishforgeProfile.bestStyleScore, styleScore);
+  if (currentRunStats.shapes.size >= 3) wishforgeProfile.milestones.shapeTrifecta = true;
+  if (currentRunStats.flairs.size >= 5) wishforgeProfile.milestones.flairCollector = true;
+  if (activeOmen.id === 'moon-glide' && currentRunStats.closeRounds >= 2) wishforgeProfile.milestones.skyDancer = true;
+  for (const row of currentRunStats.wishesByPlayer[0]) addCodexEntry(row);
+  for (const row of currentRunStats.wishesByPlayer[1]) addCodexEntry(row);
+  saveProfile();
+  lastRunSummary = {
+    styleScore,
+    arcanaGained,
+    closeRounds: currentRunStats.closeRounds,
+    omenName: activeOmen.name,
+    wildestRelic: wishforgeProfile.relicCodex[0]?.name || 'Wish Twig',
+  };
+}
 
 const keys = {};
 const GAME_KEYS = new Set(['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'f', '/', 'w', 'a', 's', 'd']);
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
+  if (isCodexOpen()) {
+    if (k === 'c' || e.code === 'Escape') {
+      e.preventDefault();
+      toggleCodexOverlay(false);
+    }
+    return;
+  }
   keys[k] = true;
   keys[e.code] = true;
   if (GAME_KEYS.has(k) && e.target.tagName !== 'INPUT') e.preventDefault();
+  if ((k === 'c' || e.code === 'KeyC') && (gameState === 'title' || gameState === 'game_over')) {
+    e.preventDefault();
+    toggleCodexOverlay(true);
+    return;
+  }
   if (gameState === 'title' && (e.code === 'Space' || e.key === ' ')) startGame();
   if (gameState === 'game_over' && (e.code === 'Space' || e.key === ' ')) startGame();
   if (gameState === 'round_over_display' && (e.code === 'Space' || e.key === ' ')) advanceFromRoundOver();
@@ -307,8 +476,9 @@ function updateFireflies() {
 
 function updateEnvironmentLife(dt) {
   windPhase += dt * 0.01;
+  const omenWind = activeOmen?.windForce || 0;
   for (const c of cloudWisps) {
-    c.x += c.vx * dt * 0.2;
+    c.x += (c.vx + omenWind * 0.03) * dt * 0.2;
     if (c.x > W + c.w + 30) c.x = -c.w - 30;
   }
   for (const b of butterflies) {
@@ -527,7 +697,7 @@ function updatePlayers(dt) {
     const slowMult = p.slowTimer > 0 ? Math.max(0.2, 1 - p.slowAmount) : 1;
     const isStunned = p.stunTimer > 0;
     const spd = PLAYER_SPEED * w.move_speed * slowMult;
-    const grav = GRAVITY * w.player_gravity;
+    const grav = GRAVITY * w.player_gravity * (activeOmen?.gravityMult || 1);
 
     let moveDir = 0;
     if (p.idx === 0) {
@@ -546,6 +716,7 @@ function updatePlayers(dt) {
     p.vx *= p.grounded ? GROUND_FRICTION : AIR_FRICTION;
     const maxSpeed = p.grounded ? MAX_GROUND_SPEED * w.move_speed : MAX_AIR_SPEED * w.move_speed;
     p.vx = clamp(p.vx, -maxSpeed, maxSpeed);
+    if (activeOmen?.windForce) p.vx += Math.sin(windPhase + p.idx * 1.9) * 0.012 * activeOmen.windForce * dt;
 
     const jumpKey = isStunned ? false : (p.idx === 0 ? keys.w : keys.arrowup);
     if (jumpKey && !p.jumpHeld) p.jumpBufferTimer = JUMP_BUFFER_FRAMES;
@@ -600,7 +771,7 @@ function updatePlayers(dt) {
     const shootKey = isStunned ? false : (p.idx === 0 ? keys.f : (keys['/'] || keys.Slash));
     if (shootKey && p.fireCd <= 0 && p.alive) {
       fireBullets(p);
-      p.fireCd = FIRE_COOLDOWN / w.fire_rate;
+      p.fireCd = FIRE_COOLDOWN / Math.max(0.15, w.fire_rate * (activeOmen?.fireRateMult || 1));
     }
 
     if (w.regen > 0 && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + (w.regen / 60) * dt);
@@ -639,7 +810,7 @@ function fireBullets(p) {
       const frac = i / (count - 1) - 0.5;
       angle += frac * spread * Math.PI / 180;
     }
-    const speed = BULLET_SPEED * w.bullet_speed;
+    const speed = BULLET_SPEED * w.bullet_speed * (activeOmen?.bulletSpeedMult || 1);
     const r = BULLET_R * w.bullet_size;
     bullets.push({
       x: p.x + p.facing * (PW * w.player_size / 2 + r),
@@ -649,10 +820,10 @@ function fireBullets(p) {
       owner: p.idx,
       r,
       damage: 10 * w.bullet_damage,
-      bouncesLeft: w.bullet_bounces,
+      bouncesLeft: w.bullet_bounces + (activeOmen?.bounceBonus || 0),
       homing: w.bullet_homing,
       onBounceSplit: w.on_bounce_split,
-      knockback: w.knockback_power,
+      knockback: w.knockback_power * (activeOmen?.knockbackMult || 1),
       life: 300,
       color: w.projectile_color,
       trailColor: w.trail_color,
@@ -715,6 +886,7 @@ function updateBullets(dt) {
     b.trail.push({ x: b.x, y: b.y });
     if (b.trail.length > 10) b.trail.shift();
     if (Math.random() < 0.34 * b.trailDensity) spawnTrailParticle(b);
+    if (activeOmen?.windForce) b.vx += Math.sin((windPhase + b.x * 0.002) * 1.3) * 0.008 * activeOmen.windForce * dt;
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     if (b.groundAvoidance > 0 && b.y > H - 70) b.vy -= 0.25 * b.groundAvoidance * dt;
@@ -1270,9 +1442,9 @@ function render() {
 
 function renderHud() {
   ctx.fillStyle = 'rgba(80, 56, 48, 0.55)';
-  ctx.fillRect(0, 0, W, 38);
+  ctx.fillRect(0, 0, W, 50);
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.fillRect(0, 37, W, 1);
+  ctx.fillRect(0, 49, W, 1);
 
   const p1 = players[0], p2 = players[1];
   ctx.font = '18px "VT323", monospace';
@@ -1283,14 +1455,14 @@ function renderHud() {
     ctx.fillStyle = '#ffe0ee';
     ctx.fillText(`P1 HP ${Math.ceil(Math.max(0, p1.hp))}/${p1.maxHp}`, 10, 16);
     ctx.fillStyle = '#f6d7b2';
-    ctx.fillText(`${p1.weapon.name}`, 10, 30);
+    ctx.fillText(`${p1.weapon.name}`, 10, 33);
   }
   if (p2) {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#e6f0ff';
     ctx.fillText(`HP ${Math.ceil(Math.max(0, p2.hp))}/${p2.maxHp} P2`, W - 10, 16);
     ctx.fillStyle = '#f6d7b2';
-    ctx.fillText(`${p2.weapon.name}`, W - 10, 30);
+    ctx.fillText(`${p2.weapon.name}`, W - 10, 33);
   }
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff0a8';
@@ -1299,6 +1471,9 @@ function renderHud() {
   ctx.fillStyle = '#6a5448';
   ctx.font = '14px "VT323", monospace';
   ctx.fillText(`Round ${Math.min(roundNum, ROUNDS_PER_GAME)}/${ROUNDS_PER_GAME}`, W / 2, 31);
+  ctx.font = '13px "VT323", monospace';
+  ctx.fillStyle = activeOmen?.color || '#d8c7ea';
+  ctx.fillText(`Omen: ${activeOmen?.name || 'Vernal Calm'}`, W / 2, 44);
 }
 
 function renderTitle() {
@@ -1324,10 +1499,14 @@ function renderTitle() {
   ctx.fillText('Lose a round -> enter the Wish Forge -> describe your dream (or silly) item.', W / 2, H * 0.65);
   ctx.fillText('The spirit builds a new 7x7 pixel relic with matching colors, sound, and effects.', W / 2, H * 0.70);
   ctx.fillText(`A full game is ${ROUNDS_PER_GAME} rounds. Highest score wins.`, W / 2, H * 0.75);
+  ctx.fillStyle = activeOmen?.color || '#8c7193';
+  ctx.fillText(`Seasonal Omen: ${activeOmen?.name || 'Vernal Calm'} — ${activeOmen?.desc || ''}`, W / 2, H * 0.79);
+  ctx.fillStyle = '#6b5b4f';
+  ctx.fillText(`Arcana: ${wishforgeProfile.arcana}  |  Press C to open Relic Codex`, W / 2, H * 0.83);
   const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
   ctx.fillStyle = `rgba(114, 77, 109, ${0.45 + pulse * 0.55})`;
   ctx.font = '26px "VT323", monospace';
-  ctx.fillText('[ PRESS SPACE TO BEGIN ]', W / 2, H * 0.86);
+  ctx.fillText('[ PRESS SPACE TO BEGIN ]', W / 2, H * 0.89);
 }
 
 function renderRoundOverDisplay() {
@@ -1342,9 +1521,12 @@ function renderRoundOverDisplay() {
   ctx.font = '22px "VT323", monospace';
   ctx.fillStyle = '#714f3d';
   ctx.fillText(`Score: ${score[0]} - ${score[1]} (${Math.min(roundNum, ROUNDS_PER_GAME)}/${ROUNDS_PER_GAME} rounds)`, W / 2, H * 0.52);
+  ctx.font = '17px "VT323", monospace';
+  ctx.fillStyle = activeOmen?.color || '#8b6c94';
+  ctx.fillText(`Current Omen: ${activeOmen?.name || 'Vernal Calm'}`, W / 2, H * 0.58);
   ctx.font = '18px "VT323", monospace';
   ctx.fillStyle = '#6a5448';
-  ctx.fillText('Press SPACE to continue', W / 2, H * 0.64);
+  ctx.fillText('Press SPACE to continue', W / 2, H * 0.66);
 }
 
 function renderGameOver() {
@@ -1365,6 +1547,13 @@ function renderGameOver() {
   ctx.fillStyle = '#7a5e4f';
   ctx.fillText(`P1 final relic: ${players[0]?.weapon?.name || 'Wish Twig'}`, W / 2, H * 0.58);
   ctx.fillText(`P2 final relic: ${players[1]?.weapon?.name || 'Wish Twig'}`, W / 2, H * 0.63);
+  if (lastRunSummary) {
+    ctx.fillStyle = '#6d5969';
+    ctx.fillText(`Run style score: ${lastRunSummary.styleScore}  |  Arcana +${lastRunSummary.arcanaGained}`, W / 2, H * 0.70);
+    ctx.fillText(`Omen: ${lastRunSummary.omenName}  |  Wildest relic: ${lastRunSummary.wildestRelic}`, W / 2, H * 0.75);
+  }
+  ctx.fillStyle = '#6f5a4a';
+  ctx.fillText('Press C for Relic Codex', W / 2, H * 0.81);
   const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
   ctx.fillStyle = `rgba(114, 77, 109, ${0.45 + pulse * 0.55})`;
   ctx.font = '24px "VT323", monospace';
@@ -1388,7 +1577,60 @@ const compileOutput = document.getElementById('compile-output');
 const compileTimerEl = document.getElementById('compile-timer');
 const compilePlayerLabel = document.getElementById('compile-player-label');
 const compileModsDisplay = document.getElementById('compile-mods-display');
+const codexOverlay = document.getElementById('codex-overlay');
+const codexStats = document.getElementById('codex-stats');
+const codexList = document.getElementById('codex-list');
 let compileInterval = null;
+
+function isCodexOpen() {
+  return !!codexOverlay && !codexOverlay.classList.contains('hidden');
+}
+
+function updateCodexOverlay() {
+  if (!codexStats || !codexList) return;
+  const unlocked = Object.values(wishforgeProfile.milestones || {}).filter(Boolean).length;
+  codexStats.innerHTML = `
+    Arcana: ${wishforgeProfile.arcana} &nbsp;|&nbsp;
+    Matches: ${wishforgeProfile.totalMatches} &nbsp;|&nbsp;
+    Wishes forged: ${wishforgeProfile.totalWishes} &nbsp;|&nbsp;
+    Best style score: ${wishforgeProfile.bestStyleScore} &nbsp;|&nbsp;
+    Milestones unlocked: ${unlocked}/3
+  `;
+  const entries = (wishforgeProfile.relicCodex || []).slice(0, CODEX_LIMIT);
+  if (!entries.length) {
+    codexList.innerHTML = '<div class="codex-card"><div class="codex-card-name">No relic memories yet</div><div class="codex-card-meta">Lose a round, forge a wish, and your codex will bloom.</div></div>';
+    return;
+  }
+  codexList.innerHTML = entries.map(entry => `
+    <div class="codex-card">
+      <div class="codex-card-name">${escapeHtml(entry.name)}</div>
+      <div class="codex-card-meta">
+        shape: ${escapeHtml(entry.shape)}<br/>
+        trail: ${escapeHtml(entry.trail)}<br/>
+        impact: ${escapeHtml(entry.impact)}<br/>
+        sound: ${escapeHtml(entry.sound)}<br/>
+        omen: ${escapeHtml(entry.omen || 'Vernal Calm')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleCodexOverlay(forceOpen) {
+  if (!codexOverlay) return;
+  const shouldOpen = forceOpen ?? codexOverlay.classList.contains('hidden');
+  if (shouldOpen) {
+    updateCodexOverlay();
+    codexOverlay.classList.remove('hidden');
+  } else {
+    codexOverlay.classList.add('hidden');
+  }
+}
+
+function getMemoryEcho() {
+  const recent = (wishforgeProfile.relicCodex || [])[0];
+  if (!recent) return 'No past echo yet. This forge writes the first legend.';
+  return `Last remembered relic: ${recent.name} (${recent.shape}/${recent.trail}).`;
+}
 
 function startCompilerPhase(loserIdx) {
   compileLoser = loserIdx;
@@ -1401,9 +1643,14 @@ function startCompilerPhase(loserIdx) {
   compileInput.value = '';
   compileInput.disabled = false;
   compileOutput.classList.add('hidden');
+  compileOutput.classList.remove('compile-reveal');
   compileOutput.innerHTML = '';
   compileTimerEl.textContent = String(COMPILE_TIME);
-  compileModsDisplay.innerHTML = `<span style="color:#7e5e4f">Current relic:</span> <span class="existing-mod-tag">${players[loserIdx].weapon.name}</span>`;
+  compileModsDisplay.innerHTML = `
+    <span style="color:#7e5e4f">Current relic:</span> <span class="existing-mod-tag">${players[loserIdx].weapon.name}</span>
+    <span class="existing-mod-tag" style="background:#f4e9ff;border-color:#d9c8eb;color:#6f4e80">Omen: ${activeOmen?.name || 'Vernal Calm'}</span>
+    <div style="margin-top:4px;color:#8a6f5d">${escapeHtml(getMemoryEcho())}</div>
+  `;
 
   compilerOverlay.classList.remove('hidden');
   gameState = 'compiler';
@@ -1424,7 +1671,7 @@ function submitCompile() {
   compileInput.disabled = true;
   compileOutput.classList.remove('hidden');
   compileOutput.innerHTML = `
-    <div style="color:#7e5e4f">THE WISH FORGE HUMS: "${request.slice(0, 80)}${request.length > 80 ? '...' : ''}"</div>
+    <div style="color:#7e5e4f">THE WISH FORGE HUMS: "${request.slice(0, 120)}${request.length > 120 ? '...' : ''}"</div>
     <div class="compiling-bar"><div class="compiling-bar-fill"></div></div>
   `;
   fetch('/.netlify/functions/compile', {
@@ -1444,11 +1691,77 @@ function submitCompile() {
       showCompileResult(compileResult);
     });
 }
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function buildPixelPreviewHtml(rows, palette, title) {
+  let cells = '';
+  for (let y = 0; y < 7; y++) {
+    const row = rows[y] || '.......';
+    for (let x = 0; x < 7; x++) {
+      const ch = row[x] || '.';
+      const color = ch === '.' ? 'transparent' : (palette[ch] || '#ffffff');
+      cells += `<span class="compile-pixel-cell" style="background:${escapeHtml(color)}"></span>`;
+    }
+  }
+  return `
+    <div class="compile-pixel-card">
+      <div class="compile-pixel-title">${escapeHtml(title)}</div>
+      <div class="compile-pixel-grid">${cells}</div>
+    </div>
+  `;
+}
+
+function buildTraitTags(weapon) {
+  const tags = [];
+  if (weapon.bullet_count > 1) tags.push(`${weapon.bullet_count}x volley`);
+  if (weapon.bullet_spread >= 8) tags.push('spread');
+  if (weapon.fire_rate >= 1.3) tags.push('rapid fire');
+  if (weapon.bullet_damage >= 1.2) tags.push('heavy hit');
+  if (weapon.bullet_bounces > 0) tags.push(`bounces ${weapon.bullet_bounces}`);
+  if (weapon.on_bounce_split > 0) tags.push(`split ${weapon.on_bounce_split}`);
+  if (weapon.status_slow > 0.05) tags.push('slow');
+  if (weapon.status_dot_dps > 0.1) tags.push('damage over time');
+  if (weapon.status_stun_duration > 0.05) tags.push('stun');
+  if (weapon.lifesteal > 0.02) tags.push('lifesteal');
+  if (weapon.splash_radius > 4) tags.push('splash');
+  if (weapon.cloud_radius > 8) tags.push('hazard cloud');
+  if (weapon.projectile_growth > 0.05) tags.push('growing shot');
+  if (weapon.pierce_walls) tags.push('wall pierce');
+  if (weapon.ground_avoidance > 0.05) tags.push('ground avoid');
+  if (weapon.bullet_homing > 0.05 || weapon.steering > 0.05) tags.push('guided');
+  if (weapon.self_damage_on_shoot > 0.05) tags.push('blood pact');
+  if (weapon.hp_bonus >= 10) tags.push('extra hp');
+  if (weapon.regen >= 0.3) tags.push('regen');
+  if (weapon.move_speed <= 0.85) tags.push('slower wielder');
+  if (weapon.fire_rate <= 0.8) tags.push('slow reload');
+  if (weapon.player_size >= 1.2) tags.push('larger hitbox');
+  return tags.slice(0, 8);
+}
+
 function showCompileResult(weapon) {
+  const tags = buildTraitTags(weapon);
+  const tagsHtml = tags.length
+    ? tags.map(tag => `<span class="compile-trait-tag">${escapeHtml(tag)}</span>`).join('')
+    : '<span class="compile-trait-empty">Pure style relic</span>';
+
   compileOutput.innerHTML = `
-    <div class="compile-mod-name">✨ ${weapon.name}</div>
-    <div class="compile-mod-quip">"${weapon.quip}"</div>
-    <div class="compile-mod-tradeoff">Tradeoff: ${weapon.tradeoff}</div>
+    <div class="compile-mod-name">✨ ${escapeHtml(weapon.name)}</div>
+    <div class="compile-mod-quip">"${escapeHtml(weapon.quip)}"</div>
+    <div class="compile-mod-tradeoff">Tradeoff: ${escapeHtml(weapon.tradeoff)}</div>
+    <div style="color:#7f6857; margin-top:5px; font-size:12px">Current omen: ${escapeHtml(activeOmen?.name || 'Vernal Calm')} — ${escapeHtml(activeOmen?.desc || '')}</div>
+    <div class="compile-preview-row">
+      ${buildPixelPreviewHtml(weapon.pixel_rows, weapon.palette, 'Relic')}
+      ${buildPixelPreviewHtml(weapon.projectile_rows, weapon.projectile_palette, 'Projectile')}
+    </div>
+    <div class="compile-trait-row">${tagsHtml}</div>
     <div style="color:#7f6a5b; margin-top:8px; font-size:12px">Press SPACE to accept your wish and begin the next round</div>
   `;
   const handleSpace = (e) => {
@@ -1463,11 +1776,18 @@ function showCompileResult(weapon) {
 function applyCompileAndStartRound() {
   if (compileResult && players[compileLoser]) {
     playerWeapons[compileLoser] = normalizeWeapon(compileResult);
+    trackWishForRun(compileLoser, playerWeapons[compileLoser]);
   }
-  compilerOverlay.classList.add('hidden');
-  compileInput.disabled = false;
+  compileInput.disabled = true;
+  compileOutput.classList.add('compile-reveal');
+  compileOutput.innerHTML += `<div style="margin-top:8px;color:#7c5f4f">The pact seals... relic essence is binding.</div>`;
   if (compileInterval) { clearInterval(compileInterval); compileInterval = null; }
-  startRound();
+  setTimeout(() => {
+    compilerOverlay.classList.add('hidden');
+    compileOutput.classList.remove('compile-reveal');
+    compileInput.disabled = false;
+    startRound();
+  }, 650);
 }
 
 compileInput.addEventListener('keydown', e => {
@@ -1478,11 +1798,18 @@ compileInput.addEventListener('keydown', e => {
   e.stopPropagation();
 });
 compileInput.addEventListener('keyup', e => e.stopPropagation());
+codexOverlay?.addEventListener('click', (e) => {
+  if (e.target === codexOverlay) toggleCodexOverlay(false);
+});
 
 function startGame() {
+  toggleCodexOverlay(false);
   score = [0, 0];
   roundNum = 0;
   playerWeapons = [DEFAULT_WEAPON, DEFAULT_WEAPON];
+  activeOmen = pickSeasonalOmen();
+  currentRunStats = createRunStats();
+  lastRunSummary = null;
   players = [createPlayer(0), createPlayer(1)];
   initFireflies();
   initEnvironmentLife();
@@ -1505,6 +1832,7 @@ function startRound() {
 }
 function advanceFromRoundOver() {
   if (roundNum >= ROUNDS_PER_GAME) {
+    finalizeMatchProgression();
     gameState = 'game_over';
     return;
   }
@@ -1516,6 +1844,9 @@ function checkRoundEnd() {
   const alive1 = players[1].alive;
   if (alive0 && alive1) return;
   roundWinner = !alive0 && !alive1 ? (Math.random() < 0.5 ? 0 : 1) : (alive0 ? 0 : 1);
+  const hpGap = Math.abs((players[0]?.hp || 0) - (players[1]?.hp || 0));
+  if (hpGap <= 18) currentRunStats.closeRounds++;
+  currentRunStats.roundWinners.push(roundWinner);
   score[roundWinner]++;
   gameState = 'round_over_display';
 }
@@ -1584,6 +1915,7 @@ resize();
 initFireflies();
 initEnvironmentLife();
 renderBackground();
+updateCodexOverlay();
 
 gameState = 'title';
 requestAnimationFrame(gameLoop);

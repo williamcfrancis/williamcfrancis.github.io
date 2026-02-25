@@ -100,7 +100,7 @@ sections:
         image: "/games/algorithm_simulator/algorithm_simulator.png"
       - title: "Wishforge Duel"
         genre: LLM-powered arena fighter
-        summary: "1v1 local fantasy duel where each lost round grants a new wished weapon. Describe anything (even non-weapons), and the forge spirit creates a fresh 4x4 pixel relic with matching effects and sound."
+        summary: "1v1 local fantasy duel where each lost round grants a new wished weapon. Describe anything (even non-weapons), forge 7x7 pixel relics in real time, and adapt to rotating Seasonal Omens while building your Relic Codex."
         tags: ["browser", "AI", "local-multiplayer"]
         link:
           label: "Play Wishforge Duel"

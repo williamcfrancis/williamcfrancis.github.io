@@ -404,7 +404,7 @@ exports.handler = async (event) => {
   let request, existingMods, roundNum;
   try {
     const body = JSON.parse(event.body);
-    request = (body.request || '').slice(0, 400);
+    request = (body.request || '').slice(0, 800);
     existingMods = Array.isArray(body.existingMods) ? body.existingMods.slice(-5) : [];
     roundNum = Number(body.round) || 1;
   } catch (e) {
@@ -482,6 +482,8 @@ PROMPT INTERPRETATION:
 - Honor nouns and adjectives from player text literally.
 - If request is absurd, make it absurd but coherent.
 - If request is not a weapon, reinterpret as magical launcher version of that thing.
+- Preserve creative intent over familiarity: do not "normalize" strange wishes into generic wands/guns unless explicitly requested.
+- Favor faithful translation of unique materials, mood, and symbolism even when unusual.
 - Prioritize silhouette recognizability over abstract patterning.
 - If the request includes materials (wooden, crystal, golden, icy), reflect those in both palette and sound_profile.
 - If request includes emotion (angry, calm, playful), reflect it in projectile_shape, trail_style, sound_pitch and sound_release.
@@ -529,7 +531,7 @@ VOICE:
           generationConfig: {
             responseMimeType: 'application/json',
             responseSchema: RESPONSE_SCHEMA,
-            temperature: attempt === 0 ? 1.0 : 0.3,
+            temperature: attempt === 0 ? 1.0 : 0.7,
             maxOutputTokens: 2048,
             thinkingConfig: { thinkingBudget: 0 },
           },
