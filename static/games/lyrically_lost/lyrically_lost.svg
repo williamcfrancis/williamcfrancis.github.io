@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Lyrically Lost</title>
+  <desc id="desc">Neon music-themed preview card for the Lyrically Lost game.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#3b0764"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="980" cy="120" r="140" fill="#22d3ee" opacity="0.18"/>
+  <circle cx="210" cy="520" r="180" fill="#a78bfa" opacity="0.18"/>
+  <g fill="none" stroke="url(#accent)" stroke-width="10" opacity="0.9">
+    <path d="M120 350c80-110 180-110 260 0s180 110 260 0s180-110 260 0"/>
+    <path d="M120 430c80-110 180-110 260 0s180 110 260 0s180-110 260 0" opacity="0.55"/>
+  </g>
+  <rect x="120" y="110" width="20" height="90" rx="8" fill="#22d3ee"/>
+  <rect x="150" y="80" width="20" height="120" rx="8" fill="#a78bfa"/>
+  <rect x="180" y="130" width="20" height="70" rx="8" fill="#22d3ee"/>
+  <rect x="210" y="100" width="20" height="100" rx="8" fill="#a78bfa"/>
+  <text x="120" y="285" fill="#f8fafc" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="84" font-weight="700">Lyrically Lost</text>
+  <text x="120" y="340" fill="#cbd5e1" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="32">Name the song from translated lyrics</text>
+</svg>

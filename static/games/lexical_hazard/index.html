@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Type or Die</title>
+    <title>Panic at the Dictionary</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
@@ -12,7 +12,7 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505;
+            background: radial-gradient(circle at 20% 20%, #2b1f55 0%, #171330 45%, #0d0a1f 100%);
             color: #fff;
             font-family: 'Share Tech Mono', monospace;
             user-select: none;
@@ -30,7 +30,7 @@
             align-items: center;
         }
 
-        canvas { box-shadow: 0 0 50px rgba(0, 255, 255, 0.1); }
+        canvas { box-shadow: 0 0 50px rgba(255, 170, 90, 0.25); }
 
         #ui-layer {
             position: absolute;
@@ -50,8 +50,8 @@
             font-size: clamp(14px, 2.5vw, 24px);
             text-shadow: 0 0 10px currentColor;
         }
-        .score-box { color: #0ff; }
-        .health-box { color: #f0f; }
+        .score-box { color: #ffcf5a; }
+        .health-box { color: #ff7ecf; }
 
         .hud-stats {
             display: flex;
@@ -59,9 +59,9 @@
             font-size: clamp(12px, 2vw, 18px);
         }
         .hud-stats span { white-space: nowrap; }
-        .wpm-box { color: #0f0; text-shadow: 0 0 8px rgba(0,255,0,0.5); }
-        .streak-box { color: #ff0; text-shadow: 0 0 8px rgba(255,255,0,0.5); }
-        .combo-box { color: #f80; text-shadow: 0 0 8px rgba(255,136,0,0.6); font-weight: bold; transition: all 0.15s; }
+        .wpm-box { color: #7dffb2; text-shadow: 0 0 8px rgba(125,255,178,0.5); }
+        .streak-box { color: #ffd86d; text-shadow: 0 0 8px rgba(255,216,109,0.5); }
+        .combo-box { color: #ff9b5b; text-shadow: 0 0 8px rgba(255,155,91,0.6); font-weight: bold; transition: all 0.15s; }
         .health-critical { animation: healthPulse 0.5s ease-in-out infinite; }
         @keyframes healthPulse {
             0%, 100% { text-shadow: 0 0 10px #f0f; }
@@ -72,7 +72,7 @@
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(5, 5, 5, 0.92);
+            background: rgba(20, 14, 40, 0.9);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -86,7 +86,7 @@
         h1 {
             font-size: clamp(32px, 8vw, 64px);
             margin: 0 0 15px 0;
-            background: linear-gradient(45deg, #0ff, #f0f);
+            background: linear-gradient(45deg, #ffd86d, #ff8bd7);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -110,14 +110,14 @@
             font-family: 'Share Tech Mono', monospace;
             font-size: clamp(16px, 3vw, 24px);
             background: transparent;
-            color: #0ff;
-            border: 2px solid #0ff;
+            color: #ffd86d;
+            border: 2px solid #ffd86d;
             cursor: pointer;
             transition: all 0.2s;
             text-transform: uppercase;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(255, 216, 109, 0.35);
         }
-        .btn:hover { background: #0ff; color: #000; box-shadow: 0 0 30px rgba(0,255,255,0.8); }
+        .btn:hover { background: #ffd86d; color: #201640; box-shadow: 0 0 30px rgba(255,216,109,0.85); }
         .btn-small { margin-top: 10px; padding: 8px 20px; font-size: clamp(12px, 2vw, 16px); }
 
         .hidden { display: none !important; }
@@ -132,13 +132,13 @@
             padding: 8px 14px;
             background: rgba(0,0,0,0.6);
             border: 1px solid #333;
-            color: #0ff;
+            color: #ffd86d;
             text-decoration: none;
             font-size: 13px;
             font-family: 'Share Tech Mono', monospace;
             transition: all 0.2s;
         }
-        .back-to-games:hover { background: rgba(0,255,255,0.15); border-color: #0ff; box-shadow: 0 0 12px rgba(0,255,255,0.3); }
+        .back-to-games:hover { background: rgba(255,216,109,0.2); border-color: #ffd86d; box-shadow: 0 0 12px rgba(255,216,109,0.35); }
 
         .active-effects {
             position: absolute;
@@ -225,7 +225,7 @@
         @keyframes blink { 50% { opacity: 0; } }
 
         .highscores { margin-top: 12px; text-align: center; }
-        .highscores h3 { color: #0ff; font-size: clamp(14px, 2vw, 18px); margin: 0 0 6px 0; }
+        .highscores h3 { color: #ffd86d; font-size: clamp(14px, 2vw, 18px); margin: 0 0 6px 0; }
         .highscores ol { list-style: none; padding: 0; margin: 0; }
         .highscores li { font-size: clamp(12px, 1.8vw, 16px); color: #888; padding: 2px 0; }
         .highscores li.new-score { color: #ff0; text-shadow: 0 0 8px #ff0; }
@@ -266,7 +266,7 @@
             to   { opacity: 1; transform: translateX(0); }
         }
         .stats-divider {
-            border: none; border-top: 1px solid rgba(0,255,255,0.15);
+            border: none; border-top: 1px solid rgba(255,216,109,0.2);
             margin: 10px 0 6px 0;
         }
         .stats-funfact {
@@ -342,14 +342,14 @@
 
     <div id="start-screen">
         <a class="back-to-games" href="/personal/#games"><span>&larr;</span> Back to games</a>
-        <h1>Type or Die</h1>
-        <p><strong>WARNING:</strong> Semantic containment breach detected.</p>
+        <h1>Panic at the Dictionary</h1>
+        <p><strong>WELCOME:</strong> The word salad bar is open.</p>
         <p>Type the falling words to neutralize them. <br>
-           <span style="color:#f0f">CAUTION:</span> Neutralizing a word triggers its meaning.</p>
-        <p style="color:#0f0">HEAL, SHIELD, SHOOT, ABRACADABRA &rarr; Help you survive.<br>
-           <span style="color:#f00">FAST, SCRAMBLE, CLONE, LEECH</span> &rarr; Make life harder.<br>
-           <span style="color:#ff0">ZOMBIE, NUMBERS, EASY</span> &rarr; Game changers.<br>
-           <span style="color:#f0f">BOSS words</span> appear every 4 levels &mdash; type them multiple times!<br>
+           <span style="color:#ff8bd7">HOT TIP:</span> Every word still does what it says... for better or chaos.</p>
+        <p style="color:#7dffb2">HEAL, SHIELD, SHOOT, ABRACADABRA &rarr; Friendly toppings.<br>
+           <span style="color:#ff7b7b">FAST, SCRAMBLE, CLONE, LEECH</span> &rarr; Spicy surprises.<br>
+           <span style="color:#ffd86d">ZOMBIE, NUMBERS, EASY</span> &rarr; Wild card ingredients.<br>
+           <span style="color:#ff8bd7">BOSS words</span> arrive every 4 levels &mdash; type them multiple times!<br>
            <span style="color:#aaa;font-size:0.85em">Chain kills for combos. Kill early for bonus points!</span></p>
         <div class="highscores" id="start-highscores"></div>
         <button class="btn" id="btn-start">Play</button>
@@ -362,12 +362,12 @@
 
     <div id="game-over-screen" class="hidden">
         <a class="back-to-games" href="/personal/#games"><span>&larr;</span> Back to games</a>
-        <h1>SYSTEM FAILURE</h1>
+        <h1>Salad Tossed</h1>
         <p>Final Score: <span id="final-score">0</span></p>
         <p id="death-cause"></p>
         <div id="gameover-stats"></div>
         <div class="highscores" id="gameover-highscores"></div>
-        <button class="btn" id="btn-restart">Reboot System</button>
+        <button class="btn" id="btn-restart">Toss Another Round</button>
     </div>
 
     <div id="pause-screen" class="hidden">
@@ -424,7 +424,7 @@
 
 <script>
 /**
- * TYPE OR DIE — Semantic Survival Game
+ * PANIC AT THE DICTIONARY — Semantic Survival Game
  * Production Build
  */
 
@@ -1824,7 +1824,7 @@ function triggerGameOver() {
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
 
     finalScoreSpan.innerText = score;
-    document.getElementById('death-cause').innerText = deathCause || 'The meaning of the words became too heavy to bear.';
+    document.getElementById('death-cause').innerText = deathCause || 'The word salad got out of hand.';
 
     // --- Cool Stats Display ---
     var elapsed = (Date.now() - stats.startTime) / 1000;
@@ -1836,13 +1836,13 @@ function triggerGameOver() {
 
     // Determine player rank title
     var rankTitle, rankColor;
-    if (score >= 10000) { rankTitle = 'LEXICON DEITY'; rankColor = '#f0f'; }
-    else if (score >= 6000) { rankTitle = 'WORD SLAYER'; rankColor = '#ffdd00'; }
-    else if (score >= 3500) { rankTitle = 'SEMANTIC WARRIOR'; rankColor = '#ff8800'; }
-    else if (score >= 2000) { rankTitle = 'SYNTAX KNIGHT'; rankColor = '#0ff'; }
-    else if (score >= 1000) { rankTitle = 'LETTER SCOUT'; rankColor = '#0f0'; }
-    else if (score >= 400)  { rankTitle = 'WORD CADET'; rankColor = '#0099ff'; }
-    else { rankTitle = 'ALPHABET ROOKIE'; rankColor = '#888'; }
+    if (score >= 10000) { rankTitle = 'SALAD SOVEREIGN'; rankColor = '#ff8bd7'; }
+    else if (score >= 6000) { rankTitle = 'DICTIONARY DAREDEVIL'; rankColor = '#ffd86d'; }
+    else if (score >= 3500) { rankTitle = 'PUN PALADIN'; rankColor = '#ff9b5b'; }
+    else if (score >= 2000) { rankTitle = 'WORD WHISPERER'; rankColor = '#7dd6ff'; }
+    else if (score >= 1000) { rankTitle = 'LETTER LIFEGUARD'; rankColor = '#7dffb2'; }
+    else if (score >= 400)  { rankTitle = 'GRAMMAR GARDENER'; rankColor = '#8cb8ff'; }
+    else { rankTitle = 'ALPHABET INTERN'; rankColor = '#888'; }
 
     var h = '<div class="stats-panel">';
     h += '<div class="stats-rank" style="color:' + rankColor + '">' + rankTitle + '</div>';
@@ -1851,7 +1851,7 @@ function triggerGameOver() {
     function row(label, value, cls) { delay += 0.12; return '<div class="stats-row" style="animation-delay:' + delay.toFixed(2) + 's"><span class="sl">' + label + '</span><span class="sv ' + cls + '">' + value + '</span></div>'; }
 
     // --- Combat ---
-    h += '<div class="stats-title" style="color:#0ff;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// COMBAT LOG //</div>';
+    h += '<div class="stats-title" style="color:#7dd6ff;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// WORD SALAD LOG //</div>';
     h += row('Time Survived', mins + 'm ' + secs + 's', 'info');
     h += row('Words Neutralized', stats.wordsTyped, 'good');
     h += row('Words Escaped', stats.wordsMissed, stats.wordsMissed > 10 ? 'bad' : 'info');
@@ -1861,7 +1861,7 @@ function triggerGameOver() {
 
     // --- Highlights ---
     h += '<hr class="stats-divider">';
-    h += '<div class="stats-title" style="color:#ff0;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// HIGHLIGHTS //</div>';
+    h += '<div class="stats-title" style="color:#ffd86d;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// TOPPINGS //</div>';
     h += row('Best Streak', stats.bestStreak + ' in a row', stats.bestStreak >= 10 ? 'gold' : 'info');
     if (stats.longestWord) h += row('Longest Word', stats.longestWord, 'magic');
     if (stats.multiKills > 0) { h += row('Multi-Kills', stats.multiKills, 'gold'); h += row('Biggest Combo', stats.biggestMultiKill + 'x', 'gold'); }
@@ -1871,7 +1871,7 @@ function triggerGameOver() {
 
     // --- Effects & Survival ---
     h += '<hr class="stats-divider">';
-    h += '<div class="stats-title" style="color:#f0f;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// EFFECTS & SURVIVAL //</div>';
+    h += '<div class="stats-title" style="color:#ff8bd7;animation:statReveal 0.3s ease-out ' + (delay += 0.1).toFixed(2) + 's forwards;opacity:0">// DRESSING & DAMAGE //</div>';
     var totalFx = stats.effectsGood + stats.effectsBad + stats.effectsNeutral;
     if (totalFx > 0) {
         h += row('Effects Triggered', totalFx + ' total', 'info');

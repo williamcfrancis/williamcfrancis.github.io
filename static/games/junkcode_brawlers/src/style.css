@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: #060612;
+  background: #f6f2ff;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -25,24 +25,22 @@ canvas {
   align-items: center;
   gap: 4px;
   padding: 4px 12px;
-  background: rgba(6, 6, 18, 0.85);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 3px;
-  color: #555;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(128, 102, 88, 0.24);
+  border-radius: 6px;
+  color: #7a5e4f;
   text-decoration: none;
-  font-size: 14px;
-  font-family: 'VT323', monospace;
+  font-size: 16px;
   transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .back-link:hover {
-  color: #f5c842;
-  border-color: rgba(245, 200, 66, 0.3);
-  box-shadow: 0 0 8px rgba(245, 200, 66, 0.1);
+  color: #6b4f71;
+  border-color: rgba(107, 79, 113, 0.45);
+  box-shadow: 0 2px 8px rgba(107, 79, 113, 0.14);
 }
 
 .hidden { display: none !important; }
 
-/* === COMPILER TERMINAL === */
 #compiler-overlay {
   position: fixed;
   inset: 0;
@@ -50,9 +48,9 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(4, 4, 14, 0.9);
-  backdrop-filter: blur(4px);
-  animation: overlay-in 0.3s ease-out;
+  background: rgba(255, 243, 252, 0.82);
+  backdrop-filter: blur(3px);
+  animation: overlay-in 0.25s ease-out;
 }
 
 @keyframes overlay-in {
@@ -62,14 +60,11 @@ canvas {
 
 .terminal {
   width: 90%;
-  max-width: 700px;
-  background: #0a0a14;
-  border: 1px solid #1e2040;
-  border-radius: 8px;
-  box-shadow:
-    0 0 60px rgba(0, 255, 100, 0.06),
-    0 0 120px rgba(0, 100, 255, 0.03),
-    inset 0 0 60px rgba(0, 0, 0, 0.5);
+  max-width: 740px;
+  background: #fffaf2;
+  border: 2px solid #d8c3ad;
+  border-radius: 12px;
+  box-shadow: 0 14px 42px rgba(110, 75, 58, 0.18);
   overflow: hidden;
   font-family: 'Share Tech Mono', monospace;
 }
@@ -79,8 +74,8 @@ canvas {
   align-items: center;
   gap: 6px;
   padding: 10px 14px;
-  background: linear-gradient(180deg, #141420, #0e0e1a);
-  border-bottom: 1px solid #1e2040;
+  background: linear-gradient(180deg, #f5e3d2, #f0dcc7);
+  border-bottom: 1px solid #d8c3ad;
 }
 
 .term-dot {
@@ -88,19 +83,19 @@ canvas {
   height: 10px;
   border-radius: 50%;
 }
-.term-dot.red { background: #ff5f56; box-shadow: 0 0 4px rgba(255, 95, 86, 0.3); }
-.term-dot.yellow { background: #ffbd2e; box-shadow: 0 0 4px rgba(255, 189, 46, 0.3); }
-.term-dot.green { background: #27c93f; box-shadow: 0 0 4px rgba(39, 201, 63, 0.3); }
+.term-dot.red { background: #f8a6ba; }
+.term-dot.yellow { background: #f9cf8f; }
+.term-dot.green { background: #9ed6a2; }
 
 .term-title {
   margin-left: 8px;
   font-size: 12px;
-  color: #444;
-  letter-spacing: 1.5px;
+  color: #82614e;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
 }
 
-#compile-player-label { color: #777; }
+#compile-player-label { color: #724d6d; }
 
 .terminal-body {
   padding: 18px;
@@ -110,15 +105,13 @@ canvas {
 
 .term-line {
   font-size: 14px;
-  color: #8a8a9a;
-  line-height: 1.6;
+  color: #7a5f52;
+  line-height: 1.65;
   margin-bottom: 8px;
 }
 
-.term-system { color: #27c93f; font-weight: bold; }
-.term-highlight { color: #f5c842; font-weight: bold; text-shadow: 0 0 6px rgba(245, 200, 66, 0.3); }
-.term-error { color: #ff5f56; }
-.term-success { color: #27c93f; }
+.term-system { color: #8e5c76; font-weight: bold; }
+.term-highlight { color: #c9824f; font-weight: bold; }
 
 .term-input-row {
   display: flex;
@@ -128,10 +121,9 @@ canvas {
 }
 
 .term-caret {
-  color: #27c93f;
+  color: #8e5c76;
   font-size: 18px;
   font-weight: bold;
-  text-shadow: 0 0 4px rgba(39, 201, 63, 0.4);
   animation: blink 1s step-end infinite;
 }
 
@@ -144,59 +136,56 @@ canvas {
   font-family: 'Share Tech Mono', monospace;
   font-size: 16px;
   padding: 10px 12px;
-  background: rgba(0, 255, 100, 0.03);
-  border: 1px solid #1e2040;
-  border-radius: 4px;
-  color: #c8ffc8;
+  background: #fff;
+  border: 1px solid #d9c6b3;
+  border-radius: 8px;
+  color: #654a3d;
   outline: none;
-  caret-color: #27c93f;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 #compile-input:focus {
-  border-color: #27c93f;
-  box-shadow: 0 0 12px rgba(0, 255, 100, 0.12);
+  border-color: #8e5c76;
+  box-shadow: 0 0 0 3px rgba(142, 92, 118, 0.12);
 }
 
-#compile-input::placeholder { color: #1e2e1e; }
+#compile-input::placeholder { color: #ad9284; }
 
 .term-hint {
-  font-size: 11px;
-  color: #2a2a3a;
+  font-size: 12px;
+  color: #937a6a;
   margin-top: 4px;
-  letter-spacing: 0.5px;
 }
 
 #compile-output {
   margin-top: 14px;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid #151525;
-  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #e2d3c7;
+  border-radius: 8px;
   font-size: 14px;
   line-height: 1.7;
 }
 
 .compile-mod-name {
-  color: #f5c842;
-  font-size: 17px;
+  color: #724d6d;
+  font-size: 18px;
   font-weight: bold;
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.2);
 }
 
 .compile-mod-quip {
-  color: #27c93f;
+  color: #8a6f5d;
   font-style: italic;
 }
 
 .compile-mod-tradeoff {
-  color: #ff5f56;
+  color: #9b5a66;
   font-size: 13px;
 }
 
 #compile-mods-display {
   font-size: 12px;
-  color: #444;
+  color: #8a705f;
   margin-bottom: 4px;
 }
 
@@ -204,35 +193,33 @@ canvas {
   display: inline-block;
   padding: 2px 7px;
   margin: 2px;
-  background: rgba(245, 200, 66, 0.06);
-  border: 1px solid rgba(245, 200, 66, 0.12);
-  border-radius: 3px;
-  color: #887730;
+  background: #f8ede0;
+  border: 1px solid #dbc8b8;
+  border-radius: 8px;
+  color: #755d4f;
   font-size: 11px;
 }
 
-/* Compiling animation */
 .compiling-bar {
   width: 100%;
-  height: 6px;
-  background: #0a0a14;
-  border-radius: 3px;
+  height: 7px;
+  background: #f4ebe2;
+  border-radius: 999px;
   overflow: hidden;
   margin-top: 10px;
-  border: 1px solid #151525;
+  border: 1px solid #e2d1c1;
 }
 
 .compiling-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #27c93f, #44eeff);
+  background: linear-gradient(90deg, #f6b3ca, #f7d29b, #b4dfb8);
   width: 0%;
   animation: compile-progress 3s ease-in-out forwards;
-  box-shadow: 0 0 10px rgba(39, 201, 63, 0.4);
-  border-radius: 3px;
+  border-radius: 999px;
 }
 
 @keyframes compile-progress {
   0% { width: 0%; }
-  70% { width: 85%; }
+  70% { width: 84%; }
   100% { width: 100%; }
 }

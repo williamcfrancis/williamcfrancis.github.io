@@ -42,14 +42,14 @@ sections:
       title: Games & sandboxes
       description: Playable experiments I tinker with after hours.
     games:
-      - title: Gravity Golf
-        genre: Cosmic physics puzzle
-        summary: "Launch through space, then grab planets mid-flight to sculpt gravity in real-time. Slow time, chain boost rings, and warp through portals."
-        tags: ["browser", "physics", "space"]
+      - title: Pulse Snare
+        genre: Reflex arcade
+        summary: "An original one-more-run loop: rotate a magnetic arc and catch pulses blasting out from the core before they break through."
+        tags: ["browser", "arcade", "addictive"]
         link:
-          label: Play Gravity Golf
-          url: "/games/gravity_golf/"
-        image: "/games/gravity_golf/gravity_golf.png"
+          label: Play Pulse Snare
+          url: "/games/pulse_snare/"
+        image: "/games/pulse_snare/pulse_snare.svg"
       - title: Lily Leap
         genre: Chill arcade
         summary: "Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows."
@@ -74,6 +74,14 @@ sections:
           label: Play Lexical Hazard
           url: "/games/lexical_hazard/"
         image: "/games/lexical_hazard/lexical_hazard.png"
+      - title: Lyrically Lost
+        genre: Lyric trivia
+        summary: "Hear translated lyric snippets and race to identify the original songs across Hindi, Spanish, and English catalogs."
+        tags: ["browser", "music", "sound-on"]
+        link:
+          label: Play Lyrically Lost
+          url: "/games/lyrically_lost/"
+        image: "/games/lyrically_lost/lyrically_lost.svg"
       - title: Abyss
         genre: Deep-dive survival
         summary: "Dive into the deep blue. Manage oxygen, dash to destroy mines, and descend through biomes to the abyssal rift."
@@ -90,12 +98,12 @@ sections:
           label: Play Algorithm Simulator
           url: "/games/algorithm_simulator/"
         image: "/games/algorithm_simulator/algorithm_simulator.png"
-      - title: "If It Compiles, It Kills"
+      - title: "Wishforge Duel"
         genre: LLM-powered arena fighter
-        summary: "1v1 local arena shooter where the loser types ANY weapon mod they can imagine. The AI compiles it. Mods stack. Chaos ensues."
+        summary: "1v1 local fantasy duel where each lost round grants a new wished weapon. Describe anything (even non-weapons), and the forge spirit creates a fresh 4x4 pixel relic with matching effects and sound."
         tags: ["browser", "AI", "local-multiplayer"]
         link:
-          label: "Play If It Compiles, It Kills"
+          label: "Play Wishforge Duel"
           url: "/games/junkcode_brawlers/"
   - section:
       name: Photo Gallery

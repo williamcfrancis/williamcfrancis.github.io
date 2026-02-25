@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pulse Snare</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      background: radial-gradient(circle at 20% 15%, #1f2a68, #0a0b1d 58%);
+      min-height: 100vh;
+      color: #dbe7ff;
+      overflow: hidden;
+    }
+
+    .container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .pill {
+      background: rgba(4, 8, 22, 0.65);
+      border: 1px solid rgba(120, 177, 255, 0.45);
+      border-radius: 999px;
+      padding: 8px 14px;
+      box-shadow: 0 8px 24px rgba(4, 8, 22, 0.4);
+      font-size: 14px;
+    }
+
+    .back-link {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 20;
+      text-decoration: none;
+      color: #e5f0ff;
+      background: rgba(4, 8, 22, 0.7);
+      border: 1px solid rgba(120, 177, 255, 0.45);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 8px 24px rgba(4, 8, 22, 0.4);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(1, 3, 13, 0.62);
+      backdrop-filter: blur(4px);
+      z-index: 10;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .card {
+      max-width: 560px;
+      background: rgba(9, 16, 44, 0.85);
+      border: 1px solid rgba(120, 177, 255, 0.45);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 6vw, 52px);
+      letter-spacing: 0.04em;
+      color: #9ec9ff;
+    }
+
+    p {
+      margin: 0 0 14px;
+      line-height: 1.45;
+      color: #d5e6ff;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(120deg, #49b7ff, #7d8cff);
+      color: #041022;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      padding: 12px 22px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <canvas id="game"></canvas>
+
+    <a class="back-link" href="/personal/#games">← Back to games</a>
+
+    <div class="hud">
+      <div class="pill" id="score">Score: 0</div>
+      <div class="pill" id="combo">Combo: x1</div>
+      <div class="pill" id="best">Best: 0</div>
+      <div class="pill" id="lives">Lives: 4</div>
+    </div>
+
+    <div class="overlay" id="start">
+      <div class="card">
+        <h1>Pulse Snare</h1>
+        <p>Outbound pulses explode from the center. Rotate your magnetic arc to catch them at the rim.</p>
+        <p><strong>Controls:</strong> A / D or ← / → on keyboard, or drag left/right on touch.</p>
+        <p>Each catch increases combo and game speed. A miss costs 1 life. Last long enough to enter flow state.</p>
+        <button class="btn" id="startBtn">Start Run</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="end" hidden>
+      <div class="card">
+        <h1>Run Over</h1>
+        <p id="finalScore">Score: 0</p>
+        <p id="finalBest">Best: 0</p>
+        <button class="btn" id="restartBtn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const scoreEl = document.getElementById("score");
+    const comboEl = document.getElementById("combo");
+    const bestEl = document.getElementById("best");
+    const livesEl = document.getElementById("lives");
+    const startScreen = document.getElementById("start");
+    const endScreen = document.getElementById("end");
+    const finalScoreEl = document.getElementById("finalScore");
+    const finalBestEl = document.getElementById("finalBest");
+
+    let w = 0;
+    let h = 0;
+    let cx = 0;
+    let cy = 0;
+    let arenaRadius = 0;
+
+    let running = false;
+    let score = 0;
+    let combo = 1;
+    let best = Number(localStorage.getItem("pulseSnareBest") || 0);
+    let lives = 4;
+    let baseSpeed = 2.0;
+    let spawnTimer = 0;
+    let arcAngle = -Math.PI / 2;
+    let arcWidth = 0.46;
+    let turnLeft = false;
+    let turnRight = false;
+    let pointerActive = false;
+    let pointerLastX = 0;
+    const particles = [];
+    const pulses = [];
+
+    bestEl.textContent = `Best: ${best}`;
+
+    function resize() {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w;
+      canvas.height = h;
+      cx = w * 0.5;
+      cy = h * 0.54;
+      arenaRadius = Math.min(w, h) * 0.31;
+    }
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function spawnPulse() {
+      const angle = rand(0, Math.PI * 2);
+      const speed = baseSpeed + rand(0.3, 1.8);
+      pulses.push({
+        x: cx,
+        y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: rand(7, 11),
+        hue: rand(180, 320)
+      });
+    }
+
+    function diffAngle(a, b) {
+      return Math.atan2(Math.sin(a - b), Math.cos(a - b));
+    }
+
+    function addBurst(x, y, hue, amount) {
+      for (let i = 0; i < amount; i += 1) {
+        const a = rand(0, Math.PI * 2);
+        const s = rand(0.8, 4.8);
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(a) * s,
+          vy: Math.sin(a) * s,
+          life: rand(20, 44),
+          hue
+        });
+      }
+    }
+
+    function resetRun() {
+      running = true;
+      score = 0;
+      combo = 1;
+      lives = 4;
+      baseSpeed = 2.0;
+      arcAngle = -Math.PI / 2;
+      spawnTimer = 16;
+      pulses.length = 0;
+      particles.length = 0;
+      startScreen.hidden = true;
+      endScreen.hidden = true;
+      syncHud();
+    }
+
+    function endRun() {
+      running = false;
+      if (score > best) {
+        best = score;
+        localStorage.setItem("pulseSnareBest", String(best));
+      }
+      bestEl.textContent = `Best: ${best}`;
+      finalScoreEl.textContent = `Score: ${score}`;
+      finalBestEl.textContent = `Best: ${best}`;
+      endScreen.hidden = false;
+    }
+
+    function syncHud() {
+      scoreEl.textContent = `Score: ${score}`;
+      comboEl.textContent = `Combo: x${combo}`;
+      livesEl.textContent = `Lives: ${lives}`;
+    }
+
+    function update() {
+      if (running) {
+        const turnSpeed = 0.065 + combo * 0.001;
+        if (turnLeft) arcAngle -= turnSpeed;
+        if (turnRight) arcAngle += turnSpeed;
+
+        spawnTimer -= 1;
+        if (spawnTimer <= 0) {
+          spawnPulse();
+          const pace = Math.max(7, 20 - Math.floor(combo * 0.6) - Math.floor(score / 80));
+          spawnTimer = pace;
+        }
+
+        for (let i = pulses.length - 1; i >= 0; i -= 1) {
+          const p = pulses[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          const dx = p.x - cx;
+          const dy = p.y - cy;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist >= arenaRadius) {
+            const angle = Math.atan2(dy, dx);
+            const isCaught = Math.abs(diffAngle(angle, arcAngle)) <= arcWidth * 0.5;
+
+            if (isCaught) {
+              score += combo * 5;
+              combo = Math.min(30, combo + 1);
+              baseSpeed = Math.min(5.6, baseSpeed + 0.014);
+              addBurst(p.x, p.y, p.hue, 20);
+            } else {
+              lives -= 1;
+              combo = 1;
+              addBurst(p.x, p.y, 8, 14);
+              if (lives <= 0) {
+                pulses.splice(i, 1);
+                syncHud();
+                endRun();
+                break;
+              }
+            }
+            pulses.splice(i, 1);
+            syncHud();
+          }
+        }
+      }
+
+      for (let i = particles.length - 1; i >= 0; i -= 1) {
+        const pt = particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.vx *= 0.98;
+        pt.vy *= 0.98;
+        pt.life -= 1;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function drawBackground() {
+      const gradient = ctx.createRadialGradient(cx, cy, arenaRadius * 0.1, cx, cy, arenaRadius * 2.1);
+      gradient.addColorStop(0, "#1d3f95");
+      gradient.addColorStop(1, "#060813");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = "rgba(127, 171, 255, 0.2)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, arenaRadius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawArc() {
+      const start = arcAngle - arcWidth * 0.5;
+      const end = arcAngle + arcWidth * 0.5;
+      ctx.strokeStyle = "#a8dbff";
+      ctx.lineWidth = Math.max(10, arenaRadius * 0.06);
+      ctx.shadowColor = "rgba(130, 212, 255, 0.9)";
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(cx, cy, arenaRadius, start, end);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawPulses() {
+      for (const p of pulses) {
+        ctx.fillStyle = `hsl(${p.hue} 100% 68%)`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawParticles() {
+      for (const pt of particles) {
+        ctx.globalAlpha = Math.max(0, pt.life / 44);
+        ctx.fillStyle = `hsl(${pt.hue} 100% 68%)`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawCore() {
+      const pulse = 10 + Math.sin(performance.now() * 0.007) * 2;
+      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 26 + pulse);
+      grad.addColorStop(0, "#ffffff");
+      grad.addColorStop(1, "rgba(135, 178, 255, 0.05)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 26 + pulse, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function render() {
+      drawBackground();
+      drawCore();
+      drawArc();
+      drawPulses();
+      drawParticles();
+    }
+
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    function setTurnState(e, down) {
+      const k = e.key.toLowerCase();
+      if (k === "a" || k === "arrowleft") turnLeft = down;
+      if (k === "d" || k === "arrowright") turnRight = down;
+    }
+
+    window.addEventListener("keydown", (e) => setTurnState(e, true));
+    window.addEventListener("keyup", (e) => setTurnState(e, false));
+    window.addEventListener("resize", resize);
+
+    canvas.addEventListener("pointerdown", (e) => {
+      pointerActive = true;
+      pointerLastX = e.clientX;
+      canvas.setPointerCapture(e.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (!pointerActive) return;
+      const dx = e.clientX - pointerLastX;
+      pointerLastX = e.clientX;
+      arcAngle += dx * 0.012;
+    });
+
+    canvas.addEventListener("pointerup", () => {
+      pointerActive = false;
+    });
+
+    document.getElementById("startBtn").addEventListener("click", resetRun);
+    document.getElementById("restartBtn").addEventListener("click", resetRun);
+
+    resize();
+    render();
+    loop();
+  </script>
+</body>
+</html>
