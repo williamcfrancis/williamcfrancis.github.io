@@ -8,6 +8,10 @@ const GROUND_FRICTION = 0.82;
 const AIR_FRICTION = 0.97;
 const COYOTE_FRAMES = 7;
 const JUMP_BUFFER_FRAMES = 7;
+const JUMP_CUT = 0.52;
+const MAX_FALL_SPEED = 15;
+const MAX_GROUND_SPEED = 8;
+const MAX_AIR_SPEED = 7;
 const BULLET_SPEED = 7;
 const FIRE_COOLDOWN = 22;
 const PW = 26, PH = 38;
@@ -142,6 +146,8 @@ let bullets = [];
 let particles = [];
 let hazardFields = [];
 let fireflies = [];
+let butterflies = [];
+let cloudWisps = [];
 let muzzleFlashes = [];
 let score = [0, 0];
 let roundNum = 0;
@@ -156,6 +162,7 @@ let shakeAmount = 0;
 let slowMo = 0;
 let lastTime = 0;
 let bgCanvas = null;
+let windPhase = 0;
 
 const keys = {};
 const GAME_KEYS = new Set(['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'f', '/', 'w', 'a', 's', 'd']);
@@ -260,6 +267,32 @@ function initFireflies() {
     });
   }
 }
+
+function initEnvironmentLife() {
+  butterflies = [];
+  cloudWisps = [];
+  for (let i = 0; i < 12; i++) {
+    cloudWisps.push({
+      x: Math.random() * W,
+      y: 30 + Math.random() * 170,
+      w: 34 + Math.random() * 42,
+      h: 14 + Math.random() * 16,
+      vx: 0.08 + Math.random() * 0.14,
+      alpha: 0.08 + Math.random() * 0.14,
+    });
+  }
+  for (let i = 0; i < 16; i++) {
+    butterflies.push({
+      x: Math.random() * W,
+      y: 180 + Math.random() * 260,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.35,
+      wing: Math.random() * Math.PI * 2,
+      color: Math.random() < 0.5 ? '#f6a3cd' : '#8cc5ff',
+    });
+  }
+}
+
 function updateFireflies() {
   for (const f of fireflies) {
     f.x += f.vx;
@@ -271,6 +304,24 @@ function updateFireflies() {
     f.phase += 0.03;
   }
 }
+
+function updateEnvironmentLife(dt) {
+  windPhase += dt * 0.01;
+  for (const c of cloudWisps) {
+    c.x += c.vx * dt * 0.2;
+    if (c.x > W + c.w + 30) c.x = -c.w - 30;
+  }
+  for (const b of butterflies) {
+    b.wing += dt * 0.18;
+    b.x += (b.vx + Math.sin(b.wing * 0.7) * 0.08) * dt;
+    b.y += (b.vy + Math.cos(b.wing * 0.9) * 0.06) * dt;
+    if (b.x < -15) b.x = W + 15;
+    if (b.x > W + 15) b.x = -15;
+    if (b.y < 130) b.y = 130;
+    if (b.y > H - 30) b.y = H - 30;
+  }
+}
+
 function renderFireflies() {
   for (const f of fireflies) {
     const alpha = 0.2 + (Math.sin(f.phase) * 0.5 + 0.5) * 0.45;
@@ -279,6 +330,33 @@ function renderFireflies() {
     ctx.fillRect(f.x, f.y, 2, 2);
   }
   ctx.globalAlpha = 1;
+}
+
+function renderEnvironmentLife() {
+  for (const c of cloudWisps) {
+    ctx.globalAlpha = c.alpha;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.w, c.h, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(c.x + c.w * 0.45, c.y - 3, c.w * 0.55, c.h * 0.75, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const b of butterflies) {
+    const flap = 0.6 + Math.sin(b.wing) * 0.4;
+    ctx.fillStyle = b.color;
+    ctx.globalAlpha = 0.72;
+    ctx.beginPath();
+    ctx.ellipse(b.x - 2, b.y, 2.5 + flap * 2.5, 1.6, -0.5, 0, Math.PI * 2);
+    ctx.ellipse(b.x + 2, b.y, 2.5 + flap * 2.5, 1.6, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#5f4a55';
+    ctx.fillRect(b.x - 0.5, b.y - 1.5, 1, 3);
+  }
 }
 
 function spawnMuzzleFlash(x, y, color) {
@@ -429,6 +507,7 @@ function createPlayer(idx) {
 function updatePlayers(dt) {
   for (const p of players) {
     if (!p.alive) continue;
+    const wasGrounded = p.grounded;
     const w = p.weapon;
     if (p.slowTimer > 0) p.slowTimer = Math.max(0, p.slowTimer - dt / 60);
     if (p.stunTimer > 0) p.stunTimer = Math.max(0, p.stunTimer - dt / 60);
@@ -461,12 +540,16 @@ function updatePlayers(dt) {
 
     const accel = p.grounded ? GROUND_ACCEL : AIR_ACCEL;
     const targetVx = isStunned ? 0 : moveDir * spd;
-    p.vx += (targetVx - p.vx) * accel * dt;
+    const response = Math.min(1, accel * dt);
+    p.vx += (targetVx - p.vx) * response;
     if (moveDir !== 0) p.facing = moveDir;
     p.vx *= p.grounded ? GROUND_FRICTION : AIR_FRICTION;
+    const maxSpeed = p.grounded ? MAX_GROUND_SPEED * w.move_speed : MAX_AIR_SPEED * w.move_speed;
+    p.vx = clamp(p.vx, -maxSpeed, maxSpeed);
 
     const jumpKey = isStunned ? false : (p.idx === 0 ? keys.w : keys.arrowup);
     if (jumpKey && !p.jumpHeld) p.jumpBufferTimer = JUMP_BUFFER_FRAMES;
+    if (!jumpKey && p.jumpHeld && p.vy < 0) p.vy *= JUMP_CUT;
     p.jumpHeld = !!jumpKey;
 
     if (p.grounded) p.coyoteTimer = COYOTE_FRAMES;
@@ -484,7 +567,7 @@ function updatePlayers(dt) {
 
     const gravityScale = p.vy < 0 ? 0.92 : 1.08;
     p.vy += grav * gravityScale * dt;
-    if (p.vy > 14) p.vy = 14;
+    if (p.vy > MAX_FALL_SPEED) p.vy = MAX_FALL_SPEED;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
 
@@ -500,6 +583,10 @@ function updatePlayers(dt) {
           p.grounded = true;
         }
       }
+    }
+
+    if (!wasGrounded && p.grounded) {
+      spawnParticles(p.x, p.y + 1, 4, '#f7e8d7', 1.1, 10, 'puff');
     }
 
     for (const wall of WALLS) {
@@ -895,6 +982,21 @@ function renderBackground() {
     for (let x = p.x + 10; x < p.x + p.w - 8; x += 18) c.fillRect(x, p.y + 6, 8, 2);
     c.fillStyle = 'rgba(255,255,255,0.25)';
     c.fillRect(p.x + 2, p.y + 1, p.w - 4, 1);
+    for (let fx = p.x + 8; fx < p.x + p.w - 8; fx += 28) {
+      if (Math.random() < 0.45) {
+        c.fillStyle = '#f6d89e';
+        c.fillRect(fx, p.y - 4, 2, 4);
+        c.fillStyle = '#f4a4c8';
+        c.fillRect(fx - 1, p.y - 6, 4, 2);
+      }
+    }
+  }
+
+  for (let i = 0; i < 60; i++) {
+    const sx = Math.random() * W;
+    const sy = 100 + Math.random() * (H - 170);
+    c.fillStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.2})`;
+    c.fillRect(sx, sy, 1, 1);
   }
 }
 
@@ -1020,7 +1122,9 @@ function drawProjectile(b) {
 function drawPlayer(p) {
   const ps = p.weapon.player_size;
   const pw = PW * ps, ph = PH * ps;
-  const bx = p.x - pw / 2, by = p.y - ph;
+  const stride = Math.min(1, Math.abs(p.vx) / (PLAYER_SPEED * Math.max(0.5, p.weapon.move_speed)));
+  const bob = p.grounded ? Math.sin((p.x + windPhase * 40) * 0.18) * stride * 1.5 : Math.sin((p.y + windPhase * 25) * 0.1) * 1.3;
+  const bx = p.x - pw / 2, by = p.y - ph + bob;
 
   if (p.damageTaken > 0) {
     ctx.globalAlpha = Math.floor(p.damageTaken) % 4 < 2 ? 0.5 : 1;
@@ -1032,35 +1136,56 @@ function drawPlayer(p) {
   ctx.ellipse(p.x, p.y + 3, pw * 0.52, 3, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  const hoodH = ph * 0.35;
-  const torsoH = ph * 0.38;
+  const hoodH = ph * 0.34;
+  const torsoH = ph * 0.4;
   const legH = ph - hoodH - torsoH;
-  const legW = pw * 0.28;
+  const legW = pw * 0.24;
   const legY = by + hoodH + torsoH;
+  const legSwing = p.grounded ? Math.sin((p.x + windPhase * 30) * 0.22) * stride * 1.4 : 0;
 
   ctx.fillStyle = '#6f533f';
-  ctx.fillRect(p.x - legW - 2, legY, legW, legH);
-  ctx.fillRect(p.x + 2, legY, legW, legH);
+  ctx.fillRect(p.x - legW - 2, legY + legSwing, legW, legH);
+  ctx.fillRect(p.x + 2, legY - legSwing, legW, legH);
   ctx.fillStyle = '#4f392a';
-  ctx.fillRect(p.x - legW - 2, legY + legH - 4, legW, 4);
-  ctx.fillRect(p.x + 2, legY + legH - 4, legW, 4);
+  ctx.fillRect(p.x - legW - 2, legY + legSwing + legH - 4, legW, 4);
+  ctx.fillRect(p.x + 2, legY - legSwing + legH - 4, legW, 4);
 
   ctx.fillStyle = p.robeColor;
   ctx.fillRect(bx + 2, by + hoodH, pw - 4, torsoH + 2);
   ctx.fillStyle = p.trimColor;
   ctx.fillRect(bx + 2, by + hoodH, pw - 4, 3);
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.fillRect(bx + pw * 0.25, by + hoodH + 6, pw * 0.5, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.24)';
+  ctx.fillRect(bx + pw * 0.24, by + hoodH + 6, pw * 0.52, 2);
+  ctx.fillStyle = 'rgba(70, 42, 60, 0.35)';
+  const capeWave = Math.sin((p.x + windPhase * 20) * 0.17 + (p.facing === 1 ? 0 : 1.7)) * 2;
+  ctx.fillRect(bx + (p.facing === 1 ? -2 : pw - 2), by + hoodH + 2, 4, torsoH + 6 + capeWave);
 
   ctx.fillStyle = p.hairColor;
-  ctx.fillRect(bx + 4, by + 1, pw - 8, hoodH - 2);
-  ctx.fillStyle = p.skinColor;
-  ctx.fillRect(bx + pw * 0.27, by + hoodH * 0.35, pw * 0.46, hoodH * 0.5);
-  ctx.fillStyle = '#3b2f3a';
-  ctx.fillRect(bx + pw * 0.35, by + hoodH * 0.5, 2, 2);
-  ctx.fillRect(bx + pw * 0.6, by + hoodH * 0.5, 2, 2);
+  ctx.fillRect(bx + 4, by + 2, pw - 8, hoodH - 3);
+  ctx.fillStyle = p.trimColor;
+  ctx.beginPath();
+  if (p.facing === 1) {
+    ctx.moveTo(bx + pw * 0.15, by + 2);
+    ctx.lineTo(bx + pw * 0.75, by + 2);
+    ctx.lineTo(bx + pw * 0.55, by - 8);
+  } else {
+    ctx.moveTo(bx + pw * 0.25, by + 2);
+    ctx.lineTo(bx + pw * 0.85, by + 2);
+    ctx.lineTo(bx + pw * 0.45, by - 8);
+  }
+  ctx.closePath();
+  ctx.fill();
 
-  const armY = by + hoodH + torsoH * 0.2;
+  ctx.fillStyle = p.skinColor;
+  ctx.fillRect(bx + pw * 0.28, by + hoodH * 0.34, pw * 0.44, hoodH * 0.5);
+  ctx.fillStyle = '#3b2f3a';
+  const blink = Math.sin((performance.now() + p.idx * 370) * 0.01) > 0.95;
+  ctx.fillRect(bx + pw * 0.36, by + hoodH * 0.5, 2, blink ? 1 : 2);
+  ctx.fillRect(bx + pw * 0.58, by + hoodH * 0.5, 2, blink ? 1 : 2);
+  ctx.fillStyle = p.trimColor;
+  ctx.fillRect(bx + pw * 0.43, by + hoodH * 0.63, pw * 0.14, 1);
+
+  const armY = by + hoodH + torsoH * 0.22 + legSwing * 0.5;
   const spriteSize = 2;
   const weaponW = p.weapon.pixel_rows.length * spriteSize;
   const weaponX = p.facing === 1 ? bx + pw + 2 : bx - (weaponW + 2);
@@ -1090,6 +1215,7 @@ function render() {
   ctx.translate(ox, oy);
 
   ctx.drawImage(bgCanvas, 0, 0);
+  renderEnvironmentLife();
   renderFireflies();
   renderHazardFields();
   renderMuzzleFlashes();
@@ -1359,6 +1485,7 @@ function startGame() {
   playerWeapons = [DEFAULT_WEAPON, DEFAULT_WEAPON];
   players = [createPlayer(0), createPlayer(1)];
   initFireflies();
+  initEnvironmentLife();
   renderBackground();
   startRound();
 }
@@ -1407,6 +1534,7 @@ function gameLoop(timestamp) {
       countdownTimer += rawDt;
       if (countdownTimer > 50) { countdownTimer = 0; countdownVal--; }
       if (countdownVal < 0) gameState = 'playing';
+      updateEnvironmentLife(rawDt);
       updateFireflies();
       render();
       if (gameState === 'countdown') renderCountdown();
@@ -1417,6 +1545,7 @@ function gameLoop(timestamp) {
       updateParticles(dt);
       updateHazardFields(dt);
       updateMuzzleFlashes(dt);
+      updateEnvironmentLife(dt);
       updateFireflies();
       checkRoundEnd();
       render();
@@ -1424,17 +1553,20 @@ function gameLoop(timestamp) {
     case 'round_over_display':
       updateParticles(rawDt);
       updateHazardFields(rawDt);
+      updateEnvironmentLife(rawDt);
       updateFireflies();
       renderRoundOverDisplay();
       break;
     case 'compiler':
       updateHazardFields(rawDt);
+      updateEnvironmentLife(rawDt);
       updateFireflies();
       render();
       break;
     case 'game_over':
       updateParticles(rawDt);
       updateHazardFields(rawDt);
+      updateEnvironmentLife(rawDt);
       updateFireflies();
       renderGameOver();
       break;
@@ -1450,6 +1582,7 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 initFireflies();
+initEnvironmentLife();
 renderBackground();
 
 gameState = 'title';

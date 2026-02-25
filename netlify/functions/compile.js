@@ -287,7 +287,19 @@ function normalizeRows(rows) {
   });
 }
 
-function clampWeapon(mod) {
+function requestExplicitlyWantsTracking(requestText) {
+  const text = String(requestText || '').toLowerCase();
+  const trackingSignals = [
+    'homing', 'home in', 'seeking', 'seek', 'tracking', 'track',
+    'guided', 'guide', 'lock on', 'lock-on', 'auto aim', 'auto-aim',
+    'target bounce', 'chase projectile', 'chasing projectile',
+    'remote', 'steer', 'steering',
+  ];
+  return trackingSignals.some(signal => text.includes(signal));
+}
+
+function clampWeapon(mod, requestText) {
+  const wantsTracking = requestExplicitlyWantsTracking(requestText);
   return {
     name: String(mod.name || 'Wished Relic').slice(0, 60),
     quip: String(mod.quip || 'The stars shrugged and granted it anyway.').slice(0, 150),
@@ -300,7 +312,7 @@ function clampWeapon(mod) {
     bullet_count: Math.round(clamp(mod.bullet_count, 1, 7)),
     bullet_spread: clamp(mod.bullet_spread, 0, 50),
     bullet_bounces: Math.round(clamp(mod.bullet_bounces, 0, 6)),
-    bullet_homing: clamp(mod.bullet_homing, 0, 0.5),
+    bullet_homing: wantsTracking ? clamp(mod.bullet_homing, 0, 0.5) : 0,
     fire_rate: clamp(mod.fire_rate, 0.2, 3.5),
     move_speed: clamp(mod.move_speed, 0.25, 2.5),
     jump_power: clamp(mod.jump_power, 0.25, 2.5),
@@ -367,7 +379,7 @@ function clampWeapon(mod) {
     projectile_growth: clamp(mod.projectile_growth, 0, 2),
     pierce_walls: Math.round(clamp(mod.pierce_walls, 0, 1)),
     ground_avoidance: clamp(mod.ground_avoidance, 0, 1),
-    steering: clamp(mod.steering, 0, 1),
+    steering: wantsTracking ? clamp(mod.steering, 0, 1) : 0,
     self_damage_on_shoot: clamp(mod.self_damage_on_shoot, 0, 25),
   };
 }
@@ -475,6 +487,8 @@ PROMPT INTERPRETATION:
 - If request includes emotion (angry, calm, playful), reflect it in projectile_shape, trail_style, sound_pitch and sound_release.
 - The effect system should be composable: combine 2-4 mechanics when requested.
 - Do NOT reference named cards/powerups. Translate intent into mechanics directly.
+- IMPORTANT: Do NOT add tracking by default.
+- bullet_homing and steering must be 0 unless the player explicitly asks for homing/seeking/tracking/guided/remote-steered behavior.
 
 MODIFIER RANGES (values outside these will be clamped):
 - bullet_size: 0.2–6.0 (multiplier, 1.0=default)
@@ -542,7 +556,7 @@ VOICE:
       console.log('[compile] Raw:', raw.slice(0, 200));
 
       const parsed = JSON.parse(raw);
-      const mod = clampWeapon(parsed);
+      const mod = clampWeapon(parsed, request);
       return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod }) };
     } catch (err) {
       console.error('[compile] Error on attempt', attempt + 1, ':', err.message);
