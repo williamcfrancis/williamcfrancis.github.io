@@ -8,6 +8,8 @@ const RESPONSE_SCHEMA = {
     'fire_rate', 'move_speed', 'jump_power', 'player_gravity',
     'player_size', 'on_bounce_split', 'knockback_power', 'hp_bonus',
     'regen', 'trail_style', 'impact_style', 'sound_profile',
+    'projectile_shape', 'trail_density', 'effect_intensity',
+    'sound_pitch', 'sound_release',
     'projectile_color', 'trail_color', 'impact_color', 'glow_color',
     'pixel_rows', 'palette',
   ],
@@ -36,6 +38,11 @@ const RESPONSE_SCHEMA = {
     trail_style: { type: 'STRING' },
     impact_style: { type: 'STRING' },
     sound_profile: { type: 'STRING' },
+    projectile_shape: { type: 'STRING' },
+    trail_density: { type: 'NUMBER' },
+    effect_intensity: { type: 'NUMBER' },
+    sound_pitch: { type: 'NUMBER' },
+    sound_release: { type: 'NUMBER' },
     projectile_color: { type: 'STRING' },
     trail_color: { type: 'STRING' },
     impact_color: { type: 'STRING' },
@@ -51,6 +58,14 @@ const RESPONSE_SCHEMA = {
         B: { type: 'STRING' },
         C: { type: 'STRING' },
         D: { type: 'STRING' },
+        E: { type: 'STRING' },
+        F: { type: 'STRING' },
+        G: { type: 'STRING' },
+        H: { type: 'STRING' },
+        I: { type: 'STRING' },
+        J: { type: 'STRING' },
+        K: { type: 'STRING' },
+        L: { type: 'STRING' },
       },
     },
   },
@@ -82,12 +97,25 @@ const FALLBACK_WEAPONS = [
     trail_style: 'petals',
     impact_style: 'sparkles',
     sound_profile: 'chime',
+    projectile_shape: 'star',
+    trail_density: 0.8,
+    effect_intensity: 0.75,
+    sound_pitch: 1.1,
+    sound_release: 0.9,
     projectile_color: '#ffd86b',
     trail_color: '#ff9fd1',
     impact_color: '#fff3ba',
     glow_color: '#ffdca8',
-    pixel_rows: ['.AB.', 'ACB.', '.CD.', '..D.'],
-    palette: { A: '#ffe59d', B: '#ffb870', C: '#f58ec4', D: '#8e5ed6' },
+    pixel_rows: [
+      '..C....',
+      '.CCC...',
+      '..AAB..',
+      '..AAD..',
+      '..AAD..',
+      '...FD..',
+      '...F...',
+    ],
+    palette: { A: '#ffe59d', B: '#ffd2a3', C: '#f58ec4', D: '#8e5ed6', E: '#fff9cf', F: '#6a4d38', G: '#b6a0ea', H: '#f8b4dc', I: '#fff3e1', J: '#4f3842', K: '#d7c3ff', L: '#fbe0a8' },
   },
   {
     name: 'Bubble Kettle',
@@ -114,12 +142,25 @@ const FALLBACK_WEAPONS = [
     trail_style: 'bubbles',
     impact_style: 'puff',
     sound_profile: 'bubble',
+    projectile_shape: 'bubble',
+    trail_density: 0.95,
+    effect_intensity: 0.7,
+    sound_pitch: 1.2,
+    sound_release: 0.75,
     projectile_color: '#a4d8ff',
     trail_color: '#cdeeff',
     impact_color: '#ffffff',
     glow_color: '#b2f0ff',
-    pixel_rows: ['.AA.', 'ABBA', '.CC.', '..D.'],
-    palette: { A: '#9ad0ff', B: '#5fa8ff', C: '#ffd6ea', D: '#8d63d2' },
+    pixel_rows: [
+      '.AAAA..',
+      'ABBBA..',
+      'ABCBBA.',
+      '.ABBBA.',
+      '..DDD..',
+      '..DDD..',
+      '...D...',
+    ],
+    palette: { A: '#9ad0ff', B: '#5fa8ff', C: '#ffffff', D: '#8d63d2', E: '#d2efff', F: '#4f7ec4', G: '#ffd6ea', H: '#f8f0ff', I: '#fefcff', J: '#5e4b7f', K: '#c4a8ff', L: '#ffe8f5' },
   },
 ];
 
@@ -137,12 +178,20 @@ function sanitizeHex(hex, fallback) {
 }
 
 function normalizeRows(rows) {
-  const fallback = ['.AA.', '.BC.', '.CD.', '..D.'];
-  if (!Array.isArray(rows) || rows.length !== 4) return fallback;
+  const fallback = [
+    '..AA...',
+    '.ABBA..',
+    '..ACD..',
+    '..ACD..',
+    '...DD..',
+    '...F...',
+    '.......',
+  ];
+  if (!Array.isArray(rows) || rows.length !== 7) return fallback;
   return rows.map((row, idx) => {
-    const s = String(row || '').toUpperCase().slice(0, 4).padEnd(4, '.');
-    const cleaned = s.replace(/[^ABCD.]/g, '.');
-    return cleaned.length === 4 ? cleaned : fallback[idx];
+    const s = String(row || '').toUpperCase().slice(0, 7).padEnd(7, '.');
+    const cleaned = s.replace(/[^ABCDEFGHIJKL.]/g, '.');
+    return cleaned.length === 7 ? cleaned : fallback[idx];
   });
 }
 
@@ -172,6 +221,11 @@ function clampWeapon(mod) {
     trail_style: String(mod.trail_style || 'sparkle').slice(0, 20).toLowerCase(),
     impact_style: String(mod.impact_style || 'sparkles').slice(0, 20).toLowerCase(),
     sound_profile: String(mod.sound_profile || 'chime').slice(0, 20).toLowerCase(),
+    projectile_shape: String(mod.projectile_shape || 'orb').slice(0, 20).toLowerCase(),
+    trail_density: clamp(mod.trail_density, 0.2, 2),
+    effect_intensity: clamp(mod.effect_intensity, 0.2, 2),
+    sound_pitch: clamp(mod.sound_pitch, 0.5, 2),
+    sound_release: clamp(mod.sound_release, 0.5, 2),
     projectile_color: sanitizeHex(mod.projectile_color, '#ffd86b'),
     trail_color: sanitizeHex(mod.trail_color, '#ffc9e8'),
     impact_color: sanitizeHex(mod.impact_color, '#fff3ba'),
@@ -182,6 +236,14 @@ function clampWeapon(mod) {
       B: sanitizeHex(mod.palette?.B, '#ffb870'),
       C: sanitizeHex(mod.palette?.C, '#f58ec4'),
       D: sanitizeHex(mod.palette?.D, '#8e5ed6'),
+      E: sanitizeHex(mod.palette?.E, '#f7f2df'),
+      F: sanitizeHex(mod.palette?.F, '#5c4a44'),
+      G: sanitizeHex(mod.palette?.G, '#9fb4d8'),
+      H: sanitizeHex(mod.palette?.H, '#b39cd8'),
+      I: sanitizeHex(mod.palette?.I, '#fff3e1'),
+      J: sanitizeHex(mod.palette?.J, '#5b4952'),
+      K: sanitizeHex(mod.palette?.K, '#cdb7ff'),
+      L: sanitizeHex(mod.palette?.L, '#fbe0a8'),
     },
   };
 }
@@ -237,23 +299,43 @@ Example:
 - "Huge castle launcher" => high bullet_size and hp_bonus, but larger player_size and slower jump.
 
 PIXEL ART WEAPON REQUIREMENTS (strict):
-- Return pixel_rows as exactly 4 strings, each exactly 4 chars.
-- Allowed chars: A B C D .
+- Return pixel_rows as exactly 7 strings, each exactly 7 chars.
+- Allowed chars: A B C D E F G H I J K L .
 - "." means transparent.
-- Build a readable tiny icon silhouette in 4x4.
-- palette provides HEX colors for A/B/C/D.
+- Build a readable tiny icon silhouette in 7x7 that clearly resembles the requested object category.
+- palette provides HEX colors for A-L.
+- Symbol intent:
+  - A = primary body color
+  - B = secondary body/trim
+  - C = accent/magic glow
+  - D = handle/core
+  - E = highlight
+  - F = outline/shadow
+  - G/H = optional special detail
+  - I/J = tiny detail and shadow
+  - K/L = magical rune or reflective sparkle
+- Use at least 12 non-transparent pixels and avoid random noise.
+- Prefer asymmetry when object shape calls for directionality (blade tip, barrel, wand head).
 - Use warm, cute, storybook fantasy colors (avoid harsh cyber neon).
 
 SFX/VFX MAPPING HINTS:
 - trail_style one of: sparkle, petals, bubbles, smoke, leaf, rainbow, ember
 - impact_style one of: sparkles, puff, splash, pop, burst
-- sound_profile one of: chime, flute, bell, bubble, twig, horn, pop
+- sound_profile one of: chime, flute, bell, bubble, twig, horn, pop, crystal, drum, harp, whoosh, crackle
+- projectile_shape one of: orb, shard, star, crescent, heart, bolt, petal, bubble, leaf, gem, rune, comet
+- trail_density: 0.2 to 2.0 (more particles and longer trail)
+- effect_intensity: 0.2 to 2.0 (impact pop and glow strength)
+- sound_pitch: 0.5 to 2.0 (0.5 low/deep, 2.0 high/cute)
+- sound_release: 0.5 to 2.0 (0.5 short/snappy, 2.0 long/ringing)
 - projectile/trail/impact/glow colors should match the wish concept.
 
 PROMPT INTERPRETATION:
 - Honor nouns and adjectives from player text literally.
 - If request is absurd, make it absurd but coherent.
 - If request is not a weapon, reinterpret as magical launcher version of that thing.
+- Prioritize silhouette recognizability over abstract patterning.
+- If the request includes materials (wooden, crystal, golden, icy), reflect those in both palette and sound_profile.
+- If request includes emotion (angry, calm, playful), reflect it in projectile_shape, trail_style, sound_pitch and sound_release.
 
 MODIFIER RANGES (values outside these will be clamped):
 - bullet_size: 0.2–6.0 (multiplier, 1.0=default)

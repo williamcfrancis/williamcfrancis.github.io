@@ -2,13 +2,19 @@ const W = 960, H = 540;
 const GRAVITY = 0.42;
 const PLAYER_SPEED = 3.2;
 const JUMP_FORCE = -9.5;
+const GROUND_ACCEL = 0.34;
+const AIR_ACCEL = 0.18;
+const GROUND_FRICTION = 0.82;
+const AIR_FRICTION = 0.97;
+const COYOTE_FRAMES = 7;
+const JUMP_BUFFER_FRAMES = 7;
 const BULLET_SPEED = 7;
 const FIRE_COOLDOWN = 22;
 const PW = 26, PH = 38;
 const BULLET_R = 4;
 const MAX_HP = 100;
-const COMPILE_TIME = 20;
-const WINS_NEEDED = 3;
+const COMPILE_TIME = 60;
+const ROUNDS_PER_GAME = 5;
 const KILL_Y = H + 60;
 
 const PLATFORMS = [
@@ -50,12 +56,38 @@ const DEFAULT_WEAPON = {
   trail_style: 'sparkle',
   impact_style: 'sparkles',
   sound_profile: 'twig',
+  projectile_shape: 'orb',
+  trail_density: 1,
+  effect_intensity: 1,
+  sound_pitch: 1,
+  sound_release: 1,
   projectile_color: '#ffd37b',
   trail_color: '#ffe6b9',
   impact_color: '#fff4d7',
   glow_color: '#ffe7b0',
-  pixel_rows: ['.AB.', '.BC.', '.CD.', '..D.'],
-  palette: { A: '#f9e2a1', B: '#d9a55d', C: '#b87844', D: '#8c5f3f' },
+  pixel_rows: [
+    '..AAA..',
+    '.ABBBA.',
+    '..ACD..',
+    '..ACD..',
+    '..ACD..',
+    '...DD..',
+    '...F...',
+  ],
+  palette: {
+    A: '#f9e2a1',
+    B: '#d9a55d',
+    C: '#b87844',
+    D: '#8c5f3f',
+    E: '#fff1d6',
+    F: '#5b4133',
+    G: '#d9c0a1',
+    H: '#f3d8b7',
+    I: '#fff8ef',
+    J: '#4f352b',
+    K: '#e2c8a5',
+    L: '#f8e4c3',
+  },
 };
 
 const canvas = document.getElementById('game');
@@ -120,7 +152,10 @@ function quickTone(type, freq, dur, gain = 0.08) {
   o.start(t);
   o.stop(t + dur);
 }
-function playSound(type, profile = 'chime') {
+function playSound(type, profile = 'chime', pitch = 1, release = 1, intensity = 1) {
+  const p = clamp(pitch, 0.5, 2);
+  const r = clamp(release, 0.5, 2);
+  const g = clamp(intensity, 0.25, 2);
   if (type === 'jump') return quickTone('sine', 290, 0.12, 0.06);
   if (type === 'hit') return quickTone('triangle', 170, 0.14, 0.1);
   if (type === 'death') return quickTone('sawtooth', 220, 0.6, 0.18);
@@ -134,9 +169,14 @@ function playSound(type, profile = 'chime') {
     twig: ['triangle', 310, 0.08, 0.06],
     horn: ['sawtooth', 260, 0.11, 0.08],
     pop: ['square', 620, 0.06, 0.06],
+    crystal: ['sine', 1040, 0.15, 0.08],
+    drum: ['sawtooth', 170, 0.1, 0.11],
+    harp: ['triangle', 760, 0.2, 0.07],
+    whoosh: ['sawtooth', 380, 0.07, 0.08],
+    crackle: ['square', 820, 0.05, 0.06],
   };
   const [wave, freq, dur, gain] = map[profile] || map.chime;
-  quickTone(wave, freq, dur, gain);
+  quickTone(wave, freq * p, dur * r, gain * g);
 }
 
 function spawnParticles(x, y, count, color, speed, life, style = 'dot') {
@@ -251,6 +291,11 @@ function normalizeWeapon(w) {
   weapon.knockback_power = clamp(Number(weapon.knockback_power) || 1, 0.3, 5);
   weapon.hp_bonus = Math.round(clamp(Number(weapon.hp_bonus) || 0, -40, 60));
   weapon.regen = clamp(Number(weapon.regen) || 0, 0, 4);
+  weapon.projectile_shape = String(weapon.projectile_shape || 'orb').slice(0, 20).toLowerCase();
+  weapon.trail_density = clamp(Number(weapon.trail_density) || 1, 0.2, 2);
+  weapon.effect_intensity = clamp(Number(weapon.effect_intensity) || 1, 0.2, 2);
+  weapon.sound_pitch = clamp(Number(weapon.sound_pitch) || 1, 0.5, 2);
+  weapon.sound_release = clamp(Number(weapon.sound_release) || 1, 0.5, 2);
   weapon.pixel_rows = normalizeRows(weapon.pixel_rows);
   weapon.palette = normalizePalette(weapon.palette);
   weapon.projectile_color = normalizeHex(weapon.projectile_color, '#ffd37b');
@@ -262,10 +307,10 @@ function normalizeWeapon(w) {
 
 function normalizeRows(rows) {
   const fallback = DEFAULT_WEAPON.pixel_rows;
-  if (!Array.isArray(rows) || rows.length !== 4) return fallback;
+  if (!Array.isArray(rows) || rows.length !== 7) return fallback;
   return rows.map((row, i) => {
-    const r = String(row || '').toUpperCase().slice(0, 4).padEnd(4, '.').replace(/[^ABCD.]/g, '.');
-    return r.length === 4 ? r : fallback[i];
+    const r = String(row || '').toUpperCase().slice(0, 7).padEnd(7, '.').replace(/[^ABCDEFGHIJKL.]/g, '.');
+    return r.length === 7 ? r : fallback[i];
   });
 }
 function normalizeHex(hex, fb) {
@@ -278,6 +323,14 @@ function normalizePalette(pal) {
     B: normalizeHex(pal?.B, DEFAULT_WEAPON.palette.B),
     C: normalizeHex(pal?.C, DEFAULT_WEAPON.palette.C),
     D: normalizeHex(pal?.D, DEFAULT_WEAPON.palette.D),
+    E: normalizeHex(pal?.E, DEFAULT_WEAPON.palette.A),
+    F: normalizeHex(pal?.F, DEFAULT_WEAPON.palette.B),
+    G: normalizeHex(pal?.G, DEFAULT_WEAPON.palette.C),
+    H: normalizeHex(pal?.H, DEFAULT_WEAPON.palette.D),
+    I: normalizeHex(pal?.I, DEFAULT_WEAPON.palette.E),
+    J: normalizeHex(pal?.J, DEFAULT_WEAPON.palette.F),
+    K: normalizeHex(pal?.K, DEFAULT_WEAPON.palette.G),
+    L: normalizeHex(pal?.L, DEFAULT_WEAPON.palette.H),
   };
 }
 
@@ -294,6 +347,9 @@ function createPlayer(idx) {
     hp: maxHp,
     maxHp,
     fireCd: 0,
+    jumpHeld: false,
+    coyoteTimer: 0,
+    jumpBufferTimer: 0,
     weapon,
     alive: true,
     damageTaken: 0,
@@ -320,22 +376,31 @@ function updatePlayers(dt) {
       if (keys.arrowright) moveDir = 1;
     }
 
-    if (moveDir !== 0) {
-      p.vx = moveDir * spd;
-      p.facing = moveDir;
-    } else {
-      p.vx *= 0.72;
-    }
+    const accel = p.grounded ? GROUND_ACCEL : AIR_ACCEL;
+    const targetVx = moveDir * spd;
+    p.vx += (targetVx - p.vx) * accel * dt;
+    if (moveDir !== 0) p.facing = moveDir;
+    p.vx *= p.grounded ? GROUND_FRICTION : AIR_FRICTION;
 
     const jumpKey = p.idx === 0 ? keys.w : keys.arrowup;
-    if (jumpKey && p.grounded) {
+    if (jumpKey && !p.jumpHeld) p.jumpBufferTimer = JUMP_BUFFER_FRAMES;
+    p.jumpHeld = !!jumpKey;
+
+    if (p.grounded) p.coyoteTimer = COYOTE_FRAMES;
+    else p.coyoteTimer = Math.max(0, p.coyoteTimer - dt);
+    p.jumpBufferTimer = Math.max(0, p.jumpBufferTimer - dt);
+
+    if (p.jumpBufferTimer > 0 && p.coyoteTimer > 0) {
       p.vy = JUMP_FORCE * w.jump_power;
       p.grounded = false;
+      p.coyoteTimer = 0;
+      p.jumpBufferTimer = 0;
       playSound('jump');
       spawnParticles(p.x, p.y, 4, '#fff5cc', 1.8, 10, 'spark');
     }
 
-    p.vy += grav * dt;
+    const gravityScale = p.vy < 0 ? 0.92 : 1.08;
+    p.vy += grav * gravityScale * dt;
     if (p.vy > 14) p.vy = 14;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
@@ -384,7 +449,7 @@ function fireBullets(p) {
   const count = w.bullet_count;
   const spread = w.bullet_spread;
   const baseAngle = p.facing === 1 ? 0 : Math.PI;
-  playSound('shoot', w.sound_profile);
+  playSound('shoot', w.sound_profile, w.sound_pitch, w.sound_release, w.effect_intensity);
   const muzzleX = p.x + p.facing * (PW * w.player_size / 2 + 10 * w.player_size);
   const muzzleY = p.y - PH * w.player_size * 0.62;
   spawnMuzzleFlash(muzzleX, muzzleY, w.glow_color);
@@ -416,6 +481,9 @@ function fireBullets(p) {
       impactColor: w.impact_color,
       trailStyle: w.trail_style,
       impactStyle: w.impact_style,
+      projectileShape: w.projectile_shape,
+      trailDensity: w.trail_density,
+      effectIntensity: w.effect_intensity,
       trail: [],
     });
   }
@@ -447,7 +515,7 @@ function updateBullets(dt) {
 
     b.trail.push({ x: b.x, y: b.y });
     if (b.trail.length > 10) b.trail.shift();
-    if (Math.random() < 0.4) spawnTrailParticle(b);
+    if (Math.random() < 0.34 * b.trailDensity) spawnTrailParticle(b);
     b.x += b.vx * dt;
     b.y += b.vy * dt;
 
@@ -545,7 +613,8 @@ function spawnTrailParticle(b) {
     rainbow: 'dot',
     ember: 'ember',
   };
-  spawnParticles(b.x, b.y, 1, b.trailColor, 0.5, 10, map[b.trailStyle] || 'dot');
+  const count = b.trailDensity > 1.35 ? 2 : 1;
+  spawnParticles(b.x, b.y, count, b.trailColor, 0.5 * b.effectIntensity, 10 * b.effectIntensity, map[b.trailStyle] || 'dot');
 }
 function spawnImpactEffect(x, y, style, color) {
   const count = style === 'burst' ? 12 : style === 'splash' ? 10 : style === 'puff' ? 8 : 7;
@@ -612,17 +681,106 @@ function renderBackground() {
 
 function drawWeaponSprite(weapon, x, y, size, facing) {
   const rows = weapon.pixel_rows;
+  const grid = rows.length;
   const pal = weapon.palette;
-  for (let ry = 0; ry < 4; ry++) {
-    for (let rx = 0; rx < 4; rx++) {
+  const isFilled = (tx, ty) => {
+    if (tx < 0 || tx > grid - 1 || ty < 0 || ty > grid - 1) return false;
+    return rows[ty][tx] !== '.';
+  };
+  for (let ry = 0; ry < grid; ry++) {
+    for (let rx = 0; rx < grid; rx++) {
       const ch = rows[ry][rx];
       if (ch === '.') continue;
+      const drawX = facing === 1 ? x + rx * size : x + (grid - 1 - rx) * size;
+      const drawY = y + ry * size;
+
+      const hasHole =
+        !isFilled(rx - 1, ry) ||
+        !isFilled(rx + 1, ry) ||
+        !isFilled(rx, ry - 1) ||
+        !isFilled(rx, ry + 1);
+      if (hasHole) {
+        ctx.fillStyle = 'rgba(45, 32, 28, 0.45)';
+        ctx.fillRect(drawX - 1, drawY - 1, size + 2, size + 2);
+      }
+
       const color = pal[ch] || '#fff';
-      const drawX = facing === 1 ? x + rx * size : x + (3 - rx) * size;
       ctx.fillStyle = color;
-      ctx.fillRect(drawX, y + ry * size, size, size);
+      ctx.fillRect(drawX, drawY, size, size);
     }
   }
+}
+
+function drawProjectile(b) {
+  const shape = b.projectileShape || 'orb';
+  if (shape === 'star') {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const rr = i % 2 === 0 ? b.r : b.r * 0.45;
+      const px = b.x + Math.cos(a) * rr;
+      const py = b.y + Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+  if (shape === 'shard' || shape === 'bolt' || shape === 'leaf') {
+    const ang = Math.atan2(b.vy, b.vx);
+    const tipX = b.x + Math.cos(ang) * b.r * 1.6;
+    const tipY = b.y + Math.sin(ang) * b.r * 1.6;
+    const lX = b.x + Math.cos(ang + 2.35) * b.r;
+    const lY = b.y + Math.sin(ang + 2.35) * b.r;
+    const rX = b.x + Math.cos(ang - 2.35) * b.r;
+    const rY = b.y + Math.sin(ang - 2.35) * b.r;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(lX, lY);
+    ctx.lineTo(rX, rY);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+  if (shape === 'heart') {
+    const rr = b.r * 0.9;
+    ctx.beginPath();
+    ctx.arc(b.x - rr * 0.45, b.y - rr * 0.2, rr * 0.45, 0, Math.PI * 2);
+    ctx.arc(b.x + rr * 0.45, b.y - rr * 0.2, rr * 0.45, 0, Math.PI * 2);
+    ctx.moveTo(b.x - rr, b.y - rr * 0.05);
+    ctx.lineTo(b.x, b.y + rr * 1.05);
+    ctx.lineTo(b.x + rr, b.y - rr * 0.05);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+  if (shape === 'crescent') {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(b.x + b.r * 0.45, b.y - b.r * 0.1, b.r * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    return;
+  }
+  if (shape === 'bubble') {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath();
+    ctx.arc(b.x - b.r * 0.25, b.y - b.r * 0.25, b.r * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = b.color;
+    return;
+  }
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawPlayer(p) {
@@ -669,12 +827,14 @@ function drawPlayer(p) {
   ctx.fillRect(bx + pw * 0.6, by + hoodH * 0.5, 2, 2);
 
   const armY = by + hoodH + torsoH * 0.2;
-  const weaponX = p.facing === 1 ? bx + pw + 2 : bx - 18;
+  const spriteSize = 2;
+  const weaponW = p.weapon.pixel_rows.length * spriteSize;
+  const weaponX = p.facing === 1 ? bx + pw + 2 : bx - (weaponW + 2);
   const weaponY = armY - 4;
   ctx.fillStyle = p.trimColor;
   if (p.facing === 1) ctx.fillRect(bx + pw, armY, 4, 5);
   else ctx.fillRect(bx - 4, armY, 4, 5);
-  drawWeaponSprite(p.weapon, weaponX, weaponY, 3, p.facing);
+  drawWeaponSprite(p.weapon, weaponX, weaponY, spriteSize, p.facing);
 
   const hpFrac = Math.max(0, p.hp / p.maxHp);
   const barW = 38, barH = 4;
@@ -713,10 +873,8 @@ function render() {
     ctx.save();
     ctx.fillStyle = b.color;
     ctx.shadowColor = b.glowColor;
-    ctx.shadowBlur = b.r * 4;
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.shadowBlur = b.r * (3 + b.effectIntensity);
+    drawProjectile(b);
     ctx.restore();
     ctx.globalAlpha = 0.8;
     ctx.fillStyle = '#fff';
@@ -779,7 +937,7 @@ function renderHud() {
   ctx.fillText(`${score[0]}  -  ${score[1]}`, W / 2, 16);
   ctx.fillStyle = '#6a5448';
   ctx.font = '14px "VT323", monospace';
-  ctx.fillText(`Round ${roundNum}`, W / 2, 31);
+  ctx.fillText(`Round ${Math.min(roundNum, ROUNDS_PER_GAME)}/${ROUNDS_PER_GAME}`, W / 2, 31);
 }
 
 function renderTitle() {
@@ -803,7 +961,8 @@ function renderTitle() {
   ctx.font = '16px "VT323", monospace';
   ctx.fillStyle = '#6b5b4f';
   ctx.fillText('Lose a round -> enter the Wish Forge -> describe your dream (or silly) item.', W / 2, H * 0.65);
-  ctx.fillText('The spirit builds a new 4x4 pixel relic with matching colors, sound, and effects.', W / 2, H * 0.70);
+  ctx.fillText('The spirit builds a new 7x7 pixel relic with matching colors, sound, and effects.', W / 2, H * 0.70);
+  ctx.fillText(`A full game is ${ROUNDS_PER_GAME} rounds. Highest score wins.`, W / 2, H * 0.75);
   const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
   ctx.fillStyle = `rgba(114, 77, 109, ${0.45 + pulse * 0.55})`;
   ctx.font = '26px "VT323", monospace';
@@ -821,7 +980,7 @@ function renderRoundOverDisplay() {
   ctx.fillText(`PLAYER ${roundWinner + 1} WON THE ROUND`, W / 2, H * 0.4);
   ctx.font = '22px "VT323", monospace';
   ctx.fillStyle = '#714f3d';
-  ctx.fillText(`Score: ${score[0]} - ${score[1]} (First to ${WINS_NEEDED})`, W / 2, H * 0.52);
+  ctx.fillText(`Score: ${score[0]} - ${score[1]} (${Math.min(roundNum, ROUNDS_PER_GAME)}/${ROUNDS_PER_GAME} rounds)`, W / 2, H * 0.52);
   ctx.font = '18px "VT323", monospace';
   ctx.fillStyle = '#6a5448';
   ctx.fillText('Press SPACE to continue', W / 2, H * 0.64);
@@ -833,10 +992,11 @@ function renderGameOver() {
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const winnerIdx = score[0] >= WINS_NEEDED ? 0 : 1;
+  const isDraw = score[0] === score[1];
+  const winnerIdx = score[0] > score[1] ? 0 : 1;
   ctx.font = '50px "VT323", monospace';
-  ctx.fillStyle = players[winnerIdx]?.robeColor || '#6d576a';
-  ctx.fillText(`PLAYER ${winnerIdx + 1} WINS!`, W / 2, H * 0.32);
+  ctx.fillStyle = isDraw ? '#6d576a' : (players[winnerIdx]?.robeColor || '#6d576a');
+  ctx.fillText(isDraw ? 'IT IS A DRAW!' : `PLAYER ${winnerIdx + 1} WINS!`, W / 2, H * 0.32);
   ctx.font = '28px "VT323", monospace';
   ctx.fillStyle = '#6d4d3f';
   ctx.fillText(`Final Score: ${score[0]} - ${score[1]}`, W / 2, H * 0.45);
@@ -981,7 +1141,7 @@ function startRound() {
   gameState = 'countdown';
 }
 function advanceFromRoundOver() {
-  if (score[0] >= WINS_NEEDED || score[1] >= WINS_NEEDED) {
+  if (roundNum >= ROUNDS_PER_GAME) {
     gameState = 'game_over';
     return;
   }
