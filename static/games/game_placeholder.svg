@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title desc">
+  <title id="title">Game preview placeholder</title>
+  <desc id="desc">Placeholder artwork for browser game cards.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f2937" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#a78bfa" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)" rx="28" ry="28" />
+  <rect x="44" y="44" width="552" height="272" rx="20" ry="20" fill="none" stroke="#334155" stroke-width="4" />
+  <circle cx="180" cy="180" r="54" fill="#0ea5e9" opacity="0.2" />
+  <circle cx="180" cy="180" r="34" fill="#22d3ee" opacity="0.35" />
+  <path d="M300 120h230M300 160h180M300 200h210M300 240h150" stroke="url(#accent)" stroke-width="12" stroke-linecap="round" />
+  <text x="320" y="292" fill="#cbd5e1" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" text-anchor="middle">Game Preview</text>
+</svg>

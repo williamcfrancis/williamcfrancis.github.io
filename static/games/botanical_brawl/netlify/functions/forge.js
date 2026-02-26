@@ -57,10 +57,13 @@ exports.handler = async (event) => {
     };
   } catch (err) {
     const details = Array.isArray(err?.details) ? err.details : [];
+    const resolvedModelOrder = Array.isArray(err?.modelOrder) && err.modelOrder.length > 0
+      ? err.modelOrder
+      : MODEL_PRIORITY;
     console.error('[forge] All model attempts failed:', JSON.stringify(details));
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal error', modelsTried: MODEL_PRIORITY }),
+      body: JSON.stringify({ error: 'Internal error', modelsTried: resolvedModelOrder }),
     };
   }
 };

@@ -57,7 +57,7 @@ sections:
         link:
           label: Play Lily Leap
           url: "/games/lily_leap/"
-        image: "/games/lily_leap/lily_leap.png"
+        image: "/games/game_placeholder.svg"
       - title: Echo Walker
         genre: Audio-physics
         summary: "The world is silent and intangible. Use sound to create solid matter and reach the portal."
@@ -65,7 +65,7 @@ sections:
         link:
           label: Play Echo Walker
           url: "/games/echo_walker/"
-        image: "/games/echo_walker/echo_walker.png"
+        image: "/games/game_placeholder.svg"
       - title: Lexical Hazard
         genre: Word survival
         summary: "Type the falling words to neutralize them. Each word triggers its meaning—FAST speeds time, BLIND dims the lights."
@@ -73,7 +73,7 @@ sections:
         link:
           label: Play Lexical Hazard
           url: "/games/lexical_hazard/"
-        image: "/games/lexical_hazard/lexical_hazard.png"
+        image: "/games/game_placeholder.svg"
       - title: Lyrically Lost
         genre: Lyric trivia
         summary: "Hear translated lyric snippets and race to identify the original songs across Hindi, Spanish, and English catalogs."
@@ -89,7 +89,7 @@ sections:
         link:
           label: Play Abyss
           url: "/games/abyss/"
-        image: "/games/abyss/abyss.jpg"
+        image: "/games/game_placeholder.svg"
       - title: Algorithm Simulator
         genre: Dark simulation
         summary: "Maximize engagement and ad revenue by manipulating a subject's digital experience. A satirical take on attention economy mechanics."
@@ -97,7 +97,15 @@ sections:
         link:
           label: Play Algorithm Simulator
           url: "/games/algorithm_simulator/"
-        image: "/games/algorithm_simulator/algorithm_simulator.png"
+        image: "/games/game_placeholder.svg"
+      - title: Botanical Brawl
+        genre: 3D arena shooter
+        summary: "A cozy but competitive botanical duel with forgeable weapon stats and lively ricochet combat."
+        tags: ["browser", "3D", "arena"]
+        link:
+          label: Play Botanical Brawl
+          url: "/games/botanical_brawl/"
+        image: "/games/game_placeholder.svg"
       - title: "Wishforge Duel"
         genre: LLM-powered arena fighter
         summary: "1v1 local fantasy duel where each lost round grants a new wished weapon. Describe anything (even non-weapons), forge 7x7 pixel relics in real time, and adapt to rotating Seasonal Omens while building your Relic Codex."
@@ -105,6 +113,7 @@ sections:
         link:
           label: "Play Wishforge Duel"
           url: "/games/junkcode_brawlers/"
+        image: "/games/game_placeholder.svg"
   - section:
       name: Photo Gallery
       id: gallery

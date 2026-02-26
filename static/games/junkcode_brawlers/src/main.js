@@ -20,6 +20,10 @@ const MAX_HP = 100;
 const COMPILE_TIME = 60;
 const ROUNDS_PER_GAME = 5;
 const KILL_Y = H + 60;
+const HOMING_MIN_TURN_PER_TICK = 0.008;
+const HOMING_MAX_TURN_PER_TICK = 0.06;
+const HOMING_FUEL_BASE = 36;
+const HOMING_FUEL_SCALE = 70;
 const PROFILE_KEY = 'wishforge_profile_v1';
 const CODEX_LIMIT = 40;
 
@@ -812,6 +816,13 @@ function fireBullets(p) {
     }
     const speed = BULLET_SPEED * w.bullet_speed * (activeOmen?.bulletSpeedMult || 1);
     const r = BULLET_R * w.bullet_size;
+    const homingStrength = clamp(Math.max(w.bullet_homing, w.steering * 0.45), 0, 0.5);
+    const homingTurnCap = clamp(
+      HOMING_MIN_TURN_PER_TICK + homingStrength * 0.1,
+      HOMING_MIN_TURN_PER_TICK,
+      HOMING_MAX_TURN_PER_TICK,
+    );
+    const homingFuel = HOMING_FUEL_BASE + homingStrength * HOMING_FUEL_SCALE;
     bullets.push({
       x: p.x + p.facing * (PW * w.player_size / 2 + r),
       y: p.y - PH * w.player_size * 0.55,
@@ -852,6 +863,9 @@ function fireBullets(p) {
       pierceWalls: w.pierce_walls,
       groundAvoidance: w.ground_avoidance,
       steering: w.steering,
+      homingTurnCap,
+      homingFuel,
+      homingFuelStart: homingFuel,
       trail: [],
     });
   }
@@ -864,23 +878,29 @@ function updateBullets(dt) {
     if (b.life <= 0) { bullets.splice(i, 1); continue; }
     if (b.projectileGrowth > 0) b.r = Math.min(26, b.r + (b.projectileGrowth * 0.02 * dt));
 
-    if (b.homing > 0 || b.steering > 0) {
+    if ((b.homing > 0 || b.steering > 0) && b.homingFuel > 0) {
       const target = players[1 - b.owner];
       if (target?.alive) {
         const tx = target.x - b.x;
         const ty = (target.y - PH * target.weapon.player_size / 2) - b.y;
+        const dist = Math.hypot(tx, ty);
         const desired = Math.atan2(ty, tx);
         const current = Math.atan2(b.vy, b.vx);
         let diff = desired - current;
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
-        const turnRate = Math.max(b.homing, b.steering * 0.25);
-        const turn = clamp(diff, -turnRate, turnRate);
+
+        const distanceFactor = clamp((dist - 35) / 220, 0.28, 1);
+        const fuelFactor = clamp(b.homingFuel / Math.max(1, b.homingFuelStart), 0.2, 1);
+        const behindPenalty = Math.abs(diff) > 1.8 ? 0.55 : 1;
+        const maxTurn = b.homingTurnCap * dt * distanceFactor * fuelFactor * behindPenalty;
+        const turn = clamp(diff, -maxTurn, maxTurn);
         const angle = current + turn;
         const spd = Math.hypot(b.vx, b.vy);
         b.vx = Math.cos(angle) * spd;
         b.vy = Math.sin(angle) * spd;
       }
+      b.homingFuel = Math.max(0, b.homingFuel - dt);
     }
 
     b.trail.push({ x: b.x, y: b.y });

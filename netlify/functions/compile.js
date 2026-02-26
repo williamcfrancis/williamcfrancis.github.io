@@ -545,6 +545,9 @@ VOICE:
     return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod }) };
   } catch (err) {
     const details = Array.isArray(err?.details) ? err.details : [];
+    const resolvedModelOrder = Array.isArray(err?.modelOrder) && err.modelOrder.length > 0
+      ? err.modelOrder
+      : MODEL_PRIORITY;
     console.error('[compile] All model attempts failed:', JSON.stringify(details));
     const fb = FALLBACK_WEAPONS[Math.floor(Math.random() * FALLBACK_WEAPONS.length)];
     return {
@@ -554,7 +557,7 @@ VOICE:
         mod: fb,
         _debug: {
           error: err?.message || 'Model fallback chain failed',
-          modelsTried: MODEL_PRIORITY,
+          modelsTried: resolvedModelOrder,
           attempts: details,
         },
       }),
