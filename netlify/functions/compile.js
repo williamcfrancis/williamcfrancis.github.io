@@ -1,3 +1,5 @@
+const { MODEL_PRIORITY, generateWithModelFallback } = require('./llm');
+
 const RESPONSE_SCHEMA = {
   type: 'OBJECT',
   required: [
@@ -517,55 +519,45 @@ VOICE:
 - "tradeoff": clear downside sentence.
 - "fantasy_flair": short phrase used in HUD.`;
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  try {
+    const { data, model } = await generateWithModelFallback({
+      apiKey: GEMINI_API_KEY,
+      attemptsPerModel: 2,
+      requestBodyFactory: ({ attempt }) => ({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: `Player request: "${request}"` }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: RESPONSE_SCHEMA,
+          temperature: attempt === 0 ? 1.0 : 0.7,
+          maxOutputTokens: 2048,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+    });
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      console.log('[compile] Attempt', attempt + 1, 'request:', request.slice(0, 80));
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: `Player request: "${request}"` }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: RESPONSE_SCHEMA,
-            temperature: attempt === 0 ? 1.0 : 0.7,
-            maxOutputTokens: 2048,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
-      });
+    console.log('[compile] Success model:', model, 'request:', request.slice(0, 80));
+    const raw = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
+    console.log('[compile] Raw:', raw.slice(0, 200));
 
-      if (res.status === 429) {
-        console.warn('[compile] Rate limited');
-        const fb = FALLBACK_WEAPONS[Math.floor(Math.random() * FALLBACK_WEAPONS.length)];
-        return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod: fb, _debug: { error: '429 rate limit' } }) };
-      }
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error('[compile] Gemini error:', res.status, errText.slice(0, 300));
-        if (attempt === 1) {
-          const fb = FALLBACK_WEAPONS[Math.floor(Math.random() * FALLBACK_WEAPONS.length)];
-          return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod: fb, _debug: { error: `Gemini ${res.status}`, detail: errText.slice(0, 300) } }) };
-        }
-        continue;
-      }
-
-      const data = await res.json();
-      const raw = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-      console.log('[compile] Raw:', raw.slice(0, 200));
-
-      const parsed = JSON.parse(raw);
-      const mod = clampWeapon(parsed, request);
-      return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod }) };
-    } catch (err) {
-      console.error('[compile] Error on attempt', attempt + 1, ':', err.message);
-      if (attempt === 1) {
-        const fb = FALLBACK_WEAPONS[Math.floor(Math.random() * FALLBACK_WEAPONS.length)];
-        return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod: fb, _debug: { error: err.message } }) };
-      }
-    }
+    const parsed = JSON.parse(raw);
+    const mod = clampWeapon(parsed, request);
+    return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod }) };
+  } catch (err) {
+    const details = Array.isArray(err?.details) ? err.details : [];
+    console.error('[compile] All model attempts failed:', JSON.stringify(details));
+    const fb = FALLBACK_WEAPONS[Math.floor(Math.random() * FALLBACK_WEAPONS.length)];
+    return {
+      statusCode: 200,
+      headers: headers(),
+      body: JSON.stringify({
+        mod: fb,
+        _debug: {
+          error: err?.message || 'Model fallback chain failed',
+          modelsTried: MODEL_PRIORITY,
+          attempts: details,
+        },
+      }),
+    };
   }
 };

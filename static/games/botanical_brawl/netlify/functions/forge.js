@@ -1,3 +1,5 @@
+const { MODEL_PRIORITY, generateWithModelFallback } = require('../../../../../netlify/functions/llm');
+
 const SYSTEM_PROMPT = `You are the physics engine for a cozy but competitive 3D twin-stick shooter called Botanical Brawl. The player has requested a new weapon. Convert their description into game parameters. Be creative — match the vibe of the description to the stats. Heavy or slow-sounding weapons should have high damage but low speed. Zippy or rapid-fire weapons should have high speed but lower damage. Bouncy or ricocheting descriptions should have high bounces. Large or oversized items should have high scale.
 
 Respond ONLY with these exact flags using angular brackets:
@@ -30,13 +32,11 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing prompt' }) };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const { data, model } = await generateWithModelFallback({
+      apiKey,
+      attemptsPerModel: 1,
+      requestBodyFactory: () => ({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ parts: [{ text: `The player requested: "${prompt}"` }] }],
         generationConfig: {
@@ -46,16 +46,7 @@ exports.handler = async (event) => {
       }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('Gemini API error:', res.status, errText);
-      return {
-        statusCode: 502,
-        body: JSON.stringify({ error: 'Gemini API error', detail: res.status }),
-      };
-    }
-
-    const data = await res.json();
+    console.log('[forge] Success model:', model);
     const result =
       data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
@@ -65,10 +56,11 @@ exports.handler = async (event) => {
       body: JSON.stringify({ result }),
     };
   } catch (err) {
-    console.error('Forge function error:', err);
+    const details = Array.isArray(err?.details) ? err.details : [];
+    console.error('[forge] All model attempts failed:', JSON.stringify(details));
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal error' }),
+      body: JSON.stringify({ error: 'Internal error', modelsTried: MODEL_PRIORITY }),
     };
   }
 };
