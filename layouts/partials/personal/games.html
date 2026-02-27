@@ -12,13 +12,18 @@
   {{ if $hasGames }}
     <div class="personal-card-grid">
       {{ range $games }}
-          {{ $imgPath := "" }}
-          {{ if .image }}
-            {{ $imgPath = .image | relURL }}
-          {{ else }}
-            {{ $slug := replace (lower .title) " " "_" }}
-            {{ $imgPath = (printf "/games/%s/%s.png" $slug $slug) | relURL }}
+          {{ $slug := "" }}
+          {{ with .link.url }}
+            {{ $gamePath := . }}
+            {{ if hasPrefix $gamePath "/games/" }}
+              {{ $slug = replaceRE "^/games/|/$" "" $gamePath }}
+            {{ end }}
           {{ end }}
+          {{ if not $slug }}
+            {{ $slug = replace (lower .title) " " "_" }}
+          {{ end }}
+          {{ $imgPath := (printf "/games/%s/%s.png" $slug $slug) | relURL }}
+          {{ $defaultImgPath := "/games/game_placeholder.svg" | relURL }}
         <article class="personal-card game-card">
           <div class="card-body">
             <div class="card-meta">
@@ -50,7 +55,7 @@
               {{ end }}
               <a class="game-preview-link" href="{{ $playURL }}" target="_blank" rel="noopener" aria-label="{{ printf "%s – opens in a new tab" $playLabel }}">
                 <div class="game-preview">
-                  <img src="{{ $imgPath }}" alt="{{ .title }} preview image">
+                  <img src="{{ $imgPath }}" alt="{{ .title }} preview image" onerror="this.onerror=null;this.src='{{ $defaultImgPath }}';">
                   <div class="game-preview-overlay">
                     <div class="game-preview-play">
                       <i class="fas fa-play"></i>
