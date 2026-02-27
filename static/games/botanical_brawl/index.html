@@ -120,6 +120,18 @@
       font-size: 0.8rem;
       color: #555;
     }
+    .title-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .btn-secondary {
+      padding: 10px 22px;
+      font-size: 0.9rem;
+      color: #5D4037;
+      background: rgba(255,255,255,0.8);
+      border: 2px solid #D7CCC8;
+    }
 
     /* ── HUD ── */
     #hud {
@@ -183,23 +195,132 @@
       font-weight: 600;
       color: #8D6E63;
     }
-    .weapon-badge {
+
+    #buffs-container {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .buff-icon {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 8px;
+      color: #fff;
+    }
+    .buff-speed { background: #42A5F5; }
+    .buff-damage { background: #FFA726; }
+
+    #pollen-text {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #FFB300;
+      margin-top: 2px;
+    }
+
+    #dash-cd {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(255,255,255,0.7);
-      padding: 4px 12px;
-      border-radius: 16px;
-      font-size: 0.8rem;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #5D4037;
+      margin-top: 4px;
+      background: conic-gradient(#81C784 360deg, rgba(0,0,0,0.2) 360deg);
+    }
+
+    /* ── Weapon Slots ── */
+    #weapon-slots {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: none;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .weapon-slot {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255,255,255,0.6);
+      padding: 5px 12px;
+      border-radius: 14px;
+      font-size: 0.75rem;
       font-weight: 600;
       color: #5D4037;
       backdrop-filter: blur(4px);
+      border: 2px solid transparent;
+      transition: border-color 0.2s, background 0.2s;
     }
-    .weapon-dot {
+    .weapon-slot.active {
+      border-color: #FFD54F;
+      background: rgba(255,255,255,0.85);
+    }
+    .weapon-slot.empty { opacity: 0.4; }
+    .slot-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       background: #FFD54F;
+    }
+    .slot-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slot-key {
+      font-size: 0.6rem;
+      background: rgba(0,0,0,0.08);
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #8D6E63;
+    }
+
+    /* ── Boss HP Bar ── */
+    #boss-hp-bar {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 12;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    #boss-hp-name {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #D84315;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .boss-hp-track {
+      width: 300px;
+      height: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    #boss-hp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FF5722, #D84315);
+      border-radius: 6px;
+      transition: width 0.3s ease;
+    }
+
+    /* ── Minimap ── */
+    #minimap-canvas {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      z-index: 10;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.4);
+      pointer-events: none;
+      display: none;
     }
 
     /* ── Forge Overlay ── */
@@ -284,8 +405,118 @@
       font-size: 0.75rem;
       color: #BDBDBD;
     }
+
+    .forge-slot-row {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+    .forge-slot-btn {
+      padding: 4px 10px;
+      font-size: 0.7rem;
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 600;
+      color: #8D6E63;
+      background: rgba(255,255,255,0.6);
+      border: 2px solid #D7CCC8;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .forge-slot-btn.active {
+      border-color: #FFB300;
+      background: rgba(255,179,0,0.12);
+    }
+    .forge-slot-btn:disabled { opacity: 0.3; cursor: default; }
+
     .btn-resume {
       margin-top: 16px;
+      padding: 8px 22px;
+      font-size: 0.85rem;
+      color: #8D6E63;
+      background: rgba(255,255,255,0.7);
+      border: 2px solid #D7CCC8;
+    }
+
+    /* ── Pause Overlay ── */
+    #pause-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(200,230,201,0.55);
+      backdrop-filter: blur(12px);
+    }
+    .pause-panel {
+      background: linear-gradient(145deg, #FFFDE7, #FFF8E1, #FFF3E0);
+      border-radius: 24px;
+      padding: 36px 40px;
+      max-width: 380px;
+      width: 85%;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .pause-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #5D4037;
+    }
+    .pause-settings {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+    }
+    .volume-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .volume-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #8D6E63;
+      width: 55px;
+    }
+    .volume-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: #D7CCC8;
+      outline: none;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #66BB6A;
+      cursor: pointer;
+    }
+    .pause-buttons {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn-pause {
+      padding: 10px 30px;
+      font-size: 1rem;
+      color: #fff;
+      background: linear-gradient(135deg, #66BB6A, #43A047);
+    }
+    .btn-pause-quit {
       padding: 8px 22px;
       font-size: 0.85rem;
       color: #8D6E63;
@@ -313,6 +544,14 @@
       margin-top: 8px;
       font-size: 1.1rem;
       color: #A1887F;
+    }
+    #new-best {
+      display: none;
+      margin-top: 10px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #FFB300;
+      text-shadow: 0 1px 3px rgba(255,179,0,0.3);
     }
     .gameover-stats {
       margin-top: 24px;
@@ -366,6 +605,211 @@
       transform: translate(-50%, -50%) scale(1);
     }
 
+    /* ── Damage Numbers ── */
+    #dmg-numbers {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .dmg-num {
+      position: absolute;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #FFD54F;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      transform: translateY(0);
+      opacity: 1;
+      transition: transform 0.8s ease-out, opacity 0.8s ease-out;
+      pointer-events: none;
+    }
+    .dmg-num.float {
+      transform: translateY(-40px);
+      opacity: 0;
+    }
+    .dmg-num.crit {
+      font-size: 1.2rem;
+      color: #FF6F61;
+    }
+
+    /* ── Tutorial Hint ── */
+    #tutorial-hint {
+      position: fixed;
+      bottom: 25%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 18;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #5D4037;
+      background: rgba(255,255,255,0.85);
+      padding: 10px 28px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+
+    /* ── Modal (Gallery + Scores) ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(6px);
+    }
+    .modal-panel {
+      background: linear-gradient(145deg, #FFFDE7, #FFF8E1);
+      border-radius: 24px;
+      padding: 30px;
+      max-width: 520px;
+      width: 90%;
+      max-height: 70vh;
+      overflow-y: auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .modal-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #5D4037;
+    }
+    .modal-close {
+      font-size: 1.2rem;
+      color: #A1887F;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+    .modal-close:hover { background: rgba(0,0,0,0.05); }
+
+    /* Gallery Cards */
+    #gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+    }
+    .gallery-card {
+      background: rgba(255,255,255,0.7);
+      border-radius: 14px;
+      padding: 10px;
+      text-align: center;
+    }
+    .gallery-img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      border-radius: 8px;
+    }
+    .gallery-img-placeholder {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.05);
+      border-radius: 8px;
+      font-size: 1.4rem;
+      color: #BDBDBD;
+    }
+    .gallery-name {
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-top: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .gallery-stats {
+      font-size: 0.6rem;
+      color: #9E9E9E;
+      margin-top: 2px;
+    }
+    .gallery-rarity {
+      font-size: 0.6rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    /* High Scores */
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      background: rgba(255,255,255,0.5);
+    }
+    .score-rank {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #FFB300;
+      width: 30px;
+    }
+    .score-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #5D4037;
+      flex: 1;
+    }
+    .score-meta {
+      font-size: 0.7rem;
+      color: #A1887F;
+    }
+
+    /* ── Touch Controls ── */
+    #touch-controls {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+    .touch-zone {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      pointer-events: auto;
+    }
+    #touch-left { left: 0; width: 45%; }
+    #touch-right { right: 0; width: 45%; }
+    .touch-btn {
+      position: fixed;
+      z-index: 9;
+      pointer-events: auto;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: rgba(93,64,55,0.7);
+      backdrop-filter: blur(4px);
+    }
+    #btn-touch-forge { bottom: 80px; right: 16px; }
+    #btn-touch-dash { bottom: 80px; left: 16px; }
+
     .hidden { display: none !important; }
 
     /* ── Responsive ── */
@@ -374,6 +818,9 @@
       .forge-panel { padding: 24px 20px; }
       .hp-bar-track { width: 140px; }
       .gameover-stats { gap: 16px; }
+      .boss-hp-track { width: 200px; }
+      .modal-panel { max-width: 95%; padding: 20px; }
+      #minimap-canvas { width: 70px; height: 70px; }
     }
   </style>
 </head>
@@ -385,11 +832,20 @@
   <!-- ── Title Screen ── -->
   <div id="title-screen">
     <h1 class="game-title">Botanical<br/><span class="title-sub">Brawl</span></h1>
-    <div class="title-flower">🌸 🌿 🌻 🌿 🌸</div>
+    <div class="title-flower">&#127800; &#127807; &#127803; &#127807; &#127800;</div>
     <p class="title-tagline">Forge enchanted weapons from your imagination and defend the Sunlit Glade against an adorable onslaught of garden pests.</p>
     <button id="btn-start" class="btn btn-start">Enter the Glade</button>
+    <div class="title-row">
+      <button id="btn-gallery" class="btn btn-secondary">Weapon Gallery</button>
+      <button id="btn-scores" class="btn btn-secondary">High Scores</button>
+    </div>
     <div class="title-controls">
-      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;·&nbsp; <kbd>Mouse</kbd> aim &nbsp;·&nbsp; <kbd>Click</kbd> shoot &nbsp;·&nbsp; <kbd>Space</kbd> forge
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;&middot;&nbsp;
+      <kbd>Mouse</kbd> aim &nbsp;&middot;&nbsp;
+      <kbd>Click</kbd> shoot &nbsp;&middot;&nbsp;
+      <kbd>Space</kbd> forge &nbsp;&middot;&nbsp;
+      <kbd>Shift</kbd> dash &nbsp;&middot;&nbsp;
+      <kbd>1-3</kbd> switch weapon
     </div>
   </div>
 
@@ -399,6 +855,9 @@
       <span class="hud-label">Health</span>
       <div class="hp-bar-track"><div id="hp-fill" class="hp-bar-fill" style="width:100%"></div></div>
       <span id="hp-text" class="hp-text">100 / 100</span>
+      <div id="buffs-container"></div>
+      <span id="pollen-text">Pollen: 1</span>
+      <div id="dash-cd"></div>
     </div>
     <div class="hud-center">
       <span id="score-text" class="score-text">0</span>
@@ -406,28 +865,88 @@
     </div>
     <div class="hud-right">
       <span class="hud-label">Weapon</span>
-      <div class="weapon-badge">
-        <span class="weapon-dot" id="weapon-dot"></span>
-        <span id="weapon-name">Starter Orb</span>
-      </div>
     </div>
   </div>
+
+  <!-- ── Weapon Slots ── -->
+  <div id="weapon-slots">
+    <div class="weapon-slot active">
+      <span class="slot-key">1</span>
+      <span class="slot-dot"></span>
+      <span class="slot-name">Starter Orb</span>
+    </div>
+    <div class="weapon-slot empty">
+      <span class="slot-key">2</span>
+      <span class="slot-dot"></span>
+      <span class="slot-name">Empty</span>
+    </div>
+    <div class="weapon-slot empty">
+      <span class="slot-key">3</span>
+      <span class="slot-dot"></span>
+      <span class="slot-name">Empty</span>
+    </div>
+  </div>
+
+  <!-- ── Boss HP Bar ── -->
+  <div id="boss-hp-bar">
+    <span id="boss-hp-name">Titan Gourd</span>
+    <div class="boss-hp-track"><div id="boss-hp-fill" style="width:100%"></div></div>
+  </div>
+
+  <!-- ── Minimap ── -->
+  <canvas id="minimap-canvas" width="100" height="100"></canvas>
 
   <!-- ── Wave Banner ── -->
   <div id="wave-banner"></div>
 
+  <!-- ── Damage Numbers ── -->
+  <div id="dmg-numbers"></div>
+
+  <!-- ── Tutorial Hint ── -->
+  <div id="tutorial-hint"></div>
+
   <!-- ── Forge Overlay ── -->
   <div id="forge-overlay">
     <div class="forge-panel">
-      <div><span class="forge-sparkle">✦</span> <span class="forge-title">Spell Forge</span> <span class="forge-sparkle">✦</span></div>
+      <div><span class="forge-sparkle">&#10038;</span> <span class="forge-title">Spell Forge</span> <span class="forge-sparkle">&#10038;</span></div>
       <p class="forge-desc">Describe a weapon and the Glade will conjure it for you. Be creative&mdash;the wilder, the better!</p>
       <div class="forge-input-row">
         <input id="forge-input" class="forge-input" type="text" placeholder="A bubbly wand that shoots heavy watermelons..." autocomplete="off" />
         <button id="btn-forge" class="btn btn-forge">Forge!</button>
       </div>
       <div id="forge-status" class="forge-status"></div>
-      <p class="forge-hint">Examples: "a rainbow slingshot that fires bouncy rubber ducks" · "a crystal staff launching exploding cupcakes"</p>
+      <div class="forge-slot-row">
+        <button class="forge-slot-btn active">1: Starter Orb</button>
+        <button class="forge-slot-btn">2: [New Slot]</button>
+        <button class="forge-slot-btn" disabled>3: [Locked]</button>
+      </div>
+      <p class="forge-hint">Examples: "a rainbow slingshot that fires bouncy rubber ducks" &middot; "a crystal staff launching exploding cupcakes"</p>
       <button id="btn-resume" class="btn btn-resume">Resume Game</button>
+    </div>
+  </div>
+
+  <!-- ── Pause Overlay ── -->
+  <div id="pause-overlay">
+    <div class="pause-panel">
+      <div class="pause-title">Paused</div>
+      <div class="pause-settings">
+        <div class="volume-row">
+          <span class="volume-label">Master</span>
+          <input id="vol-master" class="volume-slider" type="range" min="0" max="1" step="0.05" value="0.7" />
+        </div>
+        <div class="volume-row">
+          <span class="volume-label">SFX</span>
+          <input id="vol-sfx" class="volume-slider" type="range" min="0" max="1" step="0.05" value="0.8" />
+        </div>
+        <div class="volume-row">
+          <span class="volume-label">Music</span>
+          <input id="vol-music" class="volume-slider" type="range" min="0" max="1" step="0.05" value="0.5" />
+        </div>
+      </div>
+      <div class="pause-buttons">
+        <button id="btn-pause-resume" class="btn btn-pause">Resume</button>
+        <button id="btn-pause-quit" class="btn btn-pause-quit">Quit to Title</button>
+      </div>
     </div>
   </div>
 
@@ -435,12 +954,43 @@
   <div id="gameover-screen">
     <h1 class="gameover-title">Garden Nap Time</h1>
     <p class="gameover-subtitle">The pests have overrun the glade&hellip; but the flowers will bloom again.</p>
+    <div id="new-best">&#9733; New Personal Best! &#9733;</div>
     <div class="gameover-stats">
       <div class="stat-box"><div id="stat-score" class="stat-value">0</div><div class="stat-label">Score</div></div>
       <div class="stat-box"><div id="stat-wave" class="stat-value">0</div><div class="stat-label">Wave</div></div>
       <div class="stat-box"><div id="stat-kills" class="stat-value">0</div><div class="stat-label">Defeated</div></div>
     </div>
     <button id="btn-retry" class="btn btn-retry">Try Again</button>
+  </div>
+
+  <!-- ── Weapon Gallery Modal ── -->
+  <div id="gallery-modal" class="modal-overlay">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <span class="modal-title">Weapon Gallery</span>
+        <button id="btn-close-gallery" class="modal-close">&times;</button>
+      </div>
+      <div id="gallery-grid"></div>
+    </div>
+  </div>
+
+  <!-- ── High Scores Modal ── -->
+  <div id="scores-modal" class="modal-overlay">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <span class="modal-title">High Scores</span>
+        <button id="btn-close-scores" class="modal-close">&times;</button>
+      </div>
+      <div id="scores-list"></div>
+    </div>
+  </div>
+
+  <!-- ── Touch Controls (mobile) ── -->
+  <div id="touch-controls">
+    <div id="touch-left" class="touch-zone"></div>
+    <div id="touch-right" class="touch-zone"></div>
+    <div id="btn-touch-forge" class="touch-btn">Forge</div>
+    <div id="btn-touch-dash" class="touch-btn">Dash</div>
   </div>
 
   <script type="importmap">

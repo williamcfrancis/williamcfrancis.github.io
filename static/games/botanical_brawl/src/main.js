@@ -1,46 +1,77 @@
 import * as THREE from 'three';
 import {
-  initAudio, shootSound, hitSound, deathSound,
-  forgeCompleteSound, playerHitSound,
+  initAudio, dashSound, waveCompleteSound,
+  startMusic, stopMusic, updateMusicIntensity,
+  setVolumes, getVolumes,
 } from './audio.js';
+import {
+  initParticlePool, updateParticles, updateShockwaves,
+  createPollenSystem, updatePollen, initDamageNumbers,
+  updateEnemyHpBars, clearAllVfx,
+} from './vfx.js';
+import {
+  spawnEnemy, spawnBoss, updateEnemies, updateEnemyProjectiles,
+  damageEnemy, clearEnemies,
+} from './enemies.js';
+import {
+  trySpawnPickup, updatePickups, updateBuffs, clearPickups,
+} from './pickups.js';
+import {
+  fireProjectile, updateProjectiles, handleForge, clearProjectiles,
+  createDefaultWeapon,
+} from './weapons.js';
+import {
+  updateHUD, updateBossHpBar, updateMinimap,
+  initTutorial, updateTutorial,
+  renderGallery, renderHighScores,
+} from './hud.js';
+import {
+  getHighScores, saveHighScore, isNewBest, getWeaponGallery,
+} from './persistence.js';
 
-// ─────────────────────────── Constants ───────────────────────────
+// ── Constants ──
+
 const ISLAND_RADIUS = 18;
 const PLAYER_SPEED = 0.16;
 const PLAYER_MAX_HP = 100;
-const FIRE_COOLDOWN_BASE = 180;
 const ENEMY_BASE_COUNT = 6;
 const ENEMY_PER_WAVE = 3;
-const IFRAMES_DURATION = 800;
 const SPAWN_EDGE = ISLAND_RADIUS + 3;
+const DASH_DURATION = 300;
+const DASH_COOLDOWN = 1500;
+const DASH_SPEED_MULT = 4;
 
-// ─────────────────────────── State ───────────────────────────────
+// ── State ──
+
 const state = {
   playerPos: new THREE.Vector3(0, 0, 0),
   playerHp: PLAYER_MAX_HP,
   iframesUntil: 0,
+  dashCooldownUntil: 0,
+  dashUntil: 0,
+  dashDir: new THREE.Vector3(),
+  moveDistance: 0,
+  speedMultiplier: 1,
+  damageMultiplier: 1,
+  activeBuffs: [],
 
-  weapon: {
-    speed: 1.0,
-    damage: 40,
-    scale: 1.0,
-    bounces: 0,
-    audioFreq: 520,
-    audioType: 'sine',
-    spriteTex: null,
-    name: 'Starter Orb',
-  },
+  weapons: [createDefaultWeapon()],
+  activeWeaponIdx: 0,
+  pollen: 1,
+  forgeTargetSlot: null,
 
   score: 0,
   kills: 0,
   wave: 0,
   enemiesRemaining: 0,
   waveActive: false,
+  isBossWave: false,
+  boss: null,
 
   enemies: [],
   projectiles: [],
-  particles: [],
-  clouds: [],
+  enemyProjectiles: [],
+  pickups: [],
 
   keys: {},
   mouse: new THREE.Vector2(),
@@ -53,9 +84,13 @@ const state = {
   started: false,
   shakeUntil: 0,
   shakeMag: 0,
+  tutorialStep: 0,
+
+  clouds: [],
 };
 
-// ─────────────────────────── Refs ────────────────────────────────
+// ── DOM Refs ──
+
 const $ = (s) => document.querySelector(s);
 const els = {
   canvas: $('#game-canvas-container'),
@@ -65,28 +100,45 @@ const els = {
   hpText: $('#hp-text'),
   scoreText: $('#score-text'),
   waveText: $('#wave-text'),
-  weaponName: $('#weapon-name'),
-  weaponDot: $('#weapon-dot'),
+  pollenText: $('#pollen-text'),
+  weaponSlots: $('#weapon-slots'),
+  buffsContainer: $('#buffs-container'),
+  dashCd: $('#dash-cd'),
   waveBanner: $('#wave-banner'),
   forgeOverlay: $('#forge-overlay'),
   forgeInput: $('#forge-input'),
   forgeBtn: $('#btn-forge'),
   forgeStatus: $('#forge-status'),
   btnResume: $('#btn-resume'),
+  forgeSlotBtns: document.querySelectorAll('.forge-slot-btn'),
   gameoverScreen: $('#gameover-screen'),
   statScore: $('#stat-score'),
   statWave: $('#stat-wave'),
   statKills: $('#stat-kills'),
+  newBestLabel: $('#new-best'),
+  bossHpBar: $('#boss-hp-bar'),
+  bossHpFill: $('#boss-hp-fill'),
+  bossHpName: $('#boss-hp-name'),
+  minimapCanvas: $('#minimap-canvas'),
+  pauseOverlay: $('#pause-overlay'),
+  settingsMaster: $('#vol-master'),
+  settingsSfx: $('#vol-sfx'),
+  settingsMusic: $('#vol-music'),
+  galleryModal: $('#gallery-modal'),
+  galleryGrid: $('#gallery-grid'),
+  scoresModal: $('#scores-modal'),
+  scoresList: $('#scores-list'),
+  tutorialHint: $('#tutorial-hint'),
+  touchControls: $('#touch-controls'),
 };
 
-// ─────────────────────────── Three.js Setup ──────────────────────
+// ── Three.js Setup ──
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9FD5E8);
 scene.fog = new THREE.FogExp2(0x9FD5E8, 0.012);
 
-const camera = new THREE.PerspectiveCamera(
-  48, window.innerWidth / window.innerHeight, 0.1, 120,
-);
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 120);
 camera.position.set(0, 28, 22);
 camera.lookAt(0, 0, 0);
 
@@ -99,46 +151,50 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.3;
 els.canvas.appendChild(renderer.domElement);
 
-// ─────────────────────────── Lighting ────────────────────────────
+// ── Lighting ──
+
 const sun = new THREE.DirectionalLight(0xFFF5E0, 1.6);
 sun.position.set(12, 22, 10);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -26;
-sun.shadow.camera.right = 26;
-sun.shadow.camera.top = 26;
-sun.shadow.camera.bottom = -26;
-sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 60;
+sun.shadow.camera.left = -26; sun.shadow.camera.right = 26;
+sun.shadow.camera.top = 26; sun.shadow.camera.bottom = -26;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 60;
 sun.shadow.bias = -0.001;
 scene.add(sun);
-
 scene.add(new THREE.AmbientLight(0xFFE8D6, 0.55));
 scene.add(new THREE.HemisphereLight(0x87CEEB, 0x6B8E23, 0.35));
 
-// ─────────────────────────── World ───────────────────────────────
+// ── World ──
+
 function buildWorld() {
-  // Island top
   const topGeo = new THREE.CylinderGeometry(ISLAND_RADIUS, ISLAND_RADIUS, 1.2, 48);
   const topMat = new THREE.MeshStandardMaterial({ color: 0x7EC850, roughness: 0.85 });
   const top = new THREE.Mesh(topGeo, topMat);
-  top.position.y = -0.6;
-  top.receiveShadow = true;
+  top.position.y = -0.6; top.receiveShadow = true;
   scene.add(top);
 
-  // Island sides
   const sideGeo = new THREE.CylinderGeometry(ISLAND_RADIUS, ISLAND_RADIUS - 3, 4, 48);
   const sideMat = new THREE.MeshStandardMaterial({ color: 0x8B6E2F, roughness: 0.92 });
   const side = new THREE.Mesh(sideGeo, sideMat);
   side.position.y = -3.2;
   scene.add(side);
 
-  // Underside cone
   const coneGeo = new THREE.ConeGeometry(ISLAND_RADIUS - 3, 6, 48);
   const cone = new THREE.Mesh(coneGeo, sideMat);
-  cone.position.y = -8.2;
-  cone.rotation.x = Math.PI;
+  cone.position.y = -8.2; cone.rotation.x = Math.PI;
   scene.add(cone);
+
+  // Water plane
+  const waterGeo = new THREE.PlaneGeometry(120, 120);
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x4FC3F7, transparent: true, opacity: 0.35,
+    roughness: 0.1, metalness: 0.2,
+  });
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = -10;
+  scene.add(water);
 
   // Grass tufts
   const grassColors = [0x6DBF47, 0x85D660, 0x55A630];
@@ -146,10 +202,7 @@ function buildWorld() {
     const a = Math.random() * Math.PI * 2;
     const r = Math.random() * (ISLAND_RADIUS - 1.5);
     const geo = new THREE.ConeGeometry(0.12, 0.35 + Math.random() * 0.25, 4);
-    const mat = new THREE.MeshStandardMaterial({
-      color: grassColors[Math.floor(Math.random() * 3)],
-      roughness: 0.8,
-    });
+    const mat = new THREE.MeshStandardMaterial({ color: grassColors[Math.floor(Math.random() * 3)], roughness: 0.8 });
     const m = new THREE.Mesh(geo, mat);
     m.position.set(Math.cos(a) * r, 0.15, Math.sin(a) * r);
     scene.add(m);
@@ -162,12 +215,28 @@ function buildWorld() {
     const r = 2 + Math.random() * (ISLAND_RADIUS - 3);
     const geo = new THREE.SphereGeometry(0.12 + Math.random() * 0.08, 6, 6);
     const mat = new THREE.MeshStandardMaterial({
-      color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
-      roughness: 0.5,
+      color: flowerColors[Math.floor(Math.random() * flowerColors.length)], roughness: 0.5,
     });
     const m = new THREE.Mesh(geo, mat);
     m.position.set(Math.cos(a) * r, 0.12, Math.sin(a) * r);
     scene.add(m);
+  }
+
+  // Decorative trees
+  const treeMat = new THREE.MeshStandardMaterial({ color: 0x4CAF50, roughness: 0.7 });
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x795548, roughness: 0.9 });
+  const treePositions = [
+    [ISLAND_RADIUS - 2, 0, 3], [-ISLAND_RADIUS + 3, 0, -2],
+    [5, 0, ISLAND_RADIUS - 2], [-4, 0, -ISLAND_RADIUS + 2],
+  ];
+  for (const [tx, , tz] of treePositions) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.2, 6), trunkMat);
+    trunk.position.set(tx, 0.6, tz);
+    scene.add(trunk);
+    const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), treeMat);
+    canopy.position.set(tx, 1.6, tz);
+    canopy.castShadow = true;
+    scene.add(canopy);
   }
 
   // Clouds
@@ -183,37 +252,32 @@ function buildWorld() {
       m.scale.y = 0.5;
       g.add(m);
     }
-    g.position.set(
-      -40 + Math.random() * 80,
-      14 + Math.random() * 8,
-      -30 + Math.random() * 60,
-    );
+    g.position.set(-40 + Math.random() * 80, 14 + Math.random() * 8, -30 + Math.random() * 60);
     scene.add(g);
     state.clouds.push({ mesh: g, speed: 0.005 + Math.random() * 0.01 });
   }
 }
 
-// ─────────────────────────── Player ──────────────────────────────
+// ── Player ──
+
 let playerGroup;
+let playerHat;
 
 function buildPlayer() {
   playerGroup = new THREE.Group();
 
-  // Body
   const bodyGeo = new THREE.CapsuleGeometry(0.42, 0.55, 8, 16);
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0x98D8C8, roughness: 0.4 });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
   playerGroup.add(body);
 
-  // Hat (little leaf)
   const hatGeo = new THREE.ConeGeometry(0.25, 0.35, 6);
   const hatMat = new THREE.MeshStandardMaterial({ color: 0x4CAF50 });
-  const hat = new THREE.Mesh(hatGeo, hatMat);
-  hat.position.y = 0.65;
-  playerGroup.add(hat);
+  playerHat = new THREE.Mesh(hatGeo, hatMat);
+  playerHat.position.y = 0.65;
+  playerGroup.add(playerHat);
 
-  // Eyes
   const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
   [-1, 1].forEach((s) => {
@@ -222,7 +286,6 @@ function buildPlayer() {
     playerGroup.add(eye);
   });
 
-  // Cheeks
   const cheekGeo = new THREE.SphereGeometry(0.06, 6, 6);
   const cheekMat = new THREE.MeshStandardMaterial({ color: 0xFFB7B2, emissive: 0xFFB7B2, emissiveIntensity: 0.3 });
   [-1, 1].forEach((s) => {
@@ -235,265 +298,8 @@ function buildPlayer() {
   scene.add(playerGroup);
 }
 
-// ─────────────────────────── Enemies ─────────────────────────────
-const SLIME_DEFS = [
-  { weight: 0.55, radius: 0.45, hp: 30, speed: 0.04, dmg: 8, color: 0x90EE90, name: 'sprout' },
-  { weight: 0.30, radius: 0.65, hp: 70, speed: 0.028, dmg: 14, color: 0xFFCC80, name: 'gourd' },
-  { weight: 0.15, radius: 0.90, hp: 140, speed: 0.018, dmg: 22, color: 0xCE93D8, name: 'bloom' },
-];
+// ── Input ──
 
-function pickSlimeDef() {
-  let r = Math.random();
-  for (const d of SLIME_DEFS) {
-    r -= d.weight;
-    if (r <= 0) return d;
-  }
-  return SLIME_DEFS[0];
-}
-
-function spawnEnemy() {
-  const def = pickSlimeDef();
-  const angle = Math.random() * Math.PI * 2;
-  const g = new THREE.Group();
-
-  // Body
-  const bodyGeo = new THREE.SphereGeometry(def.radius, 16, 12);
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: def.color, roughness: 0.35, metalness: 0.05,
-  });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.castShadow = true;
-  body.scale.y = 0.78;
-  g.add(body);
-
-  // Eyes
-  const er = def.radius * 0.2;
-  const eyeGeo = new THREE.SphereGeometry(er, 8, 8);
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-  const whiteGeo = new THREE.SphereGeometry(er * 0.5, 6, 6);
-  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.4 });
-  [-1, 1].forEach((s) => {
-    const e = new THREE.Mesh(eyeGeo, eyeMat);
-    e.position.set(s * def.radius * 0.32, def.radius * 0.15, def.radius * 0.72);
-    g.add(e);
-    const w = new THREE.Mesh(whiteGeo, whiteMat);
-    w.position.set(s * def.radius * 0.32 + er * 0.2, def.radius * 0.25, def.radius * 0.78);
-    g.add(w);
-  });
-
-  // Mouth
-  const mouthGeo = new THREE.TorusGeometry(def.radius * 0.15, 0.03, 6, 12, Math.PI);
-  const mouthMat = new THREE.MeshStandardMaterial({ color: 0x5D4037 });
-  const mouth = new THREE.Mesh(mouthGeo, mouthMat);
-  mouth.position.set(0, -def.radius * 0.05, def.radius * 0.75);
-  mouth.rotation.x = -0.3;
-  mouth.rotation.z = Math.PI;
-  g.add(mouth);
-
-  g.position.set(
-    Math.cos(angle) * SPAWN_EDGE,
-    def.radius * 0.78,
-    Math.sin(angle) * SPAWN_EDGE,
-  );
-
-  scene.add(g);
-
-  const waveScale = 1 + (state.wave - 1) * 0.12;
-  state.enemies.push({
-    mesh: g,
-    body,
-    hp: Math.round(def.hp * waveScale),
-    maxHp: Math.round(def.hp * waveScale),
-    speed: def.speed + state.wave * 0.002,
-    radius: def.radius,
-    contactDmg: Math.round(def.dmg + state.wave * 1.5),
-    phase: Math.random() * Math.PI * 2,
-    flashUntil: 0,
-    originalColor: def.color,
-  });
-}
-
-// ─────────────────────────── Projectiles ─────────────────────────
-function fireProjectile() {
-  const now = performance.now();
-  const cooldown = FIRE_COOLDOWN_BASE / Math.max(state.weapon.speed, 0.3);
-  if (now - state.lastShot < cooldown) return;
-  state.lastShot = now;
-
-  const dir = new THREE.Vector3()
-    .subVectors(state.mouseWorld, state.playerPos)
-    .setY(0)
-    .normalize();
-  if (dir.length() < 0.01) dir.set(0, 0, -1);
-
-  const s = state.weapon.scale;
-  let mesh;
-  if (state.weapon.spriteTex) {
-    const mat = new THREE.SpriteMaterial({ map: state.weapon.spriteTex, transparent: true });
-    mesh = new THREE.Sprite(mat);
-    mesh.scale.set(s * 1.2, s * 1.2, 1);
-  } else {
-    const geo = new THREE.SphereGeometry(0.22 * s, 10, 10);
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0xFFD54F, emissive: 0xFFA000, emissiveIntensity: 0.5, roughness: 0.25,
-    });
-    mesh = new THREE.Mesh(geo, mat);
-  }
-
-  mesh.position.copy(state.playerPos);
-  mesh.position.y = 0.6;
-  scene.add(mesh);
-
-  shootSound(state.weapon.audioFreq, state.weapon.audioType);
-
-  state.projectiles.push({
-    mesh,
-    vel: dir.clone().multiplyScalar(0.35 * state.weapon.speed),
-    damage: state.weapon.damage,
-    radius: 0.22 * s,
-    bouncesLeft: state.weapon.bounces,
-    life: 400,
-  });
-}
-
-// ─────────────────────────── Particles ───────────────────────────
-function spawnBurst(pos, color, count = 8) {
-  for (let i = 0; i < count; i++) {
-    const geo = new THREE.SphereGeometry(0.08 + Math.random() * 0.08, 4, 4);
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5 });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.copy(pos);
-    const v = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.3,
-      0.1 + Math.random() * 0.2,
-      (Math.random() - 0.5) * 0.3,
-    );
-    scene.add(m);
-    state.particles.push({ mesh: m, vel: v, life: 40 + Math.random() * 30 });
-  }
-}
-
-// ─────────────────────────── Collision ────────────────────────────
-function dist2D(a, b) {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return Math.sqrt(dx * dx + dz * dz);
-}
-
-function updateProjectiles() {
-  for (let i = state.projectiles.length - 1; i >= 0; i--) {
-    const p = state.projectiles[i];
-    p.mesh.position.add(p.vel);
-    p.life--;
-
-    // Island boundary bounce or destroy
-    const pDist = dist2D(p.mesh.position, new THREE.Vector3(0, 0, 0));
-    if (pDist > ISLAND_RADIUS) {
-      if (p.bouncesLeft > 0) {
-        p.bouncesLeft--;
-        const norm = new THREE.Vector3(p.mesh.position.x, 0, p.mesh.position.z).normalize();
-        const dot = p.vel.dot(norm);
-        p.vel.sub(norm.multiplyScalar(2 * dot));
-        const clamp = ISLAND_RADIUS - 0.2;
-        const angle = Math.atan2(p.mesh.position.z, p.mesh.position.x);
-        p.mesh.position.x = Math.cos(angle) * clamp;
-        p.mesh.position.z = Math.sin(angle) * clamp;
-      } else {
-        p.life = 0;
-      }
-    }
-
-    // Enemy hit check
-    for (let j = state.enemies.length - 1; j >= 0; j--) {
-      const e = state.enemies[j];
-      if (dist2D(p.mesh.position, e.mesh.position) < p.radius + e.radius) {
-        e.hp -= p.damage;
-        e.flashUntil = performance.now() + 100;
-        hitSound();
-        spawnBurst(e.mesh.position, 0xFFFFFF, 4);
-
-        if (e.hp <= 0) {
-          deathSound();
-          spawnBurst(e.mesh.position, e.originalColor, 12);
-          scene.remove(e.mesh);
-          state.enemies.splice(j, 1);
-          state.score += 100 + state.wave * 10;
-          state.kills++;
-          state.enemiesRemaining--;
-        }
-        p.life = 0;
-        break;
-      }
-    }
-
-    if (p.life <= 0) {
-      scene.remove(p.mesh);
-      state.projectiles.splice(i, 1);
-    }
-  }
-}
-
-function updateEnemies() {
-  const now = performance.now();
-  for (const e of state.enemies) {
-    // Move toward player
-    const dir = new THREE.Vector3()
-      .subVectors(state.playerPos, e.mesh.position)
-      .setY(0)
-      .normalize();
-    e.mesh.position.addScaledVector(dir, e.speed);
-
-    // Bounce animation
-    e.phase += 0.07;
-    e.mesh.position.y = e.radius * 0.78 + Math.abs(Math.sin(e.phase)) * 0.35;
-
-    // Squash-stretch on bounce
-    const t = Math.sin(e.phase);
-    e.body.scale.y = 0.78 + t * 0.12;
-    e.body.scale.x = 1.0 - t * 0.06;
-    e.body.scale.z = 1.0 - t * 0.06;
-
-    // Face player
-    e.mesh.lookAt(state.playerPos.x, e.mesh.position.y, state.playerPos.z);
-
-    // Flash white when hit
-    if (now < e.flashUntil) {
-      e.body.material.emissive.setHex(0xFFFFFF);
-      e.body.material.emissiveIntensity = 0.6;
-    } else {
-      e.body.material.emissive.setHex(0x000000);
-      e.body.material.emissiveIntensity = 0;
-    }
-
-    // Contact damage
-    if (dist2D(e.mesh.position, state.playerPos) < e.radius + 0.5) {
-      if (now > state.iframesUntil) {
-        state.playerHp -= e.contactDmg;
-        state.iframesUntil = now + IFRAMES_DURATION;
-        state.shakeUntil = now + 200;
-        state.shakeMag = 0.4;
-        playerHitSound();
-        spawnBurst(state.playerPos, 0xFF6F61, 6);
-      }
-    }
-  }
-}
-
-function updateParticles() {
-  for (let i = state.particles.length - 1; i >= 0; i--) {
-    const p = state.particles[i];
-    p.mesh.position.add(p.vel);
-    p.vel.y -= 0.008;
-    p.life--;
-    p.mesh.scale.multiplyScalar(0.96);
-    if (p.life <= 0) {
-      scene.remove(p.mesh);
-      state.particles.splice(i, 1);
-    }
-  }
-}
-
-// ─────────────────────────── Input ───────────────────────────────
 const raycaster = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
@@ -509,75 +315,245 @@ function onMouseMove(e) {
 window.addEventListener('mousemove', onMouseMove);
 window.addEventListener('mousedown', (e) => { if (e.button === 0) state.mouseDown = true; });
 window.addEventListener('mouseup', (e) => { if (e.button === 0) state.mouseDown = false; });
+
 window.addEventListener('keydown', (e) => {
   state.keys[e.key.toLowerCase()] = true;
-  if (e.key === ' ' && state.started && !state.gameOver) {
+
+  if (!state.started || state.gameOver) return;
+
+  if (e.key === ' ') {
     e.preventDefault();
-    toggleForge();
+    if (!state.paused) toggleForge();
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (els.forgeOverlay.style.display === 'flex') {
+      toggleForge();
+    } else {
+      togglePause();
+    }
+  }
+
+  // Weapon switching
+  if (e.key >= '1' && e.key <= '3') {
+    const idx = parseInt(e.key) - 1;
+    if (idx < state.weapons.length) state.activeWeaponIdx = idx;
+  }
+
+  // Dash
+  if (e.key === 'shift' && !state.paused) {
+    tryDash();
   }
 });
+
 window.addEventListener('keyup', (e) => { state.keys[e.key.toLowerCase()] = false; });
+
+window.addEventListener('wheel', (e) => {
+  if (!state.started || state.paused || state.gameOver) return;
+  if (e.deltaY > 0) {
+    state.activeWeaponIdx = (state.activeWeaponIdx + 1) % state.weapons.length;
+  } else {
+    state.activeWeaponIdx = (state.activeWeaponIdx - 1 + state.weapons.length) % state.weapons.length;
+  }
+});
+
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 
-// ─────────────────────────── Movement ────────────────────────────
+// ── Mobile Touch Controls ──
+
+let touchJoystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
+let touchFire = { active: false, x: 0, y: 0 };
+const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+function initTouchControls() {
+  if (!isMobile || !els.touchControls) return;
+  els.touchControls.style.display = 'block';
+
+  const leftZone = document.getElementById('touch-left');
+  const rightZone = document.getElementById('touch-right');
+
+  if (leftZone) {
+    leftZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      touchJoystick.active = true;
+      touchJoystick.startX = t.clientX;
+      touchJoystick.startY = t.clientY;
+      touchJoystick.dx = 0; touchJoystick.dy = 0;
+    });
+    leftZone.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      touchJoystick.dx = (t.clientX - touchJoystick.startX) / 50;
+      touchJoystick.dy = (t.clientY - touchJoystick.startY) / 50;
+      const len = Math.sqrt(touchJoystick.dx ** 2 + touchJoystick.dy ** 2);
+      if (len > 1) { touchJoystick.dx /= len; touchJoystick.dy /= len; }
+    });
+    leftZone.addEventListener('touchend', () => {
+      touchJoystick.active = false;
+      touchJoystick.dx = 0; touchJoystick.dy = 0;
+    });
+  }
+
+  if (rightZone) {
+    rightZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      touchFire.active = true;
+      const t = e.changedTouches[0];
+      touchFire.x = t.clientX; touchFire.y = t.clientY;
+      updateTouchAim(t.clientX, t.clientY);
+    });
+    rightZone.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      touchFire.x = t.clientX; touchFire.y = t.clientY;
+      updateTouchAim(t.clientX, t.clientY);
+    });
+    rightZone.addEventListener('touchend', () => { touchFire.active = false; });
+  }
+}
+
+function updateTouchAim(screenX, screenY) {
+  state.mouse.x = (screenX / window.innerWidth) * 2 - 1;
+  state.mouse.y = -(screenY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(state.mouse, camera);
+  const hit = new THREE.Vector3();
+  raycaster.ray.intersectPlane(groundPlane, hit);
+  if (hit) state.mouseWorld.copy(hit);
+}
+
+// ── Dash ──
+
+function tryDash() {
+  const now = performance.now();
+  if (now < state.dashCooldownUntil) return;
+
+  const dir = new THREE.Vector3();
+  if (state.keys['w'] || state.keys['arrowup']) dir.z -= 1;
+  if (state.keys['s'] || state.keys['arrowdown']) dir.z += 1;
+  if (state.keys['a'] || state.keys['arrowleft']) dir.x -= 1;
+  if (state.keys['d'] || state.keys['arrowright']) dir.x += 1;
+  if (touchJoystick.active) { dir.x = touchJoystick.dx; dir.z = touchJoystick.dy; }
+  if (dir.length() < 0.01) dir.set(0, 0, -1);
+  dir.normalize();
+
+  state.dashDir.copy(dir);
+  state.dashUntil = now + DASH_DURATION;
+  state.dashCooldownUntil = now + DASH_COOLDOWN;
+  state.iframesUntil = Math.max(state.iframesUntil, now + DASH_DURATION);
+
+  // Ghost effect
+  const ghost = playerGroup.clone();
+  ghost.traverse((c) => {
+    if (c.isMesh) {
+      c.material = c.material.clone();
+      c.material.transparent = true;
+      c.material.opacity = 0.4;
+    }
+  });
+  ghost.position.copy(playerGroup.position);
+  scene.add(ghost);
+  let ghostLife = 15;
+  const fadeGhost = () => {
+    ghostLife--;
+    ghost.traverse((c) => { if (c.isMesh) c.material.opacity *= 0.88; });
+    if (ghostLife <= 0) {
+      scene.remove(ghost);
+    } else {
+      requestAnimationFrame(fadeGhost);
+    }
+  };
+  requestAnimationFrame(fadeGhost);
+
+  dashSound();
+}
+
+// ── Player Update ──
+
 function updatePlayer() {
+  const now = performance.now();
+  const isDashing = now < state.dashUntil;
+
   const dir = new THREE.Vector3();
   if (state.keys['w'] || state.keys['arrowup']) dir.z -= 1;
   if (state.keys['s'] || state.keys['arrowdown']) dir.z += 1;
   if (state.keys['a'] || state.keys['arrowleft']) dir.x -= 1;
   if (state.keys['d'] || state.keys['arrowright']) dir.x += 1;
 
-  if (dir.length() > 0) {
-    dir.normalize().multiplyScalar(PLAYER_SPEED);
-    state.playerPos.add(dir);
-
-    // Clamp to island
-    const d = dist2D(state.playerPos, new THREE.Vector3(0, 0, 0));
-    if (d > ISLAND_RADIUS - 1) {
-      const a = Math.atan2(state.playerPos.z, state.playerPos.x);
-      state.playerPos.x = Math.cos(a) * (ISLAND_RADIUS - 1);
-      state.playerPos.z = Math.sin(a) * (ISLAND_RADIUS - 1);
-    }
+  if (touchJoystick.active) {
+    dir.x = touchJoystick.dx;
+    dir.z = touchJoystick.dy;
   }
 
-  playerGroup.position.set(state.playerPos.x, 0.7, state.playerPos.z);
+  const isMoving = dir.length() > 0.01;
 
-  // Face mouse
+  if (isDashing) {
+    state.playerPos.addScaledVector(state.dashDir, PLAYER_SPEED * DASH_SPEED_MULT);
+  } else if (isMoving) {
+    dir.normalize().multiplyScalar(PLAYER_SPEED * state.speedMultiplier);
+    state.playerPos.add(dir);
+    state.moveDistance += PLAYER_SPEED * state.speedMultiplier;
+  }
+
+  // Clamp to island
+  const d = Math.sqrt(state.playerPos.x ** 2 + state.playerPos.z ** 2);
+  if (d > ISLAND_RADIUS - 1) {
+    const a = Math.atan2(state.playerPos.z, state.playerPos.x);
+    state.playerPos.x = Math.cos(a) * (ISLAND_RADIUS - 1);
+    state.playerPos.z = Math.sin(a) * (ISLAND_RADIUS - 1);
+  }
+
+  // Run animation: bob + tilt
+  let bobY = 0.7;
+  if (isMoving && !isDashing) {
+    bobY += Math.sin(state.moveDistance * 8) * 0.06;
+    const tilt = 0.08;
+    playerGroup.rotation.z = Math.sin(state.moveDistance * 8) * tilt;
+    if (playerHat) playerHat.rotation.z = Math.sin(state.moveDistance * 10) * 0.12;
+  } else {
+    playerGroup.rotation.z = 0;
+    if (playerHat) playerHat.rotation.z = 0;
+  }
+
+  if (isDashing) {
+    // Squash-stretch during dash
+    playerGroup.scale.set(0.8, 1.2, 0.8);
+    if (playerHat) playerHat.rotation.z = Math.sin(now * 0.05) * 0.3;
+  } else {
+    playerGroup.scale.set(1, 1, 1);
+  }
+
+  playerGroup.position.set(state.playerPos.x, bobY, state.playerPos.z);
+
   const angle = Math.atan2(
     state.mouseWorld.x - state.playerPos.x,
     state.mouseWorld.z - state.playerPos.z,
   );
   playerGroup.rotation.y = angle;
 
-  // Iframes blink
-  const now = performance.now();
   if (now < state.iframesUntil) {
     playerGroup.visible = Math.floor(now / 80) % 2 === 0;
   } else {
     playerGroup.visible = true;
   }
 
-  // Auto-fire
-  if (state.mouseDown) fireProjectile();
+  if (state.mouseDown || touchFire.active) fireProjectile(scene, state);
 }
 
-// ─────────────────────────── Camera ──────────────────────────────
+// ── Camera ──
+
 function updateCamera() {
-  const target = new THREE.Vector3(
-    state.playerPos.x * 0.4,
-    0,
-    state.playerPos.z * 0.4,
-  );
+  const target = new THREE.Vector3(state.playerPos.x * 0.4, 0, state.playerPos.z * 0.4);
   const desired = new THREE.Vector3(target.x, 28, target.z + 22);
   camera.position.lerp(desired, 0.06);
   camera.lookAt(target);
 
-  // Screen shake
   const now = performance.now();
   if (now < state.shakeUntil) {
     const intensity = state.shakeMag * ((state.shakeUntil - now) / 200);
@@ -586,7 +562,8 @@ function updateCamera() {
   }
 }
 
-// ─────────────────────────── Clouds ──────────────────────────────
+// ── Clouds ──
+
 function updateClouds() {
   for (const c of state.clouds) {
     c.mesh.position.x += c.speed;
@@ -594,207 +571,307 @@ function updateClouds() {
   }
 }
 
-// ─────────────────────────── Waves ───────────────────────────────
+// ── Wave System ──
+
 function startWave() {
   state.wave++;
   state.waveActive = true;
-  const count = ENEMY_BASE_COUNT + (state.wave - 1) * ENEMY_PER_WAVE;
+  state.pollen = Math.min(3, state.pollen + 1);
+
+  updateMusicIntensity(state.wave, false);
+
+  const isBoss = state.wave % 5 === 0;
+  state.isBossWave = isBoss;
+
+  const count = isBoss ? 0 : ENEMY_BASE_COUNT + (state.wave - 1) * ENEMY_PER_WAVE;
   state.enemiesRemaining = count;
 
-  els.waveBanner.textContent = `~ Wave ${state.wave} ~`;
+  els.waveBanner.textContent = isBoss ? `~ BOSS: Wave ${state.wave} ~` : `~ Wave ${state.wave} ~`;
   els.waveBanner.classList.add('visible');
   setTimeout(() => els.waveBanner.classList.remove('visible'), 2000);
 
-  // Stagger spawns
-  let spawned = 0;
-  const spawnInterval = setInterval(() => {
-    if (state.gameOver) { clearInterval(spawnInterval); return; }
-    if (spawned >= count) { clearInterval(spawnInterval); return; }
-    spawnEnemy();
-    spawned++;
-  }, 350);
+  if (isBoss) {
+    setTimeout(() => {
+      if (!state.gameOver) {
+        spawnBoss(scene, state, SPAWN_EDGE);
+        updateMusicIntensity(state.wave, true);
+      }
+    }, 1000);
+  } else {
+    let spawned = 0;
+    const spawnInterval = setInterval(() => {
+      if (state.gameOver) { clearInterval(spawnInterval); return; }
+      if (spawned >= count) { clearInterval(spawnInterval); return; }
+      spawnEnemy(scene, state, SPAWN_EDGE);
+      spawned++;
+    }, 350);
+  }
 }
 
 function checkWave() {
   if (!state.waveActive) return;
-  if (state.enemiesRemaining <= 0 && state.enemies.length === 0) {
-    state.waveActive = false;
-    state.score += state.wave * 200;
-    setTimeout(() => { if (!state.gameOver) startWave(); }, 2500);
+
+  if (state.isBossWave) {
+    if (!state.boss || state.boss.hp <= 0) {
+      if (state.enemies.length === 0) {
+        waveComplete();
+      }
+    }
+  } else {
+    if (state.enemiesRemaining <= 0 && state.enemies.length === 0) {
+      waveComplete();
+    }
   }
 }
 
-// ─────────────────────────── HUD ─────────────────────────────────
-function updateHUD() {
-  const pct = Math.max(0, state.playerHp / PLAYER_MAX_HP * 100);
-  els.hpFill.style.width = pct + '%';
-  if (pct > 50) els.hpFill.style.background = 'linear-gradient(90deg,#81C784,#4CAF50)';
-  else if (pct > 25) els.hpFill.style.background = 'linear-gradient(90deg,#FFD54F,#FFA726)';
-  else els.hpFill.style.background = 'linear-gradient(90deg,#EF9A9A,#E53935)';
-  els.hpText.textContent = `${Math.max(0, state.playerHp)} / ${PLAYER_MAX_HP}`;
-  els.scoreText.textContent = state.score.toLocaleString();
-  els.waveText.textContent = `Wave ${state.wave}`;
+function waveComplete() {
+  state.waveActive = false;
+  state.isBossWave = false;
+  state.score += state.wave * 200;
+  waveCompleteSound();
+  setTimeout(() => { if (!state.gameOver) startWave(); }, 2500);
 }
 
-// ─────────────────────────── Forge ───────────────────────────────
+// ── Forge Toggle ──
+
 function toggleForge() {
   if (state.gameOver) return;
   state.paused = !state.paused;
   els.forgeOverlay.style.display = state.paused ? 'flex' : 'none';
   if (state.paused) {
     els.forgeInput.focus();
+    state.forgeTargetSlot = state.activeWeaponIdx;
+    updateForgeSlotButtons();
   }
 }
 
-async function handleForge() {
-  const text = els.forgeInput.value.trim();
-  if (!text) return;
-
-  els.forgeBtn.disabled = true;
-  els.forgeStatus.textContent = 'Forging your weapon...';
-  els.forgeStatus.className = 'forge-status';
-
-  try {
-    // 1. Get physics from Gemini via Netlify Function
-    const res = await fetch('/.netlify/functions/forge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: text }),
-    });
-
-    if (!res.ok) throw new Error('Forge API returned ' + res.status);
-    const data = await res.json();
-    const raw = data.result || '';
-
-    // Parse LLM flags with regex
-    const get = (key, fallback) => {
-      const m = raw.match(new RegExp(`<${key}:\\s*([^>]+)>`));
-      return m ? m[1].trim() : fallback;
-    };
-
-    const speed = parseFloat(get('speed', '1.0'));
-    const damage = parseInt(get('damage', '40'), 10);
-    const scale = parseFloat(get('scale', '1.0'));
-    const bounces = parseInt(get('bounces', '0'), 10);
-    const audioFreq = parseInt(get('audio_freq', '520'), 10);
-    const audioType = get('audio_type', 'sine');
-
-    state.weapon.speed = Math.max(0.1, Math.min(5, speed));
-    state.weapon.damage = Math.max(10, Math.min(500, damage));
-    state.weapon.scale = Math.max(0.5, Math.min(5, scale));
-    state.weapon.bounces = Math.max(0, Math.min(5, bounces));
-    state.weapon.audioFreq = Math.max(200, Math.min(1200, audioFreq));
-    state.weapon.audioType = ['sine', 'triangle'].includes(audioType) ? audioType : 'sine';
-    state.weapon.name = text.length > 28 ? text.slice(0, 25) + '...' : text;
-
-    els.weaponName.textContent = state.weapon.name;
-
-    // 2. Load sprite from Pollinations
-    els.forgeStatus.textContent = 'Conjuring visuals...';
-    loadWeaponSprite(text);
-
-    forgeCompleteSound();
-    els.forgeStatus.textContent = `Forged! SPD:${state.weapon.speed.toFixed(1)} DMG:${state.weapon.damage} BNC:${state.weapon.bounces}`;
-    els.forgeStatus.className = 'forge-status success';
-  } catch (err) {
-    console.error(err);
-    els.forgeStatus.textContent = 'Forge failed — using fallback parameters.';
-    els.forgeStatus.className = 'forge-status error';
-
-    // Fallback: deterministic params from text hash
-    let hash = 0;
-    for (let i = 0; i < text.length; i++) hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
-    hash = Math.abs(hash);
-    state.weapon.speed = 0.5 + (hash % 40) / 10;
-    state.weapon.damage = 20 + (hash % 200);
-    state.weapon.scale = 0.5 + (hash % 30) / 10;
-    state.weapon.bounces = hash % 4;
-    state.weapon.audioFreq = 300 + (hash % 700);
-    state.weapon.audioType = hash % 2 === 0 ? 'sine' : 'triangle';
-    state.weapon.name = text.length > 28 ? text.slice(0, 25) + '...' : text;
-    els.weaponName.textContent = state.weapon.name;
-
-    loadWeaponSprite(text);
-  }
-
-  els.forgeBtn.disabled = false;
-}
-
-function loadWeaponSprite(prompt) {
-  const encoded = encodeURIComponent(prompt.replace(/\s+/g, '+'));
-  const url = `https://image.pollinations.ai/prompt/cute+vibrant+colorful+2D+pixel+art+${encoded}+item+game+sprite+isolated+on+solid+black+background`;
-
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    const cvs = document.createElement('canvas');
-    cvs.width = img.width;
-    cvs.height = img.height;
-    const ctx = cvs.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-
-    const id = ctx.getImageData(0, 0, cvs.width, cvs.height);
-    const d = id.data;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i] < 35 && d[i + 1] < 35 && d[i + 2] < 35) {
-        d[i + 3] = 0;
-      }
+function updateForgeSlotButtons() {
+  els.forgeSlotBtns.forEach((btn, i) => {
+    btn.classList.toggle('active', i === (state.forgeTargetSlot ?? state.activeWeaponIdx));
+    if (i < state.weapons.length) {
+      btn.textContent = `${i + 1}: ${state.weapons[i].name}`;
+    } else if (i === state.weapons.length && state.weapons.length < 3) {
+      btn.textContent = `${i + 1}: [New Slot]`;
+    } else {
+      btn.textContent = `${i + 1}: [Locked]`;
+      btn.disabled = true;
     }
-    ctx.putImageData(id, 0, 0);
-
-    const tex = new THREE.CanvasTexture(cvs);
-    tex.needsUpdate = true;
-    state.weapon.spriteTex = tex;
-  };
-  img.onerror = () => { state.weapon.spriteTex = null; };
-  img.src = url;
+  });
 }
 
-// ─────────────────────────── Game Over ───────────────────────────
+// ── Pause ──
+
+function togglePause() {
+  if (state.gameOver) return;
+  state.paused = !state.paused;
+  if (els.pauseOverlay) {
+    els.pauseOverlay.style.display = state.paused ? 'flex' : 'none';
+  }
+  if (state.paused) {
+    const v = getVolumes();
+    if (els.settingsMaster) els.settingsMaster.value = v.master;
+    if (els.settingsSfx) els.settingsSfx.value = v.sfx;
+    if (els.settingsMusic) els.settingsMusic.value = v.music;
+  }
+}
+
+// ── Game Over ──
+
 function triggerGameOver() {
   state.gameOver = true;
   state.paused = true;
   els.forgeOverlay.style.display = 'none';
+  if (els.pauseOverlay) els.pauseOverlay.style.display = 'none';
+  stopMusic();
 
   els.statScore.textContent = state.score.toLocaleString();
   els.statWave.textContent = state.wave;
   els.statKills.textContent = state.kills;
+
+  const best = isNewBest(state.score);
+  if (els.newBestLabel) els.newBestLabel.style.display = best ? 'block' : 'none';
+
+  saveHighScore(state.score, state.wave, state.kills);
   els.gameoverScreen.style.display = 'flex';
 }
 
 function resetGame() {
-  // Clear 3D objects
-  [...state.enemies].forEach((e) => scene.remove(e.mesh));
-  [...state.projectiles].forEach((p) => scene.remove(p.mesh));
-  [...state.particles].forEach((p) => scene.remove(p.mesh));
-  state.enemies.length = 0;
-  state.projectiles.length = 0;
-  state.particles.length = 0;
+  clearEnemies(state, scene);
+  clearProjectiles(state, scene);
+  clearPickups(state, scene);
+  clearAllVfx(scene);
 
   state.playerPos.set(0, 0, 0);
   state.playerHp = PLAYER_MAX_HP;
   state.iframesUntil = 0;
+  state.dashCooldownUntil = 0;
+  state.dashUntil = 0;
+  state.moveDistance = 0;
+  state.speedMultiplier = 1;
+  state.damageMultiplier = 1;
+  state.activeBuffs.length = 0;
   state.score = 0;
   state.kills = 0;
   state.wave = 0;
   state.waveActive = false;
+  state.isBossWave = false;
+  state.boss = null;
   state.enemiesRemaining = 0;
   state.paused = false;
   state.gameOver = false;
   state.mouseDown = false;
   state.lastShot = 0;
+  state.pollen = 1;
 
-  state.weapon = {
-    speed: 1.0, damage: 40, scale: 1.0, bounces: 0,
-    audioFreq: 520, audioType: 'sine', spriteTex: null, name: 'Starter Orb',
-  };
-  els.weaponName.textContent = 'Starter Orb';
+  state.weapons = [createDefaultWeapon()];
+  state.activeWeaponIdx = 0;
 
   els.gameoverScreen.style.display = 'none';
+  startMusic();
   startWave();
 }
 
-// ─────────────────────────── Game Loop ───────────────────────────
+// ── Initialization ──
+
+function startGame() {
+  initAudio();
+  state.started = true;
+  els.titleScreen.style.display = 'none';
+  els.hud.style.display = 'flex';
+  if (els.weaponSlots) els.weaponSlots.style.display = 'flex';
+  if (els.minimapCanvas) els.minimapCanvas.style.display = 'block';
+  startMusic();
+  initTutorial(state);
+  startWave();
+}
+
+function quitToTitle() {
+  state.paused = false;
+  state.gameOver = true;
+  stopMusic();
+  clearEnemies(state, scene);
+  clearProjectiles(state, scene);
+  clearPickups(state, scene);
+  clearAllVfx(scene);
+  if (els.pauseOverlay) els.pauseOverlay.style.display = 'none';
+  els.gameoverScreen.style.display = 'none';
+  els.hud.style.display = 'none';
+  if (els.weaponSlots) els.weaponSlots.style.display = 'none';
+  if (els.minimapCanvas) els.minimapCanvas.style.display = 'none';
+  els.titleScreen.style.display = 'flex';
+  state.started = false;
+}
+
+buildWorld();
+buildPlayer();
+initParticlePool(scene);
+initDamageNumbers();
+createPollenSystem(scene);
+
+if (isMobile) initTouchControls();
+
+// ── Event Bindings ──
+
+$('#btn-start').addEventListener('click', startGame);
+$('#btn-retry').addEventListener('click', resetGame);
+els.forgeBtn.addEventListener('click', () => handleForge(state, els));
+els.forgeInput.addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter') handleForge(state, els);
+});
+els.btnResume.addEventListener('click', toggleForge);
+
+// Forge slot buttons
+els.forgeSlotBtns.forEach((btn, i) => {
+  btn.addEventListener('click', () => {
+    if (i <= state.weapons.length && i < 3) {
+      state.forgeTargetSlot = i;
+      updateForgeSlotButtons();
+    }
+  });
+});
+
+// Pause overlay
+if ($('#btn-pause-resume')) $('#btn-pause-resume').addEventListener('click', togglePause);
+if ($('#btn-pause-quit')) {
+  $('#btn-pause-quit').addEventListener('click', quitToTitle);
+}
+
+// Volume sliders
+if (els.settingsMaster) {
+  els.settingsMaster.addEventListener('input', () => {
+    setVolumes(
+      parseFloat(els.settingsMaster.value),
+      parseFloat(els.settingsSfx.value),
+      parseFloat(els.settingsMusic.value),
+    );
+  });
+}
+if (els.settingsSfx) {
+  els.settingsSfx.addEventListener('input', () => {
+    setVolumes(
+      parseFloat(els.settingsMaster.value),
+      parseFloat(els.settingsSfx.value),
+      parseFloat(els.settingsMusic.value),
+    );
+  });
+}
+if (els.settingsMusic) {
+  els.settingsMusic.addEventListener('input', () => {
+    setVolumes(
+      parseFloat(els.settingsMaster.value),
+      parseFloat(els.settingsSfx.value),
+      parseFloat(els.settingsMusic.value),
+    );
+  });
+}
+
+// Title screen modals
+if ($('#btn-gallery')) {
+  $('#btn-gallery').addEventListener('click', () => {
+    renderGallery(els.galleryGrid, getWeaponGallery());
+    if (els.galleryModal) els.galleryModal.style.display = 'flex';
+  });
+}
+if ($('#btn-close-gallery')) {
+  $('#btn-close-gallery').addEventListener('click', () => {
+    if (els.galleryModal) els.galleryModal.style.display = 'none';
+  });
+}
+if ($('#btn-scores')) {
+  $('#btn-scores').addEventListener('click', () => {
+    renderHighScores(els.scoresList, getHighScores());
+    if (els.scoresModal) els.scoresModal.style.display = 'flex';
+  });
+}
+if ($('#btn-close-scores')) {
+  $('#btn-close-scores').addEventListener('click', () => {
+    if (els.scoresModal) els.scoresModal.style.display = 'none';
+  });
+}
+
+// Mobile forge button
+if ($('#btn-touch-forge')) {
+  $('#btn-touch-forge').addEventListener('click', () => {
+    if (state.started && !state.gameOver) toggleForge();
+  });
+}
+if ($('#btn-touch-dash')) {
+  $('#btn-touch-dash').addEventListener('click', tryDash);
+}
+
+function damageEnemyWithPickups(enemy, damage, st, sc, cam, isBounced) {
+  const pos = enemy.mesh.position.clone();
+  const wasBoss = enemy.isBoss;
+  const killed = damageEnemy(enemy, damage, st, sc, cam, isBounced);
+  if (killed) {
+    trySpawnPickup(scene, pos, state, wasBoss ? 1.0 : 0.2);
+  }
+  return killed;
+}
+
+// ── Game Loop ──
+
 function gameLoop() {
   requestAnimationFrame(gameLoop);
 
@@ -805,12 +882,21 @@ function gameLoop() {
   }
 
   updatePlayer();
-  updateEnemies();
-  updateProjectiles();
+  updateEnemies(state, scene, camera, ISLAND_RADIUS);
+  updateEnemyProjectiles(state, scene, ISLAND_RADIUS);
+  updateProjectiles(state, scene, ISLAND_RADIUS, damageEnemyWithPickups, camera);
+  updatePickups(state, scene, PLAYER_MAX_HP);
+  updateBuffs(state);
   updateParticles();
+  updateShockwaves();
+  updateEnemyHpBars(state.enemies, camera);
+  updatePollen();
   updateClouds();
   checkWave();
-  updateHUD();
+  updateHUD(state, els, PLAYER_MAX_HP);
+  updateBossHpBar(state, els);
+  updateMinimap(els.minimapCanvas, state, ISLAND_RADIUS);
+  updateTutorial(state);
   updateCamera();
 
   if (state.playerHp <= 0 && !state.gameOver) {
@@ -819,26 +905,5 @@ function gameLoop() {
 
   renderer.render(scene, camera);
 }
-
-// ─────────────────────────── Init ────────────────────────────────
-function startGame() {
-  initAudio();
-  state.started = true;
-  els.titleScreen.style.display = 'none';
-  els.hud.style.display = 'flex';
-  startWave();
-}
-
-buildWorld();
-buildPlayer();
-
-$('#btn-start').addEventListener('click', startGame);
-$('#btn-retry').addEventListener('click', resetGame);
-els.forgeBtn.addEventListener('click', handleForge);
-els.forgeInput.addEventListener('keydown', (e) => {
-  e.stopPropagation();
-  if (e.key === 'Enter') handleForge();
-});
-els.btnResume.addEventListener('click', toggleForge);
 
 gameLoop();
