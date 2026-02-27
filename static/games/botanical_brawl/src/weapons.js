@@ -153,13 +153,7 @@ export async function handleForge(state, els) {
 
   let weapon;
   try {
-    const res = await fetch('/.netlify/functions/forge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: text }),
-    });
-    if (!res.ok) throw new Error('Forge API returned ' + res.status);
-    const data = await res.json();
+    const data = await requestForgeStats(text);
     const raw = data.result || '';
 
     const get = (key, fb) => {
@@ -214,7 +208,7 @@ export async function handleForge(state, els) {
   state.activeWeaponIdx = slotIdx;
 
   els.forgeStatus.textContent = 'Conjuring visuals...';
-  loadWeaponSprite(text, weapon);
+  await loadWeaponSprite(text, weapon);
 
   forgeCompleteSound();
 
@@ -230,74 +224,20 @@ export async function handleForge(state, els) {
 
 // ── Sprite Loading with Improved Background Removal ──
 
-function loadWeaponSprite(prompt, weapon) {
+async function loadWeaponSprite(prompt, weapon) {
   const encoded = encodeURIComponent(prompt.replace(/\s+/g, '+'));
   const url = `https://image.pollinations.ai/prompt/cute+vibrant+colorful+2D+pixel+art+${encoded}+item+game+sprite+isolated+on+solid+black+background`;
 
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    const cvs = document.createElement('canvas');
-    cvs.width = img.width; cvs.height = img.height;
-    const ctx = cvs.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-
-    const id = ctx.getImageData(0, 0, cvs.width, cvs.height);
-    const d = id.data;
-    const w = cvs.width, h = cvs.height;
-
-    // Flood-fill from corners to detect background
-    const visited = new Uint8Array(w * h);
-    const bgColor = { r: d[0], g: d[1], b: d[2] };
-    const tolerance = 50;
-    const queue = [];
-
-    const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
-    for (const [cx, cy] of corners) {
-      const ci = cy * w + cx;
-      if (!visited[ci]) { queue.push(ci); visited[ci] = 1; }
-    }
-
-    while (queue.length > 0) {
-      const idx = queue.shift();
-      const pi = idx * 4;
-      const dr = Math.abs(d[pi] - bgColor.r);
-      const dg = Math.abs(d[pi + 1] - bgColor.g);
-      const db = Math.abs(d[pi + 2] - bgColor.b);
-      if (dr + dg + db < tolerance) {
-        d[pi + 3] = 0;
-        const x = idx % w, y = (idx - x) / w;
-        for (const [nx, ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]) {
-          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-            const ni = ny * w + nx;
-            if (!visited[ni]) { visited[ni] = 1; queue.push(ni); }
-          }
-        }
-      }
-    }
-
-    ctx.putImageData(id, 0, 0);
-
-    // Subtle glow outline
-    const cvs2 = document.createElement('canvas');
-    cvs2.width = w + 4; cvs2.height = h + 4;
-    const ctx2 = cvs2.getContext('2d');
-    ctx2.shadowColor = 'rgba(255,255,255,0.6)';
-    ctx2.shadowBlur = 3;
-    ctx2.drawImage(cvs, 2, 2);
-    ctx2.shadowBlur = 0;
-    ctx2.drawImage(cvs, 2, 2);
-
-    const tex = new THREE.CanvasTexture(cvs2);
-    tex.needsUpdate = true;
-    weapon.spriteTex = tex;
-
-    try {
-      weapon.spriteDataUrl = cvs.toDataURL('image/png');
-    } catch {}
-  };
-  img.onerror = () => { weapon.spriteTex = null; };
-  img.src = url;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Sprite API returned ${res.status}`);
+    const blob = await res.blob();
+    const img = await blobToImage(blob);
+    applyProcessedSpriteFromImage(img, weapon);
+  } catch (err) {
+    console.warn('[forge] Sprite service unavailable, using local fallback sprite.', err);
+    applyLocalFallbackSprite(prompt, weapon);
+  }
 }
 
 // ── Clear ──
@@ -308,3 +248,149 @@ export function clearProjectiles(state, scene) {
 }
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+async function requestForgeStats(prompt) {
+  const endpoints = ['/.netlify/functions/forge', '/netlify/functions/forge'];
+  let lastErr;
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) {
+        lastErr = new Error(`Forge API ${endpoint} returned ${res.status}`);
+        continue;
+      }
+      return await res.json();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  throw lastErr || new Error('Forge API request failed');
+}
+
+function blobToImage(blob) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to decode sprite image blob'));
+    };
+    img.src = url;
+  });
+}
+
+function applyProcessedSpriteFromImage(img, weapon) {
+  const cvs = document.createElement('canvas');
+  cvs.width = img.width;
+  cvs.height = img.height;
+  const ctx = cvs.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  const id = ctx.getImageData(0, 0, cvs.width, cvs.height);
+  const d = id.data;
+  const w = cvs.width;
+  const h = cvs.height;
+
+  const visited = new Uint8Array(w * h);
+  const bgColor = { r: d[0], g: d[1], b: d[2] };
+  const tolerance = 50;
+  const queue = [];
+
+  const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+  for (const [cx, cy] of corners) {
+    const ci = cy * w + cx;
+    if (!visited[ci]) {
+      queue.push(ci);
+      visited[ci] = 1;
+    }
+  }
+
+  while (queue.length > 0) {
+    const idx = queue.shift();
+    const pi = idx * 4;
+    const dr = Math.abs(d[pi] - bgColor.r);
+    const dg = Math.abs(d[pi + 1] - bgColor.g);
+    const db = Math.abs(d[pi + 2] - bgColor.b);
+    if (dr + dg + db < tolerance) {
+      d[pi + 3] = 0;
+      const x = idx % w;
+      const y = (idx - x) / w;
+      for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+          const ni = ny * w + nx;
+          if (!visited[ni]) {
+            visited[ni] = 1;
+            queue.push(ni);
+          }
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(id, 0, 0);
+
+  const cvs2 = document.createElement('canvas');
+  cvs2.width = w + 4;
+  cvs2.height = h + 4;
+  const ctx2 = cvs2.getContext('2d');
+  ctx2.shadowColor = 'rgba(255,255,255,0.6)';
+  ctx2.shadowBlur = 3;
+  ctx2.drawImage(cvs, 2, 2);
+  ctx2.shadowBlur = 0;
+  ctx2.drawImage(cvs, 2, 2);
+
+  const tex = new THREE.CanvasTexture(cvs2);
+  tex.needsUpdate = true;
+  weapon.spriteTex = tex;
+
+  try {
+    weapon.spriteDataUrl = cvs2.toDataURL('image/png');
+  } catch {}
+}
+
+function applyLocalFallbackSprite(prompt, weapon) {
+  let hash = 0;
+  for (let i = 0; i < prompt.length; i++) hash = ((hash << 5) - hash + prompt.charCodeAt(i)) | 0;
+  hash = Math.abs(hash);
+
+  const hue = hash % 360;
+  const cvs = document.createElement('canvas');
+  cvs.width = 64;
+  cvs.height = 64;
+  const ctx = cvs.getContext('2d');
+
+  ctx.clearRect(0, 0, 64, 64);
+  ctx.fillStyle = `hsl(${hue} 80% 60%)`;
+  ctx.beginPath();
+  ctx.arc(32, 32, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = `hsl(${(hue + 120) % 360} 80% 55%)`;
+  ctx.beginPath();
+  ctx.moveTo(18, 44);
+  ctx.lineTo(46, 20);
+  ctx.stroke();
+
+  ctx.fillRect(27, 12, 10, 10);
+  ctx.fillRect(40, 28, 8, 8);
+
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.needsUpdate = true;
+  weapon.spriteTex = tex;
+
+  try {
+    weapon.spriteDataUrl = cvs.toDataURL('image/png');
+  } catch {}
+}
