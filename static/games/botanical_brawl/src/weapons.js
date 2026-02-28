@@ -87,15 +87,18 @@ export function fireProjectile(scene, state) {
 
 // ── Projectile Update ──
 
+const _projNorm = new THREE.Vector3();
+
 export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, camera) {
+  const dt60 = state.dt60;
   for (let i = state.projectiles.length - 1; i >= 0; i--) {
     const p = state.projectiles[i];
-    p.mesh.position.add(p.vel);
-    p.life--;
+    p.mesh.position.addScaledVector(p.vel, dt60);
+    p.life -= dt60;
 
-    // Trail particles (every 3 frames)
-    p.trailCounter++;
-    if (p.trailCounter % 3 === 0) {
+    p.trailCounter += dt60;
+    if (p.trailCounter >= 3) {
+      p.trailCounter -= 3;
       spawnTrail(p.mesh.position, p.trailColor);
     }
 
@@ -104,13 +107,13 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
       if (p.bouncesLeft > 0) {
         p.bouncesLeft--;
         bounceSound();
-        const norm = new THREE.Vector3(p.mesh.position.x, 0, p.mesh.position.z).normalize();
-        const dot = p.vel.dot(norm);
-        p.vel.sub(norm.multiplyScalar(2 * dot));
-        const clamp = islandRadius - 0.2;
+        _projNorm.set(p.mesh.position.x, 0, p.mesh.position.z).normalize();
+        const dot = p.vel.dot(_projNorm);
+        p.vel.sub(_projNorm.multiplyScalar(2 * dot));
+        const clampR = islandRadius - 0.2;
         const angle = Math.atan2(p.mesh.position.z, p.mesh.position.x);
-        p.mesh.position.x = Math.cos(angle) * clamp;
-        p.mesh.position.z = Math.sin(angle) * clamp;
+        p.mesh.position.x = Math.cos(angle) * clampR;
+        p.mesh.position.z = Math.sin(angle) * clampR;
       } else {
         p.life = 0;
       }

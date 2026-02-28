@@ -42,14 +42,15 @@ export function trySpawnPickup(scene, pos, state, dropChance = 0.20) {
 
 export function updatePickups(state, scene, maxHp) {
   const now = performance.now();
+  const dt60 = state.dt60;
 
   for (let i = state.pickups.length - 1; i >= 0; i--) {
     const p = state.pickups[i];
     const age = now - p.spawnTime;
 
-    p.phase += 0.05;
+    p.phase += 0.05 * dt60;
     p.mesh.position.y = 0.6 + Math.sin(p.phase) * 0.15;
-    p.mesh.rotation.y += 0.03;
+    p.mesh.rotation.y += 0.03 * dt60;
 
     if (age > 7000) {
       p.mesh.visible = Math.floor(now / 120) % 2 === 0;
