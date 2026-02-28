@@ -22,15 +22,12 @@ export function trySpawnPickup(scene, pos, state, dropChance = 0.20) {
   const def = pickType();
 
   const geo = def.type === 'heart'
-    ? new THREE.SphereGeometry(0.25, 8, 8)
+    ? new THREE.SphereGeometry(0.25, 5, 5)
     : new THREE.OctahedronGeometry(0.22, 0);
-  const mat = new THREE.MeshStandardMaterial({
-    color: def.color, emissive: def.color, emissiveIntensity: 0.3, roughness: 0.3,
-  });
+  const mat = new THREE.MeshLambertMaterial({ color: def.color });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.copy(pos);
   mesh.position.y = 0.6;
-  mesh.castShadow = true;
   scene.add(mesh);
 
   state.pickups.push({

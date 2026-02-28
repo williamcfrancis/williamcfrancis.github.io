@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echo Walker: Forgotten Depths</title>
+    <title>Glow Hop</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -20,11 +20,9 @@
 
         #game-container {
             position: relative;
-            width: 800px;
-            height: 600px;
-            border-radius: 8px;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
-            box-shadow: 0 0 60px rgba(251, 191, 36, 0.08), 0 0 0 1px rgba(255,255,255,0.05);
         }
 
         canvas { display: block; width: 100%; height: 100%; }
@@ -153,17 +151,17 @@
 </head>
 <body>
 <div id="game-container">
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
     <!-- Main Menu -->
     <div id="main-menu" class="overlay">
         <a class="back-link" href="/personal/#games"><span>&#8592;</span> Back to games</a>
-        <div class="game-title">Echo Walker</div>
-        <div class="game-subtitle">Forgotten Depths</div>
+        <div class="game-title">Glow Hop</div>
+        <div class="game-subtitle">Light the Way!</div>
         <p class="menu-desc">
-            You are a lost spirit wandering ancient ruins shrouded in darkness.
-            Your presence echoes through stone, revealing the path ahead.
-            Move fast, jump far, and find the light.
+            You're a little glow ball bouncing through the dark.
+            The world only lights up where you go &mdash; so keep moving!
+            Dash, double-jump, and grab crystals to reach the exit.
         </p>
         <div class="highscore-box" id="menu-highscores">LOADING...</div>
         <div class="btn-group">
@@ -182,8 +180,8 @@
     <!-- Death Screen -->
     <div id="death-screen" class="overlay">
         <a class="back-link" href="/personal/#games"><span>&#8592;</span> Back to games</a>
-        <div class="game-title death-title">Faded Away</div>
-        <p class="menu-desc">Your light was swallowed by the depths.</p>
+        <div class="game-title death-title">Oops!</div>
+        <p class="menu-desc">You fell into the void. Shake it off and try again!</p>
         <div class="highscore-box" id="death-score"></div>
         <div class="btn-group">
             <button class="btn" onclick="restartLevel()">Retry</button>
@@ -194,8 +192,8 @@
     <!-- Win Screen -->
     <div id="win-screen" class="overlay">
         <a class="back-link" href="/personal/#games"><span>&#8592;</span> Back to games</a>
-        <div class="game-title win-title">Light Restored</div>
-        <p class="menu-desc">You have traversed the forgotten depths and found your way home.</p>
+        <div class="game-title win-title">You Did It!</div>
+        <p class="menu-desc">All 15 levels cleared &mdash; you're a glow hopping champion!</p>
         <div class="highscore-box" id="win-score"></div>
         <div class="btn-group">
             <button class="btn" onclick="showMainMenu()">Main Menu</button>
@@ -205,39 +203,48 @@
 
 <script>
 // ================================================================
-//  ECHO WALKER: FORGOTTEN DEPTHS  —  Complete Overhaul v4.0
+//  GLOW HOP  —  v6.0
 //  Proximity-reveal platformer with dash, wall-jump, double-jump,
-//  collectible crystals, combo system, and 10 hand-crafted levels.
+//  collectible crystals, combo system, and 15 hand-crafted levels.
 // ================================================================
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const W = 800, H = 600;
 
+function resizeCanvas() {
+    const container = document.getElementById('game-container');
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
 // ── Difficulty Configs ──────────────────────────────────────────
 const DIFFICULTIES = {
     EASY: {
         id: 'easy', name: 'Explorer',
-        revealRadius: 220, fadeSpeed: 0.008,
-        gravity: 0.48, moveAccel: 0.84, maxSpeed: 4.9,
-        jumpForce: -10.3, doubleJumpForce: -8.2,
-        wallJumpX: 6.1, wallJumpY: -9.2,
-        dashSpeed: 11.8, dashFrames: 8, dashCooldown: 95,
-        crumbleTime: 55
+        revealRadius: 260, fadeSpeed: 0.005,
+        gravity: 0.35, moveAccel: 0.50, maxSpeed: 3.2,
+        jumpForce: -9.5, doubleJumpForce: -7.5,
+        wallJumpX: 4.5, wallJumpY: -8.5,
+        dashSpeed: 8, dashFrames: 10, dashCooldown: 80,
+        crumbleTime: 70
     },
     NORMAL: {
         id: 'normal', name: 'Wanderer',
-        revealRadius: 170, fadeSpeed: 0.015,
-        gravity: 0.46, moveAccel: 0.87, maxSpeed: 5.2,
-        jumpForce: -10.4, doubleJumpForce: -8.3,
-        wallJumpX: 6.3, wallJumpY: -9.3,
-        dashSpeed: 12.4, dashFrames: 8, dashCooldown: 115,
-        crumbleTime: 42
+        revealRadius: 180, fadeSpeed: 0.012,
+        gravity: 0.42, moveAccel: 0.70, maxSpeed: 4.2,
+        jumpForce: -10, doubleJumpForce: -8,
+        wallJumpX: 5.5, wallJumpY: -9,
+        dashSpeed: 10.5, dashFrames: 8, dashCooldown: 100,
+        crumbleTime: 48
     },
     HARD: {
         id: 'hard', name: 'Blind',
-        revealRadius: 115, fadeSpeed: 0.025,
-        gravity: 0.45, moveAccel: 0.9, maxSpeed: 5.5,
+        revealRadius: 110, fadeSpeed: 0.025,
+        gravity: 0.48, moveAccel: 0.90, maxSpeed: 5.5,
         jumpForce: -10.5, doubleJumpForce: -8.5,
         wallJumpX: 6.5, wallJumpY: -9.5,
         dashSpeed: 13, dashFrames: 8, dashCooldown: 90,
@@ -386,6 +393,20 @@ function sfx(type, pitch) {
             gain.gain.setValueAtTime(0.015, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now+0.05);
             osc.start(now); osc.stop(now+0.05); break;
+        case 'phantomToggle':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(500, now);
+            osc.frequency.exponentialRampToValueAtTime(200, now+0.12);
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.12);
+            osc.start(now); osc.stop(now+0.12); break;
+        case 'spikeHit':
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(60, now+0.3);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.3);
+            osc.start(now); osc.stop(now+0.3); break;
     }
 }
 
@@ -556,12 +577,21 @@ function updatePlayer() {
     }
 
     // ── Friction ──
-    if (!p.isDashing) p.vx *= p.grounded ? GROUND_FRICTION : AIR_FRICTION;
+    if (!p.isDashing) {
+        if (p.grounded && p.standingOn && p.standingOn.type === 'ice') {
+            p.vx *= 0.97;
+        } else {
+            p.vx *= p.grounded ? GROUND_FRICTION : AIR_FRICTION;
+        }
+    }
 
     // ── Move with standing platform ──
     if (p.standingOn && p.standingOn.type === 'moving') {
         p.x += (p.standingOn.dx || 0);
         p.y += (p.standingOn.dy || 0);
+    }
+    if (p.standingOn && p.standingOn.type === 'conveyor') {
+        p.vx += p.standingOn.conveyorDir * p.standingOn.conveyorSpeed * 0.12;
     }
 
     // ── Apply velocity (separated X / Y) ──
@@ -583,6 +613,19 @@ function updatePlayer() {
     p.trail.push({ x: p.x, y: p.y });
     if (p.trail.length > 10) p.trail.shift();
 
+    // Spike collision
+    for (const pl of platforms) {
+        if (pl.type !== 'spike' || pl.visibility < 0.3) continue;
+        if (aabb(p.x, p.y, p.w, p.h, pl.x, pl.y, pl.w, pl.h)) {
+            p.dead = true;
+            sfx('spikeHit');
+            screenShake = 8;
+            spawnBurst(p.x+p.w/2, p.y+p.h/2, [239,68,68], 18, 3, 3);
+            setTimeout(showDeathScreen, 500);
+            return;
+        }
+    }
+
     // Death
     if (p.y > H + 80) {
         p.dead = true;
@@ -600,6 +643,8 @@ function aabb(ax, ay, aw, ah, bx, by, bw, bh) {
 
 function isSolid(pl) {
     if (pl.type === 'crumble' && pl.broken) return false;
+    if (pl.type === 'phantom' && !pl.phantomVisible) return false;
+    if (pl.type === 'spike') return false;
     return pl.visibility > 0.3;
 }
 
@@ -675,7 +720,13 @@ function createPlatform(x, y, w, h, type, extra) {
         moveRangeX: extra && extra.mx || 0,
         moveRangeY: extra && extra.my || 0,
         moveSpeed: extra && extra.speed || 0.02,
-        moveT: Math.random() * Math.PI * 2
+        moveT: Math.random() * Math.PI * 2,
+        conveyorDir: extra && extra.dir || 0,
+        conveyorSpeed: extra && extra.cspeed || 1.8,
+        phantomOnTime: extra && extra.on || 90,
+        phantomOffTime: extra && extra.off || 60,
+        phantomTimer: extra && extra.on || 90,
+        phantomVisible: true
     };
 }
 
@@ -694,6 +745,14 @@ function updatePlatform(pl) {
             pl.broken = true;
             spawnBurst(pl.x+pl.w/2, pl.y+pl.h/2, [120,100,80], 10, 2, 3);
             sfx('crumble');
+        }
+    }
+    if (pl.type === 'phantom') {
+        pl.phantomTimer--;
+        if (pl.phantomTimer <= 0) {
+            pl.phantomVisible = !pl.phantomVisible;
+            pl.phantomTimer = pl.phantomVisible ? pl.phantomOnTime : pl.phantomOffTime;
+            if (pl.visibility > 0.15) sfx('phantomToggle');
         }
     }
     pl.visibility = Math.max(0, pl.visibility - diff.fadeSpeed);
@@ -814,10 +873,42 @@ function drawPlatform(pl) {
     if (pl.broken) return;
     const v = Math.min(1, pl.visibility);
 
+    // Phantom invisible state: faint dashed hint
+    if (pl.type === 'phantom' && !pl.phantomVisible) {
+        if (v > 0.1) {
+            ctx.strokeStyle = `rgba(236,72,153,${v*0.15})`;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
+            ctx.setLineDash([]);
+        }
+        return;
+    }
+
     if (v < 0.05) {
         ctx.strokeStyle = 'rgba(100,116,139,0.06)';
         ctx.lineWidth = 1;
         ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
+        return;
+    }
+
+    // Spikes get special triangle rendering
+    if (pl.type === 'spike') {
+        if (v < 0.1) return;
+        const spCount = Math.max(2, Math.floor(pl.w / 14));
+        const spW = pl.w / spCount;
+        ctx.fillStyle = `rgba(239,68,68,${v * 0.7})`;
+        ctx.strokeStyle = `rgba(252,165,165,${v})`;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < spCount; i++) {
+            ctx.beginPath();
+            ctx.moveTo(pl.x + i * spW, pl.y + pl.h);
+            ctx.lineTo(pl.x + i * spW + spW / 2, pl.y);
+            ctx.lineTo(pl.x + (i + 1) * spW, pl.y + pl.h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
         return;
     }
 
@@ -852,6 +943,20 @@ function drawPlatform(pl) {
             border = `rgba(59,130,246,${v})`;
             fill   = `rgba(23,37,84,${v*0.3})`;
             break;
+        case 'ice':
+            border = `rgba(56,189,248,${v})`;
+            fill   = `rgba(8,47,73,${v*0.3})`;
+            break;
+        case 'conveyor':
+            border = `rgba(168,85,247,${v})`;
+            fill   = `rgba(59,7,100,${v*0.3})`;
+            break;
+        case 'phantom': {
+            const fl = pl.phantomTimer < 30 ? (0.5 + Math.sin(state.frames * 0.4) * 0.5) : 1;
+            border = `rgba(236,72,153,${v * fl})`;
+            fill   = `rgba(77,10,46,${v * fl * 0.3})`;
+            break;
+        }
         default:
             border = `rgba(148,163,184,${v})`;
             fill   = `rgba(51,65,85,${v*0.25})`;
@@ -882,6 +987,28 @@ function drawPlatform(pl) {
         ctx.fillStyle = `rgba(59,130,246,${v*0.5})`;
         for (let i = 0; i < 3; i++) {
             ctx.fillRect(pl.x + pl.w/2 - 6 + i*6, pl.y + pl.h/2 - 1, 2, 2);
+        }
+    }
+
+    // Ice shimmer
+    if (pl.type === 'ice' && v > 0.3) {
+        const shimmer = 0.1 + Math.sin(state.frames * 0.05 + pl.x * 0.1) * 0.05;
+        ctx.fillStyle = `rgba(186,230,253,${v * shimmer})`;
+        ctx.fillRect(pl.x + 2, pl.y + 2, pl.w - 4, pl.h - 4);
+    }
+
+    // Conveyor animated arrows
+    if (pl.type === 'conveyor' && v > 0.3) {
+        ctx.fillStyle = `rgba(168,85,247,${v * 0.5})`;
+        const dir = pl.conveyorDir;
+        const period = 18;
+        const offset = ((state.frames * 0.8 * dir) % period + period) % period;
+        for (let ax = pl.x + 6 + offset; ax < pl.x + pl.w - 6; ax += period) {
+            ctx.beginPath();
+            ctx.moveTo(ax - 4 * dir, pl.y + pl.h/2 - 3);
+            ctx.lineTo(ax + 4 * dir, pl.y + pl.h/2);
+            ctx.lineTo(ax - 4 * dir, pl.y + pl.h/2 + 3);
+            ctx.fill();
         }
     }
 }
@@ -1096,45 +1223,45 @@ let tutorialText = '';
 let tutorialAlpha = 0;
 
 const levels = [
-    // 1  Awakening — basic movement
+    // 1  First Steps
     {
-        name: 'Awakening',
+        name: 'First Steps',
         start: [60, 470], portal: [730, 470],
         platforms: [
             [30,490,140,16], [230,490,100,16], [370,490,100,16],
             [520,490,100,16], [680,490,110,16]
         ],
         crystals: [[280,460],[420,460],[570,460]],
-        text: 'Move with WASD or Arrows. Jump with Space or W. The world reveals itself around you.',
+        text: 'WASD or Arrows to move. Space to jump. Platforms light up near you!',
         bonus: 2000
     },
-    // 2  First Light — upward climb
+    // 2  Going Up
     {
-        name: 'First Light',
+        name: 'Going Up',
         start: [60, 490], portal: [710, 210],
         platforms: [
             [30,510,120,16], [200,450,90,16], [360,390,90,16],
             [520,320,90,16], [680,230,100,16]
         ],
         crystals: [[245,420],[405,360],[565,290],[730,200]],
-        text: 'Platforms appear as you approach. Time your jumps.',
+        text: 'Platforms only show up when you get close. Time your jumps!',
         bonus: 3000
     },
-    // 3  The Descent — falling with control
+    // 3  Down We Go
     {
-        name: 'The Descent',
+        name: 'Down We Go',
         start: [60, 60], portal: [700, 490],
         platforms: [
             [30,80,120,16], [220,180,90,16], [80,290,90,16],
             [300,380,90,16], [500,430,90,16], [670,510,120,16]
         ],
         crystals: [[265,150],[125,260],[345,350],[545,400]],
-        text: 'Press Jump again mid-air for a Double Jump.',
+        text: 'Hit Jump again mid-air for a Double Jump!',
         bonus: 3500
     },
-    // 4  Swift Passage — horizontal with dash
+    // 4  Speed Run
     {
-        name: 'Swift Passage',
+        name: 'Speed Run',
         start: [60, 310], portal: [730, 310],
         platforms: [
             [30,330,90,16], [160,330,60,16], [260,330,60,16],
@@ -1142,12 +1269,12 @@ const levels = [
             [660,330,60,16], [730,330,60,16]
         ],
         crystals: [[190,300],[290,300],[390,260],[490,220],[590,260],[690,300]],
-        text: 'Press SHIFT to Dash. Dashing reveals a wide area ahead.',
+        text: 'SHIFT to Dash! It lights up a big area around you.',
         bonus: 4000
     },
-    // 5  Crumbling Path
+    // 5  Don't Stand Still
     {
-        name: 'Crumbling Path',
+        name: "Don't Stand Still",
         start: [60, 380], portal: [720, 380],
         platforms: [
             [30,400,100,16,'normal'], [190,400,80,16,'crumble'],
@@ -1155,12 +1282,12 @@ const levels = [
             [590,370,80,16,'crumble'], [700,400,90,16,'normal']
         ],
         crystals: [[230,370],[370,340],[500,370],[630,340]],
-        text: "Brown platforms crumble! Don't linger on them.",
+        text: "Brown platforms break under you! Keep moving!",
         bonus: 4500
     },
-    // 6  Bounce — bouncy platforms
+    // 6  Boing!
     {
-        name: 'Bounce',
+        name: 'Boing!',
         start: [60, 480], portal: [400, 55],
         platforms: [
             [30,500,100,16,'normal'], [200,500,70,16,'bounce'],
@@ -1168,12 +1295,12 @@ const levels = [
             [400,200,80,16,'normal'], [370,75,90,16,'normal']
         ],
         crystals: [[240,400],[400,290],[220,250],[430,140]],
-        text: 'Green platforms launch you skyward!',
+        text: 'Green platforms bounce you way up!',
         bonus: 5000
     },
-    // 7  Shifting Ground — moving platforms
+    // 7  Moving Targets
     {
-        name: 'Shifting Ground',
+        name: 'Moving Targets',
         start: [60, 480], portal: [700, 120],
         platforms: [
             [30,500,100,16,'normal'],
@@ -1184,12 +1311,12 @@ const levels = [
             [690,140,80,16,'normal']
         ],
         crystals: [[300,400],[520,330],[450,210],[670,110]],
-        text: 'Blue platforms drift. Time your jumps.',
+        text: 'Blue platforms slide around. Watch and jump!',
         bonus: 5500
     },
-    // 8  The Gauntlet — mixed
+    // 8  Mix It Up
     {
-        name: 'The Gauntlet',
+        name: 'Mix It Up',
         start: [60, 300], portal: [730, 160],
         platforms: [
             [30,320,80,16,'normal'], [160,320,60,16,'crumble'],
@@ -1198,41 +1325,150 @@ const levels = [
             [710,180,80,16,'normal']
         ],
         crystals: [[190,290],[300,350],[420,230],[540,170],[660,170]],
-        text: 'All skills tested. Stay alert.',
+        text: 'Everything at once. Stay sharp!',
         bonus: 6500
     },
-    // 9  The Ascent — wall jumping
+    // 9  Wall Crawler
     {
-        name: 'The Ascent',
+        name: 'Wall Crawler',
         start: [380, 550], portal: [390, 30],
         platforms: [
             [350,570,100,16,'normal'],
-            // Lower walls
             [260,400,20,180], [520,400,20,180],
             [350,380,100,16,'normal'],
-            // Upper walls
             [260,120,20,260], [520,120,20,260],
             [350,50,100,16,'normal']
         ],
         crystals: [[280,480],[530,480],[400,350],[280,260],[530,260],[400,130]],
-        text: 'Slide on walls by pressing toward them. Jump off walls to ascend!',
+        text: 'Press into walls to slide. Jump off them to climb!',
         bonus: 7000
     },
-    // 10  The Final Echo — everything combined
+    // 10  Grand Finale (of the first act)
     {
-        name: 'The Final Echo',
+        name: 'Grand Finale',
         start: [60, 540], portal: [720, 50],
         platforms: [
             [30,560,100,16,'normal'], [180,500,60,16,'crumble'],
             [280,440,60,16,'bounce'], [180,300,70,16,'normal'],
             [330,240,80,16,'moving',{mx:100}],
-            [530,310,20,140],          // wall
+            [530,310,20,140],
             [580,230,60,16,'crumble'],
             [660,170,70,16,'normal'], [700,70,80,16,'normal']
         ],
         crystals: [[210,470],[310,380],[220,270],[400,210],[550,280],[620,200],[720,130]],
-        text: "The final trial. Everything you've learned. Go.",
+        text: "Use everything you've got. You can do this!",
         bonus: 10000
+    },
+
+    // ── ACT 2: NEW MECHANICS ──
+
+    // 11  Slippery Slope — ice platforms
+    {
+        name: 'Slippery Slope',
+        start: [60, 480], portal: [720, 80],
+        platforms: [
+            [30,500,100,16,'normal'],
+            [190,450,120,16,'ice'],
+            [370,400,80,16,'normal'],
+            [500,350,130,16,'ice'],
+            [680,290,80,16,'normal'],
+            [500,230,130,16,'ice'],
+            [320,170,80,16,'normal'],
+            [470,110,120,16,'ice'],
+            [680,100,100,16,'normal']
+        ],
+        crystals: [[250,420],[560,320],[560,200],[380,140],[730,70]],
+        text: 'Cyan platforms are icy! You slide way more on them. Careful at the edges!',
+        bonus: 8000
+    },
+
+    // 12  Conveyor Chaos — conveyor belt platforms
+    {
+        name: 'Conveyor Chaos',
+        start: [60, 480], portal: [720, 140],
+        platforms: [
+            [30,500,90,16,'normal'],
+            [170,450,140,16,'conveyor',{dir:1}],
+            [380,400,140,16,'conveyor',{dir:-1}],
+            [570,350,80,16,'normal'],
+            [400,280,140,16,'conveyor',{dir:1}],
+            [600,220,140,16,'conveyor',{dir:-1}],
+            [400,160,80,16,'normal'],
+            [530,110,110,16,'conveyor',{dir:1}],
+            [690,160,90,16,'normal']
+        ],
+        crystals: [[240,420],[450,370],[490,250],[465,130],[740,130]],
+        text: 'Purple platforms push you! Fight the flow or ride it.',
+        bonus: 9000
+    },
+
+    // 13  Now You See Me — phantom platforms
+    {
+        name: 'Now You See Me',
+        start: [380, 540], portal: [390, 30],
+        platforms: [
+            [350,560,100,16,'normal'],
+            [180,480,90,16,'phantom',{on:110,off:60}],
+            [520,480,90,16,'phantom',{on:110,off:60}],
+            [330,400,140,16,'normal'],
+            [140,320,90,16,'phantom',{on:90,off:70}],
+            [520,320,90,16,'phantom',{on:90,off:70}],
+            [330,240,140,16,'normal'],
+            [170,160,90,16,'phantom',{on:75,off:75}],
+            [520,160,90,16,'phantom',{on:75,off:75}],
+            [360,80,80,16,'normal']
+        ],
+        crystals: [[225,450],[565,450],[400,370],[185,290],[565,290],[400,210],[215,130],[565,130]],
+        text: 'Pink ghost platforms blink in and out. Watch the rhythm, then jump!',
+        bonus: 10000
+    },
+
+    // 14  Watch Your Step — spike hazards
+    {
+        name: 'Watch Your Step',
+        start: [60, 460], portal: [730, 150],
+        platforms: [
+            [30,480,100,16,'normal'],
+            [155,484,50,40,'spike'],
+            [230,480,80,16,'normal'],
+            [335,484,65,40,'spike'],
+            [425,480,80,16,'normal'],
+            [540,420,70,16,'normal'],
+            [640,360,70,16,'normal'],
+            [430,300,70,16,'bounce'],
+            [560,294,80,40,'spike'],
+            [340,220,80,16,'normal'],
+            [480,170,80,16,'normal'],
+            [630,170,60,16,'crumble'],
+            [710,170,80,16,'normal']
+        ],
+        crystals: [[180,450],[370,450],[580,390],[680,330],[380,190],[750,140]],
+        text: "Red spikes are deadly! Jump over them, don't touch!",
+        bonus: 11000
+    },
+
+    // 15  The Kitchen Sink — every platform type in one level
+    {
+        name: 'The Kitchen Sink',
+        start: [60, 540], portal: [400, 20],
+        platforms: [
+            [30,560,80,16,'normal'],
+            [140,560,120,16,'ice'],
+            [285,564,50,40,'spike'],
+            [360,560,60,16,'bounce'],
+            [220,430,140,16,'conveyor',{dir:1}],
+            [410,380,80,16,'crumble'],
+            [540,320,90,16,'phantom',{on:90,off:60}],
+            [380,260,80,16,'normal'],
+            [250,200,90,16,'moving',{mx:80}],
+            [130,120,20,140],
+            [520,120,20,140],
+            [200,90,80,16,'normal'],
+            [370,40,80,16,'normal']
+        ],
+        crystals: [[200,530],[320,530],[290,400],[460,350],[580,290],[420,230],[310,170],[430,10]],
+        text: 'Every trick in the book. Ice, conveyors, ghosts, spikes, and more. Go!',
+        bonus: 15000
     }
 ];
 

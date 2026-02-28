@@ -331,17 +331,25 @@
       display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(200,230,201,0.55);
-      backdrop-filter: blur(12px);
+      background: transparent;
+    }
+    #forge-bg-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
     }
     .forge-panel {
-      background: linear-gradient(145deg, #FFFDE7, #FFF8E1, #FFF3E0);
+      background: linear-gradient(145deg, rgba(255,253,231,0.93), rgba(255,248,225,0.93), rgba(255,243,224,0.93));
       border-radius: 24px;
       padding: 36px 40px;
       max-width: 460px;
       width: 90%;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.18);
       text-align: center;
+      position: relative;
+      z-index: 1;
+      backdrop-filter: blur(6px);
     }
     .forge-title {
       font-size: 1.8rem;
@@ -907,6 +915,7 @@
 
   <!-- ── Forge Overlay ── -->
   <div id="forge-overlay">
+    <canvas id="forge-bg-canvas"></canvas>
     <div class="forge-panel">
       <div><span class="forge-sparkle">&#10038;</span> <span class="forge-title">Spell Forge</span> <span class="forge-sparkle">&#10038;</span></div>
       <p class="forge-desc">Describe a weapon and the Glade will conjure it for you. Be creative&mdash;the wilder, the better!</p>

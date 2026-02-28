@@ -106,12 +106,12 @@ sections:
           label: Play Botanical Brawl
           url: "/games/botanical_brawl/"
         image: "/games/game_placeholder.svg"
-      - title: "Wishforge Duel"
-        genre: LLM-powered arena fighter
-        summary: "1v1 local fantasy duel where each lost round grants a new wished weapon. Describe anything (even non-weapons), forge 7x7 pixel relics in real time, and adapt to rotating Seasonal Omens while building your Relic Codex."
+      - title: "Feral Wizard Therapy"
+        genre: LLM-powered couch arena fighter
+        summary: "Two unhinged wizards. One couch. Infinite questionable life choices. Lose a round, rage-forge ANY object into a weapon, and watch the chaos unfold on trippy backgrounds."
         tags: ["browser", "AI", "local-multiplayer"]
         link:
-          label: "Play Wishforge Duel"
+          label: "Play Feral Wizard Therapy"
           url: "/games/junkcode_brawlers/"
         image: "/games/game_placeholder.svg"
   - section:

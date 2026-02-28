@@ -27,19 +27,168 @@ const HOMING_FUEL_SCALE = 70;
 const PROFILE_KEY = 'wishforge_profile_v1';
 const CODEX_LIMIT = 40;
 
-const PLATFORMS = [
-  { x: 0, y: 468, w: 370, h: 24 },
-  { x: 590, y: 468, w: 370, h: 24 },
-  { x: 350, y: 370, w: 260, h: 14 },
-  { x: 80, y: 275, w: 190, h: 14 },
-  { x: 690, y: 275, w: 190, h: 14 },
-  { x: 390, y: 175, w: 180, h: 14 },
+const TRIPPY_URLS = [
+  'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=960&h=540&fit=crop&q=50',
+  'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=960&h=540&fit=crop&q=50',
+  'https://images.unsplash.com/photo-1550684376-efcbd6e3f031?w=960&h=540&fit=crop&q=50',
+  'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=960&h=540&fit=crop&q=50',
+  'https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=960&h=540&fit=crop&q=50',
+  'https://images.unsplash.com/photo-1604076913837-52ab5f6a4c07?w=960&h=540&fit=crop&q=50',
+  'https://images.unsplash.com/photo-1507400492013-162706c8c05e?w=960&h=540&fit=crop&q=50',
 ];
-const WALLS = [
+const KILL_PHRASES = [
+  'OBLITERATED!', 'DEMOLISHED!', 'YEETED!', 'ABSOLUTELY COOKED!',
+  'SKILL ISSUE!', 'GET REKT!', 'FATALITY!', 'BONK!',
+  'EMOTIONAL DAMAGE!', 'WIZARD DOWN!', 'WAND BROKEN!',
+  'SPELL FAILED SUCCESSFULLY!', 'THERAPY NEEDED!', 'FERAL!',
+  'UNHINGED!', 'CHAOS REIGNS!', 'CRITICAL HIT TO DIGNITY!',
+  'SENT TO THE SHADOW REALM!', 'DELETED!', 'VAPORIZED!',
+];
+let trippyImages = [];
+let trippyLoaded = false;
+let currentBgImage = null;
+let bgHuePhase = 0;
+let screenFlash = 0;
+let screenFlashColor = '#fff';
+let announcements = [];
+let comboCount = [0, 0];
+
+const LEVELS = [
+  {
+    name: 'CLASSIC DOJO',
+    platforms: [
+      { x: 0, y: 468, w: 370, h: 24 },
+      { x: 590, y: 468, w: 370, h: 24 },
+      { x: 350, y: 370, w: 260, h: 14 },
+      { x: 80, y: 275, w: 190, h: 14 },
+      { x: 690, y: 275, w: 190, h: 14 },
+      { x: 390, y: 175, w: 180, h: 14 },
+    ],
+    spawns: [{ x: 160, y: 420 }, { x: 800, y: 420 }],
+    theme: { top: '#00ffcc', bottom: '#ff00ff', fill: 'rgba(20, 20, 40, 0.85)', glow: '#00ffff', detail: 'rgba(0, 255, 180, 0.18)' },
+  },
+  {
+    name: 'SKY ISLANDS',
+    platforms: [
+      { x: 60, y: 440, w: 140, h: 14 },
+      { x: 760, y: 440, w: 140, h: 14 },
+      { x: 300, y: 385, w: 120, h: 14 },
+      { x: 540, y: 385, w: 120, h: 14 },
+      { x: 140, y: 310, w: 110, h: 14 },
+      { x: 710, y: 310, w: 110, h: 14 },
+      { x: 420, y: 290, w: 120, h: 14 },
+      { x: 240, y: 210, w: 100, h: 14 },
+      { x: 620, y: 210, w: 100, h: 14 },
+      { x: 420, y: 140, w: 120, h: 14 },
+    ],
+    spawns: [{ x: 130, y: 390 }, { x: 830, y: 390 }],
+    theme: { top: '#88ccff', bottom: '#ffffff', fill: 'rgba(10, 20, 50, 0.9)', glow: '#4488ff', detail: 'rgba(100, 180, 255, 0.15)' },
+  },
+  {
+    name: 'LAVA PIT',
+    platforms: [
+      { x: 0, y: 468, w: 280, h: 24 },
+      { x: 680, y: 468, w: 280, h: 24 },
+      { x: 10, y: 345, w: 130, h: 14 },
+      { x: 820, y: 345, w: 130, h: 14 },
+      { x: 220, y: 310, w: 150, h: 14 },
+      { x: 590, y: 310, w: 150, h: 14 },
+      { x: 380, y: 195, w: 200, h: 14 },
+      { x: 420, y: 430, w: 120, h: 14 },
+    ],
+    spawns: [{ x: 140, y: 420 }, { x: 820, y: 420 }],
+    theme: { top: '#ff4400', bottom: '#ffcc00', fill: 'rgba(40, 10, 5, 0.9)', glow: '#ff6600', detail: 'rgba(255, 100, 0, 0.18)' },
+  },
+  {
+    name: 'STAIRWAY TO CHAOS',
+    platforms: [
+      { x: 30, y: 475, w: 200, h: 18 },
+      { x: 380, y: 480, w: 200, h: 18 },
+      { x: 730, y: 405, w: 200, h: 14 },
+      { x: 80, y: 340, w: 180, h: 14 },
+      { x: 700, y: 270, w: 180, h: 14 },
+      { x: 140, y: 200, w: 170, h: 14 },
+      { x: 640, y: 140, w: 170, h: 14 },
+      { x: 350, y: 340, w: 260, h: 14 },
+    ],
+    spawns: [{ x: 130, y: 425 }, { x: 830, y: 355 }],
+    theme: { top: '#44ff44', bottom: '#00cc66', fill: 'rgba(5, 25, 5, 0.9)', glow: '#00ff44', detail: 'rgba(0, 255, 100, 0.15)' },
+  },
+  {
+    name: 'THE COLOSSEUM',
+    platforms: [
+      { x: 0, y: 480, w: 960, h: 24 },
+      { x: 350, y: 330, w: 260, h: 14 },
+      { x: 60, y: 210, w: 150, h: 14 },
+      { x: 750, y: 210, w: 150, h: 14 },
+    ],
+    spawns: [{ x: 160, y: 430 }, { x: 800, y: 430 }],
+    theme: { top: '#ffcc00', bottom: '#ff8800', fill: 'rgba(35, 25, 5, 0.9)', glow: '#ffaa00', detail: 'rgba(255, 200, 50, 0.15)' },
+  },
+  {
+    name: 'NEON LATTICE',
+    platforms: [
+      { x: 40, y: 460, w: 110, h: 12 },
+      { x: 230, y: 460, w: 110, h: 12 },
+      { x: 420, y: 460, w: 110, h: 12 },
+      { x: 620, y: 460, w: 110, h: 12 },
+      { x: 810, y: 460, w: 110, h: 12 },
+      { x: 135, y: 365, w: 110, h: 12 },
+      { x: 330, y: 365, w: 110, h: 12 },
+      { x: 525, y: 365, w: 110, h: 12 },
+      { x: 715, y: 365, w: 110, h: 12 },
+      { x: 40, y: 270, w: 110, h: 12 },
+      { x: 230, y: 270, w: 110, h: 12 },
+      { x: 420, y: 270, w: 110, h: 12 },
+      { x: 620, y: 270, w: 110, h: 12 },
+      { x: 810, y: 270, w: 110, h: 12 },
+      { x: 330, y: 175, w: 110, h: 12 },
+      { x: 525, y: 175, w: 110, h: 12 },
+    ],
+    spawns: [{ x: 95, y: 410 }, { x: 865, y: 410 }],
+    theme: { top: '#cc44ff', bottom: '#8800ff', fill: 'rgba(20, 5, 35, 0.9)', glow: '#aa00ff', detail: 'rgba(180, 50, 255, 0.15)' },
+  },
+  {
+    name: 'TWIN TOWERS',
+    platforms: [
+      { x: 30, y: 475, w: 210, h: 20 },
+      { x: 720, y: 475, w: 210, h: 20 },
+      { x: 50, y: 380, w: 170, h: 14 },
+      { x: 740, y: 380, w: 170, h: 14 },
+      { x: 70, y: 285, w: 140, h: 14 },
+      { x: 750, y: 285, w: 140, h: 14 },
+      { x: 90, y: 190, w: 120, h: 14 },
+      { x: 750, y: 190, w: 120, h: 14 },
+      { x: 390, y: 330, w: 180, h: 14 },
+    ],
+    spawns: [{ x: 135, y: 425 }, { x: 825, y: 425 }],
+    theme: { top: '#00ffcc', bottom: '#0088aa', fill: 'rgba(5, 20, 30, 0.9)', glow: '#00ccaa', detail: 'rgba(0, 220, 180, 0.15)' },
+  },
+  {
+    name: 'THE FUNNEL',
+    platforms: [
+      { x: 0, y: 280, w: 180, h: 14 },
+      { x: 780, y: 280, w: 180, h: 14 },
+      { x: 120, y: 345, w: 160, h: 14 },
+      { x: 680, y: 345, w: 160, h: 14 },
+      { x: 245, y: 410, w: 140, h: 14 },
+      { x: 575, y: 410, w: 140, h: 14 },
+      { x: 400, y: 210, w: 160, h: 14 },
+      { x: 380, y: 475, w: 200, h: 20 },
+    ],
+    spawns: [{ x: 90, y: 230 }, { x: 870, y: 230 }],
+    theme: { top: '#ff3366', bottom: '#ff0044', fill: 'rgba(35, 5, 15, 0.9)', glow: '#ff2244', detail: 'rgba(255, 50, 80, 0.15)' },
+  },
+];
+
+let PLATFORMS = LEVELS[0].platforms;
+let WALLS = [
   { x: -12, y: -100, w: 12, h: H + 200 },
   { x: W, y: -100, w: 12, h: H + 200 },
 ];
-const SPAWNS = [{ x: 160, y: 420 }, { x: 800, y: 420 }];
+let SPAWNS = LEVELS[0].spawns;
+let currentLevel = LEVELS[0];
+let lastLevelIndex = -1;
 const SEASONAL_OMENS = [
   { id: 'vernal-calm', name: 'Vernal Calm', desc: 'Balanced skies. No global twist.', color: '#d4c4f2', gravityMult: 1, bulletSpeedMult: 1, fireRateMult: 1, knockbackMult: 1, bounceBonus: 0, windForce: 0 },
   { id: 'moon-glide', name: 'Moon Glide', desc: 'Low gravity and softer landings.', color: '#c7d9ff', gravityMult: 0.84, bulletSpeedMult: 1, fireRateMult: 1, knockbackMult: 1, bounceBonus: 0, windForce: 0 },
@@ -233,7 +382,7 @@ function saveProfile() {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(wishforgeProfile));
   } catch (err) {
-    console.warn('[Wishforge] Profile save failed:', err?.message || err);
+    console.warn('[FWT] Profile save failed:', err?.message || err);
   }
 }
 
@@ -373,15 +522,64 @@ function quickTone(type, freq, dur, gain = 0.08) {
   o.start(t);
   o.stop(t + dur);
 }
-function playSound(type, profile = 'chime', pitch = 1, release = 1, intensity = 1) {
-  const p = clamp(pitch, 0.5, 2);
-  const r = clamp(release, 0.5, 2);
-  const g = clamp(intensity, 0.25, 2);
-  if (type === 'jump') return quickTone('sine', 290, 0.12, 0.06);
-  if (type === 'hit') return quickTone('triangle', 170, 0.14, 0.1);
-  if (type === 'death') return quickTone('sawtooth', 220, 0.6, 0.18);
-  if (type === 'bounce') return quickTone('sine', 700, 0.08, 0.05);
-
+function playNoise(dur, gain = 0.12) {
+  ensureAudio();
+  const sz = Math.floor(audioCtx.sampleRate * dur);
+  const buf = audioCtx.createBuffer(1, sz, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = Math.random() * 2 - 1;
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const g = audioCtx.createGain();
+  const hp = audioCtx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 800;
+  g.gain.setValueAtTime(gain, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  src.connect(hp);
+  hp.connect(g);
+  g.connect(audioCtx.destination);
+  src.start();
+}
+function playBassHit() {
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(80, t);
+  o.frequency.exponentialRampToValueAtTime(30, t + 0.5);
+  g.gain.setValueAtTime(0.35, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start(t);
+  o.stop(t + 0.5);
+  const o2 = audioCtx.createOscillator();
+  const g2 = audioCtx.createGain();
+  o2.type = 'square';
+  o2.frequency.setValueAtTime(55, t);
+  o2.frequency.exponentialRampToValueAtTime(20, t + 0.4);
+  g2.gain.setValueAtTime(0.12, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+  o2.connect(g2);
+  g2.connect(audioCtx.destination);
+  o2.start(t);
+  o2.stop(t + 0.4);
+}
+function playImpactCrunch() {
+  playNoise(0.08, 0.2);
+  quickTone('sawtooth', 300 + Math.random() * 200, 0.06, 0.12);
+}
+function playDeathExplosion() {
+  playBassHit();
+  playNoise(0.25, 0.18);
+  quickTone('sawtooth', 180, 0.4, 0.15);
+  setTimeout(() => quickTone('sine', 120, 0.3, 0.1), 80);
+  setTimeout(() => playNoise(0.15, 0.1), 120);
+}
+function playJuicyShoot(profile, pitch, release, intensity) {
+  playNoise(0.03, 0.06 * intensity);
   const map = {
     chime: ['sine', 900, 0.1, 0.08],
     flute: ['triangle', 520, 0.09, 0.08],
@@ -397,7 +595,77 @@ function playSound(type, profile = 'chime', pitch = 1, release = 1, intensity = 
     crackle: ['square', 820, 0.05, 0.06],
   };
   const [wave, freq, dur, gain] = map[profile] || map.chime;
-  quickTone(wave, freq * p, dur * r, gain * g);
+  quickTone(wave, freq * pitch, dur * release, gain * intensity);
+}
+function playSound(type, profile = 'chime', pitch = 1, release = 1, intensity = 1) {
+  const p = clamp(pitch, 0.5, 2);
+  const r = clamp(release, 0.5, 2);
+  const g = clamp(intensity, 0.25, 2);
+  if (type === 'jump') {
+    quickTone('sine', 290, 0.12, 0.06);
+    quickTone('triangle', 580, 0.06, 0.03);
+    return;
+  }
+  if (type === 'hit') {
+    playImpactCrunch();
+    return;
+  }
+  if (type === 'death') {
+    playDeathExplosion();
+    return;
+  }
+  if (type === 'bounce') {
+    quickTone('sine', 700 + Math.random() * 300, 0.08, 0.06);
+    playNoise(0.03, 0.04);
+    return;
+  }
+  playJuicyShoot(profile, p, r, g);
+}
+function loadTrippyImages() {
+  let loaded = 0;
+  TRIPPY_URLS.forEach((url, i) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      trippyImages[i] = img;
+      loaded++;
+      if (loaded >= 2 && !trippyLoaded) {
+        trippyLoaded = true;
+        pickNewBgImage();
+        renderBackground();
+      }
+    };
+    img.onerror = () => {
+      loaded++;
+    };
+    img.src = url;
+  });
+}
+function pickNewBgImage() {
+  const valid = trippyImages.filter(Boolean);
+  if (valid.length > 0) {
+    let next;
+    do {
+      next = valid[Math.floor(Math.random() * valid.length)];
+    } while (next === currentBgImage && valid.length > 1);
+    currentBgImage = next;
+  }
+}
+function spawnAnnouncement(text, color = '#ff4444') {
+  announcements.push({
+    text,
+    x: W / 2 + (Math.random() - 0.5) * 200,
+    y: H * 0.35,
+    life: 90,
+    maxLife: 90,
+    color,
+    vy: -1.5,
+    scale: 0,
+  });
+}
+function triggerScreenFlash(color = '#ffffff', amount = 12) {
+  screenFlash = amount;
+  screenFlashColor = color;
 }
 
 function spawnParticles(x, y, count, color, speed, life, style = 'dot') {
@@ -429,14 +697,15 @@ function updateParticles(dt) {
 
 function initFireflies() {
   fireflies = [];
-  for (let i = 0; i < 45; i++) {
+  const neonColors = ['#00ffcc', '#ff00ff', '#ffff00', '#00ccff', '#ff6600', '#88ff44'];
+  for (let i = 0; i < 60; i++) {
     fireflies.push({
       x: Math.random() * W,
       y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.2,
-      vy: (Math.random() - 0.5) * 0.15,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.2,
       phase: Math.random() * Math.PI * 2,
-      color: Math.random() < 0.5 ? '#fff0a8' : '#ffd8f0',
+      color: neonColors[Math.floor(Math.random() * neonColors.length)],
     });
   }
 }
@@ -454,6 +723,7 @@ function initEnvironmentLife() {
       alpha: 0.08 + Math.random() * 0.14,
     });
   }
+  const bflyColors = ['#ff00ff', '#00ffcc', '#ffcc00', '#ff4488', '#44ff88', '#8844ff'];
   for (let i = 0; i < 16; i++) {
     butterflies.push({
       x: Math.random() * W,
@@ -461,7 +731,7 @@ function initEnvironmentLife() {
       vx: (Math.random() - 0.5) * 0.5,
       vy: (Math.random() - 0.5) * 0.35,
       wing: Math.random() * Math.PI * 2,
-      color: Math.random() < 0.5 ? '#f6a3cd' : '#8cc5ff',
+      color: bflyColors[Math.floor(Math.random() * bflyColors.length)],
     });
   }
 }
@@ -498,37 +768,49 @@ function updateEnvironmentLife(dt) {
 
 function renderFireflies() {
   for (const f of fireflies) {
-    const alpha = 0.2 + (Math.sin(f.phase) * 0.5 + 0.5) * 0.45;
+    const alpha = 0.25 + (Math.sin(f.phase) * 0.5 + 0.5) * 0.55;
     ctx.globalAlpha = alpha;
+    ctx.save();
+    ctx.shadowColor = f.color;
+    ctx.shadowBlur = 8;
     ctx.fillStyle = f.color;
     ctx.fillRect(f.x, f.y, 2, 2);
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
 }
 
 function renderEnvironmentLife() {
   for (const c of cloudWisps) {
-    ctx.globalAlpha = c.alpha;
-    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = c.alpha * 0.4;
+    ctx.save();
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = 'rgba(180, 100, 255, 0.3)';
     ctx.beginPath();
     ctx.ellipse(c.x, c.y, c.w, c.h, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
     ctx.ellipse(c.x + c.w * 0.45, c.y - 3, c.w * 0.55, c.h * 0.75, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
 
   for (const b of butterflies) {
     const flap = 0.6 + Math.sin(b.wing) * 0.4;
+    ctx.save();
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 6;
     ctx.fillStyle = b.color;
     ctx.globalAlpha = 0.72;
     ctx.beginPath();
     ctx.ellipse(b.x - 2, b.y, 2.5 + flap * 2.5, 1.6, -0.5, 0, Math.PI * 2);
     ctx.ellipse(b.x + 2, b.y, 2.5 + flap * 2.5, 1.6, 0.5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
     ctx.globalAlpha = 1;
-    ctx.fillStyle = '#5f4a55';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(b.x - 0.5, b.y - 1.5, 1, 3);
   }
 }
@@ -693,7 +975,10 @@ function updatePlayers(dt) {
         p.hp = 0;
         p.alive = false;
         playSound('death');
-        spawnParticles(p.x, p.y, 24, p.trimColor, 4, 30, 'burst');
+        spawnParticles(p.x, p.y, 40, p.trimColor, 6, 40, 'burst');
+        spawnParticles(p.x, p.y, 12, '#ff00ff', 4, 30, 'dot');
+        spawnAnnouncement('POISONED!', '#88ff44');
+        triggerScreenFlash('#88ff44', 10);
         continue;
       }
     }
@@ -784,7 +1069,10 @@ function updatePlayers(dt) {
     if (p.y > KILL_Y) {
       p.alive = false;
       playSound('death');
-      spawnParticles(p.x, H, 22, p.trimColor, 4, 40, 'burst');
+      spawnParticles(p.x, H, 40, p.trimColor, 6, 50, 'burst');
+      spawnParticles(p.x, H, 15, '#00ffff', 5, 35, 'spark');
+      spawnAnnouncement('YEETED OFF MAP!', '#00ffff');
+      triggerScreenFlash('#ff4444', 12);
     }
   }
 }
@@ -796,7 +1084,10 @@ function fireBullets(p) {
     if (p.hp <= 0) {
       p.alive = false;
       playSound('death');
-      spawnParticles(p.x, p.y, 24, '#ffb3b3', 4, 30, 'burst');
+      spawnParticles(p.x, p.y, 40, '#ffb3b3', 6, 40, 'burst');
+      spawnParticles(p.x, p.y, 12, '#ff4444', 4, 30, 'dot');
+      spawnAnnouncement('SELF-DESTRUCT!', '#ff8800');
+      triggerScreenFlash('#ff8800', 12);
       return;
     }
   }
@@ -996,8 +1287,16 @@ function updateBullets(dt) {
           p.hp = 0;
           p.alive = false;
           playSound('death');
-          spawnParticles(p.x, p.y - ph / 2, 30, p.trimColor, 5.8, 45, 'burst');
-          slowMo = 40;
+          spawnParticles(p.x, p.y - ph / 2, 50, p.trimColor, 7, 55, 'burst');
+          spawnParticles(p.x, p.y - ph / 2, 20, '#ffffff', 5, 35, 'spark');
+          spawnParticles(p.x, p.y - ph / 2, 15, '#ff00ff', 6, 40, 'dot');
+          slowMo = 50;
+          comboCount[b.owner]++;
+          const phrase = KILL_PHRASES[Math.floor(Math.random() * KILL_PHRASES.length)];
+          const killerColor = players[b.owner]?.trimColor || '#ff4444';
+          spawnAnnouncement(phrase, killerColor);
+          if (comboCount[b.owner] > 1) spawnAnnouncement(`${comboCount[b.owner]}x COMBO`, '#ffff00');
+          triggerScreenFlash(killerColor, 15);
         }
         break;
       }
@@ -1048,7 +1347,10 @@ function applyAreaDamage(x, y, radius, damage, ownerIdx) {
       p.hp = 0;
       p.alive = false;
       playSound('death');
-      spawnParticles(p.x, p.y - 10, 24, p.trimColor, 4, 30, 'burst');
+      spawnParticles(p.x, p.y - 10, 40, p.trimColor, 6, 40, 'burst');
+      spawnParticles(p.x, p.y - 10, 12, '#ff8800', 4, 30, 'dot');
+      spawnAnnouncement('SPLASH DAMAGE!', '#ff8800');
+      triggerScreenFlash('#ff8800', 10);
     }
   }
 }
@@ -1095,7 +1397,10 @@ function updateHazardFields(dt) {
       if (p.hp <= 0 && p.alive) {
         p.alive = false;
         playSound('death');
-        spawnParticles(p.x, p.y - 10, 24, p.trimColor, 4, 30, 'burst');
+        spawnParticles(p.x, p.y - 10, 40, p.trimColor, 6, 40, 'burst');
+        spawnParticles(p.x, p.y - 10, 12, '#ff00ff', 4, 30, 'dot');
+        spawnAnnouncement('MELTED!', '#ff00ff');
+        triggerScreenFlash('#ff00ff', 10);
       }
     }
   }
@@ -1104,17 +1409,21 @@ function updateHazardFields(dt) {
 function renderHazardFields() {
   for (const f of hazardFields) {
     const lifeFrac = Math.max(0.15, Math.min(1, f.timeLeft / 2));
-    ctx.globalAlpha = 0.12 * lifeFrac;
+    ctx.save();
+    ctx.shadowColor = f.color;
+    ctx.shadowBlur = 20 * lifeFrac;
+    ctx.globalAlpha = 0.18 * lifeFrac;
     ctx.fillStyle = f.color;
     ctx.beginPath();
     ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 0.25 * lifeFrac;
+    ctx.globalAlpha = 0.35 * lifeFrac;
     ctx.strokeStyle = f.color;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(f.x, f.y, f.radius * 0.85, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
 }
@@ -1129,66 +1438,57 @@ function renderBackground() {
   bgCanvas.height = H;
   const c = bgCanvas.getContext('2d');
 
-  const sky = c.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#ffd9f0');
-  sky.addColorStop(0.45, '#cde9ff');
-  sky.addColorStop(1, '#bdecc8');
-  c.fillStyle = sky;
-  c.fillRect(0, 0, W, H);
-
-  c.fillStyle = 'rgba(255,255,255,0.5)';
-  for (let i = 0; i < 16; i++) {
-    const x = Math.random() * W;
-    const y = 30 + Math.random() * 140;
-    c.beginPath();
-    c.ellipse(x, y, 28 + Math.random() * 30, 10 + Math.random() * 12, 0, 0, Math.PI * 2);
-    c.fill();
-  }
-
-  c.fillStyle = '#95d29f';
-  c.beginPath();
-  c.moveTo(0, H);
-  c.quadraticCurveTo(W * 0.2, H - 140, W * 0.35, H - 88);
-  c.quadraticCurveTo(W * 0.5, H - 40, W * 0.7, H - 90);
-  c.quadraticCurveTo(W * 0.85, H - 130, W, H - 70);
-  c.lineTo(W, H);
-  c.closePath();
-  c.fill();
-
-  c.fillStyle = '#7bbc8a';
-  c.beginPath();
-  c.moveTo(0, H);
-  c.quadraticCurveTo(W * 0.16, H - 80, W * 0.38, H - 40);
-  c.quadraticCurveTo(W * 0.6, H - 8, W * 0.82, H - 44);
-  c.quadraticCurveTo(W * 0.9, H - 60, W, H - 36);
-  c.lineTo(W, H);
-  c.closePath();
-  c.fill();
-
-  for (const p of PLATFORMS) {
-    c.fillStyle = '#8b6f5a';
-    c.fillRect(p.x, p.y, p.w, p.h);
-    c.fillStyle = '#73b86b';
-    c.fillRect(p.x, p.y, p.w, 4);
-    c.fillStyle = '#a88d74';
-    for (let x = p.x + 10; x < p.x + p.w - 8; x += 18) c.fillRect(x, p.y + 6, 8, 2);
-    c.fillStyle = 'rgba(255,255,255,0.25)';
-    c.fillRect(p.x + 2, p.y + 1, p.w - 4, 1);
-    for (let fx = p.x + 8; fx < p.x + p.w - 8; fx += 28) {
-      if (Math.random() < 0.45) {
-        c.fillStyle = '#f6d89e';
-        c.fillRect(fx, p.y - 4, 2, 4);
-        c.fillStyle = '#f4a4c8';
-        c.fillRect(fx - 1, p.y - 6, 4, 2);
-      }
+  if (currentBgImage) {
+    c.drawImage(currentBgImage, 0, 0, W, H);
+    c.fillStyle = 'rgba(0, 0, 15, 0.32)';
+    c.fillRect(0, 0, W, H);
+    const vignette = c.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.7);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
+    c.fillStyle = vignette;
+    c.fillRect(0, 0, W, H);
+  } else {
+    const sky = c.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#1a0033');
+    sky.addColorStop(0.3, '#2d0066');
+    sky.addColorStop(0.6, '#0d0d3b');
+    sky.addColorStop(1, '#000a1a');
+    c.fillStyle = sky;
+    c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 120; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H;
+      const brightness = 0.2 + Math.random() * 0.8;
+      c.fillStyle = `rgba(255,255,255,${brightness})`;
+      c.fillRect(x, y, Math.random() < 0.3 ? 2 : 1, Math.random() < 0.3 ? 2 : 1);
     }
   }
 
-  for (let i = 0; i < 60; i++) {
-    const sx = Math.random() * W;
-    const sy = 100 + Math.random() * (H - 170);
-    c.fillStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.2})`;
-    c.fillRect(sx, sy, 1, 1);
+  const theme = currentLevel.theme;
+  for (const p of PLATFORMS) {
+    c.save();
+    c.shadowColor = theme.glow;
+    c.shadowBlur = 14;
+    c.fillStyle = theme.fill;
+    c.fillRect(p.x, p.y, p.w, p.h);
+    c.restore();
+    c.fillStyle = theme.top;
+    c.fillRect(p.x, p.y, p.w, 2);
+    c.fillStyle = theme.bottom;
+    c.fillRect(p.x, p.y + p.h - 1, p.w, 1);
+    c.fillStyle = theme.detail;
+    c.fillRect(p.x, p.y + 2, p.w, p.h - 3);
+    for (let x = p.x + 6; x < p.x + p.w - 4; x += 14) {
+      c.fillStyle = theme.detail;
+      c.fillRect(x, p.y + 3, 1, p.h - 4);
+    }
+    c.save();
+    c.shadowColor = theme.top;
+    c.shadowBlur = 4;
+    c.fillStyle = theme.top;
+    c.fillRect(p.x, p.y, 2, p.h);
+    c.fillRect(p.x + p.w - 2, p.y, 2, p.h);
+    c.restore();
   }
 }
 
@@ -1323,10 +1623,14 @@ function drawPlayer(p) {
     p.damageTaken -= 0.45;
   }
 
-  ctx.fillStyle = 'rgba(0,0,0,0.14)';
+  ctx.save();
+  ctx.shadowColor = p.robeColor;
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
   ctx.ellipse(p.x, p.y + 3, pw * 0.52, 3, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 
   const hoodH = ph * 0.34;
   const torsoH = ph * 0.4;
@@ -1390,11 +1694,49 @@ function drawPlayer(p) {
   const hpFrac = Math.max(0, p.hp / p.maxHp);
   const barW = 38, barH = 4;
   const barX = p.x - barW / 2, barY = by - 8;
-  ctx.fillStyle = '#4f3b33';
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
-  ctx.fillStyle = hpFrac > 0.5 ? '#5cbf72' : hpFrac > 0.25 ? '#f4ba55' : '#e56d75';
+  const hpColor = hpFrac > 0.5 ? '#00ff88' : hpFrac > 0.25 ? '#ffcc00' : '#ff4444';
+  ctx.save();
+  ctx.shadowColor = hpColor;
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = hpColor;
   ctx.fillRect(barX, barY, barW * hpFrac, barH);
+  ctx.restore();
 
+  ctx.globalAlpha = 1;
+}
+
+function updateAnnouncements(dt) {
+  for (let i = announcements.length - 1; i >= 0; i--) {
+    const a = announcements[i];
+    a.life -= dt;
+    a.y += a.vy * dt;
+    a.scale = Math.min(1, a.scale + dt * 0.12);
+    if (a.life <= 0) announcements.splice(i, 1);
+  }
+}
+function renderAnnouncements() {
+  for (const a of announcements) {
+    const alpha = Math.min(1, a.life / (a.maxLife * 0.3));
+    const scale = 0.5 + a.scale * 0.5;
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 44px "VT323", monospace';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 5;
+    ctx.strokeText(a.text, 0, 0);
+    ctx.fillStyle = a.color;
+    ctx.fillText(a.text, 0, 0);
+    ctx.shadowColor = a.color;
+    ctx.shadowBlur = 20;
+    ctx.fillText(a.text, 0, 0);
+    ctx.restore();
+  }
   ctx.globalAlpha = 1;
 }
 
@@ -1406,30 +1748,35 @@ function render() {
   if (shakeAmount < 0.3) shakeAmount = 0;
   ctx.translate(ox, oy);
 
+  bgHuePhase += 0.4;
+  const hueAngle = Math.sin(bgHuePhase * 0.008) * 120;
+  ctx.filter = `hue-rotate(${hueAngle}deg) saturate(1.35) brightness(0.92)`;
   ctx.drawImage(bgCanvas, 0, 0);
+  ctx.filter = 'none';
+
   renderEnvironmentLife();
   renderFireflies();
   renderHazardFields();
   renderMuzzleFlashes();
 
   for (const b of bullets) {
-    ctx.globalAlpha = 0.2;
+    ctx.globalAlpha = 0.35;
     for (let i = 0; i < b.trail.length; i++) {
       const pt = b.trail[i];
       const frac = (i + 1) / b.trail.length;
       ctx.fillStyle = b.trailColor;
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, b.r * frac * 0.55, 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y, b.r * frac * 0.7, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
     ctx.save();
     ctx.fillStyle = b.color;
     ctx.shadowColor = b.glowColor;
-    ctx.shadowBlur = b.r * (3 + b.effectIntensity);
+    ctx.shadowBlur = b.r * (5 + b.effectIntensity * 2);
     drawProjectile(b);
     ctx.restore();
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = 0.9;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r * 0.44, 0, Math.PI * 2);
@@ -1447,24 +1794,39 @@ function render() {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size + 1, 0, Math.PI * 2);
       ctx.strokeStyle = p.color;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     } else if (p.style === 'petal' || p.style === 'leaf') {
       ctx.fillRect(p.x - p.size, p.y - p.size * 0.4, p.size * 2, p.size * 0.8);
     } else {
+      ctx.save();
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = p.size * 3;
       ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      ctx.restore();
     }
   }
   ctx.globalAlpha = 1;
+
+  renderAnnouncements();
+
+  if (screenFlash > 0) {
+    ctx.globalAlpha = (screenFlash / 15) * 0.55;
+    ctx.fillStyle = screenFlashColor;
+    ctx.fillRect(-10, -10, W + 20, H + 20);
+    ctx.globalAlpha = 1;
+    screenFlash -= 1;
+  }
 
   renderHud();
   ctx.restore();
 }
 
 function renderHud() {
-  ctx.fillStyle = 'rgba(80, 56, 48, 0.55)';
-  ctx.fillRect(0, 0, W, 50);
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.fillRect(0, 49, W, 1);
+  ctx.fillStyle = 'rgba(0, 0, 10, 0.7)';
+  ctx.fillRect(0, 0, W, 52);
+  ctx.fillStyle = 'rgba(0, 255, 200, 0.25)';
+  ctx.fillRect(0, 51, W, 1);
 
   const p1 = players[0], p2 = players[1];
   ctx.font = '18px "VT323", monospace';
@@ -1472,123 +1834,205 @@ function renderHud() {
 
   if (p1) {
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffe0ee';
+    const hpFrac1 = Math.max(0, p1.hp / p1.maxHp);
+    ctx.fillStyle = hpFrac1 > 0.5 ? '#00ff88' : hpFrac1 > 0.25 ? '#ffcc00' : '#ff4444';
     ctx.fillText(`P1 HP ${Math.ceil(Math.max(0, p1.hp))}/${p1.maxHp}`, 10, 16);
-    ctx.fillStyle = '#f6d7b2';
-    ctx.fillText(`${p1.weapon.name}`, 10, 33);
+    ctx.fillStyle = '#ff88cc';
+    ctx.fillText(`${p1.weapon.name}`, 10, 34);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(10, 44, 140, 4);
+    ctx.fillStyle = hpFrac1 > 0.5 ? '#00ff88' : hpFrac1 > 0.25 ? '#ffcc00' : '#ff4444';
+    ctx.fillRect(10, 44, 140 * hpFrac1, 4);
   }
   if (p2) {
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#e6f0ff';
+    const hpFrac2 = Math.max(0, p2.hp / p2.maxHp);
+    ctx.fillStyle = hpFrac2 > 0.5 ? '#00ff88' : hpFrac2 > 0.25 ? '#ffcc00' : '#ff4444';
     ctx.fillText(`HP ${Math.ceil(Math.max(0, p2.hp))}/${p2.maxHp} P2`, W - 10, 16);
-    ctx.fillStyle = '#f6d7b2';
-    ctx.fillText(`${p2.weapon.name}`, W - 10, 33);
+    ctx.fillStyle = '#88ccff';
+    ctx.fillText(`${p2.weapon.name}`, W - 10, 34);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(W - 150, 44, 140, 4);
+    ctx.fillStyle = hpFrac2 > 0.5 ? '#00ff88' : hpFrac2 > 0.25 ? '#ffcc00' : '#ff4444';
+    ctx.fillRect(W - 150 + 140 * (1 - hpFrac2), 44, 140 * hpFrac2, 4);
   }
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#fff0a8';
-  ctx.font = '24px "VT323", monospace';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '28px "VT323", monospace';
+  ctx.shadowColor = '#ff00ff';
+  ctx.shadowBlur = 8;
   ctx.fillText(`${score[0]}  -  ${score[1]}`, W / 2, 16);
-  ctx.fillStyle = '#6a5448';
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#aaaaaa';
   ctx.font = '14px "VT323", monospace';
-  ctx.fillText(`Round ${Math.min(roundNum, ROUNDS_PER_GAME)}/${ROUNDS_PER_GAME}`, W / 2, 31);
+  ctx.fillText(`Round ${Math.min(roundNum, ROUNDS_PER_GAME)}/${ROUNDS_PER_GAME}`, W / 2, 32);
   ctx.font = '13px "VT323", monospace';
-  ctx.fillStyle = activeOmen?.color || '#d8c7ea';
-  ctx.fillText(`Omen: ${activeOmen?.name || 'Vernal Calm'}`, W / 2, 44);
+  ctx.fillStyle = currentLevel.theme.top;
+  ctx.fillText(`${currentLevel.name}  |  ${activeOmen?.name || 'Vernal Calm'}`, W / 2, 45);
 }
 
 function renderTitle() {
+  bgHuePhase += 0.6;
+  const hueAngle = Math.sin(bgHuePhase * 0.008) * 180;
+  ctx.filter = `hue-rotate(${hueAngle}deg) saturate(1.5) brightness(0.85)`;
   ctx.drawImage(bgCanvas, 0, 0);
+  ctx.filter = 'none';
   renderFireflies();
-  ctx.fillStyle = 'rgba(255,255,255,0.14)';
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '54px "VT323", monospace';
-  ctx.fillStyle = '#724d6d';
-  ctx.fillText('WISHFORGE DUEL', W / 2, H * 0.24);
+
+  const titlePulse = 1 + Math.sin(Date.now() / 600) * 0.04;
+  ctx.save();
+  ctx.translate(W / 2, H * 0.22);
+  ctx.scale(titlePulse, titlePulse);
+  ctx.font = '58px "VT323", monospace';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 6;
+  ctx.strokeText('FERAL WIZARD THERAPY', 0, 0);
+  ctx.fillStyle = '#ff00cc';
+  ctx.shadowColor = '#ff00ff';
+  ctx.shadowBlur = 30;
+  ctx.fillText('FERAL WIZARD THERAPY', 0, 0);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
   ctx.font = '20px "VT323", monospace';
-  ctx.fillStyle = '#7e5b4a';
-  ctx.fillText('Two mages. One wish each round. Anything can become your next weapon.', W / 2, H * 0.34);
+  ctx.fillStyle = '#00ffcc';
+  ctx.shadowColor = '#00ffcc';
+  ctx.shadowBlur = 10;
+  ctx.fillText('Two unhinged wizards. One couch. Infinite questionable life choices.', W / 2, H * 0.34);
+  ctx.shadowBlur = 0;
+
   ctx.font = '18px "VT323", monospace';
-  ctx.fillStyle = '#8e5c76';
-  ctx.fillText('P1: W/A/S/D + F', W / 2, H * 0.47);
-  ctx.fillStyle = '#5a77a8';
-  ctx.fillText('P2: Arrow Keys + /', W / 2, H * 0.53);
+  ctx.fillStyle = '#ff88cc';
+  ctx.fillText('P1: W/A/S/D + F   (attack)', W / 2, H * 0.47);
+  ctx.fillStyle = '#88ccff';
+  ctx.fillText('P2: Arrow Keys + /   (attack)', W / 2, H * 0.53);
+
   ctx.font = '16px "VT323", monospace';
-  ctx.fillStyle = '#6b5b4f';
-  ctx.fillText('Lose a round -> enter the Wish Forge -> describe your dream (or silly) item.', W / 2, H * 0.65);
-  ctx.fillText('The spirit builds a new 7x7 pixel relic with matching colors, sound, and effects.', W / 2, H * 0.70);
-  ctx.fillText(`A full game is ${ROUNDS_PER_GAME} rounds. Highest score wins.`, W / 2, H * 0.75);
+  ctx.fillStyle = '#cccccc';
+  ctx.fillText('Lose a round -> rage-forge ANY object into a weapon -> unleash chaos.', W / 2, H * 0.65);
+  ctx.fillText('The chaos goblin builds a new pixel relic with matching colors, sound, and effects.', W / 2, H * 0.70);
+  ctx.fillText(`Best of ${ROUNDS_PER_GAME} rounds. Most wins takes the couch.`, W / 2, H * 0.75);
+
   ctx.fillStyle = activeOmen?.color || '#8c7193';
-  ctx.fillText(`Seasonal Omen: ${activeOmen?.name || 'Vernal Calm'} — ${activeOmen?.desc || ''}`, W / 2, H * 0.79);
-  ctx.fillStyle = '#6b5b4f';
-  ctx.fillText(`Arcana: ${wishforgeProfile.arcana}  |  Press C to open Relic Codex`, W / 2, H * 0.83);
-  const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
-  ctx.fillStyle = `rgba(114, 77, 109, ${0.45 + pulse * 0.55})`;
-  ctx.font = '26px "VT323", monospace';
-  ctx.fillText('[ PRESS SPACE TO BEGIN ]', W / 2, H * 0.89);
+  ctx.fillText(`Vibe Check: ${activeOmen?.name || 'Vernal Calm'} — ${activeOmen?.desc || ''}`, W / 2, H * 0.79);
+  ctx.fillStyle = '#aaaaaa';
+  ctx.fillText(`Arcana: ${wishforgeProfile.arcana}  |  Press C to open Chaos Codex`, W / 2, H * 0.83);
+
+  const pulse = 0.5 + Math.sin(Date.now() / 300) * 0.5;
+  ctx.font = '28px "VT323", monospace';
+  ctx.fillStyle = `rgba(0, 255, 200, ${0.5 + pulse * 0.5})`;
+  ctx.shadowColor = '#00ffcc';
+  ctx.shadowBlur = pulse * 20;
+  ctx.fillText('[ PRESS SPACE TO BEGIN THE THERAPY ]', W / 2, H * 0.89);
+  ctx.shadowBlur = 0;
 }
 
 function renderRoundOverDisplay() {
   render();
-  ctx.fillStyle = 'rgba(255,255,255,0.38)';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '42px "VT323", monospace';
-  ctx.fillStyle = players[roundWinner]?.robeColor || '#5a4a5e';
-  ctx.fillText(`PLAYER ${roundWinner + 1} WON THE ROUND`, W / 2, H * 0.4);
-  ctx.font = '22px "VT323", monospace';
-  ctx.fillStyle = '#714f3d';
+  ctx.font = '46px "VT323", monospace';
+  const winColor = players[roundWinner]?.trimColor || '#ff00ff';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  ctx.strokeText(`PLAYER ${roundWinner + 1} WINS THE ROUND`, W / 2, H * 0.38);
+  ctx.fillStyle = winColor;
+  ctx.shadowColor = winColor;
+  ctx.shadowBlur = 20;
+  ctx.fillText(`PLAYER ${roundWinner + 1} WINS THE ROUND`, W / 2, H * 0.38);
+  ctx.shadowBlur = 0;
+  ctx.font = '24px "VT323", monospace';
+  ctx.fillStyle = '#ffffff';
   ctx.fillText(`Score: ${score[0]} - ${score[1]} (${Math.min(roundNum, ROUNDS_PER_GAME)}/${ROUNDS_PER_GAME} rounds)`, W / 2, H * 0.52);
   ctx.font = '17px "VT323", monospace';
   ctx.fillStyle = activeOmen?.color || '#8b6c94';
-  ctx.fillText(`Current Omen: ${activeOmen?.name || 'Vernal Calm'}`, W / 2, H * 0.58);
-  ctx.font = '18px "VT323", monospace';
-  ctx.fillStyle = '#6a5448';
-  ctx.fillText('Press SPACE to continue', W / 2, H * 0.66);
+  ctx.fillText(`Vibe: ${activeOmen?.name || 'Vernal Calm'}`, W / 2, H * 0.58);
+  const pulse = 0.5 + Math.sin(Date.now() / 350) * 0.5;
+  ctx.font = '20px "VT323", monospace';
+  ctx.fillStyle = `rgba(0, 255, 200, ${0.5 + pulse * 0.5})`;
+  ctx.fillText('Press SPACE to continue the therapy', W / 2, H * 0.66);
 }
 
 function renderGameOver() {
   render();
-  ctx.fillStyle = 'rgba(255,255,255,0.44)';
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const isDraw = score[0] === score[1];
   const winnerIdx = score[0] > score[1] ? 0 : 1;
-  ctx.font = '50px "VT323", monospace';
-  ctx.fillStyle = isDraw ? '#6d576a' : (players[winnerIdx]?.robeColor || '#6d576a');
-  ctx.fillText(isDraw ? 'IT IS A DRAW!' : `PLAYER ${winnerIdx + 1} WINS!`, W / 2, H * 0.32);
-  ctx.font = '28px "VT323", monospace';
-  ctx.fillStyle = '#6d4d3f';
-  ctx.fillText(`Final Score: ${score[0]} - ${score[1]}`, W / 2, H * 0.45);
+  const winColor = isDraw ? '#ffff00' : (players[winnerIdx]?.trimColor || '#ff00ff');
+  ctx.font = '54px "VT323", monospace';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 5;
+  ctx.strokeText(isDraw ? 'MUTUAL DESTRUCTION!' : `PLAYER ${winnerIdx + 1} IS CURED!`, W / 2, H * 0.28);
+  ctx.fillStyle = winColor;
+  ctx.shadowColor = winColor;
+  ctx.shadowBlur = 25;
+  ctx.fillText(isDraw ? 'MUTUAL DESTRUCTION!' : `PLAYER ${winnerIdx + 1} IS CURED!`, W / 2, H * 0.28);
+  ctx.shadowBlur = 0;
+  ctx.font = '30px "VT323", monospace';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(`Final Score: ${score[0]} - ${score[1]}`, W / 2, H * 0.42);
   ctx.font = '18px "VT323", monospace';
-  ctx.fillStyle = '#7a5e4f';
-  ctx.fillText(`P1 final relic: ${players[0]?.weapon?.name || 'Wish Twig'}`, W / 2, H * 0.58);
-  ctx.fillText(`P2 final relic: ${players[1]?.weapon?.name || 'Wish Twig'}`, W / 2, H * 0.63);
+  ctx.fillStyle = '#ff88cc';
+  ctx.fillText(`P1 final weapon: ${players[0]?.weapon?.name || 'Wish Twig'}`, W / 2, H * 0.55);
+  ctx.fillStyle = '#88ccff';
+  ctx.fillText(`P2 final weapon: ${players[1]?.weapon?.name || 'Wish Twig'}`, W / 2, H * 0.60);
   if (lastRunSummary) {
-    ctx.fillStyle = '#6d5969';
-    ctx.fillText(`Run style score: ${lastRunSummary.styleScore}  |  Arcana +${lastRunSummary.arcanaGained}`, W / 2, H * 0.70);
-    ctx.fillText(`Omen: ${lastRunSummary.omenName}  |  Wildest relic: ${lastRunSummary.wildestRelic}`, W / 2, H * 0.75);
+    ctx.fillStyle = '#ccaaff';
+    ctx.fillText(`Chaos score: ${lastRunSummary.styleScore}  |  Arcana +${lastRunSummary.arcanaGained}`, W / 2, H * 0.68);
+    ctx.fillText(`Vibe: ${lastRunSummary.omenName}  |  Most unhinged relic: ${lastRunSummary.wildestRelic}`, W / 2, H * 0.73);
   }
-  ctx.fillStyle = '#6f5a4a';
-  ctx.fillText('Press C for Relic Codex', W / 2, H * 0.81);
-  const pulse = 0.5 + Math.sin(Date.now() / 400) * 0.5;
-  ctx.fillStyle = `rgba(114, 77, 109, ${0.45 + pulse * 0.55})`;
-  ctx.font = '24px "VT323", monospace';
-  ctx.fillText('[ PRESS SPACE TO PLAY AGAIN ]', W / 2, H * 0.88);
+  ctx.fillStyle = '#aaaaaa';
+  ctx.fillText('Press C for Chaos Codex', W / 2, H * 0.80);
+  const pulse = 0.5 + Math.sin(Date.now() / 300) * 0.5;
+  ctx.font = '26px "VT323", monospace';
+  ctx.fillStyle = `rgba(0, 255, 200, ${0.5 + pulse * 0.5})`;
+  ctx.shadowColor = '#00ffcc';
+  ctx.shadowBlur = pulse * 15;
+  ctx.fillText('[ PRESS SPACE FOR MORE THERAPY ]', W / 2, H * 0.88);
+  ctx.shadowBlur = 0;
 }
 
 function renderCountdown() {
   render();
-  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '80px "VT323", monospace';
-  ctx.fillStyle = '#7d5075';
-  ctx.fillText(countdownVal <= 0 ? 'DUEL!' : String(countdownVal), W / 2, H / 2);
+
+  const lvlTheme = currentLevel.theme;
+  ctx.font = '22px "VT323", monospace';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.strokeText(currentLevel.name, W / 2, H * 0.3);
+  ctx.fillStyle = lvlTheme.top;
+  ctx.shadowColor = lvlTheme.glow;
+  ctx.shadowBlur = 15;
+  ctx.fillText(currentLevel.name, W / 2, H * 0.3);
+  ctx.shadowBlur = 0;
+
+  const text = countdownVal <= 0 ? 'FIGHT!' : String(countdownVal);
+  const scale = 1 + (countdownVal <= 0 ? 0.15 : 0) * Math.sin(Date.now() / 100);
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.scale(scale, scale);
+  ctx.font = '90px "VT323", monospace';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 6;
+  ctx.strokeText(text, 0, 0);
+  ctx.fillStyle = countdownVal <= 0 ? '#00ffcc' : '#ffffff';
+  ctx.shadowColor = countdownVal <= 0 ? '#00ffcc' : '#ff00ff';
+  ctx.shadowBlur = 30;
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
 }
 
 const compilerOverlay = document.getElementById('compiler-overlay');
@@ -1618,7 +2062,7 @@ function updateCodexOverlay() {
   `;
   const entries = (wishforgeProfile.relicCodex || []).slice(0, CODEX_LIMIT);
   if (!entries.length) {
-    codexList.innerHTML = '<div class="codex-card"><div class="codex-card-name">No relic memories yet</div><div class="codex-card-meta">Lose a round, forge a wish, and your codex will bloom.</div></div>';
+    codexList.innerHTML = '<div class="codex-card"><div class="codex-card-name">No chaos recorded yet</div><div class="codex-card-meta">Get bonked, rage-forge something unhinged, and your codex will fill with regrets.</div></div>';
     return;
   }
   codexList.innerHTML = entries.map(entry => `
@@ -1648,8 +2092,8 @@ function toggleCodexOverlay(forceOpen) {
 
 function getMemoryEcho() {
   const recent = (wishforgeProfile.relicCodex || [])[0];
-  if (!recent) return 'No past echo yet. This forge writes the first legend.';
-  return `Last remembered relic: ${recent.name} (${recent.shape}/${recent.trail}).`;
+  if (!recent) return 'No previous chaos recorded. Time to make history.';
+  return `Last abomination: ${recent.name} (${recent.shape}/${recent.trail}).`;
 }
 
 function startCompilerPhase(loserIdx) {
@@ -1667,7 +2111,7 @@ function startCompilerPhase(loserIdx) {
   compileOutput.innerHTML = '';
   compileTimerEl.textContent = String(COMPILE_TIME);
   compileModsDisplay.innerHTML = `
-    <span style="color:#7e5e4f">Current relic:</span> <span class="existing-mod-tag">${players[loserIdx].weapon.name}</span>
+    <span style="color:#00ffcc">Current weapon:</span> <span class="existing-mod-tag">${players[loserIdx].weapon.name}</span>
     <span class="existing-mod-tag" style="background:#f4e9ff;border-color:#d9c8eb;color:#6f4e80">Omen: ${activeOmen?.name || 'Vernal Calm'}</span>
     <div style="margin-top:4px;color:#8a6f5d">${escapeHtml(getMemoryEcho())}</div>
   `;
@@ -1691,7 +2135,7 @@ function submitCompile() {
   compileInput.disabled = true;
   compileOutput.classList.remove('hidden');
   compileOutput.innerHTML = `
-    <div style="color:#7e5e4f">THE WISH FORGE HUMS: "${request.slice(0, 120)}${request.length > 120 ? '...' : ''}"</div>
+    <div style="color:#00ffcc">THE CHAOS GOBLIN CACKLES: "${request.slice(0, 120)}${request.length > 120 ? '...' : ''}"</div>
     <div class="compiling-bar"><div class="compiling-bar-fill"></div></div>
   `;
   fetch('/.netlify/functions/compile', {
@@ -1701,12 +2145,12 @@ function submitCompile() {
   })
     .then(r => r.json())
     .then(data => {
-      if (data._debug) console.warn('[Wish Forge] Debug:', data._debug);
+      if (data._debug) console.warn('[FWT] Debug:', data._debug);
       compileResult = normalizeWeapon(data.mod || DEFAULT_WEAPON);
       showCompileResult(compileResult);
     })
     .catch(err => {
-      console.error('[Wish Forge] Error:', err);
+      console.error('[FWT] Error:', err);
       compileResult = DEFAULT_WEAPON;
       showCompileResult(compileResult);
     });
@@ -1776,13 +2220,13 @@ function showCompileResult(weapon) {
     <div class="compile-mod-name">✨ ${escapeHtml(weapon.name)}</div>
     <div class="compile-mod-quip">"${escapeHtml(weapon.quip)}"</div>
     <div class="compile-mod-tradeoff">Tradeoff: ${escapeHtml(weapon.tradeoff)}</div>
-    <div style="color:#7f6857; margin-top:5px; font-size:12px">Current omen: ${escapeHtml(activeOmen?.name || 'Vernal Calm')} — ${escapeHtml(activeOmen?.desc || '')}</div>
+    <div style="color:#886699; margin-top:5px; font-size:12px">Current vibe: ${escapeHtml(activeOmen?.name || 'Vernal Calm')} — ${escapeHtml(activeOmen?.desc || '')}</div>
     <div class="compile-preview-row">
       ${buildPixelPreviewHtml(weapon.pixel_rows, weapon.palette, 'Relic')}
       ${buildPixelPreviewHtml(weapon.projectile_rows, weapon.projectile_palette, 'Projectile')}
     </div>
     <div class="compile-trait-row">${tagsHtml}</div>
-    <div style="color:#7f6a5b; margin-top:8px; font-size:12px">Press SPACE to accept your wish and begin the next round</div>
+    <div style="color:#00ffcc; margin-top:8px; font-size:12px">Press SPACE to unleash this monstrosity</div>
   `;
   const handleSpace = (e) => {
     if (e.code === 'Space' || e.key === ' ') {
@@ -1800,7 +2244,7 @@ function applyCompileAndStartRound() {
   }
   compileInput.disabled = true;
   compileOutput.classList.add('compile-reveal');
-  compileOutput.innerHTML += `<div style="margin-top:8px;color:#7c5f4f">The pact seals... relic essence is binding.</div>`;
+  compileOutput.innerHTML += `<div style="margin-top:8px;color:#ff00ff">Chaos energy surges... your unhinged creation takes form...</div>`;
   if (compileInterval) { clearInterval(compileInterval); compileInterval = null; }
   setTimeout(() => {
     compilerOverlay.classList.add('hidden');
@@ -1822,6 +2266,17 @@ codexOverlay?.addEventListener('click', (e) => {
   if (e.target === codexOverlay) toggleCodexOverlay(false);
 });
 
+function loadLevel() {
+  let idx;
+  do {
+    idx = Math.floor(Math.random() * LEVELS.length);
+  } while (idx === lastLevelIndex && LEVELS.length > 1);
+  lastLevelIndex = idx;
+  currentLevel = LEVELS[idx];
+  PLATFORMS = currentLevel.platforms;
+  SPAWNS = currentLevel.spawns;
+}
+
 function startGame() {
   toggleCodexOverlay(false);
   score = [0, 0];
@@ -1830,6 +2285,7 @@ function startGame() {
   activeOmen = pickSeasonalOmen();
   currentRunStats = createRunStats();
   lastRunSummary = null;
+  loadLevel();
   players = [createPlayer(0), createPlayer(1)];
   initFireflies();
   initEnvironmentLife();
@@ -1838,14 +2294,19 @@ function startGame() {
 }
 function startRound() {
   roundNum++;
+  loadLevel();
   bullets = [];
   particles = [];
   hazardFields = [];
   muzzleFlashes = [];
+  announcements = [];
+  comboCount = [0, 0];
   shakeAmount = 0;
   slowMo = 0;
   players[0] = createPlayer(0);
   players[1] = createPlayer(1);
+  pickNewBgImage();
+  renderBackground();
   countdownVal = 3;
   countdownTimer = 0;
   gameState = 'countdown';
@@ -1898,6 +2359,7 @@ function gameLoop(timestamp) {
       updateMuzzleFlashes(dt);
       updateEnvironmentLife(dt);
       updateFireflies();
+      updateAnnouncements(dt);
       checkRoundEnd();
       render();
       break;
@@ -1906,6 +2368,7 @@ function gameLoop(timestamp) {
       updateHazardFields(rawDt);
       updateEnvironmentLife(rawDt);
       updateFireflies();
+      updateAnnouncements(rawDt);
       renderRoundOverDisplay();
       break;
     case 'compiler':
@@ -1932,8 +2395,10 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+loadLevel();
 initFireflies();
 initEnvironmentLife();
+loadTrippyImages();
 renderBackground();
 updateCodexOverlay();
 
