@@ -50,6 +50,17 @@ const DAMAGE_RECOVERY_RATE = 0.5;
 const PICKUP_RESPAWN_TIME = 15;
 const WAVE_DELAY = 5;
 const BASE_ENEMIES_PER_WAVE = 4;
+const DASH_SPEED = 35;
+const DASH_DURATION = 0.18;
+const DASH_COOLDOWN = 3;
+const SLIDE_SPEED = 20;
+const SLIDE_DURATION = 0.6;
+const SLIDE_COOLDOWN = 2;
+const GRENADE_SPEED = 30;
+const GRENADE_DAMAGE = 80;
+const GRENADE_RADIUS = 8;
+const GRENADE_FUSE = 2;
+const MAX_GRENADES = 3;
 
 // ── State ──
 let engine: Engine;
@@ -63,6 +74,7 @@ let currentWeaponIdx = 0;
 let enemies: Enemy[] = [];
 let pickups: Pickup[] = [];
 let projectiles: { mesh: Mesh; velocity: Vector3; damage: number; radius: number; timer: number }[] = [];
+let grenades: { mesh: Mesh; velocity: Vector3; timer: number; bounces: number }[] = [];
 let damagePostProcess: any;
 let damageIntensity = 0;
 let screenShakeIntensity = 0;
@@ -79,10 +91,21 @@ let displayFps = 0;
 let mouseMovementX = 0;
 let mouseMovementY = 0;
 let mouseDown = false;
+let mouseJustPressed = false;
 let keysHeld = new Set<string>();
 let keysJustPressed = new Set<string>();
 let scrollDelta = 0;
 let weaponModel: TransformNode | null = null;
+
+// Ability states
+let dashCooldown = 0;
+let dashTimer = 0;
+let dashDirection = Vector3.Zero();
+let slideCooldown = 0;
+let slideTimer = 0;
+let slideDirection = Vector3.Zero();
+let grenadeCount = MAX_GRENADES;
+let lastStreakAnnounce = 0;
 
 // ── Initialization ──
 async function init(): Promise<void> {
@@ -153,6 +176,7 @@ async function init(): Promise<void> {
     scene.render();
 
     keysJustPressed.clear();
+    mouseJustPressed = false;
     mouseMovementX = 0;
     mouseMovementY = 0;
     scrollDelta = 0;
@@ -180,7 +204,10 @@ function setupInput(canvas: HTMLCanvasElement): void {
   });
 
   document.addEventListener('mousedown', (e) => {
-    if (e.button === 0) mouseDown = true;
+    if (e.button === 0) {
+      mouseDown = true;
+      mouseJustPressed = true;
+    }
   });
 
   document.addEventListener('mouseup', (e) => {
@@ -328,9 +355,19 @@ function startGame(): void {
   camera.position = player.position.clone();
   camera.rotation.set(0, 0, 0);
 
+  // Clear grenades
+  grenades.forEach(g => g.mesh.dispose());
+  grenades = [];
+
   damageIntensity = 0;
   screenShakeIntensity = 0;
   recoilRecovery = { x: 0, y: 0 };
+  dashCooldown = 0;
+  dashTimer = 0;
+  slideCooldown = 0;
+  slideTimer = 0;
+  grenadeCount = MAX_GRENADES;
+  lastStreakAnnounce = 0;
 
   // Request pointer lock
   const canvas = engine.getRenderingCanvas()!;
@@ -392,15 +429,19 @@ function updateGame(dt: number): void {
 
   updatePlayerMovement(dt);
   updatePlayerLook(dt);
+  updateAbilities(dt);
   updateWeapons(dt);
   updateEnemies(dt);
   updateProjectiles(dt);
+  updateGrenades(dt);
   updatePickups(dt);
   updateWaveSystem(dt);
   updateEffects(dt);
   updateWeaponModel(dt);
+  updateMinimap();
 
   updateHUD(player, weapons[currentWeaponIdx], gameState, displayFps, weapons);
+  updateAbilityHUD();
 }
 
 function updatePlayerMovement(dt: number): void {
@@ -421,13 +462,31 @@ function updatePlayerMovement(dt: number): void {
   if (isMoving) moveDir.normalize();
 
   player.sprinting = keysHeld.has('shift') && isMoving && keysHeld.has('w');
-  const speed = MOVE_SPEED * (player.sprinting ? SPRINT_MULTIPLIER : 1);
-  const targetVelX = moveDir.x * speed;
-  const targetVelZ = moveDir.z * speed;
 
-  const accel = player.grounded ? 20 : 5;
-  player.velocity.x += (targetVelX - player.velocity.x) * Math.min(1, accel * dt);
-  player.velocity.z += (targetVelZ - player.velocity.z) * Math.min(1, accel * dt);
+  // Dashing overrides normal movement
+  if (dashTimer > 0) {
+    dashTimer -= dt;
+    player.velocity.x = dashDirection.x * DASH_SPEED;
+    player.velocity.z = dashDirection.z * DASH_SPEED;
+  }
+  // Sliding overrides normal movement
+  else if (slideTimer > 0) {
+    slideTimer -= dt;
+    const slideFalloff = slideTimer / SLIDE_DURATION;
+    player.velocity.x = slideDirection.x * SLIDE_SPEED * slideFalloff;
+    player.velocity.z = slideDirection.z * SLIDE_SPEED * slideFalloff;
+    // Lower camera during slide
+    camera.fov = 1.1 + (1 - slideFalloff) * 0.1;
+  } else {
+    camera.fov += (1.1 - camera.fov) * 0.1;
+    const speed = MOVE_SPEED * (player.sprinting ? SPRINT_MULTIPLIER : 1);
+    const targetVelX = moveDir.x * speed;
+    const targetVelZ = moveDir.z * speed;
+
+    const accel = player.grounded ? 20 : 5;
+    player.velocity.x += (targetVelX - player.velocity.x) * Math.min(1, accel * dt);
+    player.velocity.z += (targetVelZ - player.velocity.z) * Math.min(1, accel * dt);
+  }
 
   // Gravity
   player.velocity.y += GRAVITY * dt;
@@ -452,7 +511,7 @@ function updatePlayerMovement(dt: number): void {
     player.grounded = true;
   }
 
-  // Simple collision with platform (center platform at y=2, 16x16)
+  // Collision with center platform (y=2, 16x16)
   const px = player.position.x;
   const pz = player.position.z;
   if (Math.abs(px) < 8 && Math.abs(pz) < 8 && player.position.y < PLAYER_HEIGHT + 2 && player.position.y > PLAYER_HEIGHT) {
@@ -463,6 +522,18 @@ function updatePlayerMovement(dt: number): void {
     }
   }
 
+  // Corner platform collisions (elevated perches at y=8, 8x8 at ±60, ±60)
+  const perchCorners: [number, number][] = [[-60, -60], [60, -60], [-60, 60], [60, 60]];
+  for (const [cx, cz] of perchCorners) {
+    if (Math.abs(px - cx) < 4 && Math.abs(pz - cz) < 4 && player.position.y < PLAYER_HEIGHT + 8 && player.position.y > PLAYER_HEIGHT + 6) {
+      if (player.velocity.y < 0) {
+        player.position.y = PLAYER_HEIGHT + 8;
+        player.velocity.y = 0;
+        player.grounded = true;
+      }
+    }
+  }
+
   // Boundary clamp
   const bound = 78;
   player.position.x = Math.max(-bound, Math.min(bound, player.position.x));
@@ -470,14 +541,18 @@ function updatePlayerMovement(dt: number): void {
 
   camera.position.copyFrom(player.position);
 
+  // Lower camera during slide
+  if (slideTimer > 0) {
+    camera.position.y -= 0.6;
+  }
+
   // Head bob
-  if (isMoving && player.grounded) {
+  if (isMoving && player.grounded && dashTimer <= 0 && slideTimer <= 0) {
     const bobSpeed = player.sprinting ? HEAD_BOB_SPEED * 1.5 : HEAD_BOB_SPEED;
     headBobPhase += dt * bobSpeed;
     camera.position.y += Math.sin(headBobPhase) * HEAD_BOB_AMOUNT;
     camera.position.x += Math.cos(headBobPhase * 0.5) * HEAD_BOB_AMOUNT * 0.3;
 
-    // Footstep sounds
     footstepTimer -= dt;
     if (footstepTimer <= 0) {
       footstepTimer = player.sprinting ? FOOTSTEP_INTERVAL * 0.7 : FOOTSTEP_INTERVAL;
@@ -555,16 +630,14 @@ function updateWeapons(dt: number): void {
   // Fire timer
   weapon.fireTimer = Math.max(0, weapon.fireTimer - dt);
 
-  // Firing
-  if (mouseDown && weapon.fireTimer <= 0 && !weapon.reloading && weapon.currentAmmo > 0) {
-    if (weapon.def.automatic || keysJustPressed.has('mousedown')) {
+  // Firing: automatic weapons fire while held, semi-auto only on click
+  const canFire = weapon.fireTimer <= 0 && !weapon.reloading && weapon.currentAmmo > 0;
+  if (canFire) {
+    if (weapon.def.automatic && mouseDown) {
+      fireWeapon(weapon);
+    } else if (!weapon.def.automatic && mouseJustPressed) {
       fireWeapon(weapon);
     }
-  }
-
-  // For non-automatic, need to track mouse just pressed
-  if (!weapon.def.automatic && mouseDown && weapon.fireTimer <= 0 && !weapon.reloading && weapon.currentAmmo > 0) {
-    // handled via the fireTimer gate
   }
 }
 
@@ -802,6 +875,7 @@ function onEnemyKilled(enemy: Enemy, headshot: boolean): void {
     feedColor = '#ffaa00';
   }
   addKillFeedEntry(feedText, feedColor);
+  checkStreakRewards();
 }
 
 function damagePlayer(damage: number): void {
@@ -956,6 +1030,14 @@ function startWave(wave: number): void {
   showWaveAnnounce(wave);
   Audio.playWaveStart();
 
+  // Wave completion rewards
+  grenadeCount = Math.min(MAX_GRENADES, grenadeCount + 1);
+  if (wave > 1) {
+    player.health = Math.min(player.maxHealth, player.health + 15);
+    player.score += wave * 50;
+    addKillFeedEntry(`Wave ${wave} bonus: +${wave * 50} pts, +1 grenade, +15 HP`, '#00ff88');
+  }
+
   addKillFeedEntry(`Wave ${wave} - ${enemyCount} enemies`, '#00ffc8');
 }
 
@@ -993,6 +1075,352 @@ function spawnNextEnemy(): void {
     });
   }
   enemies.push(enemy);
+}
+
+function updateAbilities(dt: number): void {
+  dashCooldown = Math.max(0, dashCooldown - dt);
+  slideCooldown = Math.max(0, slideCooldown - dt);
+
+  // Dash (Q key)
+  if (keysJustPressed.has('q') && dashCooldown <= 0 && dashTimer <= 0) {
+    const forward = camera.getDirection(Vector3.Forward());
+    forward.y = 0;
+    forward.normalize();
+    const right = camera.getDirection(Vector3.Right());
+    right.y = 0;
+    right.normalize();
+
+    let dir = Vector3.Zero();
+    if (keysHeld.has('w')) dir.addInPlace(forward);
+    if (keysHeld.has('s')) dir.subtractInPlace(forward);
+    if (keysHeld.has('d')) dir.addInPlace(right);
+    if (keysHeld.has('a')) dir.subtractInPlace(right);
+    if (dir.length() < 0.1) dir = forward;
+    dir.normalize();
+
+    dashDirection = dir;
+    dashTimer = DASH_DURATION;
+    dashCooldown = DASH_COOLDOWN;
+    Audio.playJump();
+    screenShakeIntensity = 0.3;
+  }
+
+  // Slide (CTRL while sprinting)
+  if (keysJustPressed.has('control') && player.sprinting && slideCooldown <= 0 && slideTimer <= 0 && player.grounded) {
+    const forward = camera.getDirection(Vector3.Forward());
+    forward.y = 0;
+    forward.normalize();
+    slideDirection = forward;
+    slideTimer = SLIDE_DURATION;
+    slideCooldown = SLIDE_COOLDOWN;
+    Audio.playLand();
+  }
+
+  // Grenade (G key)
+  if (keysJustPressed.has('g') && grenadeCount > 0) {
+    throwGrenade();
+    grenadeCount--;
+  }
+}
+
+function throwGrenade(): void {
+  const throwDir = camera.getDirection(Vector3.Forward()).add(new Vector3(0, 0.3, 0)).normalize();
+  const startPos = camera.position.add(throwDir.scale(1.5));
+
+  const grenade = MeshBuilder.CreateSphere('grenade', { diameter: 0.25, segments: 6 }, scene);
+  grenade.position = startPos.clone();
+  const mat = new StandardMaterial('grenadeMat', scene);
+  mat.emissiveColor = new Color3(1, 0.3, 0);
+  mat.disableLighting = true;
+  grenade.material = mat;
+  grenade.checkCollisions = false;
+  grenade.isPickable = false;
+
+  grenades.push({
+    mesh: grenade,
+    velocity: throwDir.scale(GRENADE_SPEED).add(player.velocity.scale(0.3)),
+    timer: GRENADE_FUSE,
+    bounces: 0,
+  });
+
+  Audio.playJump();
+}
+
+function updateGrenades(dt: number): void {
+  for (let i = grenades.length - 1; i >= 0; i--) {
+    const g = grenades[i];
+    g.timer -= dt;
+    g.velocity.y += GRAVITY * dt;
+
+    const prevPos = g.mesh.position.clone();
+    g.mesh.position.addInPlace(g.velocity.scale(dt));
+
+    // Bounce off ground
+    if (g.mesh.position.y < 0.15) {
+      g.mesh.position.y = 0.15;
+      g.velocity.y = Math.abs(g.velocity.y) * 0.4;
+      g.velocity.x *= 0.7;
+      g.velocity.z *= 0.7;
+      g.bounces++;
+    }
+
+    // Bounce off walls (simplified)
+    if (Math.abs(g.mesh.position.x) > 79) {
+      g.velocity.x *= -0.5;
+      g.mesh.position.x = Math.sign(g.mesh.position.x) * 79;
+    }
+    if (Math.abs(g.mesh.position.z) > 79) {
+      g.velocity.z *= -0.5;
+      g.mesh.position.z = Math.sign(g.mesh.position.z) * 79;
+    }
+
+    // Flashing effect as timer runs out
+    if (g.timer < 0.5) {
+      const flash = Math.sin(g.timer * 30) > 0;
+      (g.mesh.material as StandardMaterial).emissiveColor = flash
+        ? new Color3(1, 0, 0) : new Color3(1, 0.3, 0);
+    }
+
+    // Explode
+    if (g.timer <= 0) {
+      createExplosion(scene, g.mesh.position, GRENADE_RADIUS);
+      Audio.playExplosion();
+      screenShakeIntensity = 1.5;
+
+      for (const enemy of enemies) {
+        if (!enemy.alive) continue;
+        const d = Vector3.Distance(g.mesh.position, enemy.position.add(new Vector3(0, 1, 0)));
+        if (d < GRENADE_RADIUS) {
+          const falloff = 1 - d / GRENADE_RADIUS;
+          const result = damageEnemy(enemy, GRENADE_DAMAGE * falloff, false);
+          if (result.killed) {
+            onEnemyKilled(enemy, false);
+          }
+        }
+      }
+
+      const playerDist = Vector3.Distance(g.mesh.position, player.position);
+      if (playerDist < GRENADE_RADIUS) {
+        damagePlayer(GRENADE_DAMAGE * (1 - playerDist / GRENADE_RADIUS) * 0.25);
+      }
+
+      g.mesh.dispose();
+      grenades.splice(i, 1);
+    }
+  }
+}
+
+function updateMinimap(): void {
+  const canvas = document.getElementById('minimap') as HTMLCanvasElement;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const mapScale = w / 180;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background with slight transparency
+  ctx.fillStyle = 'rgba(0, 10, 20, 0.8)';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0, 255, 200, 0.08)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 8; i++) {
+    const pos = (i / 8) * w;
+    ctx.beginPath();
+    ctx.moveTo(pos, 0);
+    ctx.lineTo(pos, h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, pos);
+    ctx.lineTo(w, pos);
+    ctx.stroke();
+  }
+
+  // Arena boundary
+  ctx.strokeStyle = 'rgba(0, 255, 200, 0.3)';
+  ctx.lineWidth = 1;
+  const bx = (80 + 80) * mapScale;
+  const by = (80 + 80) * mapScale;
+  const bw = 160 * mapScale;
+  ctx.strokeRect(w / 2 - bx / 2, h / 2 - by / 2, bw, bw);
+
+  // Center platform
+  const toScreen = (worldX: number, worldZ: number): [number, number] => {
+    return [w / 2 + worldX * mapScale, h / 2 + worldZ * mapScale];
+  };
+
+  ctx.fillStyle = 'rgba(0, 255, 200, 0.15)';
+  const [cx, cz] = toScreen(-8, -8);
+  ctx.fillRect(cx, cz, 16 * mapScale, 16 * mapScale);
+
+  // Cover objects (simplified)
+  ctx.fillStyle = 'rgba(100, 120, 150, 0.3)';
+  const covers: [number, number, number, number][] = [
+    [-30, -30, 6, 4], [30, -30, 6, 4], [-30, 30, 6, 4], [30, 30, 6, 4],
+    [-50, 0, 8, 3], [50, 0, 8, 3], [0, -50, 3, 8], [0, 50, 3, 8],
+  ];
+  covers.forEach(([ox, oz, ow, od]) => {
+    const [sx, sz] = toScreen(ox - ow / 2, oz - od / 2);
+    ctx.fillRect(sx, sz, ow * mapScale, od * mapScale);
+  });
+
+  // Enemies
+  for (const enemy of enemies) {
+    if (!enemy.alive) continue;
+    const [ex, ez] = toScreen(enemy.position.x, enemy.position.z);
+    const c = enemy.type.color;
+    ctx.fillStyle = `rgba(${Math.floor(c[0] * 255)}, ${Math.floor(c[1] * 255)}, ${Math.floor(c[2] * 255)}, 0.9)`;
+    ctx.beginPath();
+    ctx.arc(ex, ez, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Pickups
+  for (const pickup of pickups) {
+    if (!pickup.active) continue;
+    const [px, pz] = toScreen(pickup.position.x, pickup.position.z);
+    const colors: Record<string, string> = {
+      health: 'rgba(0, 255, 100, 0.6)',
+      armor: 'rgba(50, 130, 255, 0.6)',
+      ammo: 'rgba(255, 200, 0, 0.6)',
+    };
+    ctx.fillStyle = colors[pickup.type];
+    ctx.fillRect(px - 1.5, pz - 1.5, 3, 3);
+  }
+
+  // Player (triangle showing direction)
+  const [plx, plz] = toScreen(player.position.x, player.position.z);
+  const angle = camera.rotation.y;
+
+  ctx.save();
+  ctx.translate(plx, plz);
+  ctx.rotate(angle);
+  ctx.fillStyle = '#00ffc8';
+  ctx.beginPath();
+  ctx.moveTo(0, -5);
+  ctx.lineTo(-3.5, 4);
+  ctx.lineTo(3.5, 4);
+  ctx.closePath();
+  ctx.fill();
+
+  // FOV cone
+  ctx.fillStyle = 'rgba(0, 255, 200, 0.06)';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-25, -50);
+  ctx.lineTo(25, -50);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function updateAbilityHUD(): void {
+  const dashEl = document.getElementById('ability-dash')!;
+  const dashCdEl = document.getElementById('dash-cd')!;
+  const slideEl = document.getElementById('ability-slide')!;
+  const slideCdEl = document.getElementById('slide-cd')!;
+  const grenadeEl = document.getElementById('ability-grenade')!;
+  const grenadeCdEl = document.getElementById('grenade-cd')!;
+  const enemiesEl = document.getElementById('enemies-remaining')!;
+
+  // Dash
+  if (dashCooldown <= 0 && dashTimer <= 0) {
+    dashEl.classList.add('ready');
+    dashEl.classList.remove('active');
+    dashCdEl.textContent = 'READY';
+    dashCdEl.classList.remove('on-cd');
+  } else if (dashTimer > 0) {
+    dashEl.classList.remove('ready');
+    dashEl.classList.add('active');
+    dashCdEl.textContent = 'ACTIVE';
+    dashCdEl.classList.remove('on-cd');
+  } else {
+    dashEl.classList.remove('ready', 'active');
+    dashCdEl.textContent = dashCooldown.toFixed(1) + 's';
+    dashCdEl.classList.add('on-cd');
+  }
+
+  // Slide
+  if (slideCooldown <= 0 && slideTimer <= 0) {
+    slideEl.classList.add('ready');
+    slideEl.classList.remove('active');
+    slideCdEl.textContent = 'READY';
+    slideCdEl.classList.remove('on-cd');
+  } else if (slideTimer > 0) {
+    slideEl.classList.remove('ready');
+    slideEl.classList.add('active');
+    slideCdEl.textContent = 'ACTIVE';
+    slideCdEl.classList.remove('on-cd');
+  } else {
+    slideEl.classList.remove('ready', 'active');
+    slideCdEl.textContent = slideCooldown.toFixed(1) + 's';
+    slideCdEl.classList.add('on-cd');
+  }
+
+  // Grenade
+  if (grenadeCount > 0) {
+    grenadeEl.classList.add('ready');
+    grenadeCdEl.textContent = `×${grenadeCount}`;
+    grenadeCdEl.classList.remove('on-cd');
+  } else {
+    grenadeEl.classList.remove('ready');
+    grenadeCdEl.textContent = '×0';
+    grenadeCdEl.classList.add('on-cd');
+  }
+
+  // Enemies remaining
+  const aliveEnemies = enemies.filter(e => e.alive).length;
+  if (aliveEnemies > 0 || gameState.enemiesRemaining > 0) {
+    enemiesEl.textContent = `HOSTILES: ${aliveEnemies + Math.max(0, gameState.enemiesRemaining - aliveEnemies)}`;
+  } else {
+    enemiesEl.textContent = '';
+  }
+}
+
+function checkStreakRewards(): void {
+  const streakBanners: Record<number, string> = {
+    3: 'TRIPLE KILL',
+    5: 'RAMPAGE',
+    7: 'UNSTOPPABLE',
+    10: 'GODLIKE',
+    15: 'LEGENDARY',
+    20: 'BEYOND GODLIKE',
+  };
+
+  const banner = streakBanners[player.streak];
+  if (banner && player.streak > lastStreakAnnounce) {
+    lastStreakAnnounce = player.streak;
+    const el = document.getElementById('streak-banner')!;
+    el.textContent = banner;
+    el.classList.remove('active');
+    void el.offsetWidth;
+    el.classList.add('active');
+
+    // Streak rewards
+    if (player.streak === 5) {
+      player.health = Math.min(player.maxHealth, player.health + 25);
+      addKillFeedEntry('RAMPAGE! +25 Health', '#ffaa00');
+    }
+    if (player.streak === 7) {
+      player.armor = Math.min(player.maxArmor, player.armor + 25);
+      addKillFeedEntry('UNSTOPPABLE! +25 Armor', '#ffaa00');
+    }
+    if (player.streak === 10) {
+      grenadeCount = Math.min(MAX_GRENADES, grenadeCount + 2);
+      weapons.forEach(w => { w.reserveAmmo = w.def.reserveAmmo; });
+      addKillFeedEntry('GODLIKE! Full Ammo + Grenades', '#ff3333');
+    }
+    if (player.streak >= 15) {
+      player.health = player.maxHealth;
+      player.armor = player.maxArmor;
+      addKillFeedEntry('LEGENDARY! Full Restore', '#ff3333');
+    }
+  }
 }
 
 function updateEffects(dt: number): void {
