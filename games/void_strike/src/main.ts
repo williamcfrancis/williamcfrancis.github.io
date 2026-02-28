@@ -15,7 +15,7 @@ import {
   Texture,
 } from '@babylonjs/core';
 
-import type { PlayerState, GameState, WeaponState, Enemy, Pickup, KillFeedEntry } from './types';
+import type { PlayerState, GameState, WeaponState, Enemy, Pickup } from './types';
 import { createAllWeapons } from './weapons';
 import { buildMap, type MapData } from './map';
 import { ENEMY_TYPES, spawnEnemy, updateEnemy, damageEnemy, cleanupEnemy } from './enemies';

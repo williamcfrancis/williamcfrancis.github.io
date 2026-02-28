@@ -2,17 +2,13 @@ import {
   Scene,
   MeshBuilder,
   Vector3,
-  StandardMaterial,
   Color3,
   Mesh,
   PointLight,
-  SpotLight,
   GlowLayer,
   ShadowGenerator,
   DirectionalLight,
   PBRMaterial,
-  Texture,
-  CubeTexture,
 } from '@babylonjs/core';
 
 const ARENA_SIZE = 80;
