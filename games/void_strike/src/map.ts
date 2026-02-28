@@ -54,6 +54,7 @@ export interface MapData {
   pickupLocations: Vector3[];
   shadowGenerator: ShadowGenerator | null;
   navMeshBounds: { min: Vector3; max: Vector3 };
+  animatedMeshes: { mesh: Mesh; rotSpeed: Vector3; bobSpeed: number; bobAmount: number; baseY: number }[];
 }
 
 export function buildMap(scene: Scene): MapData {
@@ -331,14 +332,18 @@ export function buildMap(scene: Scene): MapData {
     pickupLocations.push(new Vector3(px, 0.5, pz));
   });
 
-  // Decorative floating hexagonal rings in the sky
-  for (let i = 0; i < 6; i++) {
-    const angle = (i / 6) * Math.PI * 2;
+  // Animated decorative elements
+  const animatedMeshes: MapData['animatedMeshes'] = [];
+
+  // Floating hexagonal rings in the sky (animated rotation)
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
     const radius = 45 + Math.random() * 20;
     const hex = MeshBuilder.CreateTorus(`skyHex${i}`, { diameter: 4 + Math.random() * 3, thickness: 0.1, tessellation: 6 }, scene);
+    const yPos = 15 + Math.random() * 8;
     hex.position = new Vector3(
       Math.cos(angle) * radius,
-      15 + Math.random() * 8,
+      yPos,
       Math.sin(angle) * radius,
     );
     hex.rotation.x = Math.random() * Math.PI;
@@ -346,6 +351,48 @@ export function buildMap(scene: Scene): MapData {
     hex.material = makeEmissiveMat(scene, `skyHexMat${i}`, neonColors[i % 4], 1.5);
     hex.checkCollisions = false;
     allMeshes.push(hex);
+    animatedMeshes.push({
+      mesh: hex,
+      rotSpeed: new Vector3(0.2 + Math.random() * 0.3, 0.5 + Math.random() * 0.5, 0.1 + Math.random() * 0.2),
+      bobSpeed: 0.5 + Math.random() * 0.5,
+      bobAmount: 0.5 + Math.random() * 0.5,
+      baseY: yPos,
+    });
+  }
+
+  // Rotating energy rings above cover positions
+  const ringPositions: [number, number][] = [[-30, -30], [30, 30], [-50, 0], [50, 0], [0, -50], [0, 50]];
+  ringPositions.forEach(([rx, rz], i) => {
+    const ring = MeshBuilder.CreateTorus(`floatRing${i}`, { diameter: 3, thickness: 0.08, tessellation: 24 }, scene);
+    const ry = 5 + Math.random() * 3;
+    ring.position = new Vector3(rx, ry, rz);
+    ring.material = makeEmissiveMat(scene, `floatRingMat${i}`, neonColors[i % 4], 2.5);
+    ring.checkCollisions = false;
+    allMeshes.push(ring);
+    animatedMeshes.push({
+      mesh: ring,
+      rotSpeed: new Vector3(0, 1 + Math.random(), 0.5),
+      bobSpeed: 0.8,
+      bobAmount: 0.3,
+      baseY: ry,
+    });
+  });
+
+  // Central holographic pillar ring constellation
+  for (let i = 0; i < 3; i++) {
+    const holoRing = MeshBuilder.CreateTorus(`holoRing${i}`, { diameter: 6 + i * 2, thickness: 0.05, tessellation: 32 }, scene);
+    const hry = 12 + i * 3;
+    holoRing.position = new Vector3(0, hry, 0);
+    holoRing.material = makeEmissiveMat(scene, `holoRingMat${i}`, new Color3(0, 1, 0.8), 3);
+    holoRing.checkCollisions = false;
+    allMeshes.push(holoRing);
+    animatedMeshes.push({
+      mesh: holoRing,
+      rotSpeed: new Vector3(0.3 * (i + 1), 0.8 * (i % 2 === 0 ? 1 : -1), 0.1),
+      bobSpeed: 0.3,
+      bobAmount: 0.2,
+      baseY: hry,
+    });
   }
 
   return {
@@ -357,5 +404,6 @@ export function buildMap(scene: Scene): MapData {
       min: new Vector3(-ARENA_SIZE + 2, 0, -ARENA_SIZE + 2),
       max: new Vector3(ARENA_SIZE - 2, 0, ARENA_SIZE - 2),
     },
+    animatedMeshes,
   };
 }

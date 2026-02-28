@@ -7,9 +7,12 @@ import {
   Mesh,
   MeshBuilder,
   Color3,
+  Color4,
   StandardMaterial,
   PBRMaterial,
   TransformNode,
+  ParticleSystem,
+  Texture,
 } from '@babylonjs/core';
 
 import type { PlayerState, GameState, WeaponState, Enemy, Pickup, KillFeedEntry } from './types';
@@ -73,7 +76,7 @@ let weapons: WeaponState[];
 let currentWeaponIdx = 0;
 let enemies: Enemy[] = [];
 let pickups: Pickup[] = [];
-let projectiles: { mesh: Mesh; velocity: Vector3; damage: number; radius: number; timer: number }[] = [];
+let projectiles: { mesh: Mesh; velocity: Vector3; damage: number; radius: number; timer: number; trail: ParticleSystem | null }[] = [];
 let grenades: { mesh: Mesh; velocity: Vector3; timer: number; bounces: number }[] = [];
 let damagePostProcess: any;
 let damageIntensity = 0;
@@ -235,70 +238,100 @@ function setupInput(canvas: HTMLCanvasElement): void {
   });
 }
 
+let weaponModels: TransformNode[] = [];
+let weaponSwitchTimer = 0;
+const WEAPON_SWITCH_TIME = 0.3;
+let prevWeaponIdx = 0;
+
+const WEAPON_GLOW_COLORS: Color3[] = [
+  new Color3(0, 1, 0.8),    // Pulse Rifle - cyan
+  new Color3(0.2, 0.6, 1),  // Shotgun - blue
+  new Color3(1, 0.2, 0.5),  // Sniper - pink
+  new Color3(1, 0.5, 0.1),  // Rocket - orange
+];
+
 function buildWeaponModel(scene: Scene): void {
-  weaponModel = new TransformNode('weaponModel', scene);
+  weaponModel = new TransformNode('weaponRoot', scene);
   weaponModel.parent = camera;
 
-  const gunMat = new PBRMaterial('gunMat', scene);
-  gunMat.albedoColor = new Color3(0.15, 0.15, 0.18);
-  gunMat.roughness = 0.3;
-  gunMat.metallic = 0.8;
+  weaponModels = [];
 
-  const glowMat = new PBRMaterial('gunGlow', scene);
-  glowMat.albedoColor = new Color3(0, 0.1, 0.08);
-  glowMat.emissiveColor = new Color3(0, 1, 0.8);
-  glowMat.emissiveIntensity = 2;
-  glowMat.roughness = 0.2;
-  glowMat.metallic = 0.9;
+  for (let w = 0; w < 4; w++) {
+    const model = new TransformNode(`weaponModel_${w}`, scene);
+    model.parent = weaponModel;
+    model.setEnabled(w === 0);
 
-  // Main barrel
-  const barrel = MeshBuilder.CreateBox('barrel', { width: 0.06, height: 0.06, depth: 0.5 }, scene);
-  barrel.position = new Vector3(0.25, -0.18, 0.45);
-  barrel.parent = weaponModel;
-  barrel.material = gunMat;
-  barrel.isPickable = false;
+    const gunMat = new PBRMaterial(`gunMat_${w}`, scene);
+    gunMat.albedoColor = new Color3(0.15, 0.15, 0.18);
+    gunMat.roughness = 0.3;
+    gunMat.metallic = 0.8;
 
-  // Body
-  const body = MeshBuilder.CreateBox('gunBody', { width: 0.1, height: 0.12, depth: 0.3 }, scene);
-  body.position = new Vector3(0.25, -0.2, 0.25);
-  body.parent = weaponModel;
-  body.material = gunMat;
-  body.isPickable = false;
+    const glowColor = WEAPON_GLOW_COLORS[w];
+    const glowMat = new PBRMaterial(`gunGlow_${w}`, scene);
+    glowMat.albedoColor = glowColor.scale(0.1);
+    glowMat.emissiveColor = glowColor;
+    glowMat.emissiveIntensity = 2;
+    glowMat.roughness = 0.2;
+    glowMat.metallic = 0.9;
 
-  // Grip
-  const grip = MeshBuilder.CreateBox('grip', { width: 0.06, height: 0.14, depth: 0.06 }, scene);
-  grip.position = new Vector3(0.25, -0.3, 0.18);
-  grip.rotation.x = 0.3;
-  grip.parent = weaponModel;
-  grip.material = gunMat;
-  grip.isPickable = false;
+    const makePart = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, rot?: Vector3): Mesh => {
+      const mesh = MeshBuilder.CreateBox(`${name}_${w}`, opts, scene);
+      mesh.position = pos;
+      if (rot) mesh.rotation = rot;
+      mesh.parent = model;
+      mesh.material = mat;
+      mesh.isPickable = false;
+      return mesh;
+    };
 
-  // Magazine
-  const mag = MeshBuilder.CreateBox('mag', { width: 0.04, height: 0.1, depth: 0.08 }, scene);
-  mag.position = new Vector3(0.25, -0.32, 0.28);
-  mag.parent = weaponModel;
-  mag.material = gunMat;
-  mag.isPickable = false;
+    switch (w) {
+      case 0: // Pulse Rifle - sleek, medium-length
+        makePart('barrel', { width: 0.05, height: 0.05, depth: 0.5 }, new Vector3(0.25, -0.18, 0.45), gunMat);
+        makePart('body', { width: 0.1, height: 0.11, depth: 0.28 }, new Vector3(0.25, -0.2, 0.25), gunMat);
+        makePart('grip', { width: 0.05, height: 0.13, depth: 0.05 }, new Vector3(0.25, -0.3, 0.18), gunMat, new Vector3(0.3, 0, 0));
+        makePart('stock', { width: 0.04, height: 0.06, depth: 0.15 }, new Vector3(0.25, -0.19, 0.03), gunMat);
+        makePart('mag', { width: 0.04, height: 0.09, depth: 0.07 }, new Vector3(0.25, -0.3, 0.28), gunMat);
+        makePart('accent1', { width: 0.12, height: 0.015, depth: 0.3 }, new Vector3(0.25, -0.14, 0.3), glowMat);
+        makePart('accent2', { width: 0.015, height: 0.06, depth: 0.04 }, new Vector3(0.25, -0.18, 0.68), glowMat);
+        makePart('sight', { width: 0.03, height: 0.035, depth: 0.04 }, new Vector3(0.25, -0.125, 0.4), gunMat);
+        break;
 
-  // Glowing accents
-  const accent1 = MeshBuilder.CreateBox('accent1', { width: 0.12, height: 0.02, depth: 0.32 }, scene);
-  accent1.position = new Vector3(0.25, -0.14, 0.3);
-  accent1.parent = weaponModel;
-  accent1.material = glowMat;
-  accent1.isPickable = false;
+      case 1: // Plasma Shotgun - wide, chunky
+        makePart('barrel1', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.22, -0.17, 0.4), gunMat);
+        makePart('barrel2', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.28, -0.17, 0.4), gunMat);
+        makePart('body', { width: 0.14, height: 0.12, depth: 0.25 }, new Vector3(0.25, -0.2, 0.2), gunMat);
+        makePart('grip', { width: 0.06, height: 0.14, depth: 0.06 }, new Vector3(0.25, -0.32, 0.15), gunMat, new Vector3(0.2, 0, 0));
+        makePart('pump', { width: 0.08, height: 0.05, depth: 0.12 }, new Vector3(0.25, -0.24, 0.35), glowMat);
+        makePart('accent', { width: 0.16, height: 0.02, depth: 0.06 }, new Vector3(0.25, -0.13, 0.3), glowMat);
+        makePart('muzzle', { width: 0.12, height: 0.08, depth: 0.03 }, new Vector3(0.25, -0.17, 0.58), glowMat);
+        break;
 
-  const accent2 = MeshBuilder.CreateBox('accent2', { width: 0.02, height: 0.08, depth: 0.06 }, scene);
-  accent2.position = new Vector3(0.25, -0.18, 0.68);
-  accent2.parent = weaponModel;
-  accent2.material = glowMat;
-  accent2.isPickable = false;
+      case 2: // Rail Sniper - long, thin, elegant
+        makePart('barrel', { width: 0.035, height: 0.035, depth: 0.7 }, new Vector3(0.25, -0.17, 0.5), gunMat);
+        makePart('body', { width: 0.08, height: 0.09, depth: 0.22 }, new Vector3(0.25, -0.19, 0.18), gunMat);
+        makePart('grip', { width: 0.04, height: 0.12, depth: 0.04 }, new Vector3(0.25, -0.29, 0.15), gunMat, new Vector3(0.3, 0, 0));
+        makePart('stock', { width: 0.04, height: 0.05, depth: 0.2 }, new Vector3(0.25, -0.18, -0.02), gunMat);
+        makePart('scope', { width: 0.04, height: 0.04, depth: 0.1 }, new Vector3(0.25, -0.11, 0.35), gunMat);
+        makePart('scopeLens', { width: 0.035, height: 0.035, depth: 0.015 }, new Vector3(0.25, -0.11, 0.405), glowMat);
+        makePart('rail1', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.22, -0.15, 0.45), glowMat);
+        makePart('rail2', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.28, -0.15, 0.45), glowMat);
+        makePart('chargeRing', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.17, 0.82), glowMat);
+        break;
 
-  // Sight
-  const sight = MeshBuilder.CreateBox('sight', { width: 0.04, height: 0.04, depth: 0.04 }, scene);
-  sight.position = new Vector3(0.25, -0.12, 0.4);
-  sight.parent = weaponModel;
-  sight.material = gunMat;
-  sight.isPickable = false;
+      case 3: // Havoc Launcher - bulky, wide tube
+        makePart('tube', { width: 0.09, height: 0.09, depth: 0.45 }, new Vector3(0.25, -0.16, 0.4), gunMat);
+        makePart('body', { width: 0.13, height: 0.14, depth: 0.2 }, new Vector3(0.25, -0.2, 0.15), gunMat);
+        makePart('grip', { width: 0.06, height: 0.15, depth: 0.06 }, new Vector3(0.25, -0.34, 0.12), gunMat, new Vector3(0.25, 0, 0));
+        makePart('handle', { width: 0.04, height: 0.06, depth: 0.08 }, new Vector3(0.25, -0.12, 0.3), gunMat);
+        makePart('muzzle', { width: 0.11, height: 0.11, depth: 0.03 }, new Vector3(0.25, -0.16, 0.63), glowMat);
+        makePart('vent1', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.19, -0.16, 0.5), glowMat);
+        makePart('vent2', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.31, -0.16, 0.5), glowMat);
+        makePart('warhead', { width: 0.05, height: 0.05, depth: 0.05 }, new Vector3(0.25, -0.16, 0.66), glowMat);
+        break;
+    }
+
+    weaponModels.push(model);
+  }
 }
 
 // ── Game Start ──
@@ -345,7 +378,10 @@ function startGame(): void {
   enemies = [];
 
   // Clear projectiles
-  projectiles.forEach(p => p.mesh.dispose());
+  projectiles.forEach(p => {
+    if (p.trail) { p.trail.stop(); p.trail.dispose(); }
+    p.mesh.dispose();
+  });
   projectiles = [];
 
   // Setup pickups
@@ -643,9 +679,15 @@ function updateWeapons(dt: number): void {
 
 function switchWeapon(idx: number): void {
   if (idx === currentWeaponIdx || idx < 0 || idx >= weapons.length) return;
+  if (weaponSwitchTimer > 0) return;
+
   weapons[currentWeaponIdx].equipped = false;
+  prevWeaponIdx = currentWeaponIdx;
   currentWeaponIdx = idx;
   weapons[currentWeaponIdx].equipped = true;
+  weaponSwitchTimer = WEAPON_SWITCH_TIME;
+
+  Audio.playReload();
 }
 
 function startReload(weapon: WeaponState): void {
@@ -762,6 +804,21 @@ function fireHitscan(weapon: WeaponState, muzzlePos: Vector3): void {
   }
 }
 
+function createRocketTrailTexture(): string {
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 32;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 32, 32);
+  return c.toDataURL();
+}
+
+let rocketTrailTextureUrl: string | null = null;
+
 function fireProjectile(weapon: WeaponState, muzzlePos: Vector3): void {
   const spread = weapon.def.spread;
   const dir = camera.getDirection(Vector3.Forward()).add(new Vector3(
@@ -779,12 +836,34 @@ function fireProjectile(weapon: WeaponState, muzzlePos: Vector3): void {
   rocket.checkCollisions = false;
   rocket.isPickable = false;
 
+  // Rocket trail particle system
+  if (!rocketTrailTextureUrl) rocketTrailTextureUrl = createRocketTrailTexture();
+  const trail = new ParticleSystem('rocketTrail', 60, scene);
+  trail.particleTexture = new Texture(rocketTrailTextureUrl, scene);
+  trail.emitter = rocket;
+  trail.minLifeTime = 0.15;
+  trail.maxLifeTime = 0.4;
+  trail.minSize = 0.15;
+  trail.maxSize = 0.4;
+  trail.emitRate = 80;
+  trail.color1 = new Color4(1, 0.6, 0.1, 0.8);
+  trail.color2 = new Color4(1, 0.3, 0, 0.6);
+  trail.colorDead = new Color4(0.3, 0.1, 0, 0);
+  trail.direction1 = new Vector3(-0.5, -0.5, -0.5);
+  trail.direction2 = new Vector3(0.5, 0.5, 0.5);
+  trail.minEmitPower = 0.5;
+  trail.maxEmitPower = 1.5;
+  trail.gravity = new Vector3(0, 1, 0);
+  trail.blendMode = ParticleSystem.BLENDMODE_ADD;
+  trail.start();
+
   projectiles.push({
     mesh: rocket,
     velocity: dir.scale(weapon.def.projectileSpeed!),
     damage: weapon.def.damage,
     radius: weapon.def.explosionRadius!,
     timer: 5,
+    trail,
   });
 }
 
@@ -806,6 +885,7 @@ function updateProjectiles(dt: number): void {
       if (hit?.hit || proj.timer <= 0) {
         const expPos = hit?.pickedPoint || proj.mesh.position;
         explodeProjectile(expPos, proj.damage, proj.radius);
+        if (proj.trail) { proj.trail.stop(); proj.trail.dispose(); }
         proj.mesh.dispose();
         projectiles.splice(i, 1);
         continue;
@@ -818,6 +898,7 @@ function updateProjectiles(dt: number): void {
       const d = Vector3.Distance(proj.mesh.position, enemy.position.add(new Vector3(0, 1, 0)));
       if (d < 1.5) {
         explodeProjectile(proj.mesh.position, proj.damage, proj.radius);
+        if (proj.trail) { proj.trail.stop(); proj.trail.dispose(); }
         proj.mesh.dispose();
         projectiles.splice(i, 1);
         break;
@@ -1437,14 +1518,38 @@ function updateEffects(dt: number): void {
   if (player.health < 20 && player.health > 0) {
     player.health = Math.min(20, player.health + dt * 2);
   }
+
+  // Animate map elements
+  const t = performance.now() * 0.001;
+  for (const anim of mapData.animatedMeshes) {
+    anim.mesh.rotation.x += anim.rotSpeed.x * dt;
+    anim.mesh.rotation.y += anim.rotSpeed.y * dt;
+    anim.mesh.rotation.z += anim.rotSpeed.z * dt;
+    anim.mesh.position.y = anim.baseY + Math.sin(t * anim.bobSpeed) * anim.bobAmount;
+  }
 }
 
 function updateWeaponModel(dt: number): void {
   if (!weaponModel) return;
 
+  // Handle weapon switch animation
+  if (weaponSwitchTimer > 0) {
+    weaponSwitchTimer -= dt;
+    const progress = weaponSwitchTimer / WEAPON_SWITCH_TIME;
+
+    if (progress > 0.5) {
+      // First half: lower old weapon
+      weaponModels.forEach((m, i) => m.setEnabled(i === prevWeaponIdx));
+    } else {
+      // Second half: raise new weapon
+      weaponModels.forEach((m, i) => m.setEnabled(i === currentWeaponIdx));
+    }
+  } else {
+    weaponModels.forEach((m, i) => m.setEnabled(i === currentWeaponIdx));
+  }
+
   const weapon = weapons[currentWeaponIdx];
 
-  // Base position with sway
   const swayX = weaponSwayX * 2;
   const swayY = weaponSwayY * 2;
 
@@ -1466,17 +1571,29 @@ function updateWeaponModel(dt: number): void {
     reloadOffset = Math.sin(progress * Math.PI) * 0.15;
   }
 
+  // Weapon switch animation offset
+  let switchOffset = 0;
+  if (weaponSwitchTimer > 0) {
+    const progress = weaponSwitchTimer / WEAPON_SWITCH_TIME;
+    switchOffset = Math.sin(progress * Math.PI) * 0.4;
+  }
+
   // Firing kick
   const fireKick = weapon.fireTimer > 0 ? weapon.fireTimer * weapon.def.recoilUp * 8 : 0;
 
+  // Dash tilt
+  const dashTilt = dashTimer > 0 ? 0.15 : 0;
+
+  // Sprint tilt
+  const sprintTilt = player.sprinting ? 0.06 : 0;
+
   weaponModel.position.x = -swayX + bobX;
-  weaponModel.position.y = -swayY + bobY - reloadOffset;
+  weaponModel.position.y = -swayY + bobY - reloadOffset - switchOffset;
   weaponModel.position.z = -fireKick;
 
-  // Weapon rotation sway
-  weaponModel.rotation.x = swayY * 0.5;
+  weaponModel.rotation.x = swayY * 0.5 + dashTilt;
   weaponModel.rotation.y = -swayX * 0.5;
-  weaponModel.rotation.z = -swayX * 0.3 + bobX * 2;
+  weaponModel.rotation.z = -swayX * 0.3 + bobX * 2 - sprintTilt;
 }
 
 // ── Boot ──
