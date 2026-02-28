@@ -17,7 +17,6 @@ const FIRE_COOLDOWN = 22;
 const PW = 26, PH = 38;
 const BULLET_R = 4;
 const MAX_HP = 100;
-const COMPILE_TIME = 60;
 const ROUNDS_PER_GAME = 5;
 const KILL_Y = H + 60;
 const HOMING_MIN_TURN_PER_TICK = 0.008;
@@ -40,7 +39,7 @@ const KILL_PHRASES = [
   'OBLITERATED!', 'DEMOLISHED!', 'YEETED!', 'ABSOLUTELY COOKED!',
   'SKILL ISSUE!', 'GET REKT!', 'FATALITY!', 'BONK!',
   'EMOTIONAL DAMAGE!', 'WIZARD DOWN!', 'WAND BROKEN!',
-  'SPELL FAILED SUCCESSFULLY!', 'THERAPY NEEDED!', 'FERAL!',
+  'SPELL FAILED SUCCESSFULLY!', 'SMOKED!', 'OUTPLAYED!',
   'UNHINGED!', 'CHAOS REIGNS!', 'CRITICAL HIT TO DIGNITY!',
   'SENT TO THE SHADOW REALM!', 'DELETED!', 'VAPORIZED!',
 ];
@@ -568,34 +567,215 @@ function playBassHit() {
   o2.stop(t + 0.4);
 }
 function playImpactCrunch() {
-  playNoise(0.08, 0.2);
-  quickTone('sawtooth', 300 + Math.random() * 200, 0.06, 0.12);
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.setValueAtTime(-10, t);
+  comp.ratio.setValueAtTime(6, t);
+  comp.attack.setValueAtTime(0.001, t);
+  comp.release.setValueAtTime(0.04, t);
+  const out = audioCtx.createGain();
+  out.gain.setValueAtTime(0.25, t);
+  comp.connect(out);
+  out.connect(audioCtx.destination);
+  const snapLen = 0.012;
+  const snapBuf = audioCtx.createBuffer(1, Math.ceil(audioCtx.sampleRate * snapLen), audioCtx.sampleRate);
+  const sd = snapBuf.getChannelData(0);
+  for (let i = 0; i < sd.length; i++) { const e = 1 - i / sd.length; sd[i] = (Math.random() * 2 - 1) * e * e * e; }
+  const snapSrc = audioCtx.createBufferSource();
+  snapSrc.buffer = snapBuf;
+  const snapG = audioCtx.createGain();
+  snapG.gain.setValueAtTime(0.9, t);
+  const snapBP = audioCtx.createBiquadFilter();
+  snapBP.type = 'bandpass';
+  snapBP.frequency.setValueAtTime(1800 + Math.random() * 800, t);
+  snapBP.Q.setValueAtTime(1.2, t);
+  snapSrc.connect(snapBP);
+  snapBP.connect(snapG);
+  snapG.connect(comp);
+  snapSrc.start(t);
+  const thud = audioCtx.createOscillator();
+  thud.type = 'sine';
+  thud.frequency.setValueAtTime(120 + Math.random() * 60, t);
+  thud.frequency.exponentialRampToValueAtTime(30, t + 0.07);
+  const thudG = audioCtx.createGain();
+  thudG.gain.setValueAtTime(0.6, t);
+  thudG.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+  thud.connect(thudG);
+  thudG.connect(comp);
+  thud.start(t);
+  thud.stop(t + 0.08);
 }
 function playDeathExplosion() {
-  playBassHit();
-  playNoise(0.25, 0.18);
-  quickTone('sawtooth', 180, 0.4, 0.15);
-  setTimeout(() => quickTone('sine', 120, 0.3, 0.1), 80);
-  setTimeout(() => playNoise(0.15, 0.1), 120);
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.setValueAtTime(-12, t);
+  comp.ratio.setValueAtTime(5, t);
+  comp.attack.setValueAtTime(0.001, t);
+  comp.release.setValueAtTime(0.08, t);
+  const out = audioCtx.createGain();
+  out.gain.setValueAtTime(0.3, t);
+  comp.connect(out);
+  out.connect(audioCtx.destination);
+  const boomLen = 0.02;
+  const boomBuf = audioCtx.createBuffer(1, Math.ceil(audioCtx.sampleRate * boomLen), audioCtx.sampleRate);
+  const bd = boomBuf.getChannelData(0);
+  for (let i = 0; i < bd.length; i++) { const e = 1 - i / bd.length; bd[i] = (Math.random() * 2 - 1) * e; }
+  const boomSrc = audioCtx.createBufferSource();
+  boomSrc.buffer = boomBuf;
+  const boomG = audioCtx.createGain();
+  boomG.gain.setValueAtTime(1.0, t);
+  boomSrc.connect(boomG);
+  boomG.connect(comp);
+  boomSrc.start(t);
+  const sub = audioCtx.createOscillator();
+  sub.type = 'sine';
+  sub.frequency.setValueAtTime(80, t);
+  sub.frequency.exponentialRampToValueAtTime(18, t + 0.5);
+  const subG = audioCtx.createGain();
+  subG.gain.setValueAtTime(0.7, t);
+  subG.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+  sub.connect(subG);
+  subG.connect(comp);
+  sub.start(t);
+  sub.stop(t + 0.52);
+  const rumLen = 0.35;
+  const rumBuf = audioCtx.createBuffer(1, Math.ceil(audioCtx.sampleRate * rumLen), audioCtx.sampleRate);
+  const rd = rumBuf.getChannelData(0);
+  for (let i = 0; i < rd.length; i++) rd[i] = Math.random() * 2 - 1;
+  const rumSrc = audioCtx.createBufferSource();
+  rumSrc.buffer = rumBuf;
+  const rumG = audioCtx.createGain();
+  rumG.gain.setValueAtTime(0.25, t);
+  rumG.gain.exponentialRampToValueAtTime(0.001, t + rumLen);
+  const rumLP = audioCtx.createBiquadFilter();
+  rumLP.type = 'lowpass';
+  rumLP.frequency.setValueAtTime(1200, t);
+  rumLP.frequency.exponentialRampToValueAtTime(100, t + rumLen);
+  rumSrc.connect(rumLP);
+  rumLP.connect(rumG);
+  rumG.connect(comp);
+  rumSrc.start(t);
+  const crunch = audioCtx.createOscillator();
+  crunch.type = 'sawtooth';
+  crunch.frequency.setValueAtTime(200, t);
+  crunch.frequency.exponentialRampToValueAtTime(40, t + 0.3);
+  const crunchG = audioCtx.createGain();
+  crunchG.gain.setValueAtTime(0.15, t + 0.03);
+  crunchG.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  crunch.connect(crunchG);
+  crunchG.connect(comp);
+  crunch.start(t + 0.03);
+  crunch.stop(t + 0.32);
 }
 function playJuicyShoot(profile, pitch, release, intensity) {
-  playNoise(0.03, 0.06 * intensity);
-  const map = {
-    chime: ['sine', 900, 0.1, 0.08],
-    flute: ['triangle', 520, 0.09, 0.08],
-    bell: ['sine', 720, 0.12, 0.09],
-    bubble: ['sine', 440, 0.08, 0.07],
-    twig: ['triangle', 310, 0.08, 0.06],
-    horn: ['sawtooth', 260, 0.11, 0.08],
-    pop: ['square', 620, 0.06, 0.06],
-    crystal: ['sine', 1040, 0.15, 0.08],
-    drum: ['sawtooth', 170, 0.1, 0.11],
-    harp: ['triangle', 760, 0.2, 0.07],
-    whoosh: ['sawtooth', 380, 0.07, 0.08],
-    crackle: ['square', 820, 0.05, 0.06],
+  ensureAudio();
+  const t = audioCtx.currentTime;
+  const vol = clamp(intensity, 0.25, 2);
+  const p = clamp(pitch, 0.5, 2);
+  const rel = clamp(release, 0.5, 2);
+
+  const PROFILES = {
+    chime:   { bodyFreq: 90,  toneFreq: 680,  toneWave: 'sine',     bodyDec: 0.06, toneDec: 0.12, noiseDec: 0.08, crackVol: 0.7, bodyVol: 0.5, toneVol: 0.4 },
+    flute:   { bodyFreq: 75,  toneFreq: 420,  toneWave: 'triangle', bodyDec: 0.07, toneDec: 0.14, noiseDec: 0.06, crackVol: 0.5, bodyVol: 0.6, toneVol: 0.5 },
+    bell:    { bodyFreq: 100, toneFreq: 800,  toneWave: 'sine',     bodyDec: 0.05, toneDec: 0.18, noiseDec: 0.07, crackVol: 0.6, bodyVol: 0.4, toneVol: 0.6 },
+    bubble:  { bodyFreq: 65,  toneFreq: 350,  toneWave: 'sine',     bodyDec: 0.08, toneDec: 0.10, noiseDec: 0.05, crackVol: 0.4, bodyVol: 0.5, toneVol: 0.3 },
+    twig:    { bodyFreq: 80,  toneFreq: 280,  toneWave: 'triangle', bodyDec: 0.05, toneDec: 0.08, noiseDec: 0.06, crackVol: 0.6, bodyVol: 0.5, toneVol: 0.3 },
+    horn:    { bodyFreq: 70,  toneFreq: 220,  toneWave: 'sawtooth', bodyDec: 0.09, toneDec: 0.12, noiseDec: 0.08, crackVol: 0.8, bodyVol: 0.7, toneVol: 0.5 },
+    pop:     { bodyFreq: 110, toneFreq: 520,  toneWave: 'square',   bodyDec: 0.03, toneDec: 0.06, noiseDec: 0.04, crackVol: 0.9, bodyVol: 0.4, toneVol: 0.3 },
+    crystal: { bodyFreq: 95,  toneFreq: 1100, toneWave: 'sine',     bodyDec: 0.04, toneDec: 0.22, noiseDec: 0.06, crackVol: 0.5, bodyVol: 0.3, toneVol: 0.7 },
+    drum:    { bodyFreq: 60,  toneFreq: 160,  toneWave: 'sawtooth', bodyDec: 0.10, toneDec: 0.08, noiseDec: 0.10, crackVol: 0.9, bodyVol: 0.8, toneVol: 0.4 },
+    harp:    { bodyFreq: 85,  toneFreq: 620,  toneWave: 'triangle', bodyDec: 0.06, toneDec: 0.20, noiseDec: 0.05, crackVol: 0.4, bodyVol: 0.4, toneVol: 0.6 },
+    whoosh:  { bodyFreq: 70,  toneFreq: 300,  toneWave: 'sawtooth', bodyDec: 0.07, toneDec: 0.07, noiseDec: 0.12, crackVol: 0.7, bodyVol: 0.5, toneVol: 0.3 },
+    crackle: { bodyFreq: 100, toneFreq: 700,  toneWave: 'square',   bodyDec: 0.04, toneDec: 0.05, noiseDec: 0.08, crackVol: 1.0, bodyVol: 0.3, toneVol: 0.3 },
   };
-  const [wave, freq, dur, gain] = map[profile] || map.chime;
-  quickTone(wave, freq * pitch, dur * release, gain * intensity);
+  const cfg = PROFILES[profile] || PROFILES.chime;
+
+  const comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.setValueAtTime(-14, t);
+  comp.knee.setValueAtTime(6, t);
+  comp.ratio.setValueAtTime(4, t);
+  comp.attack.setValueAtTime(0.001, t);
+  comp.release.setValueAtTime(0.06, t);
+  const master = audioCtx.createGain();
+  master.gain.setValueAtTime(0.22 * vol, t);
+  comp.connect(master);
+  master.connect(audioCtx.destination);
+
+  const crackLen = 0.009;
+  const crackBuf = audioCtx.createBuffer(1, Math.ceil(audioCtx.sampleRate * crackLen), audioCtx.sampleRate);
+  const cd = crackBuf.getChannelData(0);
+  for (let i = 0; i < cd.length; i++) {
+    const env = 1 - (i / cd.length);
+    cd[i] = (Math.random() * 2 - 1) * env * env;
+  }
+  const crackSrc = audioCtx.createBufferSource();
+  crackSrc.buffer = crackBuf;
+  const crackG = audioCtx.createGain();
+  crackG.gain.setValueAtTime(cfg.crackVol * vol, t);
+  const crackBP = audioCtx.createBiquadFilter();
+  crackBP.type = 'bandpass';
+  crackBP.frequency.setValueAtTime(3200 * p, t);
+  crackBP.Q.setValueAtTime(0.7, t);
+  crackSrc.connect(crackBP);
+  crackBP.connect(crackG);
+  crackG.connect(comp);
+  crackSrc.start(t);
+
+  const bodyDur = cfg.bodyDec * rel;
+  const bodyOsc = audioCtx.createOscillator();
+  bodyOsc.type = 'sine';
+  bodyOsc.frequency.setValueAtTime(cfg.bodyFreq * p, t);
+  bodyOsc.frequency.exponentialRampToValueAtTime(Math.max(20, cfg.bodyFreq * p * 0.28), t + bodyDur);
+  const bodyG = audioCtx.createGain();
+  bodyG.gain.setValueAtTime(cfg.bodyVol * vol, t);
+  bodyG.gain.exponentialRampToValueAtTime(0.001, t + bodyDur);
+  bodyOsc.connect(bodyG);
+  bodyG.connect(comp);
+  bodyOsc.start(t);
+  bodyOsc.stop(t + bodyDur + 0.01);
+
+  const toneDur = cfg.toneDec * rel;
+  const toneOsc = audioCtx.createOscillator();
+  toneOsc.type = cfg.toneWave;
+  toneOsc.frequency.setValueAtTime(cfg.toneFreq * p, t);
+  toneOsc.frequency.exponentialRampToValueAtTime(Math.max(40, cfg.toneFreq * p * 0.55), t + toneDur);
+  const toneG = audioCtx.createGain();
+  toneG.gain.setValueAtTime(cfg.toneVol * vol * 0.45, t);
+  toneG.gain.exponentialRampToValueAtTime(0.001, t + toneDur);
+  const toneLP = audioCtx.createBiquadFilter();
+  toneLP.type = 'lowpass';
+  toneLP.frequency.setValueAtTime(cfg.toneFreq * p * 2.5, t);
+  toneLP.frequency.exponentialRampToValueAtTime(200, t + toneDur);
+  toneOsc.connect(toneLP);
+  toneLP.connect(toneG);
+  toneG.connect(comp);
+  toneOsc.start(t);
+  toneOsc.stop(t + toneDur + 0.01);
+
+  const noiseDur = cfg.noiseDec * rel;
+  const nBufLen = Math.ceil(audioCtx.sampleRate * noiseDur);
+  const nBuf = audioCtx.createBuffer(1, nBufLen, audioCtx.sampleRate);
+  const nd = nBuf.getChannelData(0);
+  for (let i = 0; i < nBufLen; i++) nd[i] = Math.random() * 2 - 1;
+  const nSrc = audioCtx.createBufferSource();
+  nSrc.buffer = nBuf;
+  const nG = audioCtx.createGain();
+  nG.gain.setValueAtTime(0.14 * vol, t);
+  nG.gain.exponentialRampToValueAtTime(0.001, t + noiseDur);
+  const nLP = audioCtx.createBiquadFilter();
+  nLP.type = 'lowpass';
+  nLP.frequency.setValueAtTime(2400 * p, t);
+  nLP.frequency.exponentialRampToValueAtTime(250, t + noiseDur);
+  const nHP = audioCtx.createBiquadFilter();
+  nHP.type = 'highpass';
+  nHP.frequency.setValueAtTime(350, t);
+  nSrc.connect(nHP);
+  nHP.connect(nLP);
+  nLP.connect(nG);
+  nG.connect(comp);
+  nSrc.start(t);
 }
 function playSound(type, profile = 'chime', pitch = 1, release = 1, intensity = 1) {
   const p = clamp(pitch, 0.5, 2);
@@ -675,21 +855,28 @@ function spawnParticles(x, y, count, color, speed, life, style = 'dot') {
     particles.push({
       x, y,
       vx: Math.cos(a) * s,
-      vy: Math.sin(a) * s - 1.2,
+      vy: Math.sin(a) * s - 1.4,
       life: life * (0.55 + Math.random() * 0.6),
       maxLife: life,
       color,
       size: 1 + Math.random() * 2.5,
       style,
+      rot: Math.random() * Math.PI * 2,
+      rotV: (Math.random() - 0.5) * 0.3,
+      drag: style === 'ember' ? 0.97 : style === 'smoke' ? 0.94 : 0.99,
     });
   }
 }
 function updateParticles(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
+    p.vx *= Math.pow(p.drag, dt);
+    p.vy *= Math.pow(p.drag, dt);
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    p.vy += 0.1 * dt;
+    const grav = p.style === 'smoke' ? -0.03 : p.style === 'ember' ? 0.06 : 0.12;
+    p.vy += grav * dt;
+    p.rot += p.rotV * dt;
     p.life -= dt;
     if (p.life <= 0) particles.splice(i, 1);
   }
@@ -815,29 +1002,66 @@ function renderEnvironmentLife() {
   }
 }
 
-function spawnMuzzleFlash(x, y, color) {
-  muzzleFlashes.push({ x, y, color, life: 7, maxLife: 7 });
+function spawnMuzzleFlash(x, y, color, facing) {
+  const sparkCount = 3 + Math.floor(Math.random() * 3);
+  const sparks = [];
+  for (let i = 0; i < sparkCount; i++) {
+    const baseAng = facing === 1 ? 0 : Math.PI;
+    const ang = baseAng + (Math.random() - 0.5) * 1.2;
+    const spd = 2 + Math.random() * 4;
+    sparks.push({ x: 0, y: 0, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - Math.random() * 1.5, life: 5 + Math.random() * 4 });
+  }
+  muzzleFlashes.push({ x, y, color, life: 8, maxLife: 8, facing: facing || 1, sparks });
 }
 function updateMuzzleFlashes(dt) {
   for (let i = muzzleFlashes.length - 1; i >= 0; i--) {
-    muzzleFlashes[i].life -= dt;
-    if (muzzleFlashes[i].life <= 0) muzzleFlashes.splice(i, 1);
+    const f = muzzleFlashes[i];
+    f.life -= dt;
+    for (const s of f.sparks) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.vy += 0.15 * dt;
+      s.life -= dt;
+    }
+    if (f.life <= 0) muzzleFlashes.splice(i, 1);
   }
 }
 function renderMuzzleFlashes() {
   for (const f of muzzleFlashes) {
-    const alpha = f.life / f.maxLife;
-    const r = 5 + (1 - alpha) * 8;
-    ctx.globalAlpha = alpha * 0.5;
-    ctx.fillStyle = '#fff';
+    const t = f.life / f.maxLife;
+    const coreR = 3 + (1 - t) * 2;
+    const flareR = 8 + (1 - t) * 12;
+    const dirX = f.facing === 1 ? 1 : -1;
+
+    ctx.save();
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 16 * t;
+    ctx.globalAlpha = t * 0.85;
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(f.x, f.y, r * 0.4, 0, Math.PI * 2);
+    ctx.arc(f.x, f.y, coreR, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = alpha * 0.35;
+    ctx.restore();
+
+    ctx.globalAlpha = t * 0.45;
     ctx.fillStyle = f.color;
     ctx.beginPath();
-    ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+    ctx.ellipse(f.x + dirX * flareR * 0.4, f.y, flareR, flareR * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.globalAlpha = t * 0.2;
+    ctx.fillStyle = '#fff8e0';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, flareR * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (const s of f.sparks) {
+      if (s.life <= 0) continue;
+      const sa = Math.min(1, s.life / 4);
+      ctx.globalAlpha = sa * 0.9;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(f.x + s.x - 0.5, f.y + s.y - 0.5, 1.5, 1.5);
+    }
   }
   ctx.globalAlpha = 1;
 }
@@ -1028,32 +1252,46 @@ function updatePlayers(dt) {
     const gravityScale = p.vy < 0 ? 0.92 : 1.08;
     p.vy += grav * gravityScale * dt;
     if (p.vy > MAX_FALL_SPEED) p.vy = MAX_FALL_SPEED;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
 
     const pw = PW * w.player_size;
     const ph = PH * w.player_size;
-    p.grounded = false;
+    const prevX = p.x;
+    const prevY = p.y;
 
+    p.x += p.vx * dt;
     for (const plat of PLATFORMS) {
-      if (rectOverlap(p.x - pw / 2, p.y - ph, pw, ph, plat.x, plat.y, plat.w, plat.h)) {
-        if (p.vy >= 0 && p.y - ph / 2 < plat.y) {
-          p.y = plat.y;
-          p.vy = 0;
-          p.grounded = true;
-        }
+      if (!rectOverlap(p.x - pw / 2, p.y - ph, pw, ph, plat.x, plat.y, plat.w, plat.h)) continue;
+      if (prevX + pw / 2 <= plat.x + 1) {
+        p.x = plat.x - pw / 2;
+        p.vx = 0;
+      } else if (prevX - pw / 2 >= plat.x + plat.w - 1) {
+        p.x = plat.x + plat.w + pw / 2;
+        p.vx = 0;
       }
     }
-
-    if (!wasGrounded && p.grounded) {
-      spawnParticles(p.x, p.y + 1, 4, '#f7e8d7', 1.1, 10, 'puff');
-    }
-
     for (const wall of WALLS) {
       if (p.x - pw / 2 < wall.x + wall.w && p.x + pw / 2 > wall.x) {
         p.x = p.x < W / 2 ? wall.x + wall.w + pw / 2 : wall.x - pw / 2;
         p.vx = 0;
       }
+    }
+
+    p.y += p.vy * dt;
+    p.grounded = false;
+    for (const plat of PLATFORMS) {
+      if (!rectOverlap(p.x - pw / 2, p.y - ph, pw, ph, plat.x, plat.y, plat.w, plat.h)) continue;
+      if (prevY <= plat.y + 2) {
+        p.y = plat.y;
+        p.vy = 0;
+        p.grounded = true;
+      } else if (prevY - ph >= plat.y + plat.h - 2) {
+        p.y = plat.y + plat.h + ph;
+        p.vy = 0;
+      }
+    }
+
+    if (!wasGrounded && p.grounded) {
+      spawnParticles(p.x, p.y + 1, 4, '#f7e8d7', 1.1, 10, 'puff');
     }
 
     if (p.fireCd > 0) p.fireCd -= dt;
@@ -1097,7 +1335,10 @@ function fireBullets(p) {
   playSound('shoot', w.sound_profile, w.sound_pitch, w.sound_release, w.effect_intensity);
   const muzzleX = p.x + p.facing * (PW * w.player_size / 2 + 10 * w.player_size);
   const muzzleY = p.y - PH * w.player_size * 0.62;
-  spawnMuzzleFlash(muzzleX, muzzleY, w.glow_color);
+  spawnMuzzleFlash(muzzleX, muzzleY, w.glow_color, p.facing);
+  const recoilStrength = 1.2 * w.bullet_damage * (1 / Math.max(0.5, w.fire_rate));
+  p.vx -= p.facing * clamp(recoilStrength, 0.3, 3);
+  spawnParticles(muzzleX, muzzleY, 2, '#ffeecc', 1.5, 6, 'spark');
 
   for (let i = 0; i < count; i++) {
     let angle = baseAngle;
@@ -1123,6 +1364,7 @@ function fireBullets(p) {
       r,
       damage: 10 * w.bullet_damage,
       bouncesLeft: w.bullet_bounces + (activeOmen?.bounceBonus || 0),
+      hasBounced: false,
       homing: w.bullet_homing,
       onBounceSplit: w.on_bounce_split,
       knockback: w.knockback_power * (activeOmen?.knockbackMult || 1),
@@ -1211,6 +1453,7 @@ function updateBullets(dt) {
           b.vx *= -1;
           b.x = b.x < W / 2 ? wall.x + wall.w + b.r : wall.x - b.r;
           b.bouncesLeft--;
+          b.hasBounced = true;
           bounced = true;
           playSound('bounce');
           spawnParticles(b.x, b.y, 3, b.impactColor, 2, 12, 'spark');
@@ -1229,6 +1472,7 @@ function updateBullets(dt) {
           b.vy *= -1;
           b.y = fromTop ? plat.y - b.r : plat.y + plat.h + b.r;
           b.bouncesLeft--;
+          b.hasBounced = true;
           bounced = true;
           playSound('bounce');
           spawnParticles(b.x, b.y, 3, b.impactColor, 1.8, 12, 'spark');
@@ -1265,7 +1509,7 @@ function updateBullets(dt) {
     if (b.y < -60 || b.y > H + 60) { bullets.splice(i, 1); continue; }
 
     for (const p of players) {
-      if (p.idx === b.owner || !p.alive) continue;
+      if ((p.idx === b.owner && !b.hasBounced) || !p.alive) continue;
       const pw = PW * p.weapon.player_size, ph = PH * p.weapon.player_size;
       if (b.x + b.r > p.x - pw / 2 && b.x - b.r < p.x + pw / 2 && b.y + b.r > p.y - ph && b.y - b.r < p.y) {
         p.hp -= b.damage;
@@ -1287,10 +1531,12 @@ function updateBullets(dt) {
           p.hp = 0;
           p.alive = false;
           playSound('death');
-          spawnParticles(p.x, p.y - ph / 2, 50, p.trimColor, 7, 55, 'burst');
-          spawnParticles(p.x, p.y - ph / 2, 20, '#ffffff', 5, 35, 'spark');
-          spawnParticles(p.x, p.y - ph / 2, 15, '#ff00ff', 6, 40, 'dot');
-          slowMo = 50;
+          spawnParticles(p.x, p.y - ph / 2, 60, p.trimColor, 8, 65, 'burst');
+          spawnParticles(p.x, p.y - ph / 2, 25, '#ffffff', 6, 40, 'spark');
+          spawnParticles(p.x, p.y - ph / 2, 18, '#ff00ff', 7, 45, 'dot');
+          spawnParticles(p.x, p.y - ph / 2, 10, p.robeColor, 4, 50, 'petal');
+          spawnParticles(p.x, p.y - ph * 0.3, 8, '#ffcc44', 3, 30, 'ember');
+          slowMo = 55;
           comboCount[b.owner]++;
           const phrase = KILL_PHRASES[Math.floor(Math.random() * KILL_PHRASES.length)];
           const killerColor = players[b.owner]?.trimColor || '#ff4444';
@@ -1797,7 +2043,34 @@ function render() {
       ctx.lineWidth = 1.5;
       ctx.stroke();
     } else if (p.style === 'petal' || p.style === 'leaf') {
-      ctx.fillRect(p.x - p.size, p.y - p.size * 0.4, p.size * 2, p.size * 0.8);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillRect(-p.size, -p.size * 0.35, p.size * 2, p.size * 0.7);
+      ctx.restore();
+    } else if (p.style === 'ember') {
+      ctx.save();
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8 + alpha * 6;
+      const flicker = 0.7 + Math.sin(p.life * 2.5) * 0.3;
+      ctx.globalAlpha = alpha * flicker;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = alpha * flicker * 0.5;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (p.style === 'smoke') {
+      const expand = 1 + (1 - alpha) * 2.5;
+      ctx.globalAlpha = alpha * 0.35;
+      ctx.fillStyle = '#aaaaaa';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * expand, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       ctx.save();
       ctx.shadowColor = p.color;
@@ -1890,11 +2163,11 @@ function renderTitle() {
   ctx.font = '58px "VT323", monospace';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 6;
-  ctx.strokeText('FERAL WIZARD THERAPY', 0, 0);
+  ctx.strokeText('WIZARD BRAWL', 0, 0);
   ctx.fillStyle = '#ff00cc';
   ctx.shadowColor = '#ff00ff';
   ctx.shadowBlur = 30;
-  ctx.fillText('FERAL WIZARD THERAPY', 0, 0);
+  ctx.fillText('WIZARD BRAWL', 0, 0);
   ctx.shadowBlur = 0;
   ctx.restore();
 
@@ -1927,7 +2200,7 @@ function renderTitle() {
   ctx.fillStyle = `rgba(0, 255, 200, ${0.5 + pulse * 0.5})`;
   ctx.shadowColor = '#00ffcc';
   ctx.shadowBlur = pulse * 20;
-  ctx.fillText('[ PRESS SPACE TO BEGIN THE THERAPY ]', W / 2, H * 0.89);
+  ctx.fillText('[ PRESS SPACE TO BRAWL ]', W / 2, H * 0.89);
   ctx.shadowBlur = 0;
 }
 
@@ -1956,7 +2229,7 @@ function renderRoundOverDisplay() {
   const pulse = 0.5 + Math.sin(Date.now() / 350) * 0.5;
   ctx.font = '20px "VT323", monospace';
   ctx.fillStyle = `rgba(0, 255, 200, ${0.5 + pulse * 0.5})`;
-  ctx.fillText('Press SPACE to continue the therapy', W / 2, H * 0.66);
+  ctx.fillText('Press SPACE to continue', W / 2, H * 0.66);
 }
 
 function renderGameOver() {
@@ -1971,11 +2244,11 @@ function renderGameOver() {
   ctx.font = '54px "VT323", monospace';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 5;
-  ctx.strokeText(isDraw ? 'MUTUAL DESTRUCTION!' : `PLAYER ${winnerIdx + 1} IS CURED!`, W / 2, H * 0.28);
+  ctx.strokeText(isDraw ? 'MUTUAL DESTRUCTION!' : `PLAYER ${winnerIdx + 1} WINS!`, W / 2, H * 0.28);
   ctx.fillStyle = winColor;
   ctx.shadowColor = winColor;
   ctx.shadowBlur = 25;
-  ctx.fillText(isDraw ? 'MUTUAL DESTRUCTION!' : `PLAYER ${winnerIdx + 1} IS CURED!`, W / 2, H * 0.28);
+  ctx.fillText(isDraw ? 'MUTUAL DESTRUCTION!' : `PLAYER ${winnerIdx + 1} WINS!`, W / 2, H * 0.28);
   ctx.shadowBlur = 0;
   ctx.font = '30px "VT323", monospace';
   ctx.fillStyle = '#ffffff';
@@ -1997,7 +2270,7 @@ function renderGameOver() {
   ctx.fillStyle = `rgba(0, 255, 200, ${0.5 + pulse * 0.5})`;
   ctx.shadowColor = '#00ffcc';
   ctx.shadowBlur = pulse * 15;
-  ctx.fillText('[ PRESS SPACE FOR MORE THERAPY ]', W / 2, H * 0.88);
+  ctx.fillText('[ PRESS SPACE TO PLAY AGAIN ]', W / 2, H * 0.88);
   ctx.shadowBlur = 0;
 }
 
@@ -2098,7 +2371,6 @@ function getMemoryEcho() {
 
 function startCompilerPhase(loserIdx) {
   compileLoser = loserIdx;
-  compileTimer = COMPILE_TIME;
   compileSubmitted = false;
   compileResult = null;
 
@@ -2109,7 +2381,6 @@ function startCompilerPhase(loserIdx) {
   compileOutput.classList.add('hidden');
   compileOutput.classList.remove('compile-reveal');
   compileOutput.innerHTML = '';
-  compileTimerEl.textContent = String(COMPILE_TIME);
   compileModsDisplay.innerHTML = `
     <span style="color:#00ffcc">Current weapon:</span> <span class="existing-mod-tag">${players[loserIdx].weapon.name}</span>
     <span class="existing-mod-tag" style="background:#f4e9ff;border-color:#d9c8eb;color:#6f4e80">Omen: ${activeOmen?.name || 'Vernal Calm'}</span>
@@ -2118,16 +2389,10 @@ function startCompilerPhase(loserIdx) {
 
   compilerOverlay.classList.remove('hidden');
   gameState = 'compiler';
-  if (compileInterval) clearInterval(compileInterval);
-  compileInterval = setInterval(compileTimerTick, 1000);
+  if (compileInterval) { clearInterval(compileInterval); compileInterval = null; }
   setTimeout(() => compileInput.focus(), 100);
 }
-function compileTimerTick() {
-  if (gameState !== 'compiler' || compileSubmitted) return;
-  compileTimer--;
-  compileTimerEl.textContent = String(Math.max(0, compileTimer));
-  if (compileTimer <= 0) submitCompile();
-}
+function compileTimerTick() {}
 function submitCompile() {
   if (compileSubmitted) return;
   compileSubmitted = true;
@@ -2307,9 +2572,7 @@ function startRound() {
   players[1] = createPlayer(1);
   pickNewBgImage();
   renderBackground();
-  countdownVal = 3;
-  countdownTimer = 0;
-  gameState = 'countdown';
+  gameState = 'playing';
 }
 function advanceFromRoundOver() {
   if (roundNum >= ROUNDS_PER_GAME) {
@@ -2343,13 +2606,7 @@ function gameLoop(timestamp) {
       renderTitle();
       break;
     case 'countdown':
-      countdownTimer += rawDt;
-      if (countdownTimer > 50) { countdownTimer = 0; countdownVal--; }
-      if (countdownVal < 0) gameState = 'playing';
-      updateEnvironmentLife(rawDt);
-      updateFireflies();
-      render();
-      if (gameState === 'countdown') renderCountdown();
+      gameState = 'playing';
       break;
     case 'playing':
       updatePlayers(dt);

@@ -25,7 +25,13 @@
             overflow: hidden;
         }
 
-        canvas { display: block; width: 100%; height: 100%; }
+        canvas {
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
 
         .overlay {
             position: absolute;
@@ -40,6 +46,7 @@
         #main-menu { background: rgba(10, 10, 26, 0.97); }
         #death-screen { background: rgba(30, 10, 10, 0.95); display: none; }
         #win-screen { background: rgba(10, 20, 30, 0.95); display: none; }
+        #pause-screen { background: rgba(10, 10, 26, 0.92); display: none; }
 
         .game-title {
             font-size: 44px;
@@ -199,6 +206,18 @@
             <button class="btn" onclick="showMainMenu()">Main Menu</button>
         </div>
     </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" class="overlay">
+        <div class="game-title" style="font-size:36px;">Paused</div>
+        <p class="menu-desc" style="margin-top:12px;">Take a breather.</p>
+        <div class="btn-group">
+            <button class="btn" onclick="resumeGame()">Resume</button>
+            <button class="btn" onclick="resumeAndRestart()">Restart</button>
+            <button class="btn danger" onclick="showMainMenu()">Menu</button>
+        </div>
+        <div class="controls-hint" style="margin-top:16px;">Press ESC to resume</div>
+    </div>
 </div>
 
 <script>
@@ -213,10 +232,22 @@ const ctx = canvas.getContext('2d');
 const W = 800, H = 600;
 
 function resizeCanvas() {
-    const container = document.getElementById('game-container');
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
-    ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const aspect = W / H;
+    let w, h;
+    if (vw / vh > aspect) {
+        h = vh;
+        w = Math.floor(vh * aspect);
+    } else {
+        w = vw;
+        h = Math.floor(vw / aspect);
+    }
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(w / W, 0, 0, h / H, 0, 0);
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -226,28 +257,28 @@ const DIFFICULTIES = {
     EASY: {
         id: 'easy', name: 'Explorer',
         revealRadius: 260, fadeSpeed: 0.005,
-        gravity: 0.35, moveAccel: 0.50, maxSpeed: 3.2,
-        jumpForce: -9.5, doubleJumpForce: -7.5,
-        wallJumpX: 4.5, wallJumpY: -8.5,
-        dashSpeed: 8, dashFrames: 10, dashCooldown: 80,
+        gravity: 0.38, moveAccel: 0.55, maxSpeed: 3.6,
+        jumpForce: -10.5, doubleJumpForce: -8.5,
+        wallJumpX: 5.0, wallJumpY: -9.5,
+        dashSpeed: 9, dashFrames: 10, dashCooldown: 75,
         crumbleTime: 70
     },
     NORMAL: {
         id: 'normal', name: 'Wanderer',
         revealRadius: 180, fadeSpeed: 0.012,
-        gravity: 0.42, moveAccel: 0.70, maxSpeed: 4.2,
-        jumpForce: -10, doubleJumpForce: -8,
-        wallJumpX: 5.5, wallJumpY: -9,
-        dashSpeed: 10.5, dashFrames: 8, dashCooldown: 100,
+        gravity: 0.45, moveAccel: 0.78, maxSpeed: 4.6,
+        jumpForce: -11, doubleJumpForce: -9,
+        wallJumpX: 6.0, wallJumpY: -10,
+        dashSpeed: 11.5, dashFrames: 8, dashCooldown: 90,
         crumbleTime: 48
     },
     HARD: {
         id: 'hard', name: 'Blind',
         revealRadius: 110, fadeSpeed: 0.025,
-        gravity: 0.48, moveAccel: 0.90, maxSpeed: 5.5,
-        jumpForce: -10.5, doubleJumpForce: -8.5,
-        wallJumpX: 6.5, wallJumpY: -9.5,
-        dashSpeed: 13, dashFrames: 8, dashCooldown: 90,
+        gravity: 0.52, moveAccel: 1.0, maxSpeed: 6.0,
+        jumpForce: -11.5, doubleJumpForce: -9.5,
+        wallJumpX: 7.0, wallJumpY: -10.5,
+        dashSpeed: 14, dashFrames: 8, dashCooldown: 85,
         crumbleTime: 32
     }
 };
@@ -264,9 +295,10 @@ const JUMP_BUFFER_FRAMES = 6;
 
 // ── Game State ──────────────────────────────────────────────────
 let state = {
-    running: false, level: 0, frames: 0,
+    running: false, paused: false, level: 0, frames: 0,
     totalScore: 0, levelBonus: 0,
-    combo: 0, comboTimer: 0
+    combo: 0, comboTimer: 0,
+    deathCount: 0
 };
 
 // ── Input ───────────────────────────────────────────────────────
@@ -289,11 +321,26 @@ function syncInput() {
     input.dash  = !!rawKeys['Shift'];
 }
 
+function clearInput() {
+    for (const k in rawKeys) delete rawKeys[k];
+    input.left = false; input.right = false;
+    input.up = false; input.down = false;
+    input.jump = false; input.dash = false;
+    jumpJustPressed = false; dashJustPressed = false;
+    jumpWas = false; dashWas = false;
+    if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
+    }
+}
+
 window.addEventListener('keydown', e => {
     rawKeys[e.key] = true;
     syncInput();
-    if (gameKeys.has(e.key)) e.preventDefault();
-    if (state.running && (e.key === 'r' || e.key === 'R')) restartLevel();
+    if (gameKeys.has(e.key) || e.key === 'Escape') e.preventDefault();
+    if (e.key === 'Escape') {
+        if (state.running) togglePause();
+    }
+    if (state.running && !state.paused && (e.key === 'r' || e.key === 'R')) restartLevel();
     if (e.key === 'm' || e.key === 'M') showMainMenu();
     if (audio.state === 'suspended') audio.resume();
 });
@@ -410,12 +457,165 @@ function sfx(type, pitch) {
     }
 }
 
+// ── Groovy Background Music ─────────────────────────────────────
+const MUSIC_BPM = 112;
+const BEAT_SEC = 60 / MUSIC_BPM;
+const STEP_SEC = BEAT_SEC / 4;
+let musicPlaying = false;
+let musicStartTime = 0;
+let nextStepTime = 0;
+let currentMusicStep = 0;
+const PATTERN_STEPS = 32;
+
+const musicGain = audio.createGain();
+musicGain.gain.value = 0.25;
+musicGain.connect(audio.destination);
+
+const noiseBuffer = (() => {
+    const len = audio.sampleRate;
+    const buf = audio.createBuffer(1, len, audio.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+})();
+
+const bassNotes = [
+    82.41, 0, 82.41, 0,   98, 0, 110, 82.41,
+    82.41, 0, 98, 0,      123.47, 0, 110, 98,
+    110, 0, 110, 0,       123.47, 0, 146.83, 0,
+    123.47, 0, 110, 98,   82.41, 0, 0, 82.41
+];
+
+function musicBass(freq, time) {
+    if (!freq) return;
+    const osc = audio.createOscillator();
+    const g = audio.createGain();
+    const filt = audio.createBiquadFilter();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, time);
+    filt.type = 'lowpass';
+    filt.frequency.setValueAtTime(500, time);
+    filt.frequency.exponentialRampToValueAtTime(180, time + STEP_SEC * 1.5);
+    filt.Q.value = 6;
+    g.gain.setValueAtTime(0.25, time);
+    g.gain.setValueAtTime(0.20, time + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, time + STEP_SEC * 1.8);
+    osc.connect(filt); filt.connect(g); g.connect(musicGain);
+    osc.start(time); osc.stop(time + STEP_SEC * 2);
+}
+
+function musicKick(time) {
+    const osc = audio.createOscillator();
+    const g = audio.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(160, time);
+    osc.frequency.exponentialRampToValueAtTime(35, time + 0.12);
+    g.gain.setValueAtTime(0.45, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+    osc.connect(g); g.connect(musicGain);
+    osc.start(time); osc.stop(time + 0.25);
+}
+
+function musicSnare(time) {
+    const src = audio.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filt = audio.createBiquadFilter();
+    filt.type = 'bandpass'; filt.frequency.value = 3500; filt.Q.value = 1;
+    const g = audio.createGain();
+    g.gain.setValueAtTime(0.12, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+    src.connect(filt); filt.connect(g); g.connect(musicGain);
+    src.start(time, Math.random() * 0.5); src.stop(time + 0.12);
+    const osc = audio.createOscillator();
+    const g2 = audio.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(200, time);
+    osc.frequency.exponentialRampToValueAtTime(80, time + 0.04);
+    g2.gain.setValueAtTime(0.1, time);
+    g2.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+    osc.connect(g2); g2.connect(musicGain);
+    osc.start(time); osc.stop(time + 0.06);
+}
+
+function musicHat(time, vol) {
+    const src = audio.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filt = audio.createBiquadFilter();
+    filt.type = 'highpass'; filt.frequency.value = 9000;
+    const g = audio.createGain();
+    g.gain.setValueAtTime(vol * 0.1, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
+    src.connect(filt); filt.connect(g); g.connect(musicGain);
+    src.start(time, Math.random() * 0.5); src.stop(time + 0.04);
+}
+
+function musicChord(time) {
+    [164.81, 196, 246.94].forEach(freq => {
+        const osc = audio.createOscillator();
+        const g = audio.createGain();
+        const filt = audio.createBiquadFilter();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        filt.type = 'bandpass';
+        filt.frequency.setValueAtTime(2500, time);
+        filt.frequency.exponentialRampToValueAtTime(350, time + 0.12);
+        filt.Q.value = 1.5;
+        g.gain.setValueAtTime(0.035, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+        osc.connect(filt); filt.connect(g); g.connect(musicGain);
+        osc.start(time); osc.stop(time + 0.15);
+    });
+}
+
+function scheduleMusicStep(step, time) {
+    const s = step % 16;
+    musicBass(bassNotes[step % bassNotes.length], time);
+    if (s === 0 || s === 6 || s === 8 || s === 14) musicKick(time);
+    if (s === 4 || s === 12) musicSnare(time);
+    if (s % 2 === 0) musicHat(time, s % 4 === 0 ? 1.0 : 0.6);
+    if (s === 3 || s === 7 || s === 11 || s === 15) musicHat(time, 0.3);
+    if (s === 2 || s === 10) musicChord(time);
+}
+
+let musicTimer = null;
+function musicSchedulerTick() {
+    if (!musicPlaying) return;
+    while (nextStepTime < audio.currentTime + 0.1) {
+        scheduleMusicStep(currentMusicStep, nextStepTime);
+        nextStepTime += STEP_SEC;
+        currentMusicStep = (currentMusicStep + 1) % PATTERN_STEPS;
+    }
+}
+
+function startMusic() {
+    if (musicPlaying) return;
+    if (audio.state === 'suspended') audio.resume();
+    musicPlaying = true;
+    musicStartTime = audio.currentTime;
+    nextStepTime = audio.currentTime + 0.05;
+    currentMusicStep = 0;
+    musicTimer = setInterval(musicSchedulerTick, 25);
+}
+
+function stopMusic() {
+    musicPlaying = false;
+    if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+}
+
+function getBeatPulse() {
+    if (!musicPlaying) return 0;
+    const elapsed = audio.currentTime - musicStartTime;
+    const beatPos = (elapsed / BEAT_SEC) % 1;
+    return Math.max(0, 1 - beatPos * 5);
+}
+
 // ── Particles & Effects ─────────────────────────────────────────
 let particles = [];
 let ambientParticles = [];
 let floatingTexts = [];
 let revealPulses = [];
 let screenShake = 0;
+let deathFlash = 0;
 
 function spawnParticle(x, y, color, speed, size, life) {
     if (particles.length > 160) return;
@@ -532,8 +732,8 @@ function updatePlayer() {
 
         p.vy = Math.min(p.vy, MAX_FALL_SPEED);
 
-        // Variable jump height
-        if (!input.jump && p.vy < -3) p.vy *= 0.7;
+        // Variable jump height — holding jump sustains full arc, releasing cuts it short
+        if (!input.jump && p.vy < -2) p.vy *= 0.55;
     }
 
     // ── Coyote time & jump buffer ──
@@ -620,8 +820,10 @@ function updatePlayer() {
             p.dead = true;
             sfx('spikeHit');
             screenShake = 8;
+            deathFlash = 1;
+            state.deathCount++;
             spawnBurst(p.x+p.w/2, p.y+p.h/2, [239,68,68], 18, 3, 3);
-            setTimeout(showDeathScreen, 500);
+            setTimeout(autoRetry, 700);
             return;
         }
     }
@@ -631,8 +833,10 @@ function updatePlayer() {
         p.dead = true;
         sfx('death');
         screenShake = 8;
+        deathFlash = 1;
+        state.deathCount++;
         spawnBurst(p.x+p.w/2, H-20, [239,68,68], 15, 3, 3);
-        setTimeout(showDeathScreen, 500);
+        setTimeout(autoRetry, 700);
     }
 }
 
@@ -694,7 +898,7 @@ function resolveCollisionsY() {
             }
             // Bounce
             if (pl.type === 'bounce') {
-                p.vy = -14;
+                p.vy = -15.5;
                 p.grounded = false;
                 p.canDoubleJump = true;
                 p.squash = -5;
@@ -845,6 +1049,13 @@ function drawBackground() {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
+    // Beat pulse overlay
+    const bp = getBeatPulse();
+    if (bp > 0.01) {
+        ctx.fillStyle = `rgba(251,191,36,${bp * 0.025})`;
+        ctx.fillRect(0, 0, W, H);
+    }
+
     // Ambient motes
     for (const a of ambientParticles) {
         a.y -= a.speed; a.x += a.drift;
@@ -856,7 +1067,7 @@ function drawBackground() {
 
     // Warm glow around player
     if (player && !player.dead) {
-        const r = diff.revealRadius + player.revealBoost;
+        const r = diff.revealRadius + player.revealBoost + getBeatPulse() * 15;
         const g2 = ctx.createRadialGradient(
             player.x+player.w/2, player.y+player.h/2, 20,
             player.x+player.w/2, player.y+player.h/2, r
@@ -1101,7 +1312,7 @@ function drawPlayer() {
     ctx.translate(p.x+p.w/2, p.y+p.h/2);
     ctx.scale(sx, sy);
 
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 15 + getBeatPulse() * 10;
     ctx.shadowColor = '#fbbf24';
     ctx.fillStyle = '#fef3c7';
     ctx.beginPath();
@@ -1187,6 +1398,12 @@ function drawHUD() {
     ctx.fillStyle = 'rgba(251,191,36,0.65)';
     ctx.font = '12px system-ui, sans-serif';
     ctx.fillText(`Time Bonus: ${Math.floor(state.levelBonus)}`, 15, 46);
+
+    if (state.deathCount > 0) {
+        ctx.fillStyle = 'rgba(239,68,68,0.45)';
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.fillText(`Deaths: ${state.deathCount}`, 15, 62);
+    }
 
     if (state.comboTimer > 0 && state.combo > 1) {
         const ca = Math.min(1, state.comboTimer / 30);
@@ -1515,6 +1732,7 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 
     if (!state.running) { drawBackground(); return; }
+    if (state.paused) return;
 
     state.frames++;
 
@@ -1575,6 +1793,14 @@ function gameLoop() {
     vig.addColorStop(1, 'rgba(0,0,0,0.35)');
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, W, H);
+
+    // Death flash overlay
+    if (deathFlash > 0.01) {
+        ctx.fillStyle = `rgba(239,68,68,${deathFlash * 0.3})`;
+        ctx.fillRect(0, 0, W, H);
+        deathFlash *= 0.92;
+        if (deathFlash < 0.01) deathFlash = 0;
+    }
 }
 
 // ── Menu / Screen Management ────────────────────────────────────
@@ -1583,9 +1809,14 @@ function startGame(key) {
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('win-screen').style.display = 'none';
     document.getElementById('death-screen').style.display = 'none';
+    document.getElementById('pause-screen').style.display = 'none';
+    clearInput();
+    state.paused = false;
     state.running = true;
     state.frames = 0;
     state.totalScore = 0;
+    state.deathCount = 0;
+    startMusic();
     initLevel(0);
 }
 
@@ -1593,20 +1824,42 @@ function showMainMenu() {
     document.getElementById('main-menu').style.display = 'flex';
     document.getElementById('death-screen').style.display = 'none';
     document.getElementById('win-screen').style.display = 'none';
+    document.getElementById('pause-screen').style.display = 'none';
     state.running = false;
+    state.paused = false;
+    stopMusic();
+    clearInput();
     updateHighscoreDisplay();
 }
 
-function showDeathScreen() {
-    document.getElementById('death-screen').style.display = 'flex';
-    const isNew = checkAndSaveHighscore();
-    let html = `SCORE: ${state.totalScore}`;
-    if (isNew) html += `<br><span style="color:#fbbf24">\u2605 NEW RECORD \u2605</span>`;
-    document.getElementById('death-score').innerHTML = html;
+function togglePause() {
+    if (player && player.dead) return;
+    state.paused = !state.paused;
+    document.getElementById('pause-screen').style.display = state.paused ? 'flex' : 'none';
+    if (!state.paused) clearInput();
+}
+
+function resumeGame() {
+    state.paused = false;
+    document.getElementById('pause-screen').style.display = 'none';
+    clearInput();
+}
+
+function resumeAndRestart() {
+    state.paused = false;
+    document.getElementById('pause-screen').style.display = 'none';
+    restartLevel();
+}
+
+function autoRetry() {
+    checkAndSaveHighscore();
+    clearInput();
+    initLevel(state.level);
 }
 
 function showWinScreen() {
     state.running = false;
+    stopMusic();
     document.getElementById('win-screen').style.display = 'flex';
     const isNew = checkAndSaveHighscore();
     const best = localStorage.getItem('ew_hs_' + diff.id) || 0;
@@ -1617,6 +1870,9 @@ function showWinScreen() {
 
 function restartLevel() {
     document.getElementById('death-screen').style.display = 'none';
+    document.getElementById('pause-screen').style.display = 'none';
+    clearInput();
+    state.paused = false;
     state.running = true;
     initLevel(state.level);
 }

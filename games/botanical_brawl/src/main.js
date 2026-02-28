@@ -93,6 +93,7 @@ const state = {
   _water: null,
   _grasses: [],
   _trees: [],
+  terrain: { walls: [], holes: [] },
 };
 
 // ── DOM Refs ──
@@ -145,10 +146,14 @@ skyCanvas.width = 2;
 skyCanvas.height = 512;
 const skyCtx = skyCanvas.getContext('2d');
 const skyGrad = skyCtx.createLinearGradient(0, 0, 0, 512);
-skyGrad.addColorStop(0, '#4A90D9');
-skyGrad.addColorStop(0.35, '#7EC8E3');
-skyGrad.addColorStop(0.6, '#B5DFF0');
-skyGrad.addColorStop(0.85, '#D4EDDA');
+skyGrad.addColorStop(0, '#3A7BC8');
+skyGrad.addColorStop(0.15, '#4A90D9');
+skyGrad.addColorStop(0.3, '#6AADE6');
+skyGrad.addColorStop(0.45, '#8CC5EE');
+skyGrad.addColorStop(0.6, '#B0D8F2');
+skyGrad.addColorStop(0.72, '#C8E5E8');
+skyGrad.addColorStop(0.82, '#D4EDDA');
+skyGrad.addColorStop(0.92, '#E0F2E0');
 skyGrad.addColorStop(1.0, '#E8F5E9');
 skyCtx.fillStyle = skyGrad;
 skyCtx.fillRect(0, 0, 2, 512);
@@ -182,6 +187,14 @@ const fillLight = new THREE.DirectionalLight(0xFFE0B2, 0.35);
 fillLight.position.set(-10, 8, -8);
 scene.add(fillLight);
 
+const rimLight = new THREE.DirectionalLight(0xFFCCDD, 0.2);
+rimLight.position.set(0, 4, -15);
+scene.add(rimLight);
+
+const warmGround = new THREE.PointLight(0xFFE8B0, 0.3, 30);
+warmGround.position.set(0, 0.5, 0);
+scene.add(warmGround);
+
 // ── World ──
 
 function buildWorld() {
@@ -199,6 +212,50 @@ function buildWorld() {
   clearing.rotation.x = -Math.PI / 2;
   clearing.position.y = 0.02;
   scene.add(clearing);
+
+  // Color rings for visual depth
+  const ringDefs = [
+    { inner: ISLAND_RADIUS - 2, outer: ISLAND_RADIUS, color: 0x55A630 },
+    { inner: ISLAND_RADIUS - 5, outer: ISLAND_RADIUS - 2, color: 0x62B83C },
+    { inner: ISLAND_RADIUS - 9, outer: ISLAND_RADIUS - 5, color: 0x6DBF47 },
+    { inner: 6, outer: ISLAND_RADIUS - 9, color: 0x78C853 },
+    { inner: 2.5, outer: 6, color: 0x7EC850 },
+  ];
+  ringDefs.forEach((rd, i) => {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(rd.inner, rd.outer, 32),
+      new THREE.MeshLambertMaterial({ color: rd.color, side: THREE.DoubleSide }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.012 + i * 0.001;
+    scene.add(ring);
+  });
+
+  // Scattered ground patches (lighter/darker grass)
+  const patchColors = [0x85D660, 0x55A630, 0x7EC850, 0x4CAF50, 0x8BD46A];
+  for (let i = 0; i < 15; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 3 + Math.random() * (ISLAND_RADIUS - 5);
+    const patch = new THREE.Mesh(
+      new THREE.CircleGeometry(0.6 + Math.random() * 1.2, 7),
+      new THREE.MeshLambertMaterial({ color: patchColors[i % patchColors.length] }),
+    );
+    patch.rotation.x = -Math.PI / 2;
+    patch.position.set(Math.cos(a) * r, 0.013, Math.sin(a) * r);
+    scene.add(patch);
+  }
+
+  // Dirt path (winding from center outward)
+  const pathMat = new THREE.MeshLambertMaterial({ color: 0xA89070 });
+  for (let i = 0; i < 8; i++) {
+    const t = i / 8;
+    const pathAngle = t * Math.PI * 0.8 + 0.5;
+    const pathR = 3 + t * 10;
+    const pathPiece = new THREE.Mesh(new THREE.CircleGeometry(0.4 + t * 0.3, 6), pathMat);
+    pathPiece.rotation.x = -Math.PI / 2;
+    pathPiece.position.set(Math.cos(pathAngle) * pathR, 0.014, Math.sin(pathAngle) * pathR);
+    scene.add(pathPiece);
+  }
 
   const side = new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_RADIUS, ISLAND_RADIUS - 2, 3, 32), dirtMat);
   side.position.y = -2.7;
@@ -235,16 +292,43 @@ function buildWorld() {
     scene.add(m);
   }
 
-  // ── Flowers (reduced, shared geo) ──
-  const flowerGeo = new THREE.SphereGeometry(0.08, 4, 4);
-  const flowerColors = [0xFF69B4, 0xFFB7C5, 0xDDA0DD, 0xFFD700, 0xFFA07A, 0xFF6F61];
+  // ── Flowers (varied, with stems) ──
+  const flowerColors = [0xFF69B4, 0xFFB7C5, 0xDDA0DD, 0xFFD700, 0xFFA07A, 0xFF6F61, 0xE040FB, 0x81D4FA, 0xFFAB91];
   const flowerMats = flowerColors.map(c => new THREE.MeshLambertMaterial({ color: c }));
-  for (let i = 0; i < 20; i++) {
+  const stemMat = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+  const flowerGeo = new THREE.SphereGeometry(0.08, 4, 4);
+  const stemGeo = new THREE.CylinderGeometry(0.01, 0.015, 0.2, 3);
+  for (let i = 0; i < 28; i++) {
     const a = Math.random() * Math.PI * 2;
     const r = 3 + Math.random() * (ISLAND_RADIUS - 4);
-    const m = new THREE.Mesh(flowerGeo, flowerMats[i % flowerMats.length]);
-    m.position.set(Math.cos(a) * r, 0.1, Math.sin(a) * r);
-    scene.add(m);
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const stem = new THREE.Mesh(stemGeo, stemMat);
+    stem.position.set(x, 0.1, z);
+    scene.add(stem);
+    const bloom = new THREE.Mesh(flowerGeo, flowerMats[i % flowerMats.length]);
+    bloom.position.set(x, 0.22, z);
+    const s = 0.8 + Math.random() * 0.6;
+    bloom.scale.set(s, s * 0.7, s);
+    scene.add(bloom);
+  }
+
+  // Small decorative mushrooms
+  const mushroomCapMat = new THREE.MeshLambertMaterial({ color: 0xE53935 });
+  const mushroomStemMat = new THREE.MeshLambertMaterial({ color: 0xFFF8E1 });
+  const mushroomDotMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+  for (let i = 0; i < 5; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 4 + Math.random() * (ISLAND_RADIUS - 6);
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const mStem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.12, 4), mushroomStemMat);
+    mStem.position.set(x, 0.06, z);
+    scene.add(mStem);
+    const mCap = new THREE.Mesh(new THREE.SphereGeometry(0.08, 5, 4, 0, Math.PI * 2, 0, Math.PI / 2), mushroomCapMat);
+    mCap.position.set(x, 0.12, z);
+    scene.add(mCap);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.02, 3, 3), mushroomDotMat);
+    dot.position.set(x + 0.03, 0.16, z);
+    scene.add(dot);
   }
 
   // ── Trees (4, simple) ──
@@ -351,6 +435,125 @@ function buildDistantScenery() {
     g.rotation.y = Math.random() * Math.PI * 2;
     scene.add(g);
   }
+}
+
+// ── Terrain ──
+
+const wallMats = [
+  new THREE.MeshLambertMaterial({ color: 0x8B8682 }),
+  new THREE.MeshLambertMaterial({ color: 0x7A7570 }),
+  new THREE.MeshLambertMaterial({ color: 0x9C9488 }),
+];
+const wallTopMat = new THREE.MeshLambertMaterial({ color: 0x6D8B5E });
+
+function addWall(x, z, hw, hd) {
+  const dist = Math.sqrt(x * x + z * z);
+  if (dist + Math.max(hw, hd) > ISLAND_RADIUS - 2) return;
+  if (dist < 3) return;
+
+  const height = 1.0 + Math.random() * 0.4;
+  const group = new THREE.Group();
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(hw * 2, height, hd * 2),
+    wallMats[Math.floor(Math.random() * wallMats.length)],
+  );
+  body.position.y = height / 2;
+  group.add(body);
+
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(hw * 2 + 0.1, 0.08, hd * 2 + 0.1),
+    wallTopMat,
+  );
+  top.position.y = height + 0.04;
+  group.add(top);
+
+  if (Math.random() > 0.5) {
+    const vineMat = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    const vine = new THREE.Mesh(new THREE.SphereGeometry(0.12, 4, 3), vineMat);
+    vine.position.set(hw * (Math.random() > 0.5 ? 1 : -1), height * 0.6, hd * (Math.random() > 0.5 ? 1 : -1));
+    vine.scale.y = 1.5;
+    group.add(vine);
+  }
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+  state.terrain.walls.push({ mesh: group, x, z, hw, hd, height });
+}
+
+function addHole(x, z, radius) {
+  const dist = Math.sqrt(x * x + z * z);
+  if (dist + radius > ISLAND_RADIUS - 2) return;
+  if (dist < 4) return;
+
+  const group = new THREE.Group();
+
+  const pit = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 16),
+    new THREE.MeshBasicMaterial({ color: 0x1a1208 }),
+  );
+  pit.rotation.x = -Math.PI / 2;
+  pit.position.y = 0.01;
+  group.add(pit);
+
+  const rim = new THREE.Mesh(
+    new THREE.RingGeometry(radius - 0.05, radius + 0.2, 16),
+    new THREE.MeshLambertMaterial({ color: 0x5D4020, side: THREE.DoubleSide }),
+  );
+  rim.rotation.x = -Math.PI / 2;
+  rim.position.y = 0.02;
+  group.add(rim);
+
+  const crackMat = new THREE.MeshBasicMaterial({ color: 0x2a1e0a });
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + Math.random();
+    const crack = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08, radius * 0.4),
+      crackMat,
+    );
+    crack.rotation.x = -Math.PI / 2;
+    crack.rotation.z = a;
+    crack.position.set(
+      Math.cos(a) * (radius + 0.15),
+      0.015,
+      Math.sin(a) * (radius + 0.15),
+    );
+    group.add(crack);
+  }
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+  state.terrain.holes.push({ mesh: group, x, z, radius });
+}
+
+function buildInitialTerrain() {
+  addWall(7, 2, 1.5, 0.35);
+  addWall(-5, -6, 0.35, 1.2);
+}
+
+function addTerrainForWave(wave) {
+  if (wave <= 2) return;
+  if (wave % 3 !== 0) return;
+  if (state.terrain.walls.length + state.terrain.holes.length > 10) return;
+
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 5 + Math.random() * 8;
+  const x = Math.cos(angle) * dist;
+  const z = Math.sin(angle) * dist;
+
+  if (Math.random() < 0.55) {
+    const isLong = Math.random() > 0.5;
+    addWall(x, z, isLong ? 1.0 + Math.random() * 1.2 : 0.3 + Math.random() * 0.3, isLong ? 0.3 + Math.random() * 0.3 : 1.0 + Math.random() * 1.2);
+  } else {
+    addHole(x, z, 0.7 + Math.random() * 0.6);
+  }
+}
+
+function clearTerrain() {
+  for (const w of state.terrain.walls) scene.remove(w.mesh);
+  for (const h of state.terrain.holes) scene.remove(h.mesh);
+  state.terrain.walls.length = 0;
+  state.terrain.holes.length = 0;
 }
 
 // ── Player ──
@@ -617,6 +820,22 @@ function updatePlayer() {
     state.moveDistance += PLAYER_SPEED * state.speedMultiplier * dt60;
   }
 
+  // Wall collision
+  const playerRadius = 0.45;
+  for (const wall of state.terrain.walls) {
+    const wdx = state.playerPos.x - wall.x;
+    const wdz = state.playerPos.z - wall.z;
+    const overlapX = wall.hw + playerRadius - Math.abs(wdx);
+    const overlapZ = wall.hd + playerRadius - Math.abs(wdz);
+    if (overlapX > 0 && overlapZ > 0) {
+      if (overlapX < overlapZ) {
+        state.playerPos.x += (wdx > 0 ? 1 : -1) * overlapX;
+      } else {
+        state.playerPos.z += (wdz > 0 ? 1 : -1) * overlapZ;
+      }
+    }
+  }
+
   // Clamp to island
   const d = Math.sqrt(state.playerPos.x ** 2 + state.playerPos.z ** 2);
   if (d > ISLAND_RADIUS - 1) {
@@ -715,6 +934,7 @@ function startWave() {
   state.waveActive = true;
   state.pollen = Math.min(3, state.pollen + 1);
 
+  addTerrainForWave(state.wave);
   updateMusicIntensity(state.wave, false);
 
   const isBoss = state.wave % 5 === 0;
@@ -842,6 +1062,8 @@ function resetGame() {
   clearProjectiles(state, scene);
   clearPickups(state, scene);
   clearAllVfx(scene);
+  clearTerrain();
+  buildInitialTerrain();
 
   state.playerPos.set(0, 0, 0);
   state.playerHp = PLAYER_MAX_HP;
@@ -884,6 +1106,7 @@ function startGame() {
   els.hud.style.display = 'flex';
   if (els.weaponSlots) els.weaponSlots.style.display = 'flex';
   if (els.minimapCanvas) els.minimapCanvas.style.display = 'block';
+  if (state.terrain.walls.length === 0) buildInitialTerrain();
   startMusic();
   initTutorial(state);
   startWave();
@@ -897,6 +1120,7 @@ function quitToTitle() {
   clearProjectiles(state, scene);
   clearPickups(state, scene);
   clearAllVfx(scene);
+  clearTerrain();
   if (els.pauseOverlay) els.pauseOverlay.style.display = 'none';
   els.gameoverScreen.style.display = 'none';
   els.hud.style.display = 'none';
@@ -907,6 +1131,7 @@ function quitToTitle() {
 }
 
 buildWorld();
+buildInitialTerrain();
 buildPlayer();
 initParticlePool(scene);
 initDamageNumbers();

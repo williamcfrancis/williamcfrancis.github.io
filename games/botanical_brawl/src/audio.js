@@ -2,7 +2,6 @@ import { getSettings, saveSettings } from './persistence.js';
 
 let ctx;
 let masterGain, sfxGain, musicGain;
-let _musicTimer = null;
 let _musicBeat = 0;
 let _musicWave = 1;
 let _bossFight = false;
@@ -197,84 +196,184 @@ export function bounceSound() {
   });
 }
 
-// ── Procedural Background Music ──
+// ── Procedural Ambient Music (Minecraft-inspired) ──
 
-const PENTA = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+const AMBIENT_NOTES = [
+  130.81, 146.83, 164.81, 196.00, 220.00,
+  261.63, 293.66, 329.63, 392.00, 440.00,
+  523.25, 587.33, 659.25, 783.99, 880.00,
+];
 
-function mNote(freq, dur, type = 'sine', vol = 0.04) {
+let _musicActive = false;
+let _noteTimeout = null;
+let _phraseNotes = 0;
+let _phraseLength = 0;
+let _resting = false;
+let _restTicks = 0;
+let _lastNoteIdx = -1;
+let _padOscs = [];
+let _padGain = null;
+
+function playPianoNote(freq, vol = 0.028, decay = 3.0) {
   if (!ctx) return;
-  const o = ctx.createOscillator(), g = ctx.createGain();
-  o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(vol, ctx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+  const t = ctx.currentTime;
+
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.015);
+  g.gain.setTargetAtTime(vol * 0.6, t + 0.015, 0.08);
+  g.gain.exponentialRampToValueAtTime(0.001, t + decay);
   o.connect(g); g.connect(musicGain);
-  o.start(); o.stop(ctx.currentTime + dur + 0.01);
+  o.start(t); o.stop(t + decay + 0.1);
+
+  const o2 = ctx.createOscillator();
+  const g2 = ctx.createGain();
+  o2.type = 'sine';
+  o2.frequency.value = freq * 1.002;
+  g2.gain.setValueAtTime(0.001, t);
+  g2.gain.linearRampToValueAtTime(vol * 0.3, t + 0.015);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + decay * 1.15);
+  o2.connect(g2); g2.connect(musicGain);
+  o2.start(t); o2.stop(t + decay * 1.15 + 0.1);
+
+  if (Math.random() < 0.3) {
+    const o3 = ctx.createOscillator();
+    const g3 = ctx.createGain();
+    o3.type = 'sine';
+    o3.frequency.value = freq * 2;
+    g3.gain.setValueAtTime(0.001, t);
+    g3.gain.linearRampToValueAtTime(vol * 0.12, t + 0.01);
+    g3.gain.exponentialRampToValueAtTime(0.001, t + decay * 0.5);
+    o3.connect(g3); g3.connect(musicGain);
+    o3.start(t); o3.stop(t + decay * 0.5 + 0.1);
+  }
+}
+
+function pickNextNote() {
+  if (_lastNoteIdx >= 0 && Math.random() < 0.7) {
+    const step = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
+    return Math.max(0, Math.min(AMBIENT_NOTES.length - 1, _lastNoteIdx + step));
+  }
+  return Math.floor(Math.random() * AMBIENT_NOTES.length);
 }
 
 function musicTick() {
-  if (!ctx) return;
-  const beat = _musicBeat % 16;
+  if (!ctx || !_musicActive) return;
+
+  if (_resting) {
+    _restTicks--;
+    if (_restTicks <= 0) {
+      _resting = false;
+      _phraseLength = 3 + Math.floor(Math.random() * 5);
+      _phraseNotes = 0;
+    }
+    scheduleNext();
+    return;
+  }
+
+  const idx = pickNextNote();
+  _lastNoteIdx = idx;
+  const freq = AMBIENT_NOTES[idx];
+  const octaveRegion = idx < 5 ? 'low' : idx < 10 ? 'mid' : 'high';
+  const vol = octaveRegion === 'low' ? 0.022 : octaveRegion === 'mid' ? 0.028 : 0.02;
+  const decay = octaveRegion === 'low' ? 4.0 : octaveRegion === 'mid' ? 3.2 : 2.5;
+
+  playPianoNote(freq, vol + Math.random() * 0.008, decay + Math.random() * 1.0);
+
+  if (Math.random() < 0.25) {
+    const chordIdx = Math.min(AMBIENT_NOTES.length - 1, idx + 2 + Math.floor(Math.random() * 2));
+    setTimeout(() => {
+      if (_musicActive) playPianoNote(AMBIENT_NOTES[chordIdx], vol * 0.6, decay * 0.8);
+    }, 60 + Math.random() * 120);
+  }
+
+  _phraseNotes++;
+  if (_phraseNotes >= _phraseLength) {
+    _resting = true;
+    _restTicks = 4 + Math.floor(Math.random() * 6);
+  }
+
   const intense = _musicWave >= 10 ? 2 : _musicWave >= 5 ? 1 : 0;
-
-  const noteIdx = _musicBeat % PENTA.length;
-  mNote(PENTA[noteIdx], 0.3, 'sine', 0.025 + intense * 0.008);
-
-  if (beat % 8 === 0) {
-    mNote(PENTA[0] / 2, 1.8, 'sine', 0.018);
-    mNote(PENTA[2], 1.8, 'triangle', 0.012);
+  if (intense >= 1 && _musicBeat % 3 === 0) {
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(90, t);
+    o.frequency.exponentialRampToValueAtTime(35, t + 0.12);
+    g.gain.setValueAtTime(0.04, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    o.connect(g); g.connect(musicGain);
+    o.start(t); o.stop(t + 0.2);
   }
 
-  if (intense >= 1) {
-    if (beat % 4 === 0) {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.setValueAtTime(120, ctx.currentTime);
-      o.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
-      g.gain.setValueAtTime(0.08, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-      o.connect(g); g.connect(musicGain);
-      o.start(); o.stop(ctx.currentTime + 0.13);
-    }
-    if (beat % 2 === 1) {
-      const len = ctx.sampleRate * 0.03;
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      const src = ctx.createBufferSource(); src.buffer = buf;
-      const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 9000;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.03, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
-      src.connect(f); f.connect(g); g.connect(musicGain);
-      src.start(); src.stop(ctx.currentTime + 0.04);
-    }
-  }
-
-  if (intense >= 2 && beat % 4 === 0) {
-    mNote(PENTA[0] / 4, 0.6, 'sawtooth', 0.02);
-  }
-
-  if (_bossFight && beat % 16 === 0) {
+  if (_bossFight && _musicBeat % 6 === 0) {
+    const t = ctx.currentTime;
     const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
     o1.type = 'sine'; o2.type = 'sine';
     o1.frequency.value = 55; o2.frequency.value = 58.27;
-    g.gain.setValueAtTime(0.025, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3.5);
+    g.gain.setValueAtTime(0.018, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 3.5);
     o1.connect(g); o2.connect(g); g.connect(musicGain);
-    o1.start(); o2.start();
-    o1.stop(ctx.currentTime + 3.6); o2.stop(ctx.currentTime + 3.6);
+    o1.start(t); o2.start(t);
+    o1.stop(t + 3.6); o2.stop(t + 3.6);
   }
 
   _musicBeat++;
+  scheduleNext();
+}
+
+function scheduleNext() {
+  if (!_musicActive) return;
+  const delay = _resting ? 600 + Math.random() * 400 : 1200 + Math.random() * 1800;
+  _noteTimeout = setTimeout(musicTick, delay);
+}
+
+function startAmbientPad() {
+  if (!ctx) return;
+  _padGain = ctx.createGain();
+  _padGain.gain.setValueAtTime(0, ctx.currentTime);
+  _padGain.gain.linearRampToValueAtTime(0.007, ctx.currentTime + 3);
+  _padGain.connect(musicGain);
+
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 400;
+  lp.connect(_padGain);
+
+  [130.81, 196.00, 261.63].forEach(freq => {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = freq;
+    o.connect(lp);
+    o.start();
+    _padOscs.push(o);
+  });
+}
+
+function stopAmbientPad() {
+  for (const o of _padOscs) { try { o.stop(); } catch {} }
+  _padOscs = [];
+  _padGain = null;
 }
 
 export function startMusic() {
-  if (_musicTimer) return;
+  if (_musicActive) return;
+  _musicActive = true;
   _musicBeat = 0;
-  _musicTimer = setInterval(musicTick, 250);
+  _resting = false;
+  _phraseNotes = 0;
+  _phraseLength = 3 + Math.floor(Math.random() * 4);
+  _lastNoteIdx = -1;
+  startAmbientPad();
+  scheduleNext();
 }
 
 export function stopMusic() {
-  if (_musicTimer) { clearInterval(_musicTimer); _musicTimer = null; }
+  _musicActive = false;
+  if (_noteTimeout) { clearTimeout(_noteTimeout); _noteTimeout = null; }
+  stopAmbientPad();
 }
 
 export function updateMusicIntensity(wave, isBoss = false) {

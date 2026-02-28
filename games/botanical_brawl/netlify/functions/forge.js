@@ -1,4 +1,4 @@
-const { MODEL_PRIORITY, generateWithModelFallback } = require('../../../../../netlify/functions/llm');
+const { MODEL_PRIORITY, generateWithModelFallback } = require('../../../../netlify/functions/llm');
 
 const SYSTEM_PROMPT = `You are the physics engine for a cozy but competitive 3D twin-stick shooter called Botanical Brawl. The player has requested a new weapon. Convert their description into game parameters. Be creative — match the vibe of the description to the stats. Heavy or slow-sounding weapons should have high damage but low speed. Zippy or rapid-fire weapons should have high speed but lower damage. Bouncy or ricocheting descriptions should have high bounces. Large or oversized items should have high scale.
 

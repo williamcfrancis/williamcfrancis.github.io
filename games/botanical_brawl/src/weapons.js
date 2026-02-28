@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { shootSound, forgeCompleteSound, bounceSound } from './audio.js';
-import { spawnTrail } from './vfx.js';
+import { spawnTrail, spawnBurst, spawnShockwave } from './vfx.js';
 import { saveWeaponToGallery } from './persistence.js';
 
 // ── Rarity System ──
@@ -250,14 +250,14 @@ const KEYWORD_MAP = {
   pistol:     K(0x616161, 0x9E9E9E, 500, 'triangle', 0.8, 2.0, 0, 0),
   rifle:      K(0x5D4037, 0x8D6E63, 450, 'triangle', 1.3, 2.0, 0, 0),
   sniper:     K(0x00E676, 0x69F0AE, 1000, 'triangle', 2.0, 2.5, 0.6, 0),
-  shotgun:    K(0xFF6F00, 0xFFA726, 280, 'sawtooth', 0.6, 1.5, 0.7, 0),
+  shotgun:    K(0xFF6F00, 0xFFA726, 280, 'sawtooth', 1.0, 0.4, 0.5, 0),
   cannon:     K(0x424242, 0x757575, 180, 'triangle', 2.5, 0.3, 2.5, 0),
   turret:     K(0x616161, 0x757575, 350, 'triangle', 1.0, 3.0, 0, 0),
   minigun:    K(0x757575, 0x9E9E9E, 900, 'triangle', 0.3, 4.5, 0.5, 0),
   gatling:    K(0x757575, 0x9E9E9E, 900, 'triangle', 0.3, 4.5, 0.5, 0),
-  rocket:     K(0xFF5722, 0xFF8A65, 220, 'sawtooth', 3.0, 0.5, 1.8, 0),
-  missile:    K(0xFF5722, 0xFF8A65, 220, 'sawtooth', 3.0, 0.5, 1.8, 0),
-  bazooka:    K(0x4E342E, 0xFF5722, 200, 'sawtooth', 3.5, 0.4, 2.2, 0),
+  rocket:     K(0xFF5722, 0xFF8A65, 220, 'sawtooth', 3.0, 0.3, 1.4, 0),
+  missile:    K(0xFF5722, 0xFF8A65, 220, 'sawtooth', 3.0, 0.3, 1.4, 0),
+  bazooka:    K(0x4E342E, 0xFF5722, 200, 'sawtooth', 3.5, 0.25, 1.6, 0),
   laser:      K(0xFF0000, 0xFF5252, 950, 'sine', 1.5, 3.0, 0.5, 0),
   beam:       K(0x00E5FF, 0x18FFFF, 980, 'sine', 1.3, 3.0, 0.4, 0),
   ray:        K(0x76FF03, 0xB2FF59, 900, 'sine', 1.2, 2.5, 0.5, 0),
@@ -539,7 +539,7 @@ function generateWeaponFromText(text) {
   if (projShape === 'sphere' && hash % 6 === 0) projShape = 'cube';
   if (projShape === 'sphere' && hash % 7 === 0) projShape = 'star';
 
-  return {
+  const weapon = {
     speed: clamp(1.0 * spdMult, 0.1, 5),
     damage: clamp(Math.round(40 * dmgMult), 10, 500),
     scale: clamp(1.0 * scaleMult, 0.5, 5),
@@ -553,7 +553,21 @@ function generateWeaponFromText(text) {
     projColor: color || 0xFFD54F,
     projTrailColor: trail || 0xFFA000,
     projShape,
+    spread: 0,
+    rocketMode: false,
   };
+
+  if (lower.includes('shotgun') || lower.includes('buckshot') || lower.includes('scattergun')) {
+    weapon.spread = 6;
+    weapon.speed = clamp(weapon.speed, 0.1, 0.6);
+    weapon.projShape = 'sphere';
+  }
+  if (lower.includes('rocket') || lower.includes('missile') || lower.includes('bazooka') || lower.includes('rpg')) {
+    weapon.rocketMode = true;
+    weapon.projShape = 'rocket';
+  }
+
+  return weapon;
 }
 
 // ── Projectile Firing ──
@@ -573,6 +587,53 @@ function makeProjectileGeo(shape, s) {
   }
 }
 
+function makeRocketMesh(s, color) {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06 * s, 0.08 * s, 0.35 * s, 6),
+    new THREE.MeshLambertMaterial({ color: 0x888888 }),
+  );
+  group.add(body);
+  const head = new THREE.Mesh(
+    new THREE.ConeGeometry(0.06 * s, 0.14 * s, 6),
+    new THREE.MeshBasicMaterial({ color }),
+  );
+  head.position.y = 0.245 * s;
+  group.add(head);
+  const finMat = new THREE.MeshBasicMaterial({ color: 0x666666, side: THREE.DoubleSide });
+  for (let i = 0; i < 4; i++) {
+    const fin = new THREE.Mesh(new THREE.PlaneGeometry(0.1 * s, 0.08 * s), finMat);
+    fin.position.y = -0.15 * s;
+    fin.rotation.y = (i / 4) * Math.PI * 2;
+    fin.rotation.x = 0.3;
+    group.add(fin);
+  }
+  const exhaust = new THREE.Mesh(
+    new THREE.ConeGeometry(0.05 * s, 0.12 * s, 4),
+    new THREE.MeshBasicMaterial({ color: 0xFF6600, transparent: true, opacity: 0.8 }),
+  );
+  exhaust.position.y = -0.235 * s;
+  exhaust.rotation.x = Math.PI;
+  group.add(exhaust);
+  return group;
+}
+
+function makeShotgunPellet(s, color) {
+  const group = new THREE.Group();
+  const pellet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.06 * s, 5, 5),
+    new THREE.MeshLambertMaterial({ color: 0xCCBB88 }),
+  );
+  group.add(pellet);
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(0.04 * s, 4, 4),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 }),
+  );
+  flash.position.z = -0.04 * s;
+  group.add(flash);
+  return group;
+}
+
 export function fireProjectile(scene, state) {
   const now = performance.now();
   const weapon = state.weapons[state.activeWeaponIdx];
@@ -587,8 +648,65 @@ export function fireProjectile(scene, state) {
   const effectiveDmg = Math.round(weapon.damage * state.damageMultiplier);
   const projColor = weapon.projColor || 0xFFD54F;
   const trailColor = weapon.projTrailColor || projColor;
-  let mesh;
 
+  shootSound(weapon.audioFreq, weapon.audioType);
+
+  if (weapon.spread > 1) {
+    const pelletCount = weapon.spread;
+    const spreadAngle = 0.35;
+    const pelletDmg = Math.max(5, Math.round(effectiveDmg / pelletCount * 1.8));
+    const baseAngle = Math.atan2(_fireDir.x, _fireDir.z);
+
+    for (let i = 0; i < pelletCount; i++) {
+      const angleOffset = ((i / (pelletCount - 1)) - 0.5) * spreadAngle;
+      const a = baseAngle + angleOffset;
+      const dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+
+      const mesh = makeShotgunPellet(s, projColor);
+      mesh.position.copy(state.playerPos);
+      mesh.position.y = 0.6;
+      scene.add(mesh);
+
+      const speedJitter = 0.9 + Math.random() * 0.2;
+      state.projectiles.push({
+        mesh,
+        vel: dir.multiplyScalar(0.45 * speedJitter),
+        damage: pelletDmg,
+        radius: 0.1 * s,
+        bouncesLeft: weapon.bounces,
+        life: 120,
+        trailColor,
+        trailCounter: 0,
+      });
+    }
+    return;
+  }
+
+  if (weapon.rocketMode) {
+    const mesh = makeRocketMesh(s, projColor);
+    mesh.position.copy(state.playerPos);
+    mesh.position.y = 0.6;
+    const lookTarget = mesh.position.clone().add(_fireDir);
+    mesh.lookAt(lookTarget);
+    mesh.rotation.x += Math.PI / 2;
+    scene.add(mesh);
+
+    state.projectiles.push({
+      mesh,
+      vel: _fireDir.clone().multiplyScalar(0.18),
+      damage: effectiveDmg,
+      radius: 0.3 * s,
+      bouncesLeft: weapon.bounces,
+      life: 500,
+      trailColor: 0x888888,
+      trailCounter: 0,
+      isRocket: true,
+      smokeCounter: 0,
+    });
+    return;
+  }
+
+  let mesh;
   if (weapon.spriteTex) {
     const mat = new THREE.SpriteMaterial({ map: weapon.spriteTex, transparent: true });
     mesh = new THREE.Sprite(mat);
@@ -602,8 +720,6 @@ export function fireProjectile(scene, state) {
   mesh.position.copy(state.playerPos);
   mesh.position.y = 0.6;
   scene.add(mesh);
-
-  shootSound(weapon.audioFreq, weapon.audioType);
 
   state.projectiles.push({
     mesh,
@@ -628,10 +744,48 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
     p.mesh.position.addScaledVector(p.vel, dt60);
     p.life -= dt60;
 
-    p.trailCounter += dt60;
-    if (p.trailCounter >= 3) {
-      p.trailCounter -= 3;
-      spawnTrail(p.mesh.position, p.trailColor);
+    if (p.isRocket) {
+      p.smokeCounter = (p.smokeCounter || 0) + dt60;
+      if (p.smokeCounter >= 2) {
+        p.smokeCounter -= 2;
+        spawnTrail(p.mesh.position, 0x999999);
+        spawnTrail(p.mesh.position, 0x666666);
+      }
+    } else {
+      p.trailCounter += dt60;
+      if (p.trailCounter >= 3) {
+        p.trailCounter -= 3;
+        spawnTrail(p.mesh.position, p.trailColor);
+      }
+    }
+
+    // Wall collision
+    if (state.terrain) {
+      for (const wall of state.terrain.walls) {
+        const wdx = p.mesh.position.x - wall.x;
+        const wdz = p.mesh.position.z - wall.z;
+        const overlapX = wall.hw + p.radius - Math.abs(wdx);
+        const overlapZ = wall.hd + p.radius - Math.abs(wdz);
+        if (overlapX > 0 && overlapZ > 0) {
+          if (p.bouncesLeft > 0) {
+            p.bouncesLeft--;
+            bounceSound();
+            if (overlapX < overlapZ) {
+              p.vel.x *= -1;
+              p.mesh.position.x += (wdx > 0 ? 1 : -1) * overlapX;
+            } else {
+              p.vel.z *= -1;
+              p.mesh.position.z += (wdz > 0 ? 1 : -1) * overlapZ;
+            }
+          } else if (p.isRocket) {
+            rocketExplosion(p.mesh.position, state, scene, damageEnemyFn, camera);
+            p.life = 0;
+          } else {
+            p.life = 0;
+          }
+          break;
+        }
+      }
     }
 
     const pDist = Math.sqrt(p.mesh.position.x ** 2 + p.mesh.position.z ** 2);
@@ -647,19 +801,41 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
         p.mesh.position.x = Math.cos(angle) * clampR;
         p.mesh.position.z = Math.sin(angle) * clampR;
       } else {
+        if (p.isRocket) rocketExplosion(p.mesh.position, state, scene, damageEnemyFn, camera);
         p.life = 0;
       }
     }
 
-    for (let j = state.enemies.length - 1; j >= 0; j--) {
-      const e = state.enemies[j];
-      const dx = p.mesh.position.x - e.mesh.position.x;
-      const dz = p.mesh.position.z - e.mesh.position.z;
-      if (Math.sqrt(dx * dx + dz * dz) < p.radius + e.radius) {
-        const wasBounced = p.bouncesLeft < (state.weapons[state.activeWeaponIdx].bounces || 0);
-        damageEnemyFn(e, p.damage, state, scene, camera, wasBounced);
+    // Destroy destructible enemy projectiles
+    for (let k = state.enemyProjectiles.length - 1; k >= 0; k--) {
+      const ep = state.enemyProjectiles[k];
+      if (!ep.destructible) continue;
+      const edx = p.mesh.position.x - ep.mesh.position.x;
+      const edz = p.mesh.position.z - ep.mesh.position.z;
+      if (Math.sqrt(edx * edx + edz * edz) < p.radius + 0.2) {
+        spawnBurstFromWeapons(ep.mesh.position, 0xFF4466, 8);
+        scene.remove(ep.mesh);
+        state.enemyProjectiles.splice(k, 1);
         p.life = 0;
         break;
+      }
+    }
+
+    if (p.life > 0) {
+      for (let j = state.enemies.length - 1; j >= 0; j--) {
+        const e = state.enemies[j];
+        const dx = p.mesh.position.x - e.mesh.position.x;
+        const dz = p.mesh.position.z - e.mesh.position.z;
+        if (Math.sqrt(dx * dx + dz * dz) < p.radius + e.radius) {
+          const wasBounced = p.bouncesLeft < (state.weapons[state.activeWeaponIdx].bounces || 0);
+          if (p.isRocket) {
+            rocketExplosion(p.mesh.position, state, scene, damageEnemyFn, camera);
+          } else {
+            damageEnemyFn(e, p.damage, state, scene, camera, wasBounced);
+          }
+          p.life = 0;
+          break;
+        }
       }
     }
 
@@ -667,6 +843,39 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
       scene.remove(p.mesh);
       state.projectiles.splice(i, 1);
     }
+  }
+}
+
+function rocketExplosion(pos, state, scene, damageEnemyFn, camera) {
+  spawnBurst(pos, 0xFF4400, 12);
+  spawnBurst(pos, 0xFF8800, 8);
+  spawnBurst(pos, 0xFFCC00, 4);
+  spawnShockwave(scene, pos, 3.0);
+
+  const explosionRadius = 3.0;
+  const weapon = state.weapons[state.activeWeaponIdx];
+  const explosionDmg = Math.round((weapon ? weapon.damage : 40) * state.damageMultiplier * 0.6);
+
+  for (let j = state.enemies.length - 1; j >= 0; j--) {
+    const e = state.enemies[j];
+    const dx = pos.x - e.mesh.position.x;
+    const dz = pos.z - e.mesh.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < explosionRadius) {
+      const falloff = 1 - (dist / explosionRadius);
+      damageEnemyFn(e, Math.round(explosionDmg * falloff), state, scene, camera, false);
+    }
+  }
+}
+
+function spawnBurstFromWeapons(pos, color, count) {
+  spawnTrail(pos, color);
+  for (let i = 1; i < count; i++) {
+    const offset = pos.clone();
+    offset.x += (Math.random() - 0.5) * 0.5;
+    offset.y += Math.random() * 0.3;
+    offset.z += (Math.random() - 0.5) * 0.5;
+    spawnTrail(offset, color);
   }
 }
 

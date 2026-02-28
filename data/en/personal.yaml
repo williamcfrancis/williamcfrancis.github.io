@@ -106,12 +106,12 @@ sections:
           label: Play Botanical Brawl
           url: "/games/botanical_brawl/"
         image: "/games/game_placeholder.svg"
-      - title: "Feral Wizard Therapy"
+      - title: "Wizard Brawl"
         genre: LLM-powered couch arena fighter
-        summary: "Two unhinged wizards. One couch. Infinite questionable life choices. Lose a round, rage-forge ANY object into a weapon, and watch the chaos unfold on trippy backgrounds."
+        summary: "Two wizards, one couch, and any object you can dream up as a weapon. Lose a round, rage-forge something new, and let the chaos fly."
         tags: ["browser", "AI", "local-multiplayer"]
         link:
-          label: "Play Feral Wizard Therapy"
+          label: "Play Wizard Brawl"
           url: "/games/junkcode_brawlers/"
         image: "/games/game_placeholder.svg"
   - section:

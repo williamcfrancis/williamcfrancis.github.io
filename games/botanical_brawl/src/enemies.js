@@ -13,6 +13,7 @@ const SLIME_DEFS = [
   { weight: 0.13, radius: 0.90, hp: 140, speed: 0.018, dmg: 22, color: 0xCE93D8, name: 'bloom',  minWave: 1 },
   { weight: 0.12, radius: 0.38, hp: 40,  speed: 0.022, dmg: 6,  color: 0xA1887F, name: 'thorn',  minWave: 3 },
   { weight: 0.08, radius: 0.80, hp: 100, speed: 0.015, dmg: 16, color: 0x558B2F, name: 'bramble', minWave: 5 },
+  { weight: 0.04, radius: 0.55, hp: 90,  speed: 0.012, dmg: 10, color: 0x4A90D9, name: 'sentinel', minWave: 6 },
 ];
 
 function pickSlimeDef(wave) {
@@ -76,6 +77,23 @@ function buildEnemyMesh(def) {
       petal.scale.y = 0.5;
       g.add(petal);
     }
+  } else if (def.name === 'sentinel') {
+    g.remove(body);
+    const coreMat = new THREE.MeshLambertMaterial({ color: 0x4A90D9, emissive: 0x1A3060, emissiveIntensity: 0.4 });
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(def.radius * 0.7, 0), coreMat);
+    core.rotation.y = Math.PI / 4;
+    g.add(core);
+    const shellMat = new THREE.MeshLambertMaterial({ color: 0x80B8E8, transparent: true, opacity: 0.45 });
+    const shell = new THREE.Mesh(new THREE.OctahedronGeometry(def.radius, 0), shellMat);
+    g.add(shell);
+    const orbMat = new THREE.MeshBasicMaterial({ color: 0xFF4444 });
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 4, 4), orbMat);
+      orb.position.set(Math.cos(a) * def.radius * 0.9, 0, Math.sin(a) * def.radius * 0.9);
+      g.add(orb);
+    }
+    return { group: g, body: core };
   }
 
   // Shadow
@@ -188,25 +206,83 @@ export function spawnBoss(scene, state, spawnEdge) {
   return boss;
 }
 
-// ── Thorn Projectiles ──
+// ── Thorn Projectiles (straight-line) ──
 
 function fireThornProjectile(scene, enemy, playerPos, state) {
   const dir = new THREE.Vector3().subVectors(playerPos, enemy.mesh.position).setY(0).normalize();
-  const geo = new THREE.ConeGeometry(0.1, 0.3, 4);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x6D4C41 });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.copy(enemy.mesh.position);
-  mesh.position.y = 0.5;
-  mesh.rotation.x = Math.PI / 2;
-  scene.add(mesh);
 
+  const group = new THREE.Group();
+  const spike = new THREE.Mesh(
+    new THREE.ConeGeometry(0.06, 0.28, 5),
+    new THREE.MeshLambertMaterial({ color: 0x5D4037 }),
+  );
+  spike.rotation.x = Math.PI / 2;
+  group.add(spike);
+  const barb1 = new THREE.Mesh(
+    new THREE.ConeGeometry(0.03, 0.1, 3),
+    new THREE.MeshLambertMaterial({ color: 0x795548 }),
+  );
+  barb1.position.set(0.06, 0, 0.05);
+  barb1.rotation.z = -0.5;
+  barb1.rotation.x = Math.PI / 2;
+  group.add(barb1);
+  const barb2 = barb1.clone();
+  barb2.position.set(-0.06, 0, 0.05);
+  barb2.rotation.z = 0.5;
+  group.add(barb2);
+
+  group.position.copy(enemy.mesh.position);
+  group.position.y = 0.5;
+  scene.add(group);
+
+  const speed = 0.1 + state.wave * 0.002;
   state.enemyProjectiles.push({
-    mesh,
-    vel: dir.multiplyScalar(0.08),
+    mesh: group,
+    vel: dir.multiplyScalar(speed),
     damage: Math.round(10 + state.wave * 1.2),
     life: 300,
-    homing: 0.008,
+    homing: 0,
+    destructible: false,
+  });
+}
+
+// ── Sentinel Homing Projectiles (rare, destructible) ──
+
+function fireSentinelProjectile(scene, enemy, playerPos, state) {
+  const dir = new THREE.Vector3().subVectors(playerPos, enemy.mesh.position).setY(0).normalize();
+
+  const group = new THREE.Group();
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xFF2244 }),
+  );
+  group.add(core);
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xFF4466, transparent: true, opacity: 0.35 }),
+  );
+  group.add(glow);
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.15, 0.02, 4, 8),
+    new THREE.MeshBasicMaterial({ color: 0xFF6688 }),
+  );
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  group.position.copy(enemy.mesh.position);
+  group.position.y = 0.8;
+  scene.add(group);
+
+  state.enemyProjectiles.push({
+    mesh: group,
+    vel: dir.multiplyScalar(0.06),
+    damage: Math.round(18 + state.wave * 1.5),
+    life: 400,
+    homing: 0.006,
+    destructible: true,
     targetPos: playerPos,
+    _ring: ring,
+    _phase: 0,
   });
 }
 
@@ -217,13 +293,41 @@ export function updateEnemyProjectiles(state, scene, islandRadius) {
   const dt60 = state.dt60;
   for (let i = state.enemyProjectiles.length - 1; i >= 0; i--) {
     const p = state.enemyProjectiles[i];
-    _epToPlayer.subVectors(state.playerPos, p.mesh.position).setY(0).normalize();
-    p.vel.addScaledVector(_epToPlayer, p.homing * dt60);
-    p.vel.setY(0).normalize().multiplyScalar(0.08);
+
+    if (p.homing > 0) {
+      _epToPlayer.subVectors(state.playerPos, p.mesh.position).setY(0).normalize();
+      p.vel.addScaledVector(_epToPlayer, p.homing * dt60);
+      const spd = p.vel.length();
+      p.vel.setY(0).normalize().multiplyScalar(spd);
+      if (p._ring) {
+        p._phase = (p._phase || 0) + 0.1 * dt60;
+        p._ring.rotation.z = p._phase;
+      }
+    }
+
     p.mesh.position.addScaledVector(p.vel, dt60);
     _epLook.copy(p.mesh.position).add(p.vel);
     p.mesh.lookAt(_epLook);
     p.life -= dt60;
+
+    // Wall collision: enemy projectiles are destroyed by walls
+    if (state.terrain) {
+      let hitWall = false;
+      for (const wall of state.terrain.walls) {
+        const wdx = Math.abs(p.mesh.position.x - wall.x);
+        const wdz = Math.abs(p.mesh.position.z - wall.z);
+        if (wdx < wall.hw + 0.15 && wdz < wall.hd + 0.15) {
+          hitWall = true;
+          break;
+        }
+      }
+      if (hitWall) {
+        if (p.destructible) spawnBurst(p.mesh.position, 0xFF4466, 6);
+        scene.remove(p.mesh);
+        state.enemyProjectiles.splice(i, 1);
+        continue;
+      }
+    }
 
     const dist = Math.sqrt(p.mesh.position.x ** 2 + p.mesh.position.z ** 2);
     if (dist > islandRadius + 2 || p.life <= 0) {
@@ -261,6 +365,25 @@ export function updateEnemies(state, scene, camera, islandRadius) {
   for (const e of state.enemies) {
     if (e.isBoss) {
       updateBossAI(e, state, scene, now, dt60);
+    } else if (e.type === 'sentinel') {
+      const dist = distXZ(e.mesh.position, state.playerPos);
+      if (dist > 10) {
+        _enemyDir.subVectors(state.playerPos, e.mesh.position).setY(0).normalize();
+        e.mesh.position.addScaledVector(_enemyDir, e.speed * dt60);
+      } else if (dist < 7) {
+        _enemyDir.subVectors(e.mesh.position, state.playerPos).setY(0).normalize();
+        e.mesh.position.addScaledVector(_enemyDir, e.speed * 0.6 * dt60);
+      } else {
+        const strafe = Math.sin(now * 0.001 + e.phase) * e.speed * 0.8;
+        _enemyDir.subVectors(state.playerPos, e.mesh.position).setY(0).normalize();
+        e.mesh.position.x += _enemyDir.z * strafe * dt60;
+        e.mesh.position.z -= _enemyDir.x * strafe * dt60;
+      }
+      e.mesh.rotation.y += 0.02 * dt60;
+      if (now - e.lastShot > 3500) {
+        e.lastShot = now;
+        fireSentinelProjectile(scene, e, state.playerPos, state);
+      }
     } else if (e.type === 'thorn') {
       const dist = distXZ(e.mesh.position, state.playerPos);
       if (dist > 8) {
@@ -280,13 +403,45 @@ export function updateEnemies(state, scene, camera, islandRadius) {
     }
 
     e.phase += 0.07 * dt60;
-    e.mesh.position.y = e.radius * 0.78 + Math.abs(Math.sin(e.phase)) * 0.35;
-    const t = Math.sin(e.phase);
-    e.body.scale.y = 0.78 + t * 0.14;
-    e.body.scale.x = 1.0 - t * 0.07;
-    e.body.scale.z = 1.0 - t * 0.07;
+    if (e.type === 'sentinel') {
+      e.mesh.position.y = 1.5 + Math.sin(e.phase * 0.7) * 0.3;
+    } else {
+      e.mesh.position.y = e.radius * 0.78 + Math.abs(Math.sin(e.phase)) * 0.35;
+      const t = Math.sin(e.phase);
+      e.body.scale.y = 0.78 + t * 0.14;
+      e.body.scale.x = 1.0 - t * 0.07;
+      e.body.scale.z = 1.0 - t * 0.07;
+    }
 
-    e.mesh.lookAt(state.playerPos.x, e.mesh.position.y, state.playerPos.z);
+    if (e.type !== 'sentinel') {
+      e.mesh.lookAt(state.playerPos.x, e.mesh.position.y, state.playerPos.z);
+    }
+
+    // Wall collision for enemies
+    if (state.terrain) {
+      for (const wall of state.terrain.walls) {
+        const wdx = e.mesh.position.x - wall.x;
+        const wdz = e.mesh.position.z - wall.z;
+        const overlapX = wall.hw + e.radius - Math.abs(wdx);
+        const overlapZ = wall.hd + e.radius - Math.abs(wdz);
+        if (overlapX > 0 && overlapZ > 0) {
+          if (overlapX < overlapZ) {
+            e.mesh.position.x += (wdx > 0 ? 1 : -1) * overlapX;
+          } else {
+            e.mesh.position.z += (wdz > 0 ? 1 : -1) * overlapZ;
+          }
+        }
+      }
+
+      if (e.type !== 'sentinel') {
+        for (const hole of state.terrain.holes) {
+          const hDist = distXZ(e.mesh.position, { x: hole.x, z: hole.z });
+          if (hDist < hole.radius * 0.8) {
+            e.hp -= 0.3 * dt60;
+          }
+        }
+      }
+    }
 
     if (now < e.flashUntil) {
       e.body.material.color.setHex(0xFFFFFF);

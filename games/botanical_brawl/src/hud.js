@@ -105,6 +105,23 @@ export function updateMinimap(canvas, state, islandRadius) {
   ctx.arc(half, half, islandRadius * scale, 0, Math.PI * 2);
   ctx.stroke();
 
+  // Terrain walls
+  if (state.terrain) {
+    ctx.fillStyle = 'rgba(139,134,130,0.6)';
+    for (const w of state.terrain.walls) {
+      ctx.fillRect(
+        half + (w.x - w.hw) * scale, half + (w.z - w.hd) * scale,
+        w.hw * 2 * scale, w.hd * 2 * scale,
+      );
+    }
+    ctx.fillStyle = 'rgba(26,18,8,0.5)';
+    for (const h of state.terrain.holes) {
+      ctx.beginPath();
+      ctx.arc(half + h.x * scale, half + h.z * scale, h.radius * scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   // Pickups
   ctx.fillStyle = '#FFD54F';
   for (const p of state.pickups) {
