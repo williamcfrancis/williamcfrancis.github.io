@@ -1,5 +1,5 @@
 [build]
-command = "npm ci && npm run build:games && hugo --gc --minify"
+command = "npm install && npm run build:games && hugo --gc --minify"
 publish = "public"
 functions = "netlify/functions"
 
@@ -14,7 +14,7 @@ HUGO_VERSION       = "0.100.2"
 NODE_VERSION       = "24"
 
 [context.split1]
-command = "npm ci && npm run build:games && hugo --gc --minify --enableGitInfo"
+command = "npm install && npm run build:games && hugo --gc --minify --enableGitInfo"
 
     [context.split1.environment]
     HUGO_ENV     = "production"
@@ -22,14 +22,14 @@ command = "npm ci && npm run build:games && hugo --gc --minify --enableGitInfo"
     NODE_VERSION = "24"
 
 [context.deploy-preview]
-command = "npm ci && npm run build:games && hugo --gc --minify --buildFuture -b $DEPLOY_PRIME_URL"
+command = "npm install && npm run build:games && hugo --gc --minify --buildFuture -b $DEPLOY_PRIME_URL"
 
     [context.deploy-preview.environment]
     HUGO_VERSION = "0.100.2"
     NODE_VERSION = "24"
 
 [context.branch-deploy]
-command = "npm ci && npm run build:games && hugo --gc --minify -b $DEPLOY_PRIME_URL"
+command = "npm install && npm run build:games && hugo --gc --minify -b $DEPLOY_PRIME_URL"
 
     [context.branch-deploy.environment]
     HUGO_VERSION = "0.100.2"
