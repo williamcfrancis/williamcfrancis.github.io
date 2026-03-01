@@ -818,6 +818,15 @@
     #btn-touch-forge { bottom: 80px; right: 16px; }
     #btn-touch-dash { bottom: 80px; left: 16px; }
 
+    #screen-fx {
+      position: fixed;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.05s;
+    }
+
     .hidden { display: none !important; }
 
     /* ── Responsive ── */
@@ -836,6 +845,7 @@
   <a class="back-link" href="/personal/#games"><span>&larr;</span> Back to games</a>
 
   <div id="game-canvas-container"></div>
+  <div id="screen-fx"></div>
 
   <!-- ── Title Screen ── -->
   <div id="title-screen">
@@ -1002,13 +1012,6 @@
     <div id="btn-touch-dash" class="touch-btn">Dash</div>
   </div>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-    }
-  }
-  </script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

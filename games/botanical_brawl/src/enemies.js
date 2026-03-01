@@ -4,6 +4,7 @@ import {
   spawnBurst, spawnDeathEffect, spawnDamageNumber, spawnShockwave,
   createEnemyHpBar, removeEnemyHpBar,
 } from './vfx.js';
+import { spawnDebris } from './debris.ts';
 
 // ── Enemy Definitions ──
 
@@ -417,6 +418,18 @@ export function updateEnemies(state, scene, camera, islandRadius) {
       e.mesh.lookAt(state.playerPos.x, e.mesh.position.y, state.playerPos.z);
     }
 
+    // Apply knockback velocity
+    if (e.knockVx) {
+      e.mesh.position.x += e.knockVx * dt60;
+      e.knockVx *= Math.pow(0.84, dt60);
+      if (Math.abs(e.knockVx) < 0.001) e.knockVx = 0;
+    }
+    if (e.knockVz) {
+      e.mesh.position.z += e.knockVz * dt60;
+      e.knockVz *= Math.pow(0.84, dt60);
+      if (Math.abs(e.knockVz) < 0.001) e.knockVz = 0;
+    }
+
     // Wall collision for enemies
     if (state.terrain) {
       for (const wall of state.terrain.walls) {
@@ -558,12 +571,21 @@ function updateBossAI(boss, state, scene, now, dt60 = 1) {
 
 // ── Handle enemy hit ──
 
+const _knockDir = new THREE.Vector3();
+
 export function damageEnemy(enemy, damage, state, scene, camera, isBounced = false) {
   enemy.hp -= damage;
   enemy.flashUntil = performance.now() + 100;
   hitSound();
   spawnBurst(enemy.mesh.position, 0xFFFFFF, 4);
   spawnDamageNumber(enemy.mesh.position, camera, damage, isBounced);
+
+  // Knockback: push enemy away from player on hit
+  _knockDir.subVectors(enemy.mesh.position, state.playerPos).setY(0);
+  if (_knockDir.lengthSq() > 0.001) _knockDir.normalize();
+  const kbForce = 0.1 * (enemy.isBoss ? 0.15 : 1);
+  enemy.knockVx = (enemy.knockVx || 0) + _knockDir.x * kbForce;
+  enemy.knockVz = (enemy.knockVz || 0) + _knockDir.z * kbForce;
 
   if (enemy.hp <= 0) {
     killEnemy(enemy, state, scene);
@@ -575,6 +597,7 @@ export function damageEnemy(enemy, damage, state, scene, camera, isBounced = fal
 export function killEnemy(enemy, state, scene) {
   deathSound();
   spawnDeathEffect(scene, enemy.mesh.position, enemy.originalColor, enemy.isBoss);
+  spawnDebris(scene, enemy.mesh.position, enemy.originalColor, enemy.radius, enemy.isBoss);
   removeEnemyHpBar(scene, enemy);
   scene.remove(enemy.mesh);
 
