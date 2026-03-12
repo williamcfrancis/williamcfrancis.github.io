@@ -277,59 +277,67 @@ function buildWorld() {
   state._water.position.y = -9.5;
   scene.add(state._water);
 
-  // ── Grass tufts (reduced, shared geo+mat) ──
+  // ── Grass tufts (InstancedMesh: 30 → 3 draw calls) ──
   const grassGeo = new THREE.ConeGeometry(0.08, 0.35, 3);
-  const grassMats = [
-    new THREE.MeshLambertMaterial({ color: 0x6DBF47 }),
-    new THREE.MeshLambertMaterial({ color: 0x85D660 }),
-    new THREE.MeshLambertMaterial({ color: 0x55A630 }),
-  ];
-  for (let i = 0; i < 30; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const r = 2 + Math.random() * (ISLAND_RADIUS - 3);
-    const m = new THREE.Mesh(grassGeo, grassMats[i % 3]);
-    m.position.set(Math.cos(a) * r, 0.17, Math.sin(a) * r);
-    scene.add(m);
+  const grassColors = [0x6DBF47, 0x85D660, 0x55A630];
+  const _dm = new THREE.Object3D();
+  for (let c = 0; c < 3; c++) {
+    const inst = new THREE.InstancedMesh(grassGeo, new THREE.MeshLambertMaterial({ color: grassColors[c] }), 10);
+    for (let j = 0; j < 10; j++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 2 + Math.random() * (ISLAND_RADIUS - 3);
+      _dm.position.set(Math.cos(a) * r, 0.17, Math.sin(a) * r);
+      _dm.rotation.set(0, 0, 0);
+      _dm.scale.set(1, 1, 1);
+      _dm.updateMatrix();
+      inst.setMatrixAt(j, _dm.matrix);
+    }
+    scene.add(inst);
   }
 
-  // ── Flowers (varied, with stems) ──
+  // ── Flower stems (InstancedMesh: 28 → 1 draw call) ──
+  const stemGeo = new THREE.CylinderGeometry(0.01, 0.015, 0.2, 3);
+  const stemInst = new THREE.InstancedMesh(stemGeo, new THREE.MeshLambertMaterial({ color: 0x4CAF50 }), 28);
   const flowerColors = [0xFF69B4, 0xFFB7C5, 0xDDA0DD, 0xFFD700, 0xFFA07A, 0xFF6F61, 0xE040FB, 0x81D4FA, 0xFFAB91];
   const flowerMats = flowerColors.map(c => new THREE.MeshLambertMaterial({ color: c }));
-  const stemMat = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
   const flowerGeo = new THREE.SphereGeometry(0.08, 4, 4);
-  const stemGeo = new THREE.CylinderGeometry(0.01, 0.015, 0.2, 3);
   for (let i = 0; i < 28; i++) {
     const a = Math.random() * Math.PI * 2;
     const r = 3 + Math.random() * (ISLAND_RADIUS - 4);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    const stem = new THREE.Mesh(stemGeo, stemMat);
-    stem.position.set(x, 0.1, z);
-    scene.add(stem);
+    _dm.position.set(x, 0.1, z);
+    _dm.rotation.set(0, 0, 0);
+    _dm.scale.set(1, 1, 1);
+    _dm.updateMatrix();
+    stemInst.setMatrixAt(i, _dm.matrix);
     const bloom = new THREE.Mesh(flowerGeo, flowerMats[i % flowerMats.length]);
     bloom.position.set(x, 0.22, z);
     const s = 0.8 + Math.random() * 0.6;
     bloom.scale.set(s, s * 0.7, s);
     scene.add(bloom);
   }
+  scene.add(stemInst);
 
-  // Small decorative mushrooms
-  const mushroomCapMat = new THREE.MeshLambertMaterial({ color: 0xE53935 });
-  const mushroomStemMat = new THREE.MeshLambertMaterial({ color: 0xFFF8E1 });
-  const mushroomDotMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+  // ── Mushrooms (InstancedMesh: 15 → 3 draw calls) ──
+  const mStemGeo = new THREE.CylinderGeometry(0.03, 0.04, 0.12, 4);
+  const mCapGeo = new THREE.SphereGeometry(0.08, 5, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+  const mDotGeo = new THREE.SphereGeometry(0.02, 3, 3);
+  const mStemInst = new THREE.InstancedMesh(mStemGeo, new THREE.MeshLambertMaterial({ color: 0xFFF8E1 }), 5);
+  const mCapInst = new THREE.InstancedMesh(mCapGeo, new THREE.MeshLambertMaterial({ color: 0xE53935 }), 5);
+  const mDotInst = new THREE.InstancedMesh(mDotGeo, new THREE.MeshBasicMaterial({ color: 0xFFFFFF }), 5);
   for (let i = 0; i < 5; i++) {
     const a = Math.random() * Math.PI * 2;
     const r = 4 + Math.random() * (ISLAND_RADIUS - 6);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    const mStem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.12, 4), mushroomStemMat);
-    mStem.position.set(x, 0.06, z);
-    scene.add(mStem);
-    const mCap = new THREE.Mesh(new THREE.SphereGeometry(0.08, 5, 4, 0, Math.PI * 2, 0, Math.PI / 2), mushroomCapMat);
-    mCap.position.set(x, 0.12, z);
-    scene.add(mCap);
-    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.02, 3, 3), mushroomDotMat);
-    dot.position.set(x + 0.03, 0.16, z);
-    scene.add(dot);
+    _dm.rotation.set(0, 0, 0);
+    _dm.scale.set(1, 1, 1);
+    _dm.position.set(x, 0.06, z); _dm.updateMatrix(); mStemInst.setMatrixAt(i, _dm.matrix);
+    _dm.position.set(x, 0.12, z); _dm.updateMatrix(); mCapInst.setMatrixAt(i, _dm.matrix);
+    _dm.position.set(x + 0.03, 0.16, z); _dm.updateMatrix(); mDotInst.setMatrixAt(i, _dm.matrix);
   }
+  scene.add(mStemInst);
+  scene.add(mCapInst);
+  scene.add(mDotInst);
 
   // ── Trees (4, simple) ──
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x6D4C41 });
@@ -618,14 +626,14 @@ function buildPlayer() {
 
 const raycaster = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const _rayHit = new THREE.Vector3();
 
 function onMouseMove(e) {
   state.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   state.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(state.mouse, camera);
-  const hit = new THREE.Vector3();
-  raycaster.ray.intersectPlane(groundPlane, hit);
-  if (hit) state.mouseWorld.copy(hit);
+  raycaster.ray.intersectPlane(groundPlane, _rayHit);
+  if (_rayHit) state.mouseWorld.copy(_rayHit);
 }
 
 window.addEventListener('mousemove', onMouseMove);
@@ -739,55 +747,60 @@ function updateTouchAim(screenX, screenY) {
   state.mouse.x = (screenX / window.innerWidth) * 2 - 1;
   state.mouse.y = -(screenY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(state.mouse, camera);
-  const hit = new THREE.Vector3();
-  raycaster.ray.intersectPlane(groundPlane, hit);
-  if (hit) state.mouseWorld.copy(hit);
+  raycaster.ray.intersectPlane(groundPlane, _rayHit);
+  if (_rayHit) state.mouseWorld.copy(_rayHit);
 }
 
 // ── Dash ──
+
+const _dashDir = new THREE.Vector3();
+
+let dashGhost = null;
+let dashGhostMat = null;
+let dashGhostLife = 0;
+
+function initDashGhost() {
+  dashGhostMat = new THREE.MeshLambertMaterial({ color: 0x98D8C8, transparent: true, opacity: 0 });
+  dashGhost = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.55, 4, 8), dashGhostMat);
+  dashGhost.visible = false;
+  scene.add(dashGhost);
+}
 
 function tryDash() {
   const now = performance.now();
   if (now < state.dashCooldownUntil) return;
 
-  const dir = new THREE.Vector3();
-  if (state.keys['w'] || state.keys['arrowup']) dir.z -= 1;
-  if (state.keys['s'] || state.keys['arrowdown']) dir.z += 1;
-  if (state.keys['a'] || state.keys['arrowleft']) dir.x -= 1;
-  if (state.keys['d'] || state.keys['arrowright']) dir.x += 1;
-  if (touchJoystick.active) { dir.x = touchJoystick.dx; dir.z = touchJoystick.dy; }
-  if (dir.length() < 0.01) dir.set(0, 0, -1);
-  dir.normalize();
+  _dashDir.set(0, 0, 0);
+  if (state.keys['w'] || state.keys['arrowup']) _dashDir.z -= 1;
+  if (state.keys['s'] || state.keys['arrowdown']) _dashDir.z += 1;
+  if (state.keys['a'] || state.keys['arrowleft']) _dashDir.x -= 1;
+  if (state.keys['d'] || state.keys['arrowright']) _dashDir.x += 1;
+  if (touchJoystick.active) { _dashDir.x = touchJoystick.dx; _dashDir.z = touchJoystick.dy; }
+  if (_dashDir.length() < 0.01) _dashDir.set(0, 0, -1);
+  _dashDir.normalize();
 
-  state.dashDir.copy(dir);
+  state.dashDir.copy(_dashDir);
   state.dashUntil = now + DASH_DURATION;
   state.dashCooldownUntil = now + DASH_COOLDOWN;
   state.iframesUntil = Math.max(state.iframesUntil, now + DASH_DURATION);
 
-  // Ghost effect
-  const ghost = playerGroup.clone();
-  ghost.traverse((c) => {
-    if (c.isMesh) {
-      c.material = c.material.clone();
-      c.material.transparent = true;
-      c.material.opacity = 0.4;
-    }
-  });
-  ghost.position.copy(playerGroup.position);
-  scene.add(ghost);
-  let ghostLife = 15;
-  const fadeGhost = () => {
-    ghostLife--;
-    ghost.traverse((c) => { if (c.isMesh) c.material.opacity *= 0.88; });
-    if (ghostLife <= 0) {
-      scene.remove(ghost);
-    } else {
-      requestAnimationFrame(fadeGhost);
-    }
-  };
-  requestAnimationFrame(fadeGhost);
+  if (dashGhost) {
+    dashGhost.position.copy(playerGroup.position);
+    dashGhostMat.opacity = 0.4;
+    dashGhost.visible = true;
+    dashGhostLife = 15;
+  }
 
   dashSound();
+}
+
+function updateDashGhost() {
+  if (dashGhostLife <= 0) return;
+  dashGhostLife--;
+  dashGhostMat.opacity *= 0.88;
+  if (dashGhostLife <= 0) {
+    dashGhost.visible = false;
+  }
 }
 
 // ── Player Update ──
@@ -1133,6 +1146,7 @@ function quitToTitle() {
 buildWorld();
 buildInitialTerrain();
 buildPlayer();
+initDashGhost();
 initParticlePool(scene);
 initDamageNumbers();
 createPollenSystem(scene);
@@ -1229,12 +1243,14 @@ if ($('#btn-touch-dash')) {
   $('#btn-touch-dash').addEventListener('click', tryDash);
 }
 
+const _killPos = new THREE.Vector3();
+
 function damageEnemyWithPickups(enemy, damage, st, sc, cam, isBounced) {
-  const pos = enemy.mesh.position.clone();
+  _killPos.copy(enemy.mesh.position);
   const wasBoss = enemy.isBoss;
   const killed = damageEnemy(enemy, damage, st, sc, cam, isBounced);
   if (killed) {
-    trySpawnPickup(scene, pos, state, wasBoss ? 1.0 : 0.2);
+    trySpawnPickup(scene, _killPos, state, wasBoss ? 1.0 : 0.2);
   }
   return killed;
 }
@@ -1260,6 +1276,7 @@ function gameLoop(timestamp) {
   }
 
   updatePlayer();
+  updateDashGhost();
   updateEnemies(state, scene, camera, ISLAND_RADIUS);
   updateEnemyProjectiles(state, scene, ISLAND_RADIUS);
   updateProjectiles(state, scene, ISLAND_RADIUS, damageEnemyWithPickups, camera);

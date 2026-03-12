@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pollinations.ai Image Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      color: #eee;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 24px;
+    }
+    h1 { color: #00ffcc; margin-bottom: 8px; }
+    .subtitle { color: #888; margin-bottom: 24px; }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 12px; color: #aaa; }
+    input[type="text"] {
+      background: #16213e;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      width: 360px;
+      font-size: 14px;
+    }
+    select {
+      background: #16213e;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    button {
+      background: #00ffcc;
+      color: #1a1a2e;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      height: 38px;
+    }
+    button:hover { background: #00ddaa; }
+    button:disabled { background: #555; color: #999; cursor: wait; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #16213e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .card img {
+      width: 100%;
+      border-radius: 4px;
+      background: #0f0f23;
+    }
+    .card img.pixelated {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .card .label {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #aaa;
+      word-break: break-all;
+    }
+    .card .size-label {
+      font-size: 11px;
+      color: #666;
+    }
+    .card .status {
+      margin-top: 4px;
+      font-size: 11px;
+    }
+    .status.loading { color: #ffcc00; }
+    .status.done { color: #00ff88; }
+    .status.error { color: #ff4444; }
+    .preview-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    .preview-row canvas {
+      border: 1px solid #444;
+      border-radius: 4px;
+      background: #0f0f23;
+    }
+    .preview-label {
+      font-size: 10px;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pollinations.ai Image Test</h1>
+  <p class="subtitle">Test free AI image generation for Wizard Brawl weapon sprites</p>
+
+  <div class="controls">
+    <div class="field">
+      <label>Weapon description</label>
+      <input type="text" id="prompt" value="rubber duck" placeholder="e.g. cursed toaster, flaming sword..." />
+    </div>
+    <div class="field">
+      <label>Size</label>
+      <select id="size">
+        <option value="32">32x32</option>
+        <option value="64" selected>64x64</option>
+        <option value="128">128x128</option>
+        <option value="256">256x256</option>
+      </select>
+    </div>
+    <button id="go">Generate</button>
+  </div>
+
+  <div class="grid" id="results"></div>
+
+  <script>
+    const promptEl = document.getElementById('prompt');
+    const sizeEl = document.getElementById('size');
+    const goBtn = document.getElementById('go');
+    const resultsEl = document.getElementById('results');
+
+    const PROMPT_STYLES = [
+      (name, sz) => `pixel art ${name} weapon, fantasy game icon, white background, 16-bit`,
+      (name, sz) => `${name}, game weapon sprite, simple flat icon, dark background, pixel art style`,
+      (name, sz) => `tiny ${name} icon, retro pixel art, RPG weapon, transparent background`,
+      (name, sz) => `${name}, cute chibi game item, pixel art, fantasy RPG`,
+    ];
+
+    goBtn.addEventListener('click', generate);
+    promptEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') generate(); });
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function loadImage(url, retries = 2) {
+      return new Promise((resolve) => {
+        let attempt = 0;
+        function tryLoad() {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => {
+            attempt++;
+            if (attempt <= retries) {
+              setTimeout(tryLoad, 3000 * attempt);
+            } else {
+              resolve(null);
+            }
+          };
+          img.src = url + '&_retry=' + attempt;
+        }
+        tryLoad();
+      });
+    }
+
+    async function generate() {
+      const name = promptEl.value.trim();
+      if (!name) return;
+      const size = parseInt(sizeEl.value);
+      goBtn.disabled = true;
+
+      resultsEl.innerHTML = '';
+
+      const cards = PROMPT_STYLES.map((fn) => {
+        const fullPrompt = fn(name, size);
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div style="width:100%;aspect-ratio:1;background:#0f0f23;border-radius:4px;display:flex;align-items:center;justify-content:center;">
+            <div class="status loading">Queued...</div>
+          </div>
+          <div class="label">${fullPrompt}</div>
+          <div class="size-label">${size}x${size}</div>
+        `;
+        resultsEl.appendChild(card);
+        return { card, fullPrompt };
+      });
+
+      for (let i = 0; i < cards.length; i++) {
+        const { card, fullPrompt } = cards[i];
+        card.querySelector('.status').textContent = 'Loading...';
+
+        const encoded = encodeURIComponent(fullPrompt);
+        const url = `https://image.pollinations.ai/prompt/${encoded}?width=${size}&height=${size}&nologo=true&seed=${Date.now() + i}`;
+
+        const start = performance.now();
+        const img = await loadImage(url);
+        const elapsed = ((performance.now() - start) / 1000).toFixed(1);
+
+        if (img) {
+          img.className = size <= 64 ? 'pixelated' : '';
+          card.innerHTML = '';
+          card.appendChild(img);
+
+          const previewRow = document.createElement('div');
+          previewRow.className = 'preview-row';
+          for (const s of [14, 28, 48]) {
+            const wrapper = document.createElement('div');
+            const cvs = document.createElement('canvas');
+            cvs.width = s;
+            cvs.height = s;
+            const c = cvs.getContext('2d');
+            c.imageSmoothingEnabled = false;
+            c.drawImage(img, 0, 0, s, s);
+            wrapper.appendChild(cvs);
+            const lbl = document.createElement('div');
+            lbl.className = 'preview-label';
+            lbl.textContent = `${s}px`;
+            wrapper.appendChild(lbl);
+            previewRow.appendChild(wrapper);
+          }
+          card.appendChild(previewRow);
+
+          const label = document.createElement('div');
+          label.className = 'label';
+          label.textContent = fullPrompt;
+          card.appendChild(label);
+
+          const status = document.createElement('div');
+          status.className = 'status done';
+          status.textContent = `Done in ${elapsed}s`;
+          card.appendChild(status);
+        } else {
+          card.querySelector('.status').className = 'status error';
+          card.querySelector('.status').textContent = `Failed after retries (${elapsed}s)`;
+        }
+
+        if (i < cards.length - 1) await sleep(4000);
+      }
+
+      goBtn.disabled = false;
+    }
+  </script>
+</body>
+</html>

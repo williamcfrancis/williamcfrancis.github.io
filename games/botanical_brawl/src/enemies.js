@@ -31,15 +31,50 @@ const _sharedEyeGeo = new THREE.SphereGeometry(1, 5, 5);
 const _sharedEyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
 const _sharedShadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 });
 
+const _enemyGeoCache = {};
+
+function _getEnemyGeos(def) {
+  if (_enemyGeoCache[def.name]) return _enemyGeoCache[def.name];
+
+  const geos = {
+    body: new THREE.SphereGeometry(def.radius, 10, 8),
+    shadow: new THREE.CircleGeometry(def.radius * 0.7, 6),
+  };
+
+  if (def.name === 'sprout') {
+    geos.leaf = new THREE.ConeGeometry(def.radius * 0.2, def.radius * 0.3, 3);
+  } else if (def.name === 'gourd') {
+    geos.stem = new THREE.CylinderGeometry(0.04, 0.03, 0.2, 3);
+  } else if (def.name === 'thorn') {
+    geos.spike = new THREE.ConeGeometry(0.05, 0.15, 3);
+  } else if (def.name === 'bloom') {
+    geos.petal = new THREE.SphereGeometry(def.radius * 0.18, 4, 3);
+  } else if (def.name === 'sentinel') {
+    geos.core = new THREE.OctahedronGeometry(def.radius * 0.7, 0);
+    geos.shell = new THREE.OctahedronGeometry(def.radius, 0);
+    geos.orb = new THREE.SphereGeometry(0.06, 4, 4);
+  }
+
+  _enemyGeoCache[def.name] = geos;
+  return geos;
+}
+
+const _accentMats = {
+  sproutLeaf: new THREE.MeshLambertMaterial({ color: 0x66BB6A }),
+  gourdStem: new THREE.MeshLambertMaterial({ color: 0x5D4037 }),
+  thornSpike: new THREE.MeshLambertMaterial({ color: 0x6D4C41 }),
+  bloomPetal: new THREE.MeshLambertMaterial({ color: 0xE040FB }),
+  sentinelOrb: new THREE.MeshBasicMaterial({ color: 0xFF4444 }),
+};
+
 function buildEnemyMesh(def) {
+  const geos = _getEnemyGeos(def);
   const g = new THREE.Group();
-  const bodyGeo = new THREE.SphereGeometry(def.radius, 10, 8);
   const bodyMat = new THREE.MeshLambertMaterial({ color: def.color });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  const body = new THREE.Mesh(geos.body, bodyMat);
   body.scale.y = 0.78;
   g.add(body);
 
-  // Eyes
   const er = def.radius * 0.18;
   [-1, 1].forEach((s) => {
     const eye = new THREE.Mesh(_sharedEyeGeo, _sharedEyeMat);
@@ -48,31 +83,26 @@ function buildEnemyMesh(def) {
     g.add(eye);
   });
 
-  // Type-specific accent (1 extra mesh max)
   if (def.name === 'sprout') {
-    const leaf = new THREE.Mesh(new THREE.ConeGeometry(def.radius * 0.2, def.radius * 0.3, 3),
-      new THREE.MeshLambertMaterial({ color: 0x66BB6A }));
+    const leaf = new THREE.Mesh(geos.leaf, _accentMats.sproutLeaf);
     leaf.position.y = def.radius * 0.55;
     g.add(leaf);
   } else if (def.name === 'gourd') {
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.2, 3),
-      new THREE.MeshLambertMaterial({ color: 0x5D4037 }));
+    const stem = new THREE.Mesh(geos.stem, _accentMats.gourdStem);
     stem.position.set(0, def.radius * 0.6, 0);
     stem.rotation.z = 0.3;
     g.add(stem);
   } else if (def.name === 'thorn') {
-    const spikeMat = new THREE.MeshLambertMaterial({ color: 0x6D4C41 });
     for (let i = 0; i < 4; i++) {
-      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.15, 3), spikeMat);
+      const spike = new THREE.Mesh(geos.spike, _accentMats.thornSpike);
       const a = (i / 4) * Math.PI * 2;
       spike.position.set(Math.cos(a) * def.radius * 0.8, def.radius * 0.3, Math.sin(a) * def.radius * 0.8);
       g.add(spike);
     }
   } else if (def.name === 'bloom') {
-    const petalMat = new THREE.MeshLambertMaterial({ color: 0xE040FB });
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2;
-      const petal = new THREE.Mesh(new THREE.SphereGeometry(def.radius * 0.18, 4, 3), petalMat);
+      const petal = new THREE.Mesh(geos.petal, _accentMats.bloomPetal);
       petal.position.set(Math.cos(a) * def.radius * 0.65, def.radius * 0.4, Math.sin(a) * def.radius * 0.65);
       petal.scale.y = 0.5;
       g.add(petal);
@@ -80,24 +110,22 @@ function buildEnemyMesh(def) {
   } else if (def.name === 'sentinel') {
     g.remove(body);
     const coreMat = new THREE.MeshLambertMaterial({ color: 0x4A90D9, emissive: 0x1A3060, emissiveIntensity: 0.4 });
-    const core = new THREE.Mesh(new THREE.OctahedronGeometry(def.radius * 0.7, 0), coreMat);
+    const core = new THREE.Mesh(geos.core, coreMat);
     core.rotation.y = Math.PI / 4;
     g.add(core);
     const shellMat = new THREE.MeshLambertMaterial({ color: 0x80B8E8, transparent: true, opacity: 0.45 });
-    const shell = new THREE.Mesh(new THREE.OctahedronGeometry(def.radius, 0), shellMat);
+    const shell = new THREE.Mesh(geos.shell, shellMat);
     g.add(shell);
-    const orbMat = new THREE.MeshBasicMaterial({ color: 0xFF4444 });
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2;
-      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 4, 4), orbMat);
+      const orb = new THREE.Mesh(geos.orb, _accentMats.sentinelOrb);
       orb.position.set(Math.cos(a) * def.radius * 0.9, 0, Math.sin(a) * def.radius * 0.9);
       g.add(orb);
     }
     return { group: g, body: core };
   }
 
-  // Shadow
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(def.radius * 0.7, 6), _sharedShadowMat);
+  const shadow = new THREE.Mesh(geos.shadow, _sharedShadowMat);
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = -def.radius * 0.75;
   g.add(shadow);
@@ -206,29 +234,46 @@ export function spawnBoss(scene, state, spawnEdge) {
   return boss;
 }
 
-// ── Thorn Projectiles (straight-line) ──
+// ── Shared enemy projectile geometries ──
+
+const _thornGeos = {
+  spike: new THREE.ConeGeometry(0.06, 0.28, 5),
+  barb: new THREE.ConeGeometry(0.03, 0.1, 3),
+};
+const _thornMats = {
+  spike: new THREE.MeshLambertMaterial({ color: 0x5D4037 }),
+  barb: new THREE.MeshLambertMaterial({ color: 0x795548 }),
+};
+
+const _sentinelGeos = {
+  core: new THREE.SphereGeometry(0.12, 6, 6),
+  glow: new THREE.SphereGeometry(0.18, 6, 6),
+  ring: new THREE.TorusGeometry(0.15, 0.02, 4, 8),
+};
+const _sentinelMats = {
+  core: new THREE.MeshBasicMaterial({ color: 0xFF2244 }),
+  glow: new THREE.MeshBasicMaterial({ color: 0xFF4466, transparent: true, opacity: 0.35 }),
+  ring: new THREE.MeshBasicMaterial({ color: 0xFF6688 }),
+};
+
+const _epDir = new THREE.Vector3();
 
 function fireThornProjectile(scene, enemy, playerPos, state) {
-  const dir = new THREE.Vector3().subVectors(playerPos, enemy.mesh.position).setY(0).normalize();
+  _epDir.subVectors(playerPos, enemy.mesh.position).setY(0).normalize();
 
   const group = new THREE.Group();
-  const spike = new THREE.Mesh(
-    new THREE.ConeGeometry(0.06, 0.28, 5),
-    new THREE.MeshLambertMaterial({ color: 0x5D4037 }),
-  );
+  const spike = new THREE.Mesh(_thornGeos.spike, _thornMats.spike);
   spike.rotation.x = Math.PI / 2;
   group.add(spike);
-  const barb1 = new THREE.Mesh(
-    new THREE.ConeGeometry(0.03, 0.1, 3),
-    new THREE.MeshLambertMaterial({ color: 0x795548 }),
-  );
+  const barb1 = new THREE.Mesh(_thornGeos.barb, _thornMats.barb);
   barb1.position.set(0.06, 0, 0.05);
   barb1.rotation.z = -0.5;
   barb1.rotation.x = Math.PI / 2;
   group.add(barb1);
-  const barb2 = barb1.clone();
+  const barb2 = new THREE.Mesh(_thornGeos.barb, _thornMats.barb);
   barb2.position.set(-0.06, 0, 0.05);
   barb2.rotation.z = 0.5;
+  barb2.rotation.x = Math.PI / 2;
   group.add(barb2);
 
   group.position.copy(enemy.mesh.position);
@@ -238,7 +283,7 @@ function fireThornProjectile(scene, enemy, playerPos, state) {
   const speed = 0.1 + state.wave * 0.002;
   state.enemyProjectiles.push({
     mesh: group,
-    vel: dir.multiplyScalar(speed),
+    vel: _epDir.clone().multiplyScalar(speed),
     damage: Math.round(10 + state.wave * 1.2),
     life: 300,
     homing: 0,
@@ -246,26 +291,13 @@ function fireThornProjectile(scene, enemy, playerPos, state) {
   });
 }
 
-// ── Sentinel Homing Projectiles (rare, destructible) ──
-
 function fireSentinelProjectile(scene, enemy, playerPos, state) {
-  const dir = new THREE.Vector3().subVectors(playerPos, enemy.mesh.position).setY(0).normalize();
+  _epDir.subVectors(playerPos, enemy.mesh.position).setY(0).normalize();
 
   const group = new THREE.Group();
-  const core = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 6, 6),
-    new THREE.MeshBasicMaterial({ color: 0xFF2244 }),
-  );
-  group.add(core);
-  const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 6, 6),
-    new THREE.MeshBasicMaterial({ color: 0xFF4466, transparent: true, opacity: 0.35 }),
-  );
-  group.add(glow);
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.15, 0.02, 4, 8),
-    new THREE.MeshBasicMaterial({ color: 0xFF6688 }),
-  );
+  group.add(new THREE.Mesh(_sentinelGeos.core, _sentinelMats.core));
+  group.add(new THREE.Mesh(_sentinelGeos.glow, _sentinelMats.glow));
+  const ring = new THREE.Mesh(_sentinelGeos.ring, _sentinelMats.ring);
   ring.rotation.x = Math.PI / 2;
   group.add(ring);
 
@@ -275,7 +307,7 @@ function fireSentinelProjectile(scene, enemy, playerPos, state) {
 
   state.enemyProjectiles.push({
     mesh: group,
-    vel: dir.multiplyScalar(0.06),
+    vel: _epDir.clone().multiplyScalar(0.06),
     damage: Math.round(18 + state.wave * 1.5),
     life: 400,
     homing: 0.006,
@@ -324,7 +356,8 @@ export function updateEnemyProjectiles(state, scene, islandRadius) {
       if (hitWall) {
         if (p.destructible) spawnBurst(p.mesh.position, 0xFF4466, 6);
         scene.remove(p.mesh);
-        state.enemyProjectiles.splice(i, 1);
+        state.enemyProjectiles[i] = state.enemyProjectiles[state.enemyProjectiles.length - 1];
+        state.enemyProjectiles.pop();
         continue;
       }
     }
@@ -332,7 +365,8 @@ export function updateEnemyProjectiles(state, scene, islandRadius) {
     const dist = Math.sqrt(p.mesh.position.x ** 2 + p.mesh.position.z ** 2);
     if (dist > islandRadius + 2 || p.life <= 0) {
       scene.remove(p.mesh);
-      state.enemyProjectiles.splice(i, 1);
+      state.enemyProjectiles[i] = state.enemyProjectiles[state.enemyProjectiles.length - 1];
+      state.enemyProjectiles.pop();
       continue;
     }
 
@@ -349,7 +383,8 @@ export function updateEnemyProjectiles(state, scene, islandRadius) {
         spawnBurst(state.playerPos, 0xFF6F61, 5);
       }
       scene.remove(p.mesh);
-      state.enemyProjectiles.splice(i, 1);
+      state.enemyProjectiles[i] = state.enemyProjectiles[state.enemyProjectiles.length - 1];
+      state.enemyProjectiles.pop();
     }
   }
 }

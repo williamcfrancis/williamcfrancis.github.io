@@ -58,13 +58,13 @@ sections:
           label: Play Lily Leap
           url: "/games/lily_leap/"
         image: "/games/game_placeholder.svg"
-      - title: Echo Walker
+      - title: Glow Hop
         genre: Audio-physics
         summary: "The world is silent and intangible. Use sound to create solid matter and reach the portal."
         tags: ["browser", "platformer", "sound-on"]
         link:
-          label: Play Echo Walker
-          url: "/games/echo_walker/"
+          label: Play Glow Hop
+          url: "/games/glow_hop/"
         image: "/games/game_placeholder.svg"
       - title: Lexical Hazard
         genre: Word survival

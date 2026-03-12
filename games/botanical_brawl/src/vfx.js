@@ -15,6 +15,7 @@ export function initParticlePool(scene) {
     scene.add(mesh);
     pool.push(mesh);
   }
+  _initSwPool(scene);
 }
 
 function grabParticle() {
@@ -62,7 +63,8 @@ export function updateParticles(dt60 = 1) {
     p.mesh.scale.multiplyScalar(Math.pow(0.96, dt60));
     if (p.life <= 0) {
       releaseParticle(p.mesh);
-      activeParticles.splice(i, 1);
+      activeParticles[i] = activeParticles[activeParticles.length - 1];
+      activeParticles.pop();
     }
   }
 }
@@ -95,20 +97,39 @@ export function spawnDeathEffect(scene, pos, color, isBoss = false) {
   spawnShockwave(scene, pos, isBoss ? 3.0 : 1.2);
 }
 
-// ── Shockwave Ring ──
+// ── Shockwave Ring (pooled) ──
 
+const SW_POOL_SIZE = 6;
+const _swGeo = new THREE.RingGeometry(0.1, 0.3, 24);
+let _swPool = [];
 let shockwaves = [];
 
+function _initSwPool(scene) {
+  for (let i = 0; i < SW_POOL_SIZE; i++) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(_swGeo, mat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.visible = false;
+    scene.add(ring);
+    _swPool.push(ring);
+  }
+}
+
 export function spawnShockwave(scene, pos, maxRadius) {
-  const geo = new THREE.RingGeometry(0.1, 0.3, 24);
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide,
-  });
-  const ring = new THREE.Mesh(geo, mat);
+  if (_swPool.length === 0 && shockwaves.length > 0) {
+    const oldest = shockwaves.shift();
+    oldest.mesh.visible = false;
+    _swPool.push(oldest.mesh);
+  }
+  const ring = _swPool.length > 0 ? _swPool.pop() : null;
+  if (!ring) return;
   ring.position.set(pos.x, 0.05, pos.z);
-  ring.rotation.x = -Math.PI / 2;
-  scene.add(ring);
-  shockwaves.push({ mesh: ring, scene, life: 1.0, maxRadius });
+  ring.scale.set(1, 1, 1);
+  ring.material.opacity = 0.7;
+  ring.visible = true;
+  shockwaves.push({ mesh: ring, life: 1.0, maxRadius });
 }
 
 export function updateShockwaves(dt60 = 1) {
@@ -120,37 +141,50 @@ export function updateShockwaves(dt60 = 1) {
     sw.mesh.scale.set(r, r, 1);
     sw.mesh.material.opacity = sw.life * 0.7;
     if (sw.life <= 0) {
-      sw.scene.remove(sw.mesh);
-      sw.mesh.geometry.dispose();
-      sw.mesh.material.dispose();
-      shockwaves.splice(i, 1);
+      sw.mesh.visible = false;
+      _swPool.push(sw.mesh);
+      shockwaves[i] = shockwaves[shockwaves.length - 1];
+      shockwaves.pop();
     }
   }
 }
 
-// ── Floating Damage Numbers ──
+// ── Floating Damage Numbers (pooled) ──
 
+const DMG_POOL_SIZE = 16;
 let dmgContainer = null;
+let _dmgPool = [];
+let _dmgNextIdx = 0;
+const _dmgScreenPos = new THREE.Vector3();
 
 export function initDamageNumbers() {
   dmgContainer = document.getElementById('dmg-numbers');
+  if (!dmgContainer) return;
+  for (let i = 0; i < DMG_POOL_SIZE; i++) {
+    const el = document.createElement('div');
+    el.className = 'dmg-num';
+    el.style.display = 'none';
+    dmgContainer.appendChild(el);
+    _dmgPool.push(el);
+  }
 }
 
 export function spawnDamageNumber(pos, camera, damage, isCrit = false) {
-  if (!dmgContainer) return;
-  const screenPos = pos.clone();
-  screenPos.project(camera);
-  const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
-  const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
+  if (!dmgContainer || _dmgPool.length === 0) return;
+  _dmgScreenPos.copy(pos).project(camera);
+  const x = (_dmgScreenPos.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-_dmgScreenPos.y * 0.5 + 0.5) * window.innerHeight;
 
-  const el = document.createElement('div');
+  const el = _dmgPool[_dmgNextIdx % DMG_POOL_SIZE];
+  _dmgNextIdx++;
   el.className = 'dmg-num' + (isCrit ? ' crit' : '');
   el.textContent = damage;
   el.style.left = x + 'px';
   el.style.top = y + 'px';
-  dmgContainer.appendChild(el);
+  el.style.display = '';
+  el.classList.remove('float');
   requestAnimationFrame(() => el.classList.add('float'));
-  setTimeout(() => el.remove(), 800);
+  setTimeout(() => { el.style.display = 'none'; }, 800);
 }
 
 // ── Projectile Trails ──
@@ -258,10 +292,12 @@ export function clearAllVfx(scene) {
   for (const p of activeParticles) releaseParticle(p.mesh);
   activeParticles.length = 0;
   for (const sw of shockwaves) {
-    sw.scene.remove(sw.mesh);
-    sw.mesh.geometry.dispose();
-    sw.mesh.material.dispose();
+    sw.mesh.visible = false;
+    _swPool.push(sw.mesh);
   }
   shockwaves.length = 0;
-  if (dmgContainer) dmgContainer.innerHTML = '';
+  if (dmgContainer) {
+    for (const el of _dmgPool) el.style.display = 'none';
+    _dmgNextIdx = 0;
+  }
 }

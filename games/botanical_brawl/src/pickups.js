@@ -8,6 +8,15 @@ const PICKUP_DEFS = [
   { type: 'damage', weight: 0.25, color: 0xFFA726, label: 'Power!' },
 ];
 
+const _pickupGeos = {
+  heart: new THREE.SphereGeometry(0.25, 5, 5),
+  other: new THREE.OctahedronGeometry(0.22, 0),
+};
+const _pickupMats = {};
+for (const def of PICKUP_DEFS) {
+  _pickupMats[def.type] = new THREE.MeshLambertMaterial({ color: def.color });
+}
+
 function pickType() {
   let r = Math.random();
   for (const d of PICKUP_DEFS) {
@@ -21,11 +30,8 @@ export function trySpawnPickup(scene, pos, state, dropChance = 0.20) {
   if (Math.random() > dropChance) return;
   const def = pickType();
 
-  const geo = def.type === 'heart'
-    ? new THREE.SphereGeometry(0.25, 5, 5)
-    : new THREE.OctahedronGeometry(0.22, 0);
-  const mat = new THREE.MeshLambertMaterial({ color: def.color });
-  const mesh = new THREE.Mesh(geo, mat);
+  const geo = def.type === 'heart' ? _pickupGeos.heart : _pickupGeos.other;
+  const mesh = new THREE.Mesh(geo, _pickupMats[def.type]);
   mesh.position.copy(pos);
   mesh.position.y = 0.6;
   scene.add(mesh);
@@ -55,7 +61,8 @@ export function updatePickups(state, scene, maxHp) {
 
     if (age > 10000) {
       scene.remove(p.mesh);
-      state.pickups.splice(i, 1);
+      state.pickups[i] = state.pickups[state.pickups.length - 1];
+      state.pickups.pop();
       continue;
     }
 
@@ -65,7 +72,8 @@ export function updatePickups(state, scene, maxHp) {
       collectPickup(p, state, maxHp);
       spawnBurst(p.mesh.position, p.color, 6);
       scene.remove(p.mesh);
-      state.pickups.splice(i, 1);
+      state.pickups[i] = state.pickups[state.pickups.length - 1];
+      state.pickups.pop();
     }
   }
 }
