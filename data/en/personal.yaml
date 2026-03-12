@@ -114,6 +114,14 @@ sections:
           label: "Play Wizard Brawl"
           url: "/games/junkcode_brawlers/"
         image: "/games/game_placeholder.svg"
+      - title: Void Strike
+        genre: 3D FPS arena
+        summary: "A neon-drenched wave-survival FPS. Four weapons, five enemy types, dash/slide mechanics, grenades, and kill-streak rewards in a sci-fi arena."
+        tags: ["browser", "3D", "FPS", "sound-on"]
+        link:
+          label: Play Void Strike
+          url: "/games/void_strike/"
+        image: "/games/game_placeholder.svg"
   - section:
       name: Photo Gallery
       id: gallery
