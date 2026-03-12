@@ -3,24 +3,33 @@ import { hasSeenTutorial, markTutorialSeen } from './persistence.js';
 
 // ── Main HUD Update ──
 
+let _lastHp = -1, _lastScore = -1, _lastWave = -1, _lastPollen = -1;
+
 export function updateHUD(state, els, maxHp) {
-  const pct = Math.max(0, state.playerHp / maxHp * 100);
-  els.hpFill.style.width = pct + '%';
-  if (pct > 50) els.hpFill.style.background = 'linear-gradient(90deg,#81C784,#4CAF50)';
-  else if (pct > 25) els.hpFill.style.background = 'linear-gradient(90deg,#FFD54F,#FFA726)';
-  else els.hpFill.style.background = 'linear-gradient(90deg,#EF9A9A,#E53935)';
-  els.hpText.textContent = `${Math.max(0, state.playerHp)} / ${maxHp}`;
-  els.scoreText.textContent = state.score.toLocaleString();
-  els.waveText.textContent = `Wave ${state.wave}`;
-  els.pollenText.textContent = `Pollen: ${state.pollen}`;
+  if (state.playerHp !== _lastHp) {
+    _lastHp = state.playerHp;
+    const pct = Math.max(0, state.playerHp / maxHp * 100);
+    els.hpFill.style.width = pct + '%';
+    if (pct > 50) els.hpFill.style.background = 'linear-gradient(90deg,#81C784,#4CAF50)';
+    else if (pct > 25) els.hpFill.style.background = 'linear-gradient(90deg,#FFD54F,#FFA726)';
+    else els.hpFill.style.background = 'linear-gradient(90deg,#EF9A9A,#E53935)';
+    els.hpText.textContent = `${Math.max(0, state.playerHp)} / ${maxHp}`;
+  }
+  if (state.score !== _lastScore) {
+    _lastScore = state.score;
+    els.scoreText.textContent = state.score.toLocaleString();
+  }
+  if (state.wave !== _lastWave) {
+    _lastWave = state.wave;
+    els.waveText.textContent = `Wave ${state.wave}`;
+  }
+  if (state.pollen !== _lastPollen) {
+    _lastPollen = state.pollen;
+    els.pollenText.textContent = `Pollen: ${state.pollen}`;
+  }
 
-  // Weapon slots
   updateWeaponSlots(state, els);
-
-  // Buffs
   updateBuffIcons(state, els);
-
-  // Dash cooldown
   updateDashIndicator(state, els);
 }
 
@@ -46,9 +55,17 @@ function updateWeaponSlots(state, els) {
   }
 }
 
+let _lastBuffCount = -1;
+let _lastBuffUpdate = 0;
+
 function updateBuffIcons(state, els) {
   if (!els.buffsContainer) return;
   const now = performance.now();
+  const buffCount = state.activeBuffs.length;
+  if (buffCount === 0 && _lastBuffCount === 0) return;
+  if (now - _lastBuffUpdate < 250 && buffCount === _lastBuffCount) return;
+  _lastBuffUpdate = now;
+  _lastBuffCount = buffCount;
   let html = '';
   for (const b of state.activeBuffs) {
     const remaining = Math.ceil((b.until - now) / 1000);
@@ -83,9 +100,15 @@ export function updateBossHpBar(state, els) {
 
 // ── Minimap ──
 
+let _minimapFrame = 0;
+let _minimapCtx = null;
+
 export function updateMinimap(canvas, state, islandRadius) {
   if (!canvas) return;
-  const ctx = canvas.getContext('2d');
+  _minimapFrame++;
+  if (_minimapFrame % 3 !== 0) return;
+  if (!_minimapCtx) _minimapCtx = canvas.getContext('2d');
+  const ctx = _minimapCtx;
   const size = canvas.width;
   const half = size / 2;
   const scale = (half - 4) / islandRadius;

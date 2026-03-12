@@ -487,6 +487,11 @@ window.addEventListener('keydown', e => {
   keys[k] = true;
   keys[e.code] = true;
   if (GAME_KEYS.has(k) && e.target.tagName !== 'INPUT') e.preventDefault();
+  if (gameState === 'intro' && (e.code === 'Space' || e.key === ' ')) {
+    e.preventDefault();
+    skipIntro();
+    return;
+  }
   if ((k === 'c' || e.code === 'KeyC') && (gameState === 'title' || gameState === 'game_over')) {
     e.preventDefault();
     toggleCodexOverlay(true);
@@ -2163,11 +2168,11 @@ function renderTitle() {
   ctx.font = '58px "VT323", monospace';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 6;
-  ctx.strokeText('WIZARD BRAWL', 0, 0);
+  ctx.strokeText('WIZARD DUEL', 0, 0);
   ctx.fillStyle = '#ff00cc';
   ctx.shadowColor = '#ff00ff';
   ctx.shadowBlur = 30;
-  ctx.fillText('WIZARD BRAWL', 0, 0);
+  ctx.fillText('WIZARD DUEL', 0, 0);
   ctx.shadowBlur = 0;
   ctx.restore();
 
@@ -2200,7 +2205,7 @@ function renderTitle() {
   ctx.fillStyle = `rgba(0, 255, 200, ${0.5 + pulse * 0.5})`;
   ctx.shadowColor = '#00ffcc';
   ctx.shadowBlur = pulse * 20;
-  ctx.fillText('[ PRESS SPACE TO BRAWL ]', W / 2, H * 0.89);
+  ctx.fillText('[ PRESS SPACE TO DUEL ]', W / 2, H * 0.89);
   ctx.shadowBlur = 0;
 }
 
@@ -2602,6 +2607,10 @@ function gameLoop(timestamp) {
   if (slowMo > 0) slowMo -= rawDt;
 
   switch (gameState) {
+    case 'intro':
+      updateIntro(rawDt);
+      renderIntro();
+      break;
     case 'title':
       renderTitle();
       break;
@@ -2659,5 +2668,10 @@ loadTrippyImages();
 renderBackground();
 updateCodexOverlay();
 
-gameState = 'title';
+if (!isIntroSeen()) {
+  startIntro();
+  gameState = 'intro';
+} else {
+  gameState = 'title';
+}
 requestAnimationFrame(gameLoop);

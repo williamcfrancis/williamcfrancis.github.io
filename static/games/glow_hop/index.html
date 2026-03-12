@@ -1862,7 +1862,7 @@ function showWinScreen() {
     stopMusic();
     document.getElementById('win-screen').style.display = 'flex';
     const isNew = checkAndSaveHighscore();
-    const best = localStorage.getItem('ew_hs_' + diff.id) || 0;
+    const best = localStorage.getItem('gh_hs_' + diff.id) || 0;
     document.getElementById('win-score').innerHTML = isNew
         ? `\u2605 NEW HIGHSCORE: ${state.totalScore} \u2605`
         : `SCORE: ${state.totalScore}<br>BEST: ${best}`;
@@ -1878,7 +1878,7 @@ function restartLevel() {
 }
 
 function checkAndSaveHighscore() {
-    const k = 'ew_hs_' + diff.id;
+    const k = 'gh_hs_' + diff.id;
     const old = parseInt(localStorage.getItem(k)) || 0;
     if (state.totalScore > old) { localStorage.setItem(k, state.totalScore); return true; }
     return false;
@@ -1886,9 +1886,9 @@ function checkAndSaveHighscore() {
 
 function updateHighscoreDisplay() {
     document.getElementById('menu-highscores').innerHTML =
-        `HIGHSCORES\nExplorer: ${localStorage.getItem('ew_hs_easy')||0}\n` +
-        `Wanderer: ${localStorage.getItem('ew_hs_normal')||0}\n` +
-        `Blind:    ${localStorage.getItem('ew_hs_hard')||0}`;
+        `HIGHSCORES\nExplorer: ${localStorage.getItem('gh_hs_easy')||0}\n` +
+        `Wanderer: ${localStorage.getItem('gh_hs_normal')||0}\n` +
+        `Blind:    ${localStorage.getItem('gh_hs_hard')||0}`;
 }
 
 // ── Boot ────────────────────────────────────────────────────────

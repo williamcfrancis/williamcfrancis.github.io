@@ -573,62 +573,86 @@ function generateWeaponFromText(text) {
 // ── Projectile Firing ──
 
 const _fireDir = new THREE.Vector3();
+const _tmpShotgunDir = new THREE.Vector3();
+const _tmpLookTarget = new THREE.Vector3();
+const _tmpBurstOffset = new THREE.Vector3();
 
-function makeProjectileGeo(shape, s) {
+const _geoCache = new Map();
+
+function getCachedGeo(shape, s) {
+  const key = shape + '_' + s.toFixed(2);
+  let geo = _geoCache.get(key);
+  if (geo) return geo;
   switch (shape) {
-    case 'cube': return new THREE.BoxGeometry(0.3 * s, 0.3 * s, 0.3 * s);
-    case 'star': return new THREE.OctahedronGeometry(0.2 * s, 0);
-    case 'diamond': return new THREE.OctahedronGeometry(0.22 * s, 0);
-    case 'ring': return new THREE.TorusGeometry(0.15 * s, 0.06 * s, 4, 6);
-    case 'cone': return new THREE.ConeGeometry(0.15 * s, 0.45 * s, 5);
-    case 'cylinder': return new THREE.CylinderGeometry(0.1 * s, 0.1 * s, 0.4 * s, 5);
-    case 'flat': return new THREE.PlaneGeometry(0.35 * s, 0.2 * s);
-    default: return new THREE.SphereGeometry(0.22 * s, 6, 6);
+    case 'cube': geo = new THREE.BoxGeometry(0.3 * s, 0.3 * s, 0.3 * s); break;
+    case 'star': geo = new THREE.OctahedronGeometry(0.2 * s, 0); break;
+    case 'diamond': geo = new THREE.OctahedronGeometry(0.22 * s, 0); break;
+    case 'ring': geo = new THREE.TorusGeometry(0.15 * s, 0.06 * s, 4, 6); break;
+    case 'cone': geo = new THREE.ConeGeometry(0.15 * s, 0.45 * s, 5); break;
+    case 'cylinder': geo = new THREE.CylinderGeometry(0.1 * s, 0.1 * s, 0.4 * s, 5); break;
+    case 'flat': geo = new THREE.PlaneGeometry(0.35 * s, 0.2 * s); break;
+    default: geo = new THREE.SphereGeometry(0.22 * s, 6, 6); break;
   }
+  _geoCache.set(key, geo);
+  return geo;
+}
+
+const _rocketGeoCache = new Map();
+const _rocketFinMat = new THREE.MeshBasicMaterial({ color: 0x666666, side: THREE.DoubleSide });
+const _rocketBodyMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+const _rocketExhaustMat = new THREE.MeshBasicMaterial({ color: 0xFF6600, transparent: true, opacity: 0.8 });
+
+function _getRocketGeos(s) {
+  const key = s.toFixed(2);
+  let g = _rocketGeoCache.get(key);
+  if (g) return g;
+  g = {
+    body: new THREE.CylinderGeometry(0.06 * s, 0.08 * s, 0.35 * s, 6),
+    head: new THREE.ConeGeometry(0.06 * s, 0.14 * s, 6),
+    fin: new THREE.PlaneGeometry(0.1 * s, 0.08 * s),
+    exhaust: new THREE.ConeGeometry(0.05 * s, 0.12 * s, 4),
+  };
+  _rocketGeoCache.set(key, g);
+  return g;
 }
 
 function makeRocketMesh(s, color) {
+  const geos = _getRocketGeos(s);
   const group = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.06 * s, 0.08 * s, 0.35 * s, 6),
-    new THREE.MeshLambertMaterial({ color: 0x888888 }),
-  );
-  group.add(body);
-  const head = new THREE.Mesh(
-    new THREE.ConeGeometry(0.06 * s, 0.14 * s, 6),
-    new THREE.MeshBasicMaterial({ color }),
-  );
+  group.add(new THREE.Mesh(geos.body, _rocketBodyMat));
+  const head = new THREE.Mesh(geos.head, new THREE.MeshBasicMaterial({ color }));
   head.position.y = 0.245 * s;
   group.add(head);
-  const finMat = new THREE.MeshBasicMaterial({ color: 0x666666, side: THREE.DoubleSide });
   for (let i = 0; i < 4; i++) {
-    const fin = new THREE.Mesh(new THREE.PlaneGeometry(0.1 * s, 0.08 * s), finMat);
+    const fin = new THREE.Mesh(geos.fin, _rocketFinMat);
     fin.position.y = -0.15 * s;
     fin.rotation.y = (i / 4) * Math.PI * 2;
     fin.rotation.x = 0.3;
     group.add(fin);
   }
-  const exhaust = new THREE.Mesh(
-    new THREE.ConeGeometry(0.05 * s, 0.12 * s, 4),
-    new THREE.MeshBasicMaterial({ color: 0xFF6600, transparent: true, opacity: 0.8 }),
-  );
+  const exhaust = new THREE.Mesh(geos.exhaust, _rocketExhaustMat);
   exhaust.position.y = -0.235 * s;
   exhaust.rotation.x = Math.PI;
   group.add(exhaust);
   return group;
 }
 
+const _pelletGeoCache = new Map();
+const _pelletBodyMat = new THREE.MeshLambertMaterial({ color: 0xCCBB88 });
+
 function makeShotgunPellet(s, color) {
+  const key = s.toFixed(2);
+  let geos = _pelletGeoCache.get(key);
+  if (!geos) {
+    geos = {
+      pellet: new THREE.SphereGeometry(0.06 * s, 5, 5),
+      flash: new THREE.SphereGeometry(0.04 * s, 4, 4),
+    };
+    _pelletGeoCache.set(key, geos);
+  }
   const group = new THREE.Group();
-  const pellet = new THREE.Mesh(
-    new THREE.SphereGeometry(0.06 * s, 5, 5),
-    new THREE.MeshLambertMaterial({ color: 0xCCBB88 }),
-  );
-  group.add(pellet);
-  const flash = new THREE.Mesh(
-    new THREE.SphereGeometry(0.04 * s, 4, 4),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 }),
-  );
+  group.add(new THREE.Mesh(geos.pellet, _pelletBodyMat));
+  const flash = new THREE.Mesh(geos.flash, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 }));
   flash.position.z = -0.04 * s;
   group.add(flash);
   return group;
@@ -660,7 +684,7 @@ export function fireProjectile(scene, state) {
     for (let i = 0; i < pelletCount; i++) {
       const angleOffset = ((i / (pelletCount - 1)) - 0.5) * spreadAngle;
       const a = baseAngle + angleOffset;
-      const dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+      _tmpShotgunDir.set(Math.sin(a), 0, Math.cos(a));
 
       const mesh = makeShotgunPellet(s, projColor);
       mesh.position.copy(state.playerPos);
@@ -670,7 +694,7 @@ export function fireProjectile(scene, state) {
       const speedJitter = 0.9 + Math.random() * 0.2;
       state.projectiles.push({
         mesh,
-        vel: dir.multiplyScalar(0.45 * speedJitter),
+        vel: _tmpShotgunDir.clone().multiplyScalar(0.45 * speedJitter),
         damage: pelletDmg,
         radius: 0.1 * s,
         bouncesLeft: weapon.bounces,
@@ -686,8 +710,8 @@ export function fireProjectile(scene, state) {
     const mesh = makeRocketMesh(s, projColor);
     mesh.position.copy(state.playerPos);
     mesh.position.y = 0.6;
-    const lookTarget = mesh.position.clone().add(_fireDir);
-    mesh.lookAt(lookTarget);
+    _tmpLookTarget.copy(mesh.position).add(_fireDir);
+    mesh.lookAt(_tmpLookTarget);
     mesh.rotation.x += Math.PI / 2;
     scene.add(mesh);
 
@@ -712,7 +736,7 @@ export function fireProjectile(scene, state) {
     mesh = new THREE.Sprite(mat);
     mesh.scale.set(s * 1.2, s * 1.2, 1);
   } else {
-    const geo = makeProjectileGeo(weapon.projShape || 'sphere', s);
+    const geo = getCachedGeo(weapon.projShape || 'sphere', s);
     const mat = new THREE.MeshBasicMaterial({ color: projColor });
     mesh = new THREE.Mesh(geo, mat);
   }
@@ -815,7 +839,8 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
       if (Math.sqrt(edx * edx + edz * edz) < p.radius + 0.2) {
         spawnBurstFromWeapons(ep.mesh.position, 0xFF4466, 8);
         scene.remove(ep.mesh);
-        state.enemyProjectiles.splice(k, 1);
+        state.enemyProjectiles[k] = state.enemyProjectiles[state.enemyProjectiles.length - 1];
+        state.enemyProjectiles.pop();
         p.life = 0;
         break;
       }
@@ -841,7 +866,8 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
 
     if (p.life <= 0) {
       scene.remove(p.mesh);
-      state.projectiles.splice(i, 1);
+      state.projectiles[i] = state.projectiles[state.projectiles.length - 1];
+      state.projectiles.pop();
     }
   }
 }
@@ -871,11 +897,11 @@ function rocketExplosion(pos, state, scene, damageEnemyFn, camera) {
 function spawnBurstFromWeapons(pos, color, count) {
   spawnTrail(pos, color);
   for (let i = 1; i < count; i++) {
-    const offset = pos.clone();
-    offset.x += (Math.random() - 0.5) * 0.5;
-    offset.y += Math.random() * 0.3;
-    offset.z += (Math.random() - 0.5) * 0.5;
-    spawnTrail(offset, color);
+    _tmpBurstOffset.copy(pos);
+    _tmpBurstOffset.x += (Math.random() - 0.5) * 0.5;
+    _tmpBurstOffset.y += Math.random() * 0.3;
+    _tmpBurstOffset.z += (Math.random() - 0.5) * 0.5;
+    spawnTrail(_tmpBurstOffset, color);
   }
 }
 

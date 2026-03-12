@@ -941,7 +941,6 @@ function onEnemyKilled(enemy: Enemy, headshot: boolean): void {
   if (headshot) scoreGain = Math.round(scoreGain * 1.5);
   player.score += scoreGain;
   gameState.totalKills++;
-  gameState.enemiesRemaining--;
 
   Audio.playKill();
 
@@ -1003,10 +1002,10 @@ function updateEnemies(dt: number): void {
         const endPoint = origin.add(dir.scale(100));
         createEnemyTracer(scene, origin, endPoint);
 
-        // Check if enemy shot hits player
         const toPlayer = player.position.subtract(origin);
-        const dot = Vector3.Dot(toPlayer.normalize(), dir);
-        const dist = Vector3.Distance(origin, player.position);
+        const dist = toPlayer.length();
+        const toPlayerDir = toPlayer.scale(1 / Math.max(dist, 0.001));
+        const dot = Vector3.Dot(toPlayerDir, dir);
         const hitRadius = PLAYER_RADIUS + (dist * 0.02);
 
         if (dot > 0.95 && dist < 80) {
@@ -1156,6 +1155,7 @@ function spawnNextEnemy(): void {
     });
   }
   enemies.push(enemy);
+  gameState.enemiesRemaining--;
 }
 
 function updateAbilities(dt: number): void {
