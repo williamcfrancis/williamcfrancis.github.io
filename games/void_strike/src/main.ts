@@ -9,7 +9,6 @@ import {
   Color3,
   Color4,
   StandardMaterial,
-  PBRMaterial,
   TransformNode,
   ParticleSystem,
   Texture,
@@ -26,9 +25,8 @@ import {
   createExplosion,
   createTracer,
   createEnemyTracer,
-  createPickupGlow,
 } from './particles';
-import { setupPostProcessing, createDamagePostProcess } from './postprocess';
+import { createDamagePostProcess } from './postprocess';
 import {
   initHUD, updateHUD, addKillFeedEntry,
   showDamageVignette, showHitMarker, showWaveAnnounce,
@@ -101,7 +99,6 @@ let scrollDelta = 0;
 let weaponModel: TransformNode | null = null;
 let frameCount = 0;
 
-// Ability states
 let dashCooldown = 0;
 let dashTimer = 0;
 let dashDirection = Vector3.Zero();
@@ -114,9 +111,8 @@ let lastStreakAnnounce = 0;
 // ── Initialization ──
 async function init(): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
-  engine = new Engine(canvas, true, { stencil: true, antialias: false });
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-  engine.setHardwareScalingLevel(1 / dpr);
+  engine = new Engine(canvas, false, { stencil: false, antialias: false });
+  engine.setHardwareScalingLevel(1);
 
   scene = new Scene(engine);
   scene.collisionsEnabled = true;
@@ -127,10 +123,9 @@ async function init(): Promise<void> {
   scene.skipPointerDownPicking = true;
   scene.skipPointerUpPicking = true;
 
-  // Camera
   camera = new FreeCamera('fpsCam', new Vector3(0, PLAYER_HEIGHT, -30), scene);
   camera.minZ = 0.1;
-  camera.maxZ = 500;
+  camera.maxZ = 300;
   camera.fov = 1.1;
   camera.inertia = 0;
   camera.angularSensibility = 99999999;
@@ -138,40 +133,28 @@ async function init(): Promise<void> {
   camera.checkCollisions = false;
   scene.activeCamera = camera;
 
-  // Build map
   mapData = buildMap(scene);
 
-  // Post-processing
-  const pipeline = setupPostProcessing(scene, camera);
   damagePostProcess = createDamagePostProcess(scene, camera);
 
-  // Build weapon view model
   buildWeaponModel(scene);
-
-  // Input handlers
   setupInput(canvas);
-
-  // Initialize HUD
   initHUD();
 
-  // Start menu
   showMenu();
   hideHUD();
 
-  // Menu buttons
   document.getElementById('play-btn')!.addEventListener('click', startGame);
   document.getElementById('restart-btn')!.addEventListener('click', () => {
     hideGameOver();
     startGame();
   });
 
-  // Game loop
   engine.runRenderLoop(() => {
     const now = performance.now();
     const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
     lastFrameTime = now;
 
-    // FPS counter
     fpsCounter++;
     fpsTimer += dt;
     if (fpsTimer >= 1) {
@@ -252,11 +235,11 @@ let weaponSwitchTimer = 0;
 const WEAPON_SWITCH_TIME = 0.3;
 let prevWeaponIdx = 0;
 
-const WEAPON_GLOW_COLORS: Color3[] = [
-  new Color3(0, 1, 0.8),    // Pulse Rifle - cyan
-  new Color3(0.2, 0.6, 1),  // Shotgun - blue
-  new Color3(1, 0.2, 0.5),  // Sniper - pink
-  new Color3(1, 0.5, 0.1),  // Rocket - orange
+const WEAPON_COLORS: Color3[] = [
+  new Color3(0.3, 0.7, 0.5),
+  new Color3(0.3, 0.5, 0.8),
+  new Color3(0.8, 0.3, 0.4),
+  new Color3(0.8, 0.5, 0.2),
 ];
 
 function buildWeaponModel(scene: Scene): void {
@@ -265,25 +248,22 @@ function buildWeaponModel(scene: Scene): void {
 
   weaponModels = [];
 
+  const gunMat = new StandardMaterial('gunMat', scene);
+  gunMat.diffuseColor = new Color3(0.25, 0.25, 0.28);
+  gunMat.specularColor = new Color3(0.3, 0.3, 0.3);
+  gunMat.freeze();
+
   for (let w = 0; w < 4; w++) {
     const model = new TransformNode(`weaponModel_${w}`, scene);
     model.parent = weaponModel;
     model.setEnabled(w === 0);
 
-    const gunMat = new PBRMaterial(`gunMat_${w}`, scene);
-    gunMat.albedoColor = new Color3(0.15, 0.15, 0.18);
-    gunMat.roughness = 0.3;
-    gunMat.metallic = 0.8;
+    const accentMat = new StandardMaterial(`gunAccent_${w}`, scene);
+    accentMat.diffuseColor = WEAPON_COLORS[w];
+    accentMat.specularColor = Color3.Black();
+    accentMat.freeze();
 
-    const glowColor = WEAPON_GLOW_COLORS[w];
-    const glowMat = new PBRMaterial(`gunGlow_${w}`, scene);
-    glowMat.albedoColor = glowColor.scale(0.1);
-    glowMat.emissiveColor = glowColor;
-    glowMat.emissiveIntensity = 2;
-    glowMat.roughness = 0.2;
-    glowMat.metallic = 0.9;
-
-    const makePart = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, rot?: Vector3): Mesh => {
+    const makePart = (name: string, opts: any, pos: Vector3, mat: StandardMaterial, rot?: Vector3): Mesh => {
       const mesh = MeshBuilder.CreateBox(`${name}_${w}`, opts, scene);
       mesh.position = pos;
       if (rot) mesh.rotation = rot;
@@ -294,48 +274,41 @@ function buildWeaponModel(scene: Scene): void {
     };
 
     switch (w) {
-      case 0: // Pulse Rifle - sleek, medium-length
+      case 0:
         makePart('barrel', { width: 0.05, height: 0.05, depth: 0.5 }, new Vector3(0.25, -0.18, 0.45), gunMat);
         makePart('body', { width: 0.1, height: 0.11, depth: 0.28 }, new Vector3(0.25, -0.2, 0.25), gunMat);
         makePart('grip', { width: 0.05, height: 0.13, depth: 0.05 }, new Vector3(0.25, -0.3, 0.18), gunMat, new Vector3(0.3, 0, 0));
         makePart('stock', { width: 0.04, height: 0.06, depth: 0.15 }, new Vector3(0.25, -0.19, 0.03), gunMat);
         makePart('mag', { width: 0.04, height: 0.09, depth: 0.07 }, new Vector3(0.25, -0.3, 0.28), gunMat);
-        makePart('accent1', { width: 0.12, height: 0.015, depth: 0.3 }, new Vector3(0.25, -0.14, 0.3), glowMat);
-        makePart('accent2', { width: 0.015, height: 0.06, depth: 0.04 }, new Vector3(0.25, -0.18, 0.68), glowMat);
+        makePart('accent1', { width: 0.12, height: 0.015, depth: 0.3 }, new Vector3(0.25, -0.14, 0.3), accentMat);
         makePart('sight', { width: 0.03, height: 0.035, depth: 0.04 }, new Vector3(0.25, -0.125, 0.4), gunMat);
         break;
-
-      case 1: // Plasma Shotgun - wide, chunky
+      case 1:
         makePart('barrel1', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.22, -0.17, 0.4), gunMat);
         makePart('barrel2', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.28, -0.17, 0.4), gunMat);
         makePart('body', { width: 0.14, height: 0.12, depth: 0.25 }, new Vector3(0.25, -0.2, 0.2), gunMat);
         makePart('grip', { width: 0.06, height: 0.14, depth: 0.06 }, new Vector3(0.25, -0.32, 0.15), gunMat, new Vector3(0.2, 0, 0));
-        makePart('pump', { width: 0.08, height: 0.05, depth: 0.12 }, new Vector3(0.25, -0.24, 0.35), glowMat);
-        makePart('accent', { width: 0.16, height: 0.02, depth: 0.06 }, new Vector3(0.25, -0.13, 0.3), glowMat);
-        makePart('muzzle', { width: 0.12, height: 0.08, depth: 0.03 }, new Vector3(0.25, -0.17, 0.58), glowMat);
+        makePart('pump', { width: 0.08, height: 0.05, depth: 0.12 }, new Vector3(0.25, -0.24, 0.35), accentMat);
+        makePart('accent', { width: 0.16, height: 0.02, depth: 0.06 }, new Vector3(0.25, -0.13, 0.3), accentMat);
         break;
-
-      case 2: // Rail Sniper - long, thin, elegant
+      case 2:
         makePart('barrel', { width: 0.035, height: 0.035, depth: 0.7 }, new Vector3(0.25, -0.17, 0.5), gunMat);
         makePart('body', { width: 0.08, height: 0.09, depth: 0.22 }, new Vector3(0.25, -0.19, 0.18), gunMat);
         makePart('grip', { width: 0.04, height: 0.12, depth: 0.04 }, new Vector3(0.25, -0.29, 0.15), gunMat, new Vector3(0.3, 0, 0));
         makePart('stock', { width: 0.04, height: 0.05, depth: 0.2 }, new Vector3(0.25, -0.18, -0.02), gunMat);
         makePart('scope', { width: 0.04, height: 0.04, depth: 0.1 }, new Vector3(0.25, -0.11, 0.35), gunMat);
-        makePart('scopeLens', { width: 0.035, height: 0.035, depth: 0.015 }, new Vector3(0.25, -0.11, 0.405), glowMat);
-        makePart('rail1', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.22, -0.15, 0.45), glowMat);
-        makePart('rail2', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.28, -0.15, 0.45), glowMat);
-        makePart('chargeRing', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.17, 0.82), glowMat);
+        makePart('scopeLens', { width: 0.035, height: 0.035, depth: 0.015 }, new Vector3(0.25, -0.11, 0.405), accentMat);
+        makePart('rail1', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.22, -0.15, 0.45), accentMat);
+        makePart('rail2', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.28, -0.15, 0.45), accentMat);
         break;
-
-      case 3: // Havoc Launcher - bulky, wide tube
+      case 3:
         makePart('tube', { width: 0.09, height: 0.09, depth: 0.45 }, new Vector3(0.25, -0.16, 0.4), gunMat);
         makePart('body', { width: 0.13, height: 0.14, depth: 0.2 }, new Vector3(0.25, -0.2, 0.15), gunMat);
         makePart('grip', { width: 0.06, height: 0.15, depth: 0.06 }, new Vector3(0.25, -0.34, 0.12), gunMat, new Vector3(0.25, 0, 0));
         makePart('handle', { width: 0.04, height: 0.06, depth: 0.08 }, new Vector3(0.25, -0.12, 0.3), gunMat);
-        makePart('muzzle', { width: 0.11, height: 0.11, depth: 0.03 }, new Vector3(0.25, -0.16, 0.63), glowMat);
-        makePart('vent1', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.19, -0.16, 0.5), glowMat);
-        makePart('vent2', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.31, -0.16, 0.5), glowMat);
-        makePart('warhead', { width: 0.05, height: 0.05, depth: 0.05 }, new Vector3(0.25, -0.16, 0.66), glowMat);
+        makePart('muzzle', { width: 0.11, height: 0.11, depth: 0.03 }, new Vector3(0.25, -0.16, 0.63), accentMat);
+        makePart('vent1', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.19, -0.16, 0.5), accentMat);
+        makePart('vent2', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.31, -0.16, 0.5), accentMat);
         break;
     }
 
@@ -349,7 +322,6 @@ function startGame(): void {
   hideGameOver();
   showHUD();
 
-  // Reset player
   player = {
     health: 100,
     maxHealth: 100,
@@ -366,7 +338,6 @@ function startGame(): void {
     alive: true,
   };
 
-  // Reset game state
   gameState = {
     phase: 'playing',
     wave: 0,
@@ -377,30 +348,24 @@ function startGame(): void {
     totalKills: 0,
   };
 
-  // Reset weapons
   weapons = createAllWeapons();
   currentWeaponIdx = 0;
   weapons[0].equipped = true;
 
-  // Clear enemies
   enemies.forEach(e => cleanupEnemy(e));
   enemies = [];
 
-  // Clear projectiles
   projectiles.forEach(p => {
     if (p.trail) { p.trail.stop(); p.trail.dispose(); }
     p.mesh.dispose();
   });
   projectiles = [];
 
-  // Setup pickups
   setupPickups();
 
-  // Reset camera
   camera.position = player.position.clone();
   camera.rotation.set(0, 0, 0);
 
-  // Clear grenades
   grenades.forEach(g => g.mesh.dispose());
   grenades = [];
 
@@ -414,7 +379,6 @@ function startGame(): void {
   grenadeCount = MAX_GRENADES;
   lastStreakAnnounce = 0;
 
-  // Request pointer lock
   const canvas = engine.getRenderingCanvas()!;
   canvas.requestPointerLock();
 
@@ -427,14 +391,25 @@ function setupPickups(): void {
   });
   pickups = [];
 
+  const pickupColors: Record<string, Color3> = {
+    health: new Color3(0.2, 0.8, 0.3),
+    armor: new Color3(0.3, 0.5, 0.9),
+    ammo: new Color3(0.9, 0.7, 0.1),
+  };
+
+  const pickupMats: Record<string, StandardMaterial> = {};
+  for (const [key, color] of Object.entries(pickupColors)) {
+    const mat = new StandardMaterial(`pickupMat_${key}`, scene);
+    mat.diffuseColor = color;
+    mat.emissiveColor = color.scale(0.3);
+    mat.specularColor = Color3.Black();
+    mat.freeze();
+    pickupMats[key] = mat;
+  }
+
   mapData.pickupLocations.forEach((pos, i) => {
     const types: Array<'health' | 'armor' | 'ammo'> = ['health', 'armor', 'ammo'];
     const type = types[i % 3];
-    const colors: Record<string, Color3> = {
-      health: new Color3(0.1, 1, 0.3),
-      armor: new Color3(0.2, 0.5, 1),
-      ammo: new Color3(1, 0.8, 0),
-    };
     const values: Record<string, number> = {
       health: 25,
       armor: 25,
@@ -443,17 +418,9 @@ function setupPickups(): void {
 
     const mesh = MeshBuilder.CreateBox(`pickup_${i}`, { width: 0.6, height: 0.6, depth: 0.6 }, scene);
     mesh.position = pos.add(new Vector3(0, 0.5, 0));
-    const mat = new PBRMaterial(`pickupMat_${i}`, scene);
-    mat.albedoColor = colors[type].scale(0.3);
-    mat.emissiveColor = colors[type];
-    mat.emissiveIntensity = 2;
-    mat.roughness = 0.2;
-    mat.metallic = 0.8;
-    mesh.material = mat;
+    mesh.material = pickupMats[type];
     mesh.checkCollisions = false;
     mesh.isPickable = false;
-
-    createPickupGlow(scene, pos.add(new Vector3(0, 0.5, 0)), colors[type]);
 
     pickups.push({
       mesh,
@@ -484,7 +451,6 @@ function updateGame(dt: number): void {
   updateEffects(dt);
   updateWeaponModel(dt);
 
-  // Throttle expensive HUD updates to every 3rd frame
   if (frameCount % 3 === 0) {
     updateMinimap();
     updateAbilityHUD();
@@ -512,19 +478,15 @@ function updatePlayerMovement(dt: number): void {
 
   player.sprinting = keysHeld.has('shift') && isMoving && keysHeld.has('w');
 
-  // Dashing overrides normal movement
   if (dashTimer > 0) {
     dashTimer -= dt;
     player.velocity.x = dashDirection.x * DASH_SPEED;
     player.velocity.z = dashDirection.z * DASH_SPEED;
-  }
-  // Sliding overrides normal movement
-  else if (slideTimer > 0) {
+  } else if (slideTimer > 0) {
     slideTimer -= dt;
     const slideFalloff = slideTimer / SLIDE_DURATION;
     player.velocity.x = slideDirection.x * SLIDE_SPEED * slideFalloff;
     player.velocity.z = slideDirection.z * SLIDE_SPEED * slideFalloff;
-    // Lower camera during slide
     camera.fov = 1.1 + (1 - slideFalloff) * 0.1;
   } else {
     camera.fov += (1.1 - camera.fov) * 0.1;
@@ -537,20 +499,16 @@ function updatePlayerMovement(dt: number): void {
     player.velocity.z += (targetVelZ - player.velocity.z) * Math.min(1, accel * dt);
   }
 
-  // Gravity
   player.velocity.y += GRAVITY * dt;
 
-  // Jump
   if ((keysJustPressed.has(' ') || keysJustPressed.has('space')) && player.grounded) {
     player.velocity.y = JUMP_FORCE;
     player.grounded = false;
     Audio.playJump();
   }
 
-  // Apply velocity
   player.position.addInPlace(player.velocity.scale(dt));
 
-  // Ground check
   if (player.position.y <= PLAYER_HEIGHT) {
     if (!player.grounded && player.velocity.y < -3) {
       Audio.playLand();
@@ -560,7 +518,6 @@ function updatePlayerMovement(dt: number): void {
     player.grounded = true;
   }
 
-  // Collision with center platform (y=2, 16x16)
   const px = player.position.x;
   const pz = player.position.z;
   if (Math.abs(px) < 8 && Math.abs(pz) < 8 && player.position.y < PLAYER_HEIGHT + 2 && player.position.y > PLAYER_HEIGHT) {
@@ -571,7 +528,6 @@ function updatePlayerMovement(dt: number): void {
     }
   }
 
-  // Corner platform collisions (elevated perches at y=8, 8x8 at ±60, ±60)
   const perchCorners: [number, number][] = [[-60, -60], [60, -60], [-60, 60], [60, 60]];
   for (const [cx, cz] of perchCorners) {
     if (Math.abs(px - cx) < 4 && Math.abs(pz - cz) < 4 && player.position.y < PLAYER_HEIGHT + 8 && player.position.y > PLAYER_HEIGHT + 6) {
@@ -583,19 +539,16 @@ function updatePlayerMovement(dt: number): void {
     }
   }
 
-  // Boundary clamp
   const bound = 78;
   player.position.x = Math.max(-bound, Math.min(bound, player.position.x));
   player.position.z = Math.max(-bound, Math.min(bound, player.position.z));
 
   camera.position.copyFrom(player.position);
 
-  // Lower camera during slide
   if (slideTimer > 0) {
     camera.position.y -= 0.6;
   }
 
-  // Head bob
   if (isMoving && player.grounded && dashTimer <= 0 && slideTimer <= 0) {
     const bobSpeed = player.sprinting ? HEAD_BOB_SPEED * 1.5 : HEAD_BOB_SPEED;
     headBobPhase += dt * bobSpeed;
@@ -612,7 +565,6 @@ function updatePlayerMovement(dt: number): void {
     footstepTimer = 0;
   }
 
-  // Screen shake
   if (screenShakeIntensity > 0) {
     camera.position.x += (Math.random() - 0.5) * screenShakeIntensity * 0.15;
     camera.position.y += (Math.random() - 0.5) * screenShakeIntensity * 0.1;
@@ -626,7 +578,6 @@ function updatePlayerLook(dt: number): void {
   camera.rotation.x += mouseMovementY * MOUSE_SENSITIVITY;
   camera.rotation.x = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, camera.rotation.x));
 
-  // Recoil recovery
   if (recoilRecovery.x !== 0) {
     const recoveryRate = 5 * dt;
     const rx = recoilRecovery.x * recoveryRate;
@@ -639,13 +590,11 @@ function updatePlayerLook(dt: number): void {
     if (Math.abs(recoilRecovery.y) < 0.0001) recoilRecovery.y = 0;
   }
 
-  // Weapon sway from mouse movement
   weaponSwayX += (mouseMovementX * WEAPON_SWAY_AMOUNT - weaponSwayX) * 0.15;
   weaponSwayY += (mouseMovementY * WEAPON_SWAY_AMOUNT - weaponSwayY) * 0.15;
 }
 
 function updateWeapons(dt: number): void {
-  // Weapon switching
   for (let i = 1; i <= 4; i++) {
     if (keysJustPressed.has(i.toString())) {
       switchWeapon(i - 1);
@@ -658,17 +607,14 @@ function updateWeapons(dt: number): void {
 
   const weapon = weapons[currentWeaponIdx];
 
-  // Reload
   if (keysJustPressed.has('r') && !weapon.reloading && weapon.currentAmmo < weapon.def.magazineSize && weapon.reserveAmmo > 0) {
     startReload(weapon);
   }
 
-  // Auto-reload on empty
   if (weapon.currentAmmo === 0 && !weapon.reloading && weapon.reserveAmmo > 0) {
     startReload(weapon);
   }
 
-  // Update reload timer
   if (weapon.reloading) {
     weapon.reloadTimer -= dt;
     if (weapon.reloadTimer <= 0) {
@@ -676,10 +622,8 @@ function updateWeapons(dt: number): void {
     }
   }
 
-  // Fire timer
   weapon.fireTimer = Math.max(0, weapon.fireTimer - dt);
 
-  // Firing: automatic weapons fire while held, semi-auto only on click
   const canFire = weapon.fireTimer <= 0 && !weapon.reloading && weapon.currentAmmo > 0;
   if (canFire) {
     if (weapon.def.automatic && mouseDown) {
@@ -729,7 +673,6 @@ function fireWeapon(weapon: WeaponState): void {
 
   createMuzzleFlash(scene, muzzlePos, camera.getDirection(Vector3.Forward()), weapon.def.muzzleFlashScale);
 
-  // Recoil
   const recoilX = weapon.def.recoilUp * (0.8 + Math.random() * 0.4);
   const recoilY = weapon.def.recoilSide * (Math.random() - 0.5) * 2;
   camera.rotation.x -= recoilX;
@@ -758,7 +701,6 @@ function fireHitscan(weapon: WeaponState, muzzlePos: Vector3): void {
 
   const ray = new Ray(camera.position, dir, weapon.def.range);
 
-  // Check enemies first
   let hitEnemy: Enemy | null = null;
   let hitDist = weapon.def.range;
   let hitHeadshot = false;
@@ -785,7 +727,6 @@ function fireHitscan(weapon: WeaponState, muzzlePos: Vector3): void {
     }
   }
 
-  // Check world geometry
   const worldPick = scene.pickWithRay(ray, (mesh) => {
     return mesh.checkCollisions && mesh.isPickable !== false;
   });
@@ -819,14 +760,14 @@ function fireHitscan(weapon: WeaponState, muzzlePos: Vector3): void {
 
 function createRocketTrailTexture(): string {
   const c = document.createElement('canvas');
-  c.width = 32; c.height = 32;
+  c.width = 16; c.height = 16;
   const ctx = c.getContext('2d')!;
-  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  const g = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
   g.addColorStop(0, 'rgba(255,255,255,1)');
   g.addColorStop(0.4, 'rgba(255,255,255,0.6)');
   g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 32, 32);
+  ctx.fillRect(0, 0, 16, 16);
   return c.toDataURL();
 }
 
@@ -841,7 +782,7 @@ function fireProjectile(weapon: WeaponState, muzzlePos: Vector3): void {
     (Math.random() - 0.5) * spread,
   )).normalize();
 
-  const rocket = MeshBuilder.CreateSphere('rocket', { diameter: 0.3, segments: 6 }, scene);
+  const rocket = MeshBuilder.CreateSphere('rocket', { diameter: 0.3, segments: 4 }, scene);
   rocket.position = muzzlePos.clone();
   const mat = new StandardMaterial('rocketMat', scene);
   mat.emissiveColor = new Color3(1, 0.5, 0.1);
@@ -850,17 +791,16 @@ function fireProjectile(weapon: WeaponState, muzzlePos: Vector3): void {
   rocket.checkCollisions = false;
   rocket.isPickable = false;
 
-  // Rocket trail particle system
   if (!rocketTrailTextureUrl) rocketTrailTextureUrl = createRocketTrailTexture();
   if (!rocketTrailTexture) rocketTrailTexture = new Texture(rocketTrailTextureUrl, scene);
-  const trail = new ParticleSystem('rocketTrail', 30, scene);
+  const trail = new ParticleSystem('rocketTrail', 20, scene);
   trail.particleTexture = rocketTrailTexture;
   trail.emitter = rocket;
-  trail.minLifeTime = 0.1;
-  trail.maxLifeTime = 0.3;
-  trail.minSize = 0.1;
-  trail.maxSize = 0.3;
-  trail.emitRate = 50;
+  trail.minLifeTime = 0.08;
+  trail.maxLifeTime = 0.2;
+  trail.minSize = 0.08;
+  trail.maxSize = 0.2;
+  trail.emitRate = 40;
   trail.color1 = new Color4(1, 0.6, 0.1, 0.8);
   trail.color2 = new Color4(1, 0.3, 0, 0.6);
   trail.colorDead = new Color4(0.3, 0.1, 0, 0);
@@ -891,7 +831,6 @@ function updateProjectiles(dt: number): void {
     proj.mesh.position.addInPlace(proj.velocity.scale(dt));
     proj.velocity.y += GRAVITY * 0.3 * dt;
 
-    // Check collision with world
     const dir = proj.mesh.position.subtract(prevPos);
     const dist = dir.length();
     if (dist > 0) {
@@ -907,7 +846,6 @@ function updateProjectiles(dt: number): void {
       }
     }
 
-    // Check collision with enemies
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
       const d = Vector3.Distance(proj.mesh.position, enemy.position.add(new Vector3(0, 1, 0)));
@@ -927,7 +865,6 @@ function explodeProjectile(pos: Vector3, damage: number, radius: number): void {
   Audio.playExplosion();
   screenShakeIntensity = 2;
 
-  // Damage enemies in radius
   for (const enemy of enemies) {
     if (!enemy.alive) continue;
     const d = Vector3.Distance(pos, enemy.position.add(new Vector3(0, 1, 0)));
@@ -940,7 +877,6 @@ function explodeProjectile(pos: Vector3, damage: number, radius: number): void {
     }
   }
 
-  // Damage player if close
   const playerDist = Vector3.Distance(pos, player.position);
   if (playerDist < radius) {
     const falloff = 1 - playerDist / radius;
@@ -960,7 +896,7 @@ function onEnemyKilled(enemy: Enemy, headshot: boolean): void {
   Audio.playKill();
 
   let feedText = `Eliminated ${enemy.type.name} +${scoreGain}`;
-  let feedColor = '#00ffc8';
+  let feedColor = '#44cc88';
   if (headshot) {
     feedText += ' HEADSHOT';
     feedColor = '#ff3333';
@@ -976,7 +912,6 @@ function onEnemyKilled(enemy: Enemy, headshot: boolean): void {
 function damagePlayer(damage: number): void {
   let remaining = damage;
 
-  // Armor absorbs 60% of damage
   if (player.armor > 0) {
     const armorAbsorb = Math.min(player.armor, remaining * 0.6);
     player.armor -= armorAbsorb;
@@ -1033,7 +968,6 @@ function updateEnemies(dt: number): void {
       },
     );
 
-    // Cleanup dead enemies after animation
     if (!enemy.alive && enemy.deathTimer > 1) {
       cleanupEnemy(enemy);
       enemies.splice(i, 1);
@@ -1052,11 +986,9 @@ function updatePickups(dt: number): void {
       continue;
     }
 
-    // Rotate pickup
     pickup.mesh.rotation.y += dt * 2;
     pickup.mesh.position.y = pickup.position.y + 0.5 + Math.sin(performance.now() * 0.003) * 0.15;
 
-    // Check pickup collision with player
     const d = Vector3.Distance(
       new Vector3(player.position.x, 0, player.position.z),
       new Vector3(pickup.position.x, 0, pickup.position.z),
@@ -1086,7 +1018,7 @@ function updatePickups(dt: number): void {
 
       if (consumed) {
         Audio.playPickup();
-        addKillFeedEntry(`Picked up ${pickup.type}`, '#00ff88');
+        addKillFeedEntry(`Picked up ${pickup.type}`, '#44cc88');
         pickup.active = false;
         pickup.mesh.setEnabled(false);
         pickup.respawnTimer = PICKUP_RESPAWN_TIME;
@@ -1110,7 +1042,6 @@ function updateWaveSystem(dt: number): void {
     }
   }
 
-  // Spawn queued enemies
   if (gameState.enemiesRemaining > 0 && aliveCount < 12) {
     gameState.spawnTimer -= dt;
     if (gameState.spawnTimer <= 0) {
@@ -1130,19 +1061,17 @@ function startWave(wave: number): void {
   showWaveAnnounce(wave);
   Audio.playWaveStart();
 
-  // Wave completion rewards
   grenadeCount = Math.min(MAX_GRENADES, grenadeCount + 1);
   if (wave > 1) {
     player.health = Math.min(player.maxHealth, player.health + 15);
     player.score += wave * 50;
-    addKillFeedEntry(`Wave ${wave} bonus: +${wave * 50} pts, +1 grenade, +15 HP`, '#00ff88');
+    addKillFeedEntry(`Wave ${wave} bonus: +${wave * 50} pts, +1 grenade, +15 HP`, '#44cc88');
   }
 
-  addKillFeedEntry(`Wave ${wave} - ${enemyCount} enemies`, '#00ffc8');
+  addKillFeedEntry(`Wave ${wave} - ${enemyCount} enemies`, '#44cc88');
 }
 
 function spawnNextEnemy(): void {
-  // Select enemy type based on wave
   const availableTypes = ENEMY_TYPES.filter((_, i) => {
     if (i === 0) return true;
     if (i === 1) return gameState.wave >= 2;
@@ -1154,7 +1083,6 @@ function spawnNextEnemy(): void {
 
   const type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
 
-  // Pick a spawn point far from player
   const validSpawns = mapData.spawnPoints.filter(sp =>
     Vector3.Distance(sp, player.position) > 30,
   );
@@ -1169,11 +1097,6 @@ function spawnNextEnemy(): void {
   scaledType.speed = type.speed * (1 + (gameState.wave - 1) * 0.02);
 
   const enemy = spawnEnemy(scene, scaledType, spawnPos.clone());
-  if (mapData.shadowGenerator) {
-    enemy.bodyParts.forEach(part => {
-      mapData.shadowGenerator!.addShadowCaster(part);
-    });
-  }
   enemies.push(enemy);
   gameState.enemiesRemaining--;
 }
@@ -1182,7 +1105,6 @@ function updateAbilities(dt: number): void {
   dashCooldown = Math.max(0, dashCooldown - dt);
   slideCooldown = Math.max(0, slideCooldown - dt);
 
-  // Dash (Q key)
   if (keysJustPressed.has('q') && dashCooldown <= 0 && dashTimer <= 0) {
     const forward = camera.getDirection(Vector3.Forward());
     forward.y = 0;
@@ -1206,7 +1128,6 @@ function updateAbilities(dt: number): void {
     screenShakeIntensity = 0.3;
   }
 
-  // Slide (CTRL while sprinting)
   if (keysJustPressed.has('control') && player.sprinting && slideCooldown <= 0 && slideTimer <= 0 && player.grounded) {
     const forward = camera.getDirection(Vector3.Forward());
     forward.y = 0;
@@ -1217,7 +1138,6 @@ function updateAbilities(dt: number): void {
     Audio.playLand();
   }
 
-  // Grenade (G key)
   if (keysJustPressed.has('g') && grenadeCount > 0) {
     throwGrenade();
     grenadeCount--;
@@ -1228,7 +1148,7 @@ function throwGrenade(): void {
   const throwDir = camera.getDirection(Vector3.Forward()).add(new Vector3(0, 0.3, 0)).normalize();
   const startPos = camera.position.add(throwDir.scale(1.5));
 
-  const grenade = MeshBuilder.CreateSphere('grenade', { diameter: 0.25, segments: 6 }, scene);
+  const grenade = MeshBuilder.CreateSphere('grenade', { diameter: 0.25, segments: 4 }, scene);
   grenade.position = startPos.clone();
   const mat = new StandardMaterial('grenadeMat', scene);
   mat.emissiveColor = new Color3(1, 0.3, 0);
@@ -1253,10 +1173,8 @@ function updateGrenades(dt: number): void {
     g.timer -= dt;
     g.velocity.y += GRAVITY * dt;
 
-    const prevPos = g.mesh.position.clone();
     g.mesh.position.addInPlace(g.velocity.scale(dt));
 
-    // Bounce off ground
     if (g.mesh.position.y < 0.15) {
       g.mesh.position.y = 0.15;
       g.velocity.y = Math.abs(g.velocity.y) * 0.4;
@@ -1265,7 +1183,6 @@ function updateGrenades(dt: number): void {
       g.bounces++;
     }
 
-    // Bounce off walls (simplified)
     if (Math.abs(g.mesh.position.x) > 79) {
       g.velocity.x *= -0.5;
       g.mesh.position.x = Math.sign(g.mesh.position.x) * 79;
@@ -1275,7 +1192,6 @@ function updateGrenades(dt: number): void {
       g.mesh.position.z = Math.sign(g.mesh.position.z) * 79;
     }
 
-    // Flashing effect as timer runs out
     if (g.timer < 0.5) {
       const flash = Math.sin(g.timer * 30) > 0;
       const c = (g.mesh.material as StandardMaterial).emissiveColor;
@@ -1283,7 +1199,6 @@ function updateGrenades(dt: number): void {
       else { c.r = 1; c.g = 0.3; c.b = 0; }
     }
 
-    // Explode
     if (g.timer <= 0) {
       createExplosion(scene, g.mesh.position, GRENADE_RADIUS);
       Audio.playExplosion();
@@ -1324,12 +1239,10 @@ function updateMinimap(): void {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Background with slight transparency
-  ctx.fillStyle = 'rgba(0, 10, 20, 0.8)';
+  ctx.fillStyle = 'rgba(30, 35, 45, 0.85)';
   ctx.fillRect(0, 0, w, h);
 
-  // Grid
-  ctx.strokeStyle = 'rgba(0, 255, 200, 0.08)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = 0.5;
   for (let i = 0; i <= 8; i++) {
     const pos = (i / 8) * w;
@@ -1343,25 +1256,22 @@ function updateMinimap(): void {
     ctx.stroke();
   }
 
-  // Arena boundary
-  ctx.strokeStyle = 'rgba(0, 255, 200, 0.3)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
   ctx.lineWidth = 1;
   const bx = (80 + 80) * mapScale;
   const by = (80 + 80) * mapScale;
   const bw = 160 * mapScale;
   ctx.strokeRect(w / 2 - bx / 2, h / 2 - by / 2, bw, bw);
 
-  // Center platform
   const toScreen = (worldX: number, worldZ: number): [number, number] => {
     return [w / 2 + worldX * mapScale, h / 2 + worldZ * mapScale];
   };
 
-  ctx.fillStyle = 'rgba(0, 255, 200, 0.15)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
   const [cx, cz] = toScreen(-8, -8);
   ctx.fillRect(cx, cz, 16 * mapScale, 16 * mapScale);
 
-  // Cover objects (simplified)
-  ctx.fillStyle = 'rgba(100, 120, 150, 0.3)';
+  ctx.fillStyle = 'rgba(150, 160, 170, 0.25)';
   const covers: [number, number, number, number][] = [
     [-30, -30, 6, 4], [30, -30, 6, 4], [-30, 30, 6, 4], [30, 30, 6, 4],
     [-50, 0, 8, 3], [50, 0, 8, 3], [0, -50, 3, 8], [0, 50, 3, 8],
@@ -1371,7 +1281,6 @@ function updateMinimap(): void {
     ctx.fillRect(sx, sz, ow * mapScale, od * mapScale);
   });
 
-  // Enemies
   for (const enemy of enemies) {
     if (!enemy.alive) continue;
     const [ex, ez] = toScreen(enemy.position.x, enemy.position.z);
@@ -1382,27 +1291,25 @@ function updateMinimap(): void {
     ctx.fill();
   }
 
-  // Pickups
   for (const pickup of pickups) {
     if (!pickup.active) continue;
-    const [px, pz] = toScreen(pickup.position.x, pickup.position.z);
+    const [ppx, ppz] = toScreen(pickup.position.x, pickup.position.z);
     const colors: Record<string, string> = {
-      health: 'rgba(0, 255, 100, 0.6)',
-      armor: 'rgba(50, 130, 255, 0.6)',
-      ammo: 'rgba(255, 200, 0, 0.6)',
+      health: 'rgba(50, 200, 80, 0.6)',
+      armor: 'rgba(60, 130, 220, 0.6)',
+      ammo: 'rgba(220, 180, 30, 0.6)',
     };
     ctx.fillStyle = colors[pickup.type];
-    ctx.fillRect(px - 1.5, pz - 1.5, 3, 3);
+    ctx.fillRect(ppx - 1.5, ppz - 1.5, 3, 3);
   }
 
-  // Player (triangle showing direction)
   const [plx, plz] = toScreen(player.position.x, player.position.z);
   const angle = camera.rotation.y;
 
   ctx.save();
   ctx.translate(plx, plz);
   ctx.rotate(angle);
-  ctx.fillStyle = '#00ffc8';
+  ctx.fillStyle = '#44cc88';
   ctx.beginPath();
   ctx.moveTo(0, -5);
   ctx.lineTo(-3.5, 4);
@@ -1410,8 +1317,7 @@ function updateMinimap(): void {
   ctx.closePath();
   ctx.fill();
 
-  // FOV cone
-  ctx.fillStyle = 'rgba(0, 255, 200, 0.06)';
+  ctx.fillStyle = 'rgba(68, 204, 136, 0.06)';
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.lineTo(-25, -50);
@@ -1430,7 +1336,6 @@ function updateAbilityHUD(): void {
   const grenadeCdEl = document.getElementById('grenade-cd')!;
   const enemiesEl = document.getElementById('enemies-remaining')!;
 
-  // Dash
   if (dashCooldown <= 0 && dashTimer <= 0) {
     dashEl.classList.add('ready');
     dashEl.classList.remove('active');
@@ -1447,7 +1352,6 @@ function updateAbilityHUD(): void {
     dashCdEl.classList.add('on-cd');
   }
 
-  // Slide
   if (slideCooldown <= 0 && slideTimer <= 0) {
     slideEl.classList.add('ready');
     slideEl.classList.remove('active');
@@ -1464,7 +1368,6 @@ function updateAbilityHUD(): void {
     slideCdEl.classList.add('on-cd');
   }
 
-  // Grenade
   if (grenadeCount > 0) {
     grenadeEl.classList.add('ready');
     grenadeCdEl.textContent = `×${grenadeCount}`;
@@ -1475,7 +1378,6 @@ function updateAbilityHUD(): void {
     grenadeCdEl.classList.add('on-cd');
   }
 
-  // Enemies remaining
   const aliveEnemies = enemies.filter(e => e.alive).length;
   if (aliveEnemies > 0 || gameState.enemiesRemaining > 0) {
     enemiesEl.textContent = `HOSTILES: ${aliveEnemies + Math.max(0, gameState.enemiesRemaining - aliveEnemies)}`;
@@ -1503,7 +1405,6 @@ function checkStreakRewards(): void {
     void el.offsetWidth;
     el.classList.add('active');
 
-    // Streak rewards
     if (player.streak === 5) {
       player.health = Math.min(player.maxHealth, player.health + 25);
       addKillFeedEntry('RAMPAGE! +25 Health', '#ffaa00');
@@ -1526,43 +1427,28 @@ function checkStreakRewards(): void {
 }
 
 function updateEffects(dt: number): void {
-  // Damage intensity fade
   damageIntensity = Math.max(0, damageIntensity - DAMAGE_RECOVERY_RATE * dt);
   if (damagePostProcess?.setDamageIntensity) {
     damagePostProcess.setDamageIntensity(damageIntensity);
   }
 
-  // Screen shake decay
   screenShakeIntensity = Math.max(0, screenShakeIntensity - dt * 8);
 
-  // Health regen at low health (very slow)
   if (player.health < 20 && player.health > 0) {
     player.health = Math.min(20, player.health + dt * 2);
-  }
-
-  // Animate map elements
-  const t = performance.now() * 0.001;
-  for (const anim of mapData.animatedMeshes) {
-    anim.mesh.rotation.x += anim.rotSpeed.x * dt;
-    anim.mesh.rotation.y += anim.rotSpeed.y * dt;
-    anim.mesh.rotation.z += anim.rotSpeed.z * dt;
-    anim.mesh.position.y = anim.baseY + Math.sin(t * anim.bobSpeed) * anim.bobAmount;
   }
 }
 
 function updateWeaponModel(dt: number): void {
   if (!weaponModel) return;
 
-  // Handle weapon switch animation
   if (weaponSwitchTimer > 0) {
     weaponSwitchTimer -= dt;
     const progress = weaponSwitchTimer / WEAPON_SWITCH_TIME;
 
     if (progress > 0.5) {
-      // First half: lower old weapon
       weaponModels.forEach((m, i) => m.setEnabled(i === prevWeaponIdx));
     } else {
-      // Second half: raise new weapon
       weaponModels.forEach((m, i) => m.setEnabled(i === currentWeaponIdx));
     }
   } else {
@@ -1585,27 +1471,20 @@ function updateWeaponModel(dt: number): void {
     bobY = Math.abs(Math.sin(t)) * 0.006;
   }
 
-  // Reload animation
   let reloadOffset = 0;
   if (weapon.reloading) {
     const progress = 1 - weapon.reloadTimer / weapon.def.reloadTime;
     reloadOffset = Math.sin(progress * Math.PI) * 0.15;
   }
 
-  // Weapon switch animation offset
   let switchOffset = 0;
   if (weaponSwitchTimer > 0) {
     const progress = weaponSwitchTimer / WEAPON_SWITCH_TIME;
     switchOffset = Math.sin(progress * Math.PI) * 0.4;
   }
 
-  // Firing kick
   const fireKick = weapon.fireTimer > 0 ? weapon.fireTimer * weapon.def.recoilUp * 8 : 0;
-
-  // Dash tilt
   const dashTilt = dashTimer > 0 ? 0.15 : 0;
-
-  // Sprint tilt
   const sprintTilt = player.sprinting ? 0.06 : 0;
 
   weaponModel.position.x = -swayX + bobX;

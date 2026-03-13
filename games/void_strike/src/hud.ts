@@ -24,11 +24,11 @@ export function updateHUD(
   healthBarEl.style.width = healthPct + '%';
 
   if (healthPct < 25) {
-    healthEl.style.color = '#ff3333';
-    healthBarEl.style.background = 'linear-gradient(90deg, #ff3333, #ff6666)';
+    healthEl.style.color = '#ff4444';
+    healthBarEl.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
   } else if (healthPct < 50) {
-    healthEl.style.color = '#ffaa33';
-    healthBarEl.style.background = 'linear-gradient(90deg, #ffaa33, #ffcc66)';
+    healthEl.style.color = '#ddaa33';
+    healthBarEl.style.background = 'linear-gradient(90deg, #ddaa33, #ddcc66)';
   } else {
     healthEl.style.color = '';
     healthBarEl.style.background = '';

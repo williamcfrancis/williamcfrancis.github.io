@@ -112,7 +112,7 @@ sections:
         tags: ["browser", "AI", "local-multiplayer"]
         link:
           label: "Play Wizard Brawl"
-          url: "/games/junkcode_brawlers/"
+          url: "/games/wizard_brawl/"
         image: "/games/game_placeholder.svg"
       - title: Void Strike
         genre: 3D FPS arena
@@ -121,6 +121,14 @@ sections:
         link:
           label: Play Void Strike
           url: "/games/void_strike/"
+        image: "/games/game_placeholder.svg"
+      - title: Neon Breach
+        genre: Cyberpunk arena FPS
+        summary: "Wall-running, grapple hook, and bullet time in a cyberpunk arena. Five weapons, boss waves, and style kills."
+        tags: ["browser", "3D", "FPS", "sound-on"]
+        link:
+          label: Play Neon Breach
+          url: "/games/neon_breach/"
         image: "/games/game_placeholder.svg"
   - section:
       name: Photo Gallery

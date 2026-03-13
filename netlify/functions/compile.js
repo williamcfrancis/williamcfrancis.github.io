@@ -13,7 +13,7 @@ const RESPONSE_SCHEMA = {
     'projectile_shape', 'trail_density', 'effect_intensity',
     'sound_pitch', 'sound_release',
     'projectile_color', 'trail_color', 'impact_color', 'glow_color',
-    'pixel_rows', 'palette', 'projectile_rows', 'projectile_palette',
+    'weapon_image_prompt', 'projectile_image_prompt', 'effect_code',
   ],
   properties: {
     name: { type: 'STRING' },
@@ -49,48 +49,9 @@ const RESPONSE_SCHEMA = {
     trail_color: { type: 'STRING' },
     impact_color: { type: 'STRING' },
     glow_color: { type: 'STRING' },
-    pixel_rows: {
-      type: 'ARRAY',
-      items: { type: 'STRING' },
-    },
-    projectile_rows: {
-      type: 'ARRAY',
-      items: { type: 'STRING' },
-    },
-    palette: {
-      type: 'OBJECT',
-      properties: {
-        A: { type: 'STRING' },
-        B: { type: 'STRING' },
-        C: { type: 'STRING' },
-        D: { type: 'STRING' },
-        E: { type: 'STRING' },
-        F: { type: 'STRING' },
-        G: { type: 'STRING' },
-        H: { type: 'STRING' },
-        I: { type: 'STRING' },
-        J: { type: 'STRING' },
-        K: { type: 'STRING' },
-        L: { type: 'STRING' },
-      },
-    },
-    projectile_palette: {
-      type: 'OBJECT',
-      properties: {
-        A: { type: 'STRING' },
-        B: { type: 'STRING' },
-        C: { type: 'STRING' },
-        D: { type: 'STRING' },
-        E: { type: 'STRING' },
-        F: { type: 'STRING' },
-        G: { type: 'STRING' },
-        H: { type: 'STRING' },
-        I: { type: 'STRING' },
-        J: { type: 'STRING' },
-        K: { type: 'STRING' },
-        L: { type: 'STRING' },
-      },
-    },
+    weapon_image_prompt: { type: 'STRING' },
+    projectile_image_prompt: { type: 'STRING' },
+    effect_code: { type: 'STRING' },
     status_slow: { type: 'NUMBER' },
     status_slow_duration: { type: 'NUMBER' },
     status_dot_dps: { type: 'NUMBER' },
@@ -146,26 +107,9 @@ const FALLBACK_WEAPONS = [
     trail_color: '#ff9fd1',
     impact_color: '#fff3ba',
     glow_color: '#ffdca8',
-    pixel_rows: [
-      '..C....',
-      '.CCC...',
-      '..AAB..',
-      '..AAD..',
-      '..AAD..',
-      '...FD..',
-      '...F...',
-    ],
-    palette: { A: '#ffe59d', B: '#ffd2a3', C: '#f58ec4', D: '#8e5ed6', E: '#fff9cf', F: '#6a4d38', G: '#b6a0ea', H: '#f8b4dc', I: '#fff3e1', J: '#4f3842', K: '#d7c3ff', L: '#fbe0a8' },
-    projectile_rows: [
-      '.......',
-      '..CCC..',
-      '.CCCCC.',
-      '.CCCCC.',
-      '.CCCCC.',
-      '..CCC..',
-      '.......',
-    ],
-    projectile_palette: { A: '#ffe59d', B: '#ffd2a3', C: '#f58ec4', D: '#8e5ed6', E: '#fff9cf', F: '#6a4d38', G: '#b6a0ea', H: '#f8b4dc', I: '#fff3e1', J: '#4f3842', K: '#d7c3ff', L: '#fbe0a8' },
+    weapon_image_prompt: null,
+    projectile_image_prompt: null,
+    effect_code: '',
     status_slow: 0,
     status_slow_duration: 0,
     status_dot_dps: 0,
@@ -218,26 +162,9 @@ const FALLBACK_WEAPONS = [
     trail_color: '#cdeeff',
     impact_color: '#ffffff',
     glow_color: '#b2f0ff',
-    pixel_rows: [
-      '.AAAA..',
-      'ABBBA..',
-      'ABCBBA.',
-      '.ABBBA.',
-      '..DDD..',
-      '..DDD..',
-      '...D...',
-    ],
-    palette: { A: '#9ad0ff', B: '#5fa8ff', C: '#ffffff', D: '#8d63d2', E: '#d2efff', F: '#4f7ec4', G: '#ffd6ea', H: '#f8f0ff', I: '#fefcff', J: '#5e4b7f', K: '#c4a8ff', L: '#ffe8f5' },
-    projectile_rows: [
-      '.......',
-      '..AAA..',
-      '.ABBA..',
-      '.ABBBA.',
-      '.ABBA..',
-      '..AAA..',
-      '.......',
-    ],
-    projectile_palette: { A: '#9ad0ff', B: '#5fa8ff', C: '#ffffff', D: '#8d63d2', E: '#d2efff', F: '#4f7ec4', G: '#ffd6ea', H: '#f8f0ff', I: '#fefcff', J: '#5e4b7f', K: '#c4a8ff', L: '#ffe8f5' },
+    weapon_image_prompt: null,
+    projectile_image_prompt: null,
+    effect_code: '',
     status_slow: 0.08,
     status_slow_duration: 0.8,
     status_dot_dps: 0,
@@ -271,22 +198,26 @@ function sanitizeHex(hex, fallback) {
   return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
 }
 
-function normalizeRows(rows) {
-  const fallback = [
-    '..AA...',
-    '.ABBA..',
-    '..ACD..',
-    '..ACD..',
-    '...DD..',
-    '...F...',
-    '.......',
-  ];
-  if (!Array.isArray(rows) || rows.length !== 7) return fallback;
-  return rows.map((row, idx) => {
-    const s = String(row || '').toUpperCase().slice(0, 7).padEnd(7, '.');
-    const cleaned = s.replace(/[^ABCDEFGHIJKL.]/g, '.');
-    return cleaned.length === 7 ? cleaned : fallback[idx];
-  });
+const POLLINATIONS_IMAGE_MODEL = 'turbo';
+const POLLINATIONS_IMAGE_SIZE = 128;
+
+async function fetchPollinationsImage(prompt, apiKey) {
+  const style = 'pixel art, game icon, simple flat, dark background, 16-bit retro, tiny sprite';
+  const full = `${prompt}, ${style}`;
+  const encoded = encodeURIComponent(full);
+  const seed = Math.floor(Math.random() * 999999);
+  const url = `https://image.pollinations.ai/prompt/${encoded}?width=${POLLINATIONS_IMAGE_SIZE}&height=${POLLINATIONS_IMAGE_SIZE}&model=${POLLINATIONS_IMAGE_MODEL}&nologo=true&seed=${seed}&safe=true&private=true`;
+  const reqHeaders = {};
+  if (apiKey) reqHeaders['Authorization'] = `Bearer ${apiKey}`;
+  try {
+    const res = await fetch(url, { headers: reqHeaders, signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`pollinations ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    return `data:image/jpeg;base64,${buf.toString('base64')}`;
+  } catch (e) {
+    console.warn('[compile] Image fetch failed:', e.message);
+    return null;
+  }
 }
 
 function requestExplicitlyWantsTracking(requestText) {
@@ -336,36 +267,9 @@ function clampWeapon(mod, requestText) {
     trail_color: sanitizeHex(mod.trail_color, '#ffc9e8'),
     impact_color: sanitizeHex(mod.impact_color, '#fff3ba'),
     glow_color: sanitizeHex(mod.glow_color, '#ffe8aa'),
-    pixel_rows: normalizeRows(mod.pixel_rows),
-    projectile_rows: normalizeRows(mod.projectile_rows),
-    palette: {
-      A: sanitizeHex(mod.palette?.A, '#ffe59d'),
-      B: sanitizeHex(mod.palette?.B, '#ffb870'),
-      C: sanitizeHex(mod.palette?.C, '#f58ec4'),
-      D: sanitizeHex(mod.palette?.D, '#8e5ed6'),
-      E: sanitizeHex(mod.palette?.E, '#f7f2df'),
-      F: sanitizeHex(mod.palette?.F, '#5c4a44'),
-      G: sanitizeHex(mod.palette?.G, '#9fb4d8'),
-      H: sanitizeHex(mod.palette?.H, '#b39cd8'),
-      I: sanitizeHex(mod.palette?.I, '#fff3e1'),
-      J: sanitizeHex(mod.palette?.J, '#5b4952'),
-      K: sanitizeHex(mod.palette?.K, '#cdb7ff'),
-      L: sanitizeHex(mod.palette?.L, '#fbe0a8'),
-    },
-    projectile_palette: {
-      A: sanitizeHex(mod.projectile_palette?.A, '#ffe59d'),
-      B: sanitizeHex(mod.projectile_palette?.B, '#ffb870'),
-      C: sanitizeHex(mod.projectile_palette?.C, '#f58ec4'),
-      D: sanitizeHex(mod.projectile_palette?.D, '#8e5ed6'),
-      E: sanitizeHex(mod.projectile_palette?.E, '#f7f2df'),
-      F: sanitizeHex(mod.projectile_palette?.F, '#5c4a44'),
-      G: sanitizeHex(mod.projectile_palette?.G, '#9fb4d8'),
-      H: sanitizeHex(mod.projectile_palette?.H, '#b39cd8'),
-      I: sanitizeHex(mod.projectile_palette?.I, '#fff3e1'),
-      J: sanitizeHex(mod.projectile_palette?.J, '#5b4952'),
-      K: sanitizeHex(mod.projectile_palette?.K, '#cdb7ff'),
-      L: sanitizeHex(mod.projectile_palette?.L, '#fbe0a8'),
-    },
+    weapon_image_prompt: String(mod.weapon_image_prompt || '').slice(0, 200),
+    projectile_image_prompt: String(mod.projectile_image_prompt || '').slice(0, 200),
+    effect_code: sanitizeEffectCode(mod.effect_code),
     status_slow: clamp(mod.status_slow, 0, 0.75),
     status_slow_duration: clamp(mod.status_slow_duration, 0, 4),
     status_dot_dps: clamp(mod.status_dot_dps, 0, 14),
@@ -387,6 +291,15 @@ function clampWeapon(mod, requestText) {
 }
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, Number(v) || lo)); }
+
+function sanitizeEffectCode(code) {
+  const s = String(code || '').slice(0, 1500);
+  const banned = ['eval', 'Function', 'import', 'require', 'fetch', 'XMLHttp', 'document', 'window', 'location', 'cookie', 'localStorage', 'sessionStorage', 'Worker', 'setTimeout', 'setInterval'];
+  for (const kw of banned) {
+    if (s.includes(kw)) return '';
+  }
+  return s;
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
@@ -436,27 +349,21 @@ Example:
 - "Fairy dust wand" => fast rate + homing, but low damage.
 - "Huge castle launcher" => high bullet_size and hp_bonus, but larger player_size and slower jump.
 
-PIXEL ART WEAPON REQUIREMENTS (strict):
-- Return pixel_rows as exactly 7 strings, each exactly 7 chars.
-- Allowed chars: A B C D E F G H I J K L .
-- "." means transparent.
-- Build a readable tiny icon silhouette in 7x7 that clearly resembles the requested object category.
-- palette provides HEX colors for A-L.
-- Symbol intent:
-  - A = primary body color
-  - B = secondary body/trim
-  - C = accent/magic glow
-  - D = handle/core
-  - E = highlight
-  - F = outline/shadow
-  - G/H = optional special detail
-  - I/J = tiny detail and shadow
-  - K/L = magical rune or reflective sparkle
-- Use at least 12 non-transparent pixels and avoid random noise.
-- Prefer asymmetry when object shape calls for directionality (blade tip, barrel, wand head).
-- Use warm, cute, storybook fantasy colors (avoid harsh cyber neon).
-- Also output projectile_rows (7x7) and projectile_palette (A-L) for the projectile's own sprite.
-- projectile_rows should represent the flying shot itself (orb, shard, rune, bubble, etc.), not the held weapon.
+IMAGE PROMPT REQUIREMENTS:
+- weapon_image_prompt: a short English phrase (max 30 words) describing the held weapon as a tiny game icon.
+  Focus on shape, material, and color. Example: "golden wand with pink crystal tip" or "rustic kettle with bubbles".
+- projectile_image_prompt: a short English phrase (max 30 words) describing the projectile as a tiny game icon.
+  Focus on shape and glow. Example: "glowing pink star orb" or "translucent blue bubble".
+- These prompts feed an AI image generator, so be vivid and concise.
+
+EFFECT CODE REQUIREMENTS (strict):
+- effect_code: a JavaScript function BODY (no function keyword) that draws a custom visual overlay.
+- It receives these variables: ctx (CanvasRenderingContext2D), x, y (position), r (radius), t (time in seconds), vx, vy (velocity), color (hex string).
+- Use ONLY: ctx methods (fillRect, arc, beginPath, fill, stroke, save, restore, globalAlpha, fillStyle, strokeStyle, lineWidth, closePath, moveTo, lineTo, translate, rotate, scale), Math functions, and the provided variables.
+- Keep it under 800 characters. No loops over 20 iterations. No recursion.
+- The code renders OVER the projectile image as a glow/aura/particle overlay.
+- Example: "ctx.save();ctx.globalAlpha=0.4;ctx.beginPath();ctx.arc(x,y,r*2,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.restore();"
+- Make the effect match the weapon concept (fire aura for fire weapons, sparkles for magical, ripples for water, etc.).
 
 SFX/VFX MAPPING HINTS:
 - trail_style one of: sparkle, petals, bubbles, smoke, leaf, rainbow, ember
@@ -542,6 +449,15 @@ VOICE:
 
     const parsed = JSON.parse(raw);
     const mod = clampWeapon(parsed, request);
+
+    const POLLINATIONS_KEY = process.env.POLLINATIONSAI_API_KEY || null;
+    const [weaponImg, projImg] = await Promise.all([
+      mod.weapon_image_prompt ? fetchPollinationsImage(mod.weapon_image_prompt, POLLINATIONS_KEY) : null,
+      mod.projectile_image_prompt ? fetchPollinationsImage(mod.projectile_image_prompt, POLLINATIONS_KEY) : null,
+    ]);
+    mod.weapon_image_url = weaponImg;
+    mod.projectile_image_url = projImg;
+
     return { statusCode: 200, headers: headers(), body: JSON.stringify({ mod }) };
   } catch (err) {
     const details = Array.isArray(err?.details) ? err.details : [];

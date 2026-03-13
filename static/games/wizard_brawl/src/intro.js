@@ -1,11 +1,11 @@
-/* intro.js — Animated intro sequence for Wizard Duel
+/* intro.js — Animated intro sequence for Wizard Brawl
  *
  * Loaded BEFORE main.js. Only defines functions/data — never executes at
  * parse time. All references to globals (ctx, W, H, gameState) resolve at
  * call time once main.js has run.
  */
 
-const INTRO_KEY = 'wizard_duel_intro_seen';
+const INTRO_KEY = 'wizard_brawl_intro_seen';
 
 // ── Self-contained particle system ──────────────────────────────────────
 

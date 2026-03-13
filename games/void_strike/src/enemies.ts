@@ -7,7 +7,6 @@ import {
   StandardMaterial,
   Color3,
   Ray,
-  PBRMaterial,
 } from '@babylonjs/core';
 import type { Enemy, EnemyType, PlayerState } from './types';
 
@@ -74,15 +73,23 @@ export const ENEMY_TYPES: EnemyType[] = [
   },
 ];
 
-function makeEnemyMaterial(scene: Scene, color: [number, number, number], emissive = false): PBRMaterial {
-  const mat = new PBRMaterial('enemyMat_' + Math.random(), scene);
-  mat.albedoColor = new Color3(color[0] * 0.3, color[1] * 0.3, color[2] * 0.3);
-  mat.roughness = 0.4;
-  mat.metallic = 0.6;
-  if (emissive) {
-    mat.emissiveColor = new Color3(color[0], color[1], color[2]);
-    mat.emissiveIntensity = 2;
+const _matCache = new Map<string, StandardMaterial>();
+
+function getEnemyMat(scene: Scene, color: [number, number, number], highlight: boolean): StandardMaterial {
+  const key = `${color.join(',')}_${highlight}`;
+  let mat = _matCache.get(key);
+  if (mat) return mat;
+
+  mat = new StandardMaterial('eMat_' + key, scene);
+  if (highlight) {
+    mat.diffuseColor = new Color3(color[0], color[1], color[2]);
+    mat.emissiveColor = new Color3(color[0] * 0.3, color[1] * 0.3, color[2] * 0.3);
+  } else {
+    mat.diffuseColor = new Color3(color[0] * 0.5, color[1] * 0.5, color[2] * 0.5);
   }
+  mat.specularColor = Color3.Black();
+  mat.freeze();
+  _matCache.set(key, mat);
   return mat;
 }
 
@@ -93,33 +100,29 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   const bodyParts: Mesh[] = [];
   const s = type.scale;
 
-  const bodyMat = makeEnemyMaterial(scene, type.color);
-  const glowMat = makeEnemyMaterial(scene, type.color, true);
+  const bodyMat = getEnemyMat(scene, type.color, false);
+  const headMat = getEnemyMat(scene, type.color, true);
 
-  // Torso
   const torso = MeshBuilder.CreateBox('torso', { width: 0.8 * s, height: 1.2 * s, depth: 0.5 * s }, scene);
   torso.position.y = 1.1 * s;
   torso.parent = root;
   torso.material = bodyMat;
   bodyParts.push(torso);
 
-  // Head (distinct hitbox for headshots)
-  const head = MeshBuilder.CreateSphere('head', { diameter: 0.45 * s, segments: 8 }, scene);
+  const head = MeshBuilder.CreateSphere('head', { diameter: 0.45 * s, segments: 6 }, scene);
   head.position.y = 2 * s;
   head.parent = root;
-  head.material = glowMat;
+  head.material = headMat;
   head.metadata = { isHead: true };
   bodyParts.push(head);
 
-  // Visor
   const visor = MeshBuilder.CreateBox('visor', { width: 0.35 * s, height: 0.1 * s, depth: 0.3 * s }, scene);
   visor.position.y = 2 * s;
   visor.position.z = 0.15 * s;
   visor.parent = root;
-  visor.material = glowMat;
+  visor.material = headMat;
   bodyParts.push(visor);
 
-  // Legs
   for (const side of [-1, 1]) {
     const leg = MeshBuilder.CreateBox('leg', { width: 0.25 * s, height: 0.9 * s, depth: 0.3 * s }, scene);
     leg.position = new Vector3(side * 0.25 * s, 0.45 * s, 0);
@@ -128,7 +131,6 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
     bodyParts.push(leg);
   }
 
-  // Arms
   for (const side of [-1, 1]) {
     const arm = MeshBuilder.CreateBox('arm', { width: 0.2 * s, height: 0.8 * s, depth: 0.25 * s }, scene);
     arm.position = new Vector3(side * 0.55 * s, 1.1 * s, 0);
@@ -137,12 +139,11 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
     bodyParts.push(arm);
   }
 
-  // Shoulder pads
   for (const side of [-1, 1]) {
     const shoulder = MeshBuilder.CreateBox('shoulder', { width: 0.35 * s, height: 0.15 * s, depth: 0.4 * s }, scene);
     shoulder.position = new Vector3(side * 0.55 * s, 1.7 * s, 0);
     shoulder.parent = root;
-    shoulder.material = glowMat;
+    shoulder.material = headMat;
     bodyParts.push(shoulder);
   }
 
@@ -168,6 +169,8 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   };
 }
 
+let _hitFlashMat: StandardMaterial | null = null;
+
 export function updateEnemy(
   enemy: Enemy,
   playerPos: Vector3,
@@ -188,18 +191,20 @@ export function updateEnemy(
 
   enemy.hitFlashTimer = Math.max(0, enemy.hitFlashTimer - dt);
 
-  // Update flash effect
   if (enemy.hitFlashTimer > 0) {
-    enemy.bodyParts.forEach(part => {
-      if (part.material instanceof PBRMaterial) {
-        part.material.emissiveIntensity = 5;
-      }
-    });
+    if (!_hitFlashMat) {
+      _hitFlashMat = new StandardMaterial('hitFlash', scene);
+      _hitFlashMat.emissiveColor = new Color3(1, 1, 1);
+      _hitFlashMat.diffuseColor = new Color3(1, 1, 1);
+      _hitFlashMat.specularColor = Color3.Black();
+      _hitFlashMat.freeze();
+    }
+    enemy.bodyParts.forEach(part => { part.material = _hitFlashMat; });
   } else {
+    const bodyMat = getEnemyMat(scene, enemy.type.color, false);
+    const headMat = getEnemyMat(scene, enemy.type.color, true);
     enemy.bodyParts.forEach(part => {
-      if (part.material instanceof PBRMaterial && !part.metadata?.isHead) {
-        part.material.emissiveIntensity = part.material.emissiveColor.r > 0 ? 2 : 0;
-      }
+      part.material = (part.metadata?.isHead || part.name === 'visor' || part.name === 'shoulder') ? headMat : bodyMat;
     });
   }
 
@@ -207,11 +212,10 @@ export function updateEnemy(
   const distToPlayer = toPlayer.length();
   const dirToPlayer = toPlayer.normalize();
 
-  // Throttled line-of-sight check (every 0.2s instead of every frame)
   enemy._losTimer -= dt;
   let canSeePlayer = enemy._cachedLos;
   if (enemy._losTimer <= 0) {
-    enemy._losTimer = 0.2;
+    enemy._losTimer = 0.25;
     const ray = new Ray(
       enemy.position.add(new Vector3(0, 1.5, 0)),
       dirToPlayer,
@@ -231,7 +235,6 @@ export function updateEnemy(
     enemy.alertLevel = Math.max(0, enemy.alertLevel - dt * 0.5);
   }
 
-  // Face player
   const targetAngle = Math.atan2(dirToPlayer.x, dirToPlayer.z);
   const currentAngle = enemy.mesh.rotation.y;
   let angleDiff = targetAngle - currentAngle;
@@ -239,7 +242,6 @@ export function updateEnemy(
   while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
   enemy.mesh.rotation.y += angleDiff * Math.min(1, dt * 8);
 
-  // Movement behavior
   const moveSpeed = enemy.type.speed * (0.5 + enemy.alertLevel * 0.5);
 
   switch (enemy.type.behavior) {
@@ -309,7 +311,6 @@ export function updateEnemy(
     }
   }
 
-  // Apply velocity with boundary clamping
   enemy.position.x += enemy.velocity.x * dt;
   enemy.position.z += enemy.velocity.z * dt;
   enemy.position.x = Math.max(-75, Math.min(75, enemy.position.x));
@@ -318,7 +319,6 @@ export function updateEnemy(
 
   enemy.mesh.position.copyFrom(enemy.position);
 
-  // Leg animation
   const walkSpeed = new Vector3(enemy.velocity.x, 0, enemy.velocity.z).length();
   if (walkSpeed > 0.5) {
     const time = performance.now() * 0.006;
@@ -329,7 +329,6 @@ export function updateEnemy(
     });
   }
 
-  // Shooting
   if (canSeePlayer && enemy.alertLevel > 0.3 && playerState.alive) {
     enemy.fireTimer -= dt;
     if (enemy.fireTimer <= 0) {
@@ -365,7 +364,6 @@ export function damageEnemy(enemy: Enemy, damage: number, headshot: boolean): { 
 
 export function cleanupEnemy(enemy: Enemy) {
   enemy.bodyParts.forEach((part) => {
-    if (part.material) part.material.dispose();
     part.dispose();
   });
   enemy.mesh.dispose();

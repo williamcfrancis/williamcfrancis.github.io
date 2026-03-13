@@ -1,3 +1,13 @@
+# Redirect old game URL to canonical name (Wizard Brawl moved from junkcode_brawlers to wizard_brawl)
+[[redirects]]
+  from = "/games/junkcode_brawlers"
+  to = "/games/wizard_brawl/"
+  status = 301
+[[redirects]]
+  from = "/games/junkcode_brawlers/*"
+  to = "/games/wizard_brawl/:splat"
+  status = 301
+
 [build]
 command = "npm install && npm run build:games && hugo --gc --minify"
 publish = "public"
