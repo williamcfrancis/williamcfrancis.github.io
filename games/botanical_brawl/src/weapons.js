@@ -597,6 +597,27 @@ function getCachedGeo(shape, s) {
   return geo;
 }
 
+const _matCache = new Map();
+
+function getCachedBasicMat(color) {
+  let mat = _matCache.get(color);
+  if (mat) return mat;
+  mat = new THREE.MeshBasicMaterial({ color });
+  _matCache.set(color, mat);
+  return mat;
+}
+
+const _transparentMatCache = new Map();
+
+function getCachedTransparentMat(color, opacity) {
+  const key = color + '_' + opacity;
+  let mat = _transparentMatCache.get(key);
+  if (mat) return mat;
+  mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity });
+  _transparentMatCache.set(key, mat);
+  return mat;
+}
+
 const _rocketGeoCache = new Map();
 const _rocketFinMat = new THREE.MeshBasicMaterial({ color: 0x666666, side: THREE.DoubleSide });
 const _rocketBodyMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
@@ -620,7 +641,7 @@ function makeRocketMesh(s, color) {
   const geos = _getRocketGeos(s);
   const group = new THREE.Group();
   group.add(new THREE.Mesh(geos.body, _rocketBodyMat));
-  const head = new THREE.Mesh(geos.head, new THREE.MeshBasicMaterial({ color }));
+  const head = new THREE.Mesh(geos.head, getCachedBasicMat(color));
   head.position.y = 0.245 * s;
   group.add(head);
   for (let i = 0; i < 4; i++) {
@@ -652,7 +673,7 @@ function makeShotgunPellet(s, color) {
   }
   const group = new THREE.Group();
   group.add(new THREE.Mesh(geos.pellet, _pelletBodyMat));
-  const flash = new THREE.Mesh(geos.flash, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 }));
+  const flash = new THREE.Mesh(geos.flash, getCachedTransparentMat(color, 0.6));
   flash.position.z = -0.04 * s;
   group.add(flash);
   return group;
@@ -737,7 +758,7 @@ export function fireProjectile(scene, state) {
     mesh.scale.set(s * 1.2, s * 1.2, 1);
   } else {
     const geo = getCachedGeo(weapon.projShape || 'sphere', s);
-    const mat = new THREE.MeshBasicMaterial({ color: projColor });
+    const mat = getCachedBasicMat(projColor);
     mesh = new THREE.Mesh(geo, mat);
   }
 
@@ -1100,6 +1121,7 @@ function applyProcessedSpriteFromImage(img, weapon) {
   ctx2.shadowBlur = 0;
   ctx2.drawImage(cvs, 2, 2);
 
+  if (weapon.spriteTex) weapon.spriteTex.dispose();
   const tex = new THREE.CanvasTexture(cvs2);
   tex.needsUpdate = true;
   weapon.spriteTex = tex;
@@ -1184,6 +1206,7 @@ function applyLocalFallbackSprite(prompt, weapon) {
   ctx.arc(26, 26, 5, 0, Math.PI * 2);
   ctx.fill();
 
+  if (weapon.spriteTex) weapon.spriteTex.dispose();
   const tex = new THREE.CanvasTexture(cvs);
   tex.needsUpdate = true;
   weapon.spriteTex = tex;

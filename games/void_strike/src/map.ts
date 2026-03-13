@@ -74,36 +74,42 @@ export function buildMap(scene: Scene): MapData {
   dirLight.intensity = 0.4;
   dirLight.diffuse = new Color3(0.3, 0.4, 0.6);
 
-  const shadowGen = new ShadowGenerator(1024, dirLight);
+  const shadowGen = new ShadowGenerator(512, dirLight);
   shadowGen.useBlurExponentialShadowMap = true;
-  shadowGen.blurKernel = 16;
+  shadowGen.blurKernel = 8;
 
   // Floor
   const floorMat = makePBR(scene, 'floorMat', new Color3(0.06, 0.07, 0.1), 0.85, 0.2);
-  const floor = MeshBuilder.CreateGround('floor', { width: ARENA_SIZE * 2, height: ARENA_SIZE * 2, subdivisions: 4 }, scene);
+  floorMat.freeze();
+  const floor = MeshBuilder.CreateGround('floor', { width: ARENA_SIZE * 2, height: ARENA_SIZE * 2, subdivisions: 2 }, scene);
   floor.material = floorMat;
   floor.checkCollisions = true;
   floor.receiveShadows = true;
+  floor.isPickable = false;
   allMeshes.push(floor);
 
-  // Grid pattern on floor
-  const gridMat = makePBR(scene, 'gridMat', new Color3(0.04, 0.05, 0.08), 0.9, 0.15);
-  for (let x = -ARENA_SIZE; x < ARENA_SIZE; x += 10) {
+  // Grid pattern on floor (reduced density for performance)
+  const gridEmissiveMat = makeEmissiveMat(scene, 'gridEmit', new Color3(0, 0.15, 0.12), 0.5);
+  gridEmissiveMat.freeze();
+  for (let x = -ARENA_SIZE; x < ARENA_SIZE; x += 20) {
     const lineX = MeshBuilder.CreateBox('gridX', { width: 0.05, height: 0.01, depth: ARENA_SIZE * 2 }, scene);
     lineX.position = new Vector3(x, 0.005, 0);
-    lineX.material = makeEmissiveMat(scene, 'gridEmit' + x, new Color3(0, 0.15, 0.12), 0.5);
+    lineX.material = gridEmissiveMat;
     lineX.checkCollisions = false;
+    lineX.isPickable = false;
     allMeshes.push(lineX);
 
     const lineZ = MeshBuilder.CreateBox('gridZ', { width: ARENA_SIZE * 2, height: 0.01, depth: 0.05 }, scene);
     lineZ.position = new Vector3(0, 0.005, x);
-    lineZ.material = lineX.material;
+    lineZ.material = gridEmissiveMat;
     lineZ.checkCollisions = false;
+    lineZ.isPickable = false;
     allMeshes.push(lineZ);
   }
 
   // Outer walls
   const wallMat = makePBR(scene, 'wallMat', new Color3(0.08, 0.1, 0.14), 0.7, 0.3);
+  wallMat.freeze();
   const wallPositions: [number, number, number, number, number][] = [
     [0, WALL_HEIGHT / 2, -ARENA_SIZE, ARENA_SIZE * 2, WALL_HEIGHT],
     [0, WALL_HEIGHT / 2, ARENA_SIZE, ARENA_SIZE * 2, WALL_HEIGHT],
@@ -138,6 +144,7 @@ export function buildMap(scene: Scene): MapData {
 
   // Central structure - raised platform
   const centerMat = makePBR(scene, 'centerMat', new Color3(0.1, 0.12, 0.16), 0.6, 0.4);
+  centerMat.freeze();
   const centerPlatform = MeshBuilder.CreateBox('centerPlat', { width: 16, height: 2, depth: 16 }, scene);
   centerPlatform.position = new Vector3(0, 1, 0);
   centerPlatform.material = centerMat;
@@ -148,6 +155,7 @@ export function buildMap(scene: Scene): MapData {
 
   // Center pillar
   const pillarMat = makePBR(scene, 'pillarMat', new Color3(0.12, 0.14, 0.18), 0.5, 0.5);
+  pillarMat.freeze();
   const centerPillar = MeshBuilder.CreateCylinder('centerPillar', { height: 18, diameter: 4, tessellation: 8 }, scene);
   centerPillar.position = new Vector3(0, 9, 0);
   centerPillar.material = pillarMat;
@@ -157,15 +165,19 @@ export function buildMap(scene: Scene): MapData {
 
   // Neon rings on center pillar
   for (let h = 3; h <= 15; h += 4) {
-    const ring = MeshBuilder.CreateTorus('ring' + h, { diameter: 5, thickness: 0.15, tessellation: 24 }, scene);
+    const ring = MeshBuilder.CreateTorus('ring' + h, { diameter: 5, thickness: 0.15, tessellation: 12 }, scene);
     ring.position = new Vector3(0, h, 0);
-    ring.material = makeEmissiveMat(scene, 'ringMat' + h, new Color3(0, 1, 0.8), 3);
+    const ringMat = makeEmissiveMat(scene, 'ringMat' + h, new Color3(0, 1, 0.8), 3);
+    ringMat.freeze();
+    ring.material = ringMat;
     ring.checkCollisions = false;
+    ring.isPickable = false;
     allMeshes.push(ring);
   }
 
   // Ramps to center platform
   const rampMat = makePBR(scene, 'rampMat', new Color3(0.09, 0.11, 0.15), 0.7, 0.3);
+  rampMat.freeze();
   const rampAngles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
   rampAngles.forEach((angle, i) => {
     const ramp = MeshBuilder.CreateBox(`ramp${i}`, { width: 4, height: 0.3, depth: 10 }, scene);
@@ -182,6 +194,7 @@ export function buildMap(scene: Scene): MapData {
 
   // Cover structures around the arena
   const coverMat = makePBR(scene, 'coverMat', new Color3(0.1, 0.1, 0.14), 0.75, 0.25);
+  coverMat.freeze();
   const coverPositions: [number, number, number, number, number][] = [
     [-30, 2, -30, 6, 4],
     [30, 2, -30, 6, 4],
@@ -224,6 +237,7 @@ export function buildMap(scene: Scene): MapData {
 
   // Elevated sniper perches in corners
   const perchMat = makePBR(scene, 'perchMat', new Color3(0.08, 0.1, 0.16), 0.6, 0.4);
+  perchMat.freeze();
   const corners: [number, number][] = [[-60, -60], [60, -60], [-60, 60], [60, 60]];
   corners.forEach(([cx, cz], i) => {
     // Pillar support
@@ -274,37 +288,38 @@ export function buildMap(scene: Scene): MapData {
     allMeshes.push(pillar);
 
     // Glowing ring
-    const pRing = MeshBuilder.CreateTorus(`pring${i}`, { diameter: 3, thickness: 0.1, tessellation: 16 }, scene);
+    const pRing = MeshBuilder.CreateTorus(`pring${i}`, { diameter: 3, thickness: 0.1, tessellation: 8 }, scene);
     pRing.position = new Vector3(px, 6 + (i % 3) * 2, pz);
-    pRing.material = makeEmissiveMat(scene, `pringMat${i}`, neonColors[i % 4], 2);
+    const pRingMat = makeEmissiveMat(scene, `pringMat${i}`, neonColors[i % 4], 2);
+    pRingMat.freeze();
+    pRing.material = pRingMat;
     pRing.checkCollisions = false;
+    pRing.isPickable = false;
     allMeshes.push(pRing);
   });
 
-  // Point lights with neon colors for atmosphere
+  // Point lights with neon colors for atmosphere (reduced count for performance)
   const lightPositions: [number, number, number, Color3][] = [
     [-35, 6, -35, new Color3(0, 1, 0.8)],
     [35, 6, -35, new Color3(0, 0.5, 1)],
     [-35, 6, 35, new Color3(1, 0.2, 0.5)],
     [35, 6, 35, new Color3(0.5, 0, 1)],
     [0, 10, 0, new Color3(0, 1, 0.8)],
-    [-55, 4, 0, new Color3(0, 0.8, 1)],
-    [55, 4, 0, new Color3(1, 0, 0.6)],
-    [0, 4, -55, new Color3(0.2, 0.4, 1)],
-    [0, 4, 55, new Color3(0, 1, 0.4)],
   ];
 
   lightPositions.forEach(([lx, ly, lz, color], i) => {
     const light = new PointLight(`ptLight${i}`, new Vector3(lx, ly, lz), scene);
     light.diffuse = color;
-    light.intensity = 15;
-    light.range = 30;
+    light.intensity = 18;
+    light.range = 35;
 
-    // Light orb mesh
-    const orb = MeshBuilder.CreateSphere(`lightOrb${i}`, { diameter: 0.5, segments: 8 }, scene);
+    const orb = MeshBuilder.CreateSphere(`lightOrb${i}`, { diameter: 0.5, segments: 6 }, scene);
     orb.position = new Vector3(lx, ly, lz);
-    orb.material = makeEmissiveMat(scene, `orbMat${i}`, color, 5);
+    const orbMat = makeEmissiveMat(scene, `orbMat${i}`, color, 5);
+    orbMat.freeze();
+    orb.material = orbMat;
     orb.checkCollisions = false;
+    orb.isPickable = false;
     allMeshes.push(orb);
   });
 
@@ -331,43 +346,45 @@ export function buildMap(scene: Scene): MapData {
   // Animated decorative elements
   const animatedMeshes: MapData['animatedMeshes'] = [];
 
-  // Floating hexagonal rings in the sky (animated rotation)
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    const radius = 45 + Math.random() * 20;
-    const hex = MeshBuilder.CreateTorus(`skyHex${i}`, { diameter: 4 + Math.random() * 3, thickness: 0.1, tessellation: 6 }, scene);
-    const yPos = 15 + Math.random() * 8;
-    hex.position = new Vector3(
-      Math.cos(angle) * radius,
-      yPos,
-      Math.sin(angle) * radius,
-    );
-    hex.rotation.x = Math.random() * Math.PI;
-    hex.rotation.y = Math.random() * Math.PI;
-    hex.material = makeEmissiveMat(scene, `skyHexMat${i}`, neonColors[i % 4], 1.5);
+  // Floating hexagonal rings in the sky (reduced count for performance)
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2;
+    const r = 50 + i * 5;
+    const hex = MeshBuilder.CreateTorus(`skyHex${i}`, { diameter: 4 + i, thickness: 0.1, tessellation: 6 }, scene);
+    const yPos = 16 + i * 3;
+    hex.position = new Vector3(Math.cos(angle) * r, yPos, Math.sin(angle) * r);
+    hex.rotation.x = i * 0.8;
+    hex.rotation.y = i * 1.2;
+    const hexMat = makeEmissiveMat(scene, `skyHexMat${i}`, neonColors[i % 4], 1.5);
+    hexMat.freeze();
+    hex.material = hexMat;
     hex.checkCollisions = false;
+    hex.isPickable = false;
     allMeshes.push(hex);
     animatedMeshes.push({
       mesh: hex,
-      rotSpeed: new Vector3(0.2 + Math.random() * 0.3, 0.5 + Math.random() * 0.5, 0.1 + Math.random() * 0.2),
-      bobSpeed: 0.5 + Math.random() * 0.5,
-      bobAmount: 0.5 + Math.random() * 0.5,
+      rotSpeed: new Vector3(0.3, 0.6, 0.15),
+      bobSpeed: 0.5,
+      bobAmount: 0.5,
       baseY: yPos,
     });
   }
 
-  // Rotating energy rings above cover positions
-  const ringPositions: [number, number][] = [[-30, -30], [30, 30], [-50, 0], [50, 0], [0, -50], [0, 50]];
+  // Rotating energy rings above cover positions (reduced for performance)
+  const ringPositions: [number, number][] = [[-30, -30], [30, 30], [-50, 0], [50, 0]];
   ringPositions.forEach(([rx, rz], i) => {
-    const ring = MeshBuilder.CreateTorus(`floatRing${i}`, { diameter: 3, thickness: 0.08, tessellation: 24 }, scene);
-    const ry = 5 + Math.random() * 3;
+    const ring = MeshBuilder.CreateTorus(`floatRing${i}`, { diameter: 3, thickness: 0.08, tessellation: 10 }, scene);
+    const ry = 5 + i;
     ring.position = new Vector3(rx, ry, rz);
-    ring.material = makeEmissiveMat(scene, `floatRingMat${i}`, neonColors[i % 4], 2.5);
+    const fRingMat = makeEmissiveMat(scene, `floatRingMat${i}`, neonColors[i % 4], 2.5);
+    fRingMat.freeze();
+    ring.material = fRingMat;
     ring.checkCollisions = false;
+    ring.isPickable = false;
     allMeshes.push(ring);
     animatedMeshes.push({
       mesh: ring,
-      rotSpeed: new Vector3(0, 1 + Math.random(), 0.5),
+      rotSpeed: new Vector3(0, 1.2, 0.5),
       bobSpeed: 0.8,
       bobAmount: 0.3,
       baseY: ry,
@@ -376,11 +393,14 @@ export function buildMap(scene: Scene): MapData {
 
   // Central holographic pillar ring constellation
   for (let i = 0; i < 3; i++) {
-    const holoRing = MeshBuilder.CreateTorus(`holoRing${i}`, { diameter: 6 + i * 2, thickness: 0.05, tessellation: 32 }, scene);
+    const holoRing = MeshBuilder.CreateTorus(`holoRing${i}`, { diameter: 6 + i * 2, thickness: 0.05, tessellation: 12 }, scene);
     const hry = 12 + i * 3;
     holoRing.position = new Vector3(0, hry, 0);
-    holoRing.material = makeEmissiveMat(scene, `holoRingMat${i}`, new Color3(0, 1, 0.8), 3);
+    const holoMat = makeEmissiveMat(scene, `holoRingMat${i}`, new Color3(0, 1, 0.8), 3);
+    holoMat.freeze();
+    holoRing.material = holoMat;
     holoRing.checkCollisions = false;
+    holoRing.isPickable = false;
     allMeshes.push(holoRing);
     animatedMeshes.push({
       mesh: holoRing,
@@ -389,6 +409,14 @@ export function buildMap(scene: Scene): MapData {
       bobAmount: 0.2,
       baseY: hry,
     });
+  }
+
+  // Freeze world matrices on all non-animated static meshes
+  const animatedSet = new Set(animatedMeshes.map(a => a.mesh));
+  for (const mesh of allMeshes) {
+    if (!animatedSet.has(mesh)) {
+      mesh.freezeWorldMatrix();
+    }
   }
 
   return {

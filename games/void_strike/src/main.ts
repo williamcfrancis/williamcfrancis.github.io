@@ -99,6 +99,7 @@ let keysHeld = new Set<string>();
 let keysJustPressed = new Set<string>();
 let scrollDelta = 0;
 let weaponModel: TransformNode | null = null;
+let frameCount = 0;
 
 // Ability states
 let dashCooldown = 0;
@@ -113,11 +114,18 @@ let lastStreakAnnounce = 0;
 // ── Initialization ──
 async function init(): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
-  engine = new Engine(canvas, true, { stencil: true, antialias: true });
-  engine.setHardwareScalingLevel(1);
+  engine = new Engine(canvas, true, { stencil: true, antialias: false });
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  engine.setHardwareScalingLevel(1 / dpr);
 
   scene = new Scene(engine);
   scene.collisionsEnabled = true;
+  scene.autoClear = false;
+  scene.autoClearDepthAndStencil = true;
+  scene.blockMaterialDirtyMechanism = true;
+  scene.skipPointerMovePicking = true;
+  scene.skipPointerDownPicking = true;
+  scene.skipPointerUpPicking = true;
 
   // Camera
   camera = new FreeCamera('fpsCam', new Vector3(0, PLAYER_HEIGHT, -30), scene);
@@ -176,6 +184,7 @@ async function init(): Promise<void> {
       updateGame(dt);
     }
 
+    frameCount++;
     scene.render();
 
     keysJustPressed.clear();
@@ -474,10 +483,14 @@ function updateGame(dt: number): void {
   updateWaveSystem(dt);
   updateEffects(dt);
   updateWeaponModel(dt);
-  updateMinimap();
+
+  // Throttle expensive HUD updates to every 3rd frame
+  if (frameCount % 3 === 0) {
+    updateMinimap();
+    updateAbilityHUD();
+  }
 
   updateHUD(player, weapons[currentWeaponIdx], gameState, displayFps, weapons);
-  updateAbilityHUD();
 }
 
 function updatePlayerMovement(dt: number): void {
@@ -818,6 +831,7 @@ function createRocketTrailTexture(): string {
 }
 
 let rocketTrailTextureUrl: string | null = null;
+let rocketTrailTexture: Texture | null = null;
 
 function fireProjectile(weapon: WeaponState, muzzlePos: Vector3): void {
   const spread = weapon.def.spread;
@@ -838,14 +852,15 @@ function fireProjectile(weapon: WeaponState, muzzlePos: Vector3): void {
 
   // Rocket trail particle system
   if (!rocketTrailTextureUrl) rocketTrailTextureUrl = createRocketTrailTexture();
-  const trail = new ParticleSystem('rocketTrail', 60, scene);
-  trail.particleTexture = new Texture(rocketTrailTextureUrl, scene);
+  if (!rocketTrailTexture) rocketTrailTexture = new Texture(rocketTrailTextureUrl, scene);
+  const trail = new ParticleSystem('rocketTrail', 30, scene);
+  trail.particleTexture = rocketTrailTexture;
   trail.emitter = rocket;
-  trail.minLifeTime = 0.15;
-  trail.maxLifeTime = 0.4;
-  trail.minSize = 0.15;
-  trail.maxSize = 0.4;
-  trail.emitRate = 80;
+  trail.minLifeTime = 0.1;
+  trail.maxLifeTime = 0.3;
+  trail.minSize = 0.1;
+  trail.maxSize = 0.3;
+  trail.emitRate = 50;
   trail.color1 = new Color4(1, 0.6, 0.1, 0.8);
   trail.color2 = new Color4(1, 0.3, 0, 0.6);
   trail.colorDead = new Color4(0.3, 0.1, 0, 0);
@@ -1081,7 +1096,12 @@ function updatePickups(dt: number): void {
 }
 
 function updateWaveSystem(dt: number): void {
-  if (gameState.enemiesRemaining <= 0 && enemies.filter(e => e.alive).length === 0) {
+  let aliveCount = 0;
+  for (let i = 0; i < enemies.length; i++) {
+    if (enemies[i].alive) aliveCount++;
+  }
+
+  if (gameState.enemiesRemaining <= 0 && aliveCount === 0) {
     gameState.waveTimer -= dt;
 
     if (gameState.waveTimer <= 0) {
@@ -1091,7 +1111,7 @@ function updateWaveSystem(dt: number): void {
   }
 
   // Spawn queued enemies
-  if (gameState.enemiesRemaining > 0 && enemies.filter(e => e.alive).length < 12) {
+  if (gameState.enemiesRemaining > 0 && aliveCount < 12) {
     gameState.spawnTimer -= dt;
     if (gameState.spawnTimer <= 0) {
       gameState.spawnTimer = 1.5 - Math.min(1, gameState.wave * 0.05);
@@ -1258,8 +1278,9 @@ function updateGrenades(dt: number): void {
     // Flashing effect as timer runs out
     if (g.timer < 0.5) {
       const flash = Math.sin(g.timer * 30) > 0;
-      (g.mesh.material as StandardMaterial).emissiveColor = flash
-        ? new Color3(1, 0, 0) : new Color3(1, 0.3, 0);
+      const c = (g.mesh.material as StandardMaterial).emissiveColor;
+      if (flash) { c.r = 1; c.g = 0; c.b = 0; }
+      else { c.r = 1; c.g = 0.3; c.b = 0; }
     }
 
     // Explode

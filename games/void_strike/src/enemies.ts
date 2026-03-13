@@ -163,6 +163,8 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
     lastSeenPlayerPos: null,
     hitFlashTimer: 0,
     deathTimer: 0,
+    _losTimer: 0,
+    _cachedLos: false,
   };
 }
 
@@ -205,17 +207,22 @@ export function updateEnemy(
   const distToPlayer = toPlayer.length();
   const dirToPlayer = toPlayer.normalize();
 
-  // Line of sight check
-  const ray = new Ray(
-    enemy.position.add(new Vector3(0, 1.5, 0)),
-    dirToPlayer,
-    distToPlayer,
-  );
-  const pick = scene.pickWithRay(ray, (mesh) => {
-    return mesh.checkCollisions && !enemy.bodyParts.includes(mesh as Mesh);
-  });
-
-  const canSeePlayer = !pick?.hit || pick.distance >= distToPlayer - 1;
+  // Throttled line-of-sight check (every 0.2s instead of every frame)
+  enemy._losTimer -= dt;
+  let canSeePlayer = enemy._cachedLos;
+  if (enemy._losTimer <= 0) {
+    enemy._losTimer = 0.2;
+    const ray = new Ray(
+      enemy.position.add(new Vector3(0, 1.5, 0)),
+      dirToPlayer,
+      distToPlayer,
+    );
+    const pick = scene.pickWithRay(ray, (mesh) => {
+      return mesh.checkCollisions && !enemy.bodyParts.includes(mesh as Mesh);
+    });
+    canSeePlayer = !pick?.hit || pick.distance >= distToPlayer - 1;
+    enemy._cachedLos = canSeePlayer;
+  }
 
   if (canSeePlayer) {
     enemy.alertLevel = Math.min(1, enemy.alertLevel + dt * 2);

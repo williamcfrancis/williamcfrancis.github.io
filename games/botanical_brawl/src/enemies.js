@@ -72,6 +72,7 @@ function buildEnemyMesh(def) {
   const geos = _getEnemyGeos(def);
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshLambertMaterial({ color: def.color });
+  bodyMat._isOwned = true;
   const body = new THREE.Mesh(geos.body, bodyMat);
   body.scale.y = 0.78;
   g.add(body);
@@ -111,10 +112,12 @@ function buildEnemyMesh(def) {
   } else if (def.name === 'sentinel') {
     g.remove(body);
     const coreMat = new THREE.MeshLambertMaterial({ color: 0x4A90D9, emissive: 0x1A3060, emissiveIntensity: 0.4 });
+    coreMat._isOwned = true;
     const core = new THREE.Mesh(geos.core, coreMat);
     core.rotation.y = Math.PI / 4;
     g.add(core);
     const shellMat = new THREE.MeshLambertMaterial({ color: 0x80B8E8, transparent: true, opacity: 0.45 });
+    shellMat._isOwned = true;
     const shell = new THREE.Mesh(geos.shell, shellMat);
     g.add(shell);
     for (let i = 0; i < 3; i++) {
@@ -170,18 +173,27 @@ export function spawnEnemy(scene, state, spawnEdge) {
 
 // ── Boss ──
 
+const _bossGeos = {
+  body: new THREE.SphereGeometry(2.0, 12, 10),
+  spike: new THREE.ConeGeometry(0.18, 0.6, 4),
+  shadow: new THREE.CircleGeometry(2.0, 8),
+};
+const _bossMats = {
+  body: new THREE.MeshLambertMaterial({ color: 0xFF8A65 }),
+  crown: new THREE.MeshLambertMaterial({ color: 0xFFD54F }),
+};
+
 export function spawnBoss(scene, state, spawnEdge) {
   const radius = 2.0;
   const waveScale = 1 + (state.wave - 1) * 0.1;
   const g = new THREE.Group();
 
-  const bodyGeo = new THREE.SphereGeometry(radius, 12, 10);
-  const bodyMat = new THREE.MeshLambertMaterial({ color: 0xFF8A65 });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  const bossBodyMat = _bossMats.body.clone();
+  bossBodyMat._isOwned = true;
+  const body = new THREE.Mesh(_bossGeos.body, bossBodyMat);
   body.scale.y = 0.78;
   g.add(body);
 
-  // Eyes
   const er = radius * 0.2;
   [-1, 1].forEach((s) => {
     const eye = new THREE.Mesh(_sharedEyeGeo, _sharedEyeMat);
@@ -190,17 +202,14 @@ export function spawnBoss(scene, state, spawnEdge) {
     g.add(eye);
   });
 
-  // Crown spikes
-  const crownMat = new THREE.MeshLambertMaterial({ color: 0xFFD54F });
   for (let i = 0; i < 5; i++) {
-    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.6, 4), crownMat);
+    const spike = new THREE.Mesh(_bossGeos.spike, _bossMats.crown);
     const a = (i / 5) * Math.PI - Math.PI / 2;
     spike.position.set(Math.sin(a) * radius * 0.5, radius * 0.75, Math.cos(a) * radius * 0.3);
     g.add(spike);
   }
 
-  // Shadow
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(radius, 8), _sharedShadowMat);
+  const shadow = new THREE.Mesh(_bossGeos.shadow, _sharedShadowMat);
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = -radius * 0.75;
   g.add(shadow);
@@ -629,11 +638,20 @@ export function damageEnemy(enemy, damage, state, scene, camera, isBounced = fal
   return false;
 }
 
+function disposeGroup(group) {
+  group.traverse((child) => {
+    if (child.isMesh && child.material && child.material._isOwned) {
+      child.material.dispose();
+    }
+  });
+}
+
 export function killEnemy(enemy, state, scene) {
   deathSound();
   spawnDeathEffect(scene, enemy.mesh.position, enemy.originalColor, enemy.isBoss);
   spawnDebris(scene, enemy.mesh.position, enemy.originalColor, enemy.radius, enemy.isBoss);
   removeEnemyHpBar(scene, enemy);
+  disposeGroup(enemy.mesh);
   scene.remove(enemy.mesh);
 
   const idx = state.enemies.indexOf(enemy);
@@ -686,6 +704,7 @@ export function killEnemy(enemy, state, scene) {
 export function clearEnemies(state, scene) {
   for (const e of state.enemies) {
     removeEnemyHpBar(scene, e);
+    disposeGroup(e.mesh);
     scene.remove(e.mesh);
   }
   state.enemies.length = 0;

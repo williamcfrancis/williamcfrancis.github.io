@@ -227,12 +227,14 @@ function buildWorld() {
   top.position.y = -0.6;
   scene.add(top);
 
-  const clearing = new THREE.Mesh(new THREE.CircleGeometry(2.5, 16), new THREE.MeshLambertMaterial({ color: 0x9B8B6B }));
+  const clearingMat = new THREE.MeshLambertMaterial({ color: 0x9B8B6B, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  const clearing = new THREE.Mesh(new THREE.CircleGeometry(2.5, 16), clearingMat);
   clearing.rotation.x = -Math.PI / 2;
-  clearing.position.y = 0.02;
+  clearing.position.y = 0.05;
+  clearing.renderOrder = 1;
   scene.add(clearing);
 
-  // Color rings for visual depth
+  // Color rings for visual depth (polygonOffset prevents z-fighting with island top)
   const ringDefs = [
     { inner: ISLAND_RADIUS - 2, outer: ISLAND_RADIUS, color: 0x55A630 },
     { inner: ISLAND_RADIUS - 5, outer: ISLAND_RADIUS - 2, color: 0x62B83C },
@@ -241,12 +243,20 @@ function buildWorld() {
     { inner: 2.5, outer: 6, color: 0x7EC850 },
   ];
   ringDefs.forEach((rd, i) => {
+    const ringMat = new THREE.MeshLambertMaterial({
+      color: rd.color,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -3 + i * -0.5,
+      polygonOffsetUnits: -3 + i * -0.5,
+    });
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(rd.inner, rd.outer, 32),
-      new THREE.MeshLambertMaterial({ color: rd.color, side: THREE.DoubleSide }),
+      ringMat,
     );
     ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.012 + i * 0.001;
+    ring.position.y = 0.03 + i * 0.005;
+    ring.renderOrder = 1;
     scene.add(ring);
   });
 
@@ -255,24 +265,39 @@ function buildWorld() {
   for (let i = 0; i < 15; i++) {
     const a = Math.random() * Math.PI * 2;
     const r = 3 + Math.random() * (ISLAND_RADIUS - 5);
+    const patchMat = new THREE.MeshLambertMaterial({
+      color: patchColors[i % patchColors.length],
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -5,
+      polygonOffsetUnits: -5,
+    });
     const patch = new THREE.Mesh(
       new THREE.CircleGeometry(0.6 + Math.random() * 1.2, 7),
-      new THREE.MeshLambertMaterial({ color: patchColors[i % patchColors.length] }),
+      patchMat,
     );
     patch.rotation.x = -Math.PI / 2;
-    patch.position.set(Math.cos(a) * r, 0.013, Math.sin(a) * r);
+    patch.position.set(Math.cos(a) * r, 0.06, Math.sin(a) * r);
+    patch.renderOrder = 2;
     scene.add(patch);
   }
 
   // Dirt path (winding from center outward)
-  const pathMat = new THREE.MeshLambertMaterial({ color: 0xA89070 });
+  const pathMat = new THREE.MeshLambertMaterial({
+    color: 0xA89070,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -6,
+    polygonOffsetUnits: -6,
+  });
   for (let i = 0; i < 8; i++) {
     const t = i / 8;
     const pathAngle = t * Math.PI * 0.8 + 0.5;
     const pathR = 3 + t * 10;
     const pathPiece = new THREE.Mesh(new THREE.CircleGeometry(0.4 + t * 0.3, 6), pathMat);
     pathPiece.rotation.x = -Math.PI / 2;
-    pathPiece.position.set(Math.cos(pathAngle) * pathR, 0.014, Math.sin(pathAngle) * pathR);
+    pathPiece.position.set(Math.cos(pathAngle) * pathR, 0.065, Math.sin(pathAngle) * pathR);
+    pathPiece.renderOrder = 2;
     scene.add(pathPiece);
   }
 
@@ -517,21 +542,23 @@ function addHole(x, z, radius) {
 
   const pit = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 16),
-    new THREE.MeshBasicMaterial({ color: 0x1a1208 }),
+    new THREE.MeshBasicMaterial({ color: 0x1a1208, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }),
   );
   pit.rotation.x = -Math.PI / 2;
-  pit.position.y = 0.01;
+  pit.position.y = 0.06;
+  pit.renderOrder = 3;
   group.add(pit);
 
   const rim = new THREE.Mesh(
     new THREE.RingGeometry(radius - 0.05, radius + 0.2, 16),
-    new THREE.MeshLambertMaterial({ color: 0x5D4020, side: THREE.DoubleSide }),
+    new THREE.MeshLambertMaterial({ color: 0x5D4020, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -7, polygonOffsetUnits: -7 }),
   );
   rim.rotation.x = -Math.PI / 2;
-  rim.position.y = 0.02;
+  rim.position.y = 0.07;
+  rim.renderOrder = 3;
   group.add(rim);
 
-  const crackMat = new THREE.MeshBasicMaterial({ color: 0x2a1e0a });
+  const crackMat = new THREE.MeshBasicMaterial({ color: 0x2a1e0a, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 });
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2 + Math.random();
     const crack = new THREE.Mesh(
@@ -542,9 +569,10 @@ function addHole(x, z, radius) {
     crack.rotation.z = a;
     crack.position.set(
       Math.cos(a) * (radius + 0.15),
-      0.015,
+      0.065,
       Math.sin(a) * (radius + 0.15),
     );
+    crack.renderOrder = 3;
     group.add(crack);
   }
 

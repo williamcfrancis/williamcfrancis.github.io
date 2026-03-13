@@ -64,6 +64,8 @@ export interface Enemy {
   lastSeenPlayerPos: Vector3 | null;
   hitFlashTimer: number;
   deathTimer: number;
+  _losTimer: number;
+  _cachedLos: boolean;
 }
 
 export interface Pickup {

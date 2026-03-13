@@ -235,12 +235,14 @@ export function updatePollen(dt60 = 1) {
 // ── Enemy HP Bars ──
 
 const hpBarGeo = new THREE.PlaneGeometry(1, 0.08);
+const _hpBarBgMat = new THREE.MeshBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.5 });
+const _hpBarGreenMat = new THREE.MeshBasicMaterial({ color: 0x4CAF50 });
+const _hpBarOrangeMat = new THREE.MeshBasicMaterial({ color: 0xFFA726 });
+const _hpBarRedMat = new THREE.MeshBasicMaterial({ color: 0xE53935 });
 
 export function createEnemyHpBar(scene, enemy) {
-  const bgMat = new THREE.MeshBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.5 });
-  const bg = new THREE.Mesh(hpBarGeo, bgMat);
-  const fillMat = new THREE.MeshBasicMaterial({ color: 0x4CAF50 });
-  const fill = new THREE.Mesh(hpBarGeo, fillMat);
+  const bg = new THREE.Mesh(hpBarGeo, _hpBarBgMat);
+  const fill = new THREE.Mesh(hpBarGeo, _hpBarGreenMat);
   fill.position.z = 0.001;
 
   const group = new THREE.Group();
@@ -263,9 +265,9 @@ export function updateEnemyHpBars(enemies, camera) {
     bar.fill.scale.x = pct;
     bar.fill.position.x = (pct - 1) * 0.5;
 
-    if (pct > 0.5) bar.fill.material.color.setHex(0x4CAF50);
-    else if (pct > 0.25) bar.fill.material.color.setHex(0xFFA726);
-    else bar.fill.material.color.setHex(0xE53935);
+    if (pct > 0.5) bar.fill.material = _hpBarGreenMat;
+    else if (pct > 0.25) bar.fill.material = _hpBarOrangeMat;
+    else bar.fill.material = _hpBarRedMat;
 
     const barWidth = e.radius * 2;
     bar.group.scale.set(barWidth, barWidth, 1);
@@ -281,8 +283,6 @@ export function updateEnemyHpBars(enemies, camera) {
 export function removeEnemyHpBar(scene, enemy) {
   if (!enemy._hpBar) return;
   scene.remove(enemy._hpBar.group);
-  enemy._hpBar.bg.material.dispose();
-  enemy._hpBar.fill.material.dispose();
   enemy._hpBar = null;
 }
 
