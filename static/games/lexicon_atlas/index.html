@@ -342,11 +342,11 @@ nav{display:flex;gap:6px;align-items:center}
     <h1>Lexicon Atlas</h1>
     <p class="welcome-subtitle">
       From <em>brinjal</em> in India to <em>robot</em> meaning traffic light in South Africa &mdash;
-      English speaks differently everywhere. Spin the globe and discover 120+ words unique to their homeland.
+      English speaks differently everywhere. Spin the globe and discover 200+ words unique to their homeland.
     </p>
     <div class="welcome-stats">
-      <div class="welcome-stat"><span class="num">12</span><span class="label">Regions</span></div>
-      <div class="welcome-stat"><span class="num">120+</span><span class="label">Words</span></div>
+      <div class="welcome-stat"><span class="num">24</span><span class="label">Regions</span></div>
+      <div class="welcome-stat"><span class="num">200+</span><span class="label">Words</span></div>
       <div class="welcome-stat"><span class="num">&infin;</span><span class="label">Stories</span></div>
     </div>
     <button id="start-btn" onclick="startExploring()">Start Exploring</button>
@@ -356,6 +356,7 @@ nav{display:flex;gap:6px;align-items:center}
 <div class="toast" id="toast"></div>
 
 <script src="//unpkg.com/globe.gl@2.45.1"></script>
+<script src="//unpkg.com/topojson-client@3"></script>
 <script>
 const REGIONS={
 india:{
@@ -801,37 +802,429 @@ nigeria:{
      etymology:"From Yoruba 'j\u00e1p\u00e1' (to run away/escape). Recently added to the OED (2024). Reflects Nigeria's ongoing brain-drain phenomenon.",
      example:"Half of my university classmates have japaed to Canada or the UK."}
   ]
+},
+ghana:{
+  name:"Ghana",flag:"\u{1F1EC}\u{1F1ED}",dialect:"Ghanaian English",
+  lat:7.95,lng:-1.02,
+  description:"Ghanaian English blends British colonial English with Akan, Ewe, Ga, and other local languages, creating a vibrant variety where 'obroni' and 'chale' pepper everyday conversation.",
+  words:[
+    {word:"Obroni",meaning:"A foreigner, especially a white person",pos:"noun",
+     etymology:"From Akan/Twi 'oburoni' (person from beyond the horizon). Originally referred to Europeans who arrived by sea. Now applied broadly to any foreigner. Added to the OED.",
+     example:"The obroni at the market was trying to bargain for the fabric."},
+    {word:"Chale",meaning:"Friend, buddy; also an informal greeting",pos:"noun/interjection",
+     etymology:"From Ga language, the indigenous language of Accra. Originally a term of address among Ga speakers, now used across all Ghanaian ethnic groups in English conversation.",
+     example:"Chale, where are you going this evening?"},
+    {word:"Tro-tro",meaning:"A shared minibus used as public transport",pos:"noun",
+     etymology:"Possibly from Ga 'tro' (threepence), referring to the original fare. These converted vans follow fixed routes and are the most common mode of transport in Accra.",
+     example:"I took a tro-tro from Accra to Kumasi \u2014 it was packed."},
+    {word:"Chop Bar",meaning:"A small, inexpensive local restaurant serving traditional food",pos:"noun",
+     etymology:"From West African Pidgin English 'chop' (to eat) + 'bar' (establishment). Distinct from formal restaurants; chop bars serve local dishes like fufu, banku, and jollof.",
+     example:"Let's eat at the chop bar \u2014 her groundnut soup is the best in town."},
+    {word:"Abrokyire",meaning:"Abroad; overseas; foreign lands",pos:"noun",
+     etymology:"From Akan/Twi, literally meaning 'beyond the boundary.' Used in Ghanaian English to refer to anywhere outside Ghana, especially Western countries.",
+     example:"Half my classmates have traveled to abrokyire for further studies."},
+    {word:"Enstool",meaning:"To install a traditional chief on a stool (throne)",pos:"verb",
+     etymology:"From the Akan tradition where chiefs sit on sacred stools rather than thrones. 'En-' + 'stool' mirrors the English 'enthrone.' The reverse, 'destool,' means to depose a chief.",
+     example:"The new chief was enstooled in an elaborate ceremony last weekend."},
+    {word:"Waakye",meaning:"A popular street food of rice and beans cooked with millet leaves",pos:"noun",
+     etymology:"From Hausa 'wake' (beans). The dish gets its distinctive red-brown color from dried millet leaf stalks. Sold at dedicated waakye stalls across Ghana.",
+     example:"I had waakye with shito and fried plantain for breakfast."},
+    {word:"Shito",meaning:"A spicy black pepper sauce made with dried fish and shrimp",pos:"noun",
+     etymology:"From Ga language, meaning 'pepper.' This fiery condiment is a staple accompaniment to Ghanaian dishes. Every family has their own recipe.",
+     example:"You can't eat waakye without shito \u2014 it's not complete."}
+  ]
+},
+kenya:{
+  name:"Kenya",flag:"\u{1F1F0}\u{1F1EA}",dialect:"Kenyan English / Sheng",
+  lat:-0.02,lng:37.91,
+  description:"Kenyan English is shaped by Swahili, Kikuyu, Luo, and other Bantu languages. Urban youth speak Sheng, a dynamic hybrid of Swahili and English that reinvents itself constantly.",
+  words:[
+    {word:"Matatu",meaning:"A privately owned minibus used for public transport",pos:"noun",
+     etymology:"From Kikuyu 'matatatu' (thirty cents), the original fare. Matatus are famous for their colorful custom paint jobs, loud music, and reckless speed. Added to the OED.",
+     example:"The matatu was blasting Gengetone music so loud you couldn't hear yourself think."},
+    {word:"Jua Kali",meaning:"The informal sector; also anything handmade or improvised",pos:"noun/adjective",
+     etymology:"From Swahili: 'jua' (sun) + 'kali' (fierce/hot). Named because informal artisans work under the hot sun in open-air workshops. Now describes any informal-sector ingenuity.",
+     example:"He got his car fixed at a jua kali mechanic for a fraction of the garage price."},
+    {word:"Piki Piki",meaning:"A motorcycle, especially a motorcycle taxi",pos:"noun",
+     etymology:"From Swahili onomatopoeia imitating the sound of a motorcycle engine. Piki-pikis are the primary transport in rural Kenya and smaller towns.",
+     example:"Take a piki piki from the bus stop to the village \u2014 it's faster than walking."},
+    {word:"Chapati",meaning:"A flatbread (adopted distinctly into Kenyan English as a staple food term)",pos:"noun",
+     etymology:"From Hindi/Urdu '\u091a\u092a\u093e\u0924\u0940' (chapati). Brought to East Africa by Indian railway workers in the 1890s. Kenyan chapati is thicker and oilier than its South Asian cousin.",
+     example:"Chapati and beans is the ultimate Kenyan comfort meal."},
+    {word:"Sema",meaning:"Hello; what's up; speak/say",pos:"interjection/verb",
+     etymology:"From Swahili 'sema' (to say/speak). In Sheng, it functions as a casual greeting equivalent to 'what's up?' Used across all social classes in urban Kenya.",
+     example:"Sema, bro! Long time \u2014 where have you been?"},
+    {word:"Nyama Choma",meaning:"Roasted/grilled meat, typically goat",pos:"noun",
+     etymology:"From Swahili: 'nyama' (meat) + 'choma' (to grill/burn). Nyama choma is Kenya's de facto national dish, traditionally eaten communally with ugali and kachumbari salad.",
+     example:"We spent the whole Sunday afternoon at the nyama choma joint in Westlands."},
+    {word:"Shamba",meaning:"A small farm, garden, or agricultural plot",pos:"noun",
+     etymology:"From Swahili 'shamba' (cultivated plot), possibly from Persian 'shamb\u0101lah.' In Kenyan English it refers to any rural agricultural land, from a small kitchen garden to a family farm.",
+     example:"My grandmother has a shamba in Kiambu where she grows tea and maize."},
+    {word:"Harambee",meaning:"A community fundraising event; collective effort",pos:"noun",
+     etymology:"From Swahili 'harambee' (let us pull together). Adopted as Kenya's national motto after independence in 1963 by Jomo Kenyatta. Now refers to communal fundraisers for school fees, medical bills, etc.",
+     example:"The village organized a harambee to raise school fees for the orphans."}
+  ]
+},
+tanzania:{
+  name:"Tanzania",flag:"\u{1F1F9}\u{1F1FF}",dialect:"Tanzanian English",
+  lat:-6.37,lng:34.89,
+  description:"Tanzanian English is heavily influenced by Swahili, the country's primary lingua franca, producing a distinctive variety where Swahili words seamlessly enter English conversation.",
+  words:[
+    {word:"Dala Dala",meaning:"A crowded minibus used as public transport",pos:"noun",
+     etymology:"Possibly from 'dollar dollar,' referring to the fare, or from a corruption of 'dala' (a five-shilling coin). Dala dalas are the backbone of urban transport in Dar es Salaam.",
+     example:"The dala dala was so packed I had to hang onto the door frame."},
+    {word:"Bongo",meaning:"Dar es Salaam; Tanzania; also meaning brains/cleverness",pos:"noun",
+     etymology:"From Swahili 'ubongo' (brain). 'Bongo' as a name for Dar es Salaam implies you need brains to survive in the city. 'Bongo Flava' is Tanzania's music genre.",
+     example:"Life in Bongo is tough, but the people are resilient and creative."},
+    {word:"Ugali",meaning:"A stiff porridge made from maize flour, the staple food",pos:"noun",
+     etymology:"From Swahili 'ugali.' The word may derive from a Bantu root meaning 'to be thick.' Ugali is East Africa's most fundamental food, equivalent to rice in Asia.",
+     example:"No Tanzanian meal is complete without ugali \u2014 it goes with everything."},
+    {word:"Pole Pole",meaning:"Slowly, gently, take it easy",pos:"adverb/interjection",
+     etymology:"From Swahili 'pole pole' (slowly/softly). Reflects the Tanzanian philosophy of unhurried living. It's the most famous phrase climbers hear ascending Kilimanjaro.",
+     example:"The guide kept saying 'pole pole' as we climbed Kilimanjaro."},
+    {word:"Safari",meaning:"A journey or trip, especially a wildlife expedition",pos:"noun",
+     etymology:"From Swahili 'safari' (journey), from Arabic 'safar' (travel). While globally it now means a wildlife tour, in Tanzania/East Africa it simply means any trip or journey.",
+     example:"We're going on safari to the Serengeti next month."},
+    {word:"Askari",meaning:"A guard, watchman, or soldier",pos:"noun",
+     etymology:"From Swahili 'askari' (soldier/guard), from Arabic '\u0639\u0633\u0643\u0631\u064a' (askari, military). In Tanzanian English, it specifically means a security guard at a building or compound.",
+     example:"The askari at the gate wouldn't let us in without identification."},
+    {word:"Mambo",meaning:"Hello; what's up; things/matters",pos:"interjection/noun",
+     etymology:"From Swahili 'mambo' (things/matters). As a greeting, 'Mambo?' means 'How are things?' The standard reply is 'Poa' (cool/fine).",
+     example:"Mambo! How was your weekend in Zanzibar?"},
+    {word:"Boda Boda",meaning:"A bicycle or motorcycle taxi",pos:"noun",
+     etymology:"From English 'border border,' coined at the Kenya-Uganda border where bicycle taxis would carry passengers between border posts. The name spread to Tanzania and across East Africa.",
+     example:"I took a boda boda through the narrow streets to get to the ferry."}
+  ]
+},
+malaysia:{
+  name:"Malaysia",flag:"\u{1F1F2}\u{1F1FE}",dialect:"Malaysian English / Manglish",
+  lat:4.21,lng:101.98,
+  description:"Manglish is a creative creole blending English with Malay, Hokkien, Cantonese, Tamil, and Mandarin \u2014 a linguistic mirror of Malaysia's multiethnic society.",
+  words:[
+    {word:"Tapau",meaning:"To take away food; a takeout order",pos:"verb/noun",
+     etymology:"From Cantonese '\u6253\u5305' (d\u00e1 b\u0101au, to pack). Originally a Chinese term, it became universal Malaysian English for any food takeaway. Used in Singapore too.",
+     example:"Let's tapau some nasi lemak for dinner \u2014 I don't feel like cooking."},
+    {word:"Mamak",meaning:"A South Indian Muslim-run food stall; the culture of eating there",pos:"noun",
+     etymology:"From Tamil '\u0bae\u0bbe\u0bae\u0bbe' (m\u0101m\u0101, uncle). Mamak stalls are open-air restaurants run by Tamil-Muslim Malaysians, serving roti canai, teh tarik, and more. They're open 24 hours.",
+     example:"Let's go mamak for some roti canai and teh tarik."},
+    {word:"Jom",meaning:"Let's go; come on",pos:"interjection",
+     etymology:"From Malay 'jom' (let's). One of the most frequently used Manglish words, serving as a universal call to action.",
+     example:"Jom, we're going to be late for the movie!"},
+    {word:"Gostan",meaning:"To reverse (a vehicle)",pos:"verb",
+     etymology:"Corruption of nautical English 'go astern' (to reverse a ship). Adopted into Malay during the colonial era and now used in Malaysian English for reversing any vehicle.",
+     example:"Gostan a bit more \u2014 you're too far from the parking spot."},
+    {word:"Potong Stim",meaning:"To kill the mood; to burst someone's bubble",pos:"verb phrase",
+     etymology:"From Malay 'potong' (to cut) + English 'steam.' Literally 'cutting the steam' \u2014 deflating someone's excitement or enthusiasm.",
+     example:"I was so excited about the trip, but the rain totally potong stim."},
+    {word:"Yum Cha",meaning:"To have tea; to hang out at a cafe or restaurant",pos:"verb/noun",
+     etymology:"From Cantonese '\u98f2\u8336' (y\u00e1m ch\u00e0h, drink tea). In Malaysia it's evolved beyond its literal meaning to describe any casual social outing involving food and drinks.",
+     example:"Want to go yum cha after work? I know a great new cafe."},
+    {word:"Teh Tarik",meaning:"A frothy pulled tea made with condensed milk",pos:"noun",
+     etymology:"From Malay: 'teh' (tea, from Hokkien) + 'tarik' (pulled). The tea is poured between two vessels from a height, creating a thick froth. Malaysia's de facto national drink.",
+     example:"Two teh tariks please \u2014 extra hot, less sweet."},
+    {word:"Kiasu",meaning:"Afraid of losing out; competitively anxious",pos:"adjective",
+     etymology:"From Hokkien 'kia' (fear) + 'su' (to lose). Shared with Singlish but carries its own Manglish flavor. Reflects the competitive culture in Malaysian society.",
+     example:"She booked three different restaurants for the same night just in case \u2014 so kiasu!"}
+  ]
+},
+hong_kong:{
+  name:"Hong Kong",flag:"\u{1F1ED}\u{1F1F0}",dialect:"Hong Kong English",
+  lat:22.40,lng:114.11,
+  description:"Hong Kong English is a unique blend of British colonial English and Cantonese, producing distinctive calques and loanwords that reflect the city's East-meets-West identity.",
+  words:[
+    {word:"Add Oil",meaning:"An expression of encouragement; keep it up; you can do it",pos:"interjection",
+     etymology:"Calque of Cantonese '\u52a0\u6cb9' (g\u0101 y\u00e0uh, add oil/fuel). Believed to have originated as a cheer at the Macau Grand Prix in the 1960s. Added to the OED in 2018.",
+     example:"You have your exam tomorrow? Add oil! You'll do great."},
+    {word:"Dai Pai Dong",meaning:"An open-air street food stall",pos:"noun",
+     etymology:"From Cantonese '\u5927\u724c\u6a94' (d\u00e0aih p\u00e0aih d\u00f2ng): 'big license stall.' Originally distinguished from smaller unlicensed stalls. Added to the OED.",
+     example:"The dai pai dong near Temple Street has the best wonton noodles."},
+    {word:"Char Siu",meaning:"Cantonese-style barbecued pork with a sweet glaze",pos:"noun",
+     etymology:"From Cantonese '\u53c9\u71d2' (ch\u0101 s\u012bu): 'fork roast,' referring to the traditional method of roasting on long forks over a fire. Added to the OED.",
+     example:"I'll have the char siu rice with extra sauce, please."},
+    {word:"Sandwich Class",meaning:"Lower middle-class people who earn too much for public housing but too little for private",pos:"noun",
+     etymology:"Hong Kong English coinage from the 1990s, describing residents 'sandwiched' between the subsidized and affluent housing markets. Reflects Hong Kong's housing crisis.",
+     example:"The sandwich class are the ones who suffer most in Hong Kong's property market."},
+    {word:"Milk Tea",meaning:"A strong, smooth tea brewed with evaporated milk through a cloth filter",pos:"noun",
+     etymology:"Hong Kong English calque. The distinctive 'silk stocking' milk tea is brewed through a long cloth bag filter that darkens to resemble a silk stocking. Added to the OED.",
+     example:"Hong Kong-style milk tea is completely different from British tea with milk."},
+    {word:"Wet Market",meaning:"A fresh food market selling meat, fish, and produce",pos:"noun",
+     etymology:"From the wet floors caused by washing fresh produce and melting ice for seafood. Though used across Southeast Asia, the term originated in Hong Kong English. Added to the OED.",
+     example:"I prefer buying vegetables at the wet market \u2014 they're always fresher."},
+    {word:"Shroff",meaning:"A cashier or payment office; to pay a parking ticket",pos:"noun/verb",
+     etymology:"From Hindi/Urdu 'sarr\u0101f' (money-changer), via Indian English. In Hong Kong, it specifically means a parking payment office or the act of paying for parking.",
+     example:"Don't forget to shroff your parking ticket before leaving the mall."},
+    {word:"Kaifong",meaning:"A neighborhood; neighbors; local community",pos:"noun",
+     etymology:"From Cantonese '\u8857\u574a' (g\u0101ai f\u014dng, street neighborhood). Refers both to the geographic area and the sense of close-knit community within it.",
+     example:"The kaifong association organized a mid-autumn festival celebration."}
+  ]
+},
+pakistan:{
+  name:"Pakistan",flag:"\u{1F1F5}\u{1F1F0}",dialect:"Pakistani English",
+  lat:30.38,lng:69.35,
+  description:"Pakistani English, sometimes called 'Pinglish,' blends British English with Urdu, Punjabi, Pashto, and Sindhi, preserving archaic British forms alongside vibrant local coinages.",
+  words:[
+    {word:"Cousin-brother",meaning:"A male first cousin (emphasizing the closeness of the relationship)",pos:"noun",
+     etymology:"Pakistani/South Asian English compound calquing the Urdu concept where cousins are classified by gender and paternal/maternal line. Reflects joint-family structures where cousins are like siblings.",
+     example:"He's not my real brother \u2014 he's my cousin-brother from my father's side."},
+    {word:"Do the Needful",meaning:"To do what is necessary; to take the required action",pos:"verb phrase",
+     etymology:"From 19th-century formal British English, preserved in South Asian English long after falling out of use in Britain. Standard in Pakistani and Indian business correspondence.",
+     example:"Please find the attached documents and do the needful at your earliest convenience."},
+    {word:"Pindi Boy",meaning:"A flashy, street-smart young man from Rawalpindi",pos:"noun",
+     etymology:"From 'Pindi' (short for Rawalpindi) + 'boy.' Rawalpindi's youth have a reputation for bold fashion and brash confidence. The term carries both admiration and gentle mockery.",
+     example:"Look at that pindi boy with his sunglasses and loud music on the bike."},
+    {word:"Load-shedding",meaning:"Scheduled power outages to manage electricity shortages",pos:"noun",
+     etymology:"English compound given a specialized meaning in Pakistan (and South Asia). While the term exists elsewhere, it's a household word in Pakistan where rolling blackouts are routine.",
+     example:"There's load-shedding for six hours today \u2014 make sure the UPS is charged."},
+    {word:"Challan",meaning:"A traffic fine or official receipt/invoice",pos:"noun",
+     etymology:"From Hindi/Urdu '\u091a\u093e\u0932\u093e\u0928' (ch\u0101l\u0101n), originally meaning a document or invoice. In Pakistani English it specifically means a traffic violation ticket.",
+     example:"The traffic warden gave me a challan for running the red light."},
+    {word:"Dupatta",meaning:"A long scarf or shawl draped over the shoulders or head",pos:"noun",
+     etymology:"From Urdu/Hindi '\u0926\u0941\u092a\u091f\u094d\u091f\u093e' (dupatt\u0101), from Sanskrit 'dvipaṭṭa' (two-width cloth). An essential part of Pakistani women's attire, often paired with shalwar kameez.",
+     example:"She draped her dupatta elegantly over one shoulder for the formal dinner."},
+    {word:"Rickshaw",meaning:"A three-wheeled motorized vehicle used as a taxi",pos:"noun",
+     etymology:"From Japanese '\u4eba\u529b\u8eca' (jinrikisha, human-powered carriage). In Pakistan, it specifically means a noisy, colorful auto-rickshaw. Pakistani rickshaws are decorated with 'jingle truck' art.",
+     example:"The rickshaw weaved through traffic honking its shrill horn the entire way."},
+    {word:"Biryani",meaning:"A richly spiced rice dish layered with meat",pos:"noun",
+     etymology:"From Urdu/Persian 'biriy\u0101n\u012b,' from 'biriy\u0101n' (fried/roasted). While known worldwide, in Pakistani English 'biryani' carries deep cultural weight \u2014 it's the centerpiece of celebrations.",
+     example:"No Pakistani wedding is complete without serving biryani to every guest."}
+  ]
+},
+trinidad:{
+  name:"Trinidad & Tobago",flag:"\u{1F1F9}\u{1F1F9}",dialect:"Trinidadian English",
+  lat:10.69,lng:-61.22,
+  description:"Trinidadian English is a vibrant creole melting pot of African, French, Spanish, Hindi, and British influences, producing words like 'lime' and 'bacchanal' that capture the island's spirit.",
+  words:[
+    {word:"Lime",meaning:"To hang out; to socialize casually with friends",pos:"verb/noun",
+     etymology:"Unique Trinidadian usage; origin debated. Possibly from British sailors 'liming' (loitering while sucking limes to prevent scurvy). In Trinidad, 'liming' is an essential cultural activity.",
+     example:"We're liming by the beach tonight \u2014 bring some drinks and come through."},
+    {word:"Bacchanal",meaning:"Scandal, chaos, confusion, or dramatic gossip",pos:"noun",
+     etymology:"From Latin 'Bacchanalia' (festival of Bacchus). In Trinidadian English, the word shifted from 'wild party' to mean any dramatic situation, scandal, or quarrel.",
+     example:"You missed the bacchanal at the office \u2014 two managers had a massive argument."},
+    {word:"Mamaguy",meaning:"To mock someone subtly; to make a fool of someone with false flattery",pos:"verb",
+     etymology:"From Spanish 'mamar gallo' (to suck a rooster), meaning to joke or tease. Evolved in Trinidadian English to mean deceiving someone with charm while laughing behind their back.",
+     example:"Don't mamaguy me \u2014 I know you're not really agreeing with me."},
+    {word:"Tabanca",meaning:"The heartache and depression after being dumped or rejected",pos:"noun",
+     etymology:"From West African languages, possibly Yoruba. Describes specifically the lovesick melancholy of unrequited love or a breakup. There's no single English word that captures this feeling.",
+     example:"He has serious tabanca ever since she left \u2014 he can't stop playing sad songs."},
+    {word:"Dougla",meaning:"A person of mixed African and East Indian heritage",pos:"noun",
+     etymology:"From Bhojpuri/Hindi 'dogla' (mixed/bastard). In Trinidad, the derogatory origin has been largely reclaimed as a neutral or positive identity term for the island's mixed-heritage population.",
+     example:"Trinidad's dougla population reflects the island's rich cultural blending."},
+    {word:"Fete",meaning:"A large party, especially with music, dancing, and drinks",pos:"noun",
+     etymology:"From French 'f\u00eate' (celebration). In Trinidadian English, fetes are specifically large-scale parties with soca music, often during Carnival season. Pronounced 'fet.'",
+     example:"Carnival season means a different fete every night for weeks."},
+    {word:"Steups",meaning:"A sound of contempt made by sucking teeth",pos:"noun/verb",
+     etymology:"Onomatopoeia for the distinctive teeth-sucking sound expressing annoyance, contempt, or disapproval. Common across the Caribbean but central to Trinidadian expression.",
+     example:"She gave a long steups when she heard the ridiculous excuse."},
+    {word:"Wining",meaning:"A rotating hip dance movement central to Caribbean culture",pos:"noun/verb",
+     etymology:"From English 'winding' (rotating). Describes the circular hip movement in soca and calypso dancing. 'Wining' is both an art form and a cultural institution in Trinidad.",
+     example:"The music started and everyone was wining on the road during Carnival."}
+  ]
+},
+barbados:{
+  name:"Barbados",flag:"\u{1F1E7}\u{1F1E7}",dialect:"Bajan English",
+  lat:13.19,lng:-59.54,
+  description:"Bajan English is one of the Caribbean's most distinctive dialects, shaped by West African languages, British colonists, and the island's unique history as the oldest British Caribbean colony.",
+  words:[
+    {word:"Cou-cou",meaning:"A traditional dish of cornmeal and okra, Barbados's national dish",pos:"noun",
+     etymology:"Possibly from West African languages; related to 'couscous.' Cou-cou and flying fish is Barbados's national dish. Added to the OED in 2025.",
+     example:"Friday is cou-cou and flying fish day at every Bajan household."},
+    {word:"Wuk-up",meaning:"A vigorous, gyrating dance involving hip and waist movements",pos:"verb/noun",
+     etymology:"From English 'work up' with Bajan pronunciation. Describes the energetic dancing at crop-over festival and parties. Related to Trinidad's 'wining.'",
+     example:"The whole crowd started to wuk-up when the soca beat dropped."},
+    {word:"Lick-mouth",meaning:"A gossip; someone who can't keep a secret",pos:"noun",
+     etymology:"Bajan English compound: 'lick' (to taste) + 'mouth.' Implies someone who savors other people's business on their lips. A vivid Caribbean metaphor.",
+     example:"Don't tell her anything \u2014 she's the biggest lick-mouth in the village."},
+    {word:"Crop Over",meaning:"Barbados's annual carnival and harvest festival",pos:"noun",
+     etymology:"From the sugar plantation tradition marking the end of the sugarcane harvest ('crop is over'). Revived in 1974 as a national festival; now Barbados's biggest cultural event.",
+     example:"Crop Over is the highlight of the Bajan calendar \u2014 the whole island comes alive."},
+    {word:"Bajie",meaning:"A Barbadian person",pos:"noun",
+     etymology:"Diminutive form of 'Bajan' (Barbadian). A term of endearment and identity among Barbadians. Reflects the island's tradition of nicknaming.",
+     example:"You can always tell a Bajie abroad \u2014 they never stop talking about home."},
+    {word:"Cunumunu",meaning:"A foolish, gullible, or silly person",pos:"noun",
+     etymology:"Possibly from West African languages. A Bajan term for someone easily tricked or who acts foolishly. Less harsh than 'idiot' \u2014 more affectionate.",
+     example:"Don't be such a cunumunu \u2014 he's clearly pulling your leg."},
+    {word:"Cheese-on-bread",meaning:"An exclamation of surprise or frustration",pos:"interjection",
+     etymology:"A Bajan euphemistic exclamation, used as a milder alternative to profanity. Functions like 'oh my goodness' or 'good grief.'",
+     example:"Cheese-on-bread! You mean the flight is delayed again?"},
+    {word:"Grog",meaning:"Any alcoholic drink, especially cheap rum",pos:"noun",
+     etymology:"From British naval slang 'grog' (watered-down rum), named after Admiral Vernon's 'grogram' cloak. In Barbados, it refers to any rum or alcohol, especially Mount Gay rum.",
+     example:"The old men sat under the tree sharing stories and sipping grog."}
+  ]
+},
+bermuda:{
+  name:"Bermuda",flag:"\u{1F1E7}\u{1F1F2}",dialect:"Bermudian English",
+  lat:32.32,lng:-64.76,
+  description:"Bermudian English is a fascinating Atlantic crossroads dialect blending British, Caribbean, Azorean Portuguese, and American influences into something distinctly its own.",
+  words:[
+    {word:"Ace Boy",meaning:"A best friend; a close male companion",pos:"noun",
+     etymology:"Bermudian English compound: 'ace' (top/best) + 'boy.' Added to the OED. The female equivalent is 'ace girl.' Reflects Bermuda's tight-knit community bonds.",
+     example:"That's my ace boy \u2014 we've been friends since primary school."},
+    {word:"Chingas",meaning:"An exclamation of surprise or amazement",pos:"interjection",
+     etymology:"Bermudian English; possibly influenced by Azorean Portuguese exclamations. Used the way Americans might say 'wow' or 'oh snap.'",
+     example:"Chingas! Did you see the size of that fish he caught?"},
+    {word:"Greeze",meaning:"Food; to eat",pos:"noun/verb",
+     etymology:"Bermudian English, likely from 'grease' (rich, satisfying food). Added to the OED. 'Getting some greeze' means eating a meal.",
+     example:"I'm starving \u2014 let's go get some greeze at the fish fry."},
+    {word:"Mug",meaning:"Unpleasant, unappealing, or ugly",pos:"adjective",
+     etymology:"Bermudian English usage; different from the British 'mug' (face/fool). Added to the OED. Describes anything from bad weather to an unfortunate situation.",
+     example:"This weather is so mug \u2014 rain all week and we can't go to the beach."},
+    {word:"Wopnin",meaning:"What's happening? What's going on?",pos:"interjection",
+     etymology:"Bermudian contraction of 'what's happening?' Rapid pronunciation collapsed it into a single word. The standard Bermudian casual greeting.",
+     example:"Wopnin, bey? Haven't seen you since Cup Match!"},
+    {word:"Bye",meaning:"A term of address for any person, regardless of gender",pos:"noun",
+     etymology:"Bermudian English usage of 'boy' evolving to 'bey' or 'bye,' becoming gender-neutral. Used to address anyone in casual conversation.",
+     example:"Come on, bye, we're going to miss the ferry to Hamilton."},
+    {word:"Cup Match",meaning:"The annual two-day cricket holiday and cultural festival",pos:"noun",
+     etymology:"From the cricket cup match between St. George's and Somerset, played since 1902. It's a public holiday in Bermuda and the island's biggest annual event.",
+     example:"Everything shuts down during Cup Match \u2014 the whole island is at the cricket ground."}
+  ]
+},
+wales:{
+  name:"Wales",flag:"\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}",dialect:"Welsh English",
+  lat:52.13,lng:-3.78,
+  description:"Welsh English is deeply influenced by the Welsh language (Cymraeg), producing distinctive syntax and vocabulary where 'cwtch' captures a warmth that no standard English word can.",
+  words:[
+    {word:"Cwtch",meaning:"A warm hug, a cuddle; also a small cozy space or cupboard",pos:"noun/verb",
+     etymology:"From Welsh 'cwtsh' (a hiding place or cubbyhole). In Welsh English it evolved dual meanings: a warm embrace AND a cozy nook. Voted Wales's favorite word. Added to some dictionaries.",
+     example:"Come here and give your nan a cwtch \u2014 I haven't seen you in ages."},
+    {word:"Tamping",meaning:"Furious, extremely angry",pos:"adjective",
+     etymology:"Welsh English dialect word, possibly from 'tamping down' (pressing forcefully). Used across South Wales to describe rage. 'Tamping mad' is a common intensified form.",
+     example:"She was tamping when she found out they'd cancelled the concert."},
+    {word:"Lush",meaning:"Lovely, great, fantastic",pos:"adjective",
+     etymology:"While 'lush' exists in standard English (meaning luxuriant), in Welsh English it became a general-purpose positive adjective meaning 'lovely' or 'brilliant.' Extremely common in South Wales.",
+     example:"That meal was proper lush \u2014 best curry I've had in ages."},
+    {word:"Tidy",meaning:"Great, good, decent; also used as an affirmation",pos:"adjective/interjection",
+     etymology:"Standard English word given expanded meaning in Welsh English. Beyond 'neat,' it means 'good,' 'fair,' or 'satisfactory.' 'Tidy darts' means 'well done.'",
+     example:"You got the job? Tidy! That's brilliant news."},
+    {word:"Now in a Minute",meaning:"Soon; shortly; in a little while",pos:"adverb phrase",
+     etymology:"Welsh English paradoxical time expression, reflecting Welsh-language time constructions. Literally contradictory in standard English, it means 'I'll do it shortly.'",
+     example:"I'll be there now in a minute \u2014 just finishing up here."},
+    {word:"Ych a Fi",meaning:"An exclamation of disgust",pos:"interjection",
+     etymology:"Directly from Welsh: 'ych' (ugh) + 'a' (and) + 'fi' (me). Pronounced approximately 'uh-ch ah vee.' Used by Welsh English speakers regardless of whether they speak Welsh.",
+     example:"Ych a fi! Who left the milk out all night? It's gone off."},
+    {word:"Poody",meaning:"A fit of sulking; a childish sulk",pos:"noun",
+     etymology:"From Welsh 'pwdu' (to sulk/pout). Added to the OED in its 2024 Welsh English update. An example of a 'boomerang word' \u2014 borrowed from English into Welsh, then back.",
+     example:"He's been in a right poody since they told him he couldn't have dessert."},
+    {word:"Chopsy",meaning:"Mouthy, talkative, or argumentative",pos:"adjective",
+     etymology:"Welsh English from 'chops' (jaws/mouth) + '-y' suffix. Describes someone who talks too much or talks back rudely. Common in South Wales valleys.",
+     example:"Don't get chopsy with me \u2014 I'm not in the mood for an argument."}
+  ]
+},
+zimbabwe:{
+  name:"Zimbabwe",flag:"\u{1F1FF}\u{1F1FC}",dialect:"Zimbabwean English",
+  lat:-19.02,lng:29.15,
+  description:"Zimbabwean English blends British colonial English with Shona, Ndebele, and other Bantu languages, producing a colorful dialect enriched by Zimbabwe's complex history.",
+  words:[
+    {word:"Kombi",meaning:"A minibus used as public transport",pos:"noun",
+     etymology:"From Volkswagen 'Kombi' (Kombinationskraftwagen), the original vehicles used. Though VW Kombis are long gone, the name stuck for any public-transport minibus in Zimbabwe.",
+     example:"The kombi was so full they were charging half-price for hanging off the door."},
+    {word:"Sadza",meaning:"A thick maize porridge; Zimbabwe's staple food",pos:"noun",
+     etymology:"From Shona 'sadza.' The cultural equivalent of ugali in East Africa. Eating sadza with your hands (making a ball and dipping it in relish) is a fundamental Zimbabwean skill.",
+     example:"You haven't really eaten until you've had sadza ne nyama."},
+    {word:"Braai",meaning:"A barbecue",pos:"noun/verb",
+     etymology:"Shared with South African English, from Afrikaans 'braaivleis.' Used identically in Zimbabwean English due to historical ties with South Africa.",
+     example:"We're having a braai this Saturday \u2014 bring your own meat."},
+    {word:"Murungu",meaning:"A white person; a boss or person of authority",pos:"noun",
+     etymology:"From Shona 'murungu' (white person/boss). Related to Ndebele 'umlungu.' Originally referred to colonial authority figures; now used more broadly for any white person.",
+     example:"The murungu next door invited the whole street to his braai."},
+    {word:"Mahala",meaning:"Free of charge; for nothing",pos:"adverb/adjective",
+     etymology:"From Zulu/Ndebele 'mahala' (free), possibly from Sotho. Widely used across Southern African English varieties including Zimbabwe, South Africa, and Botswana.",
+     example:"The drinks at the opening party were mahala \u2014 everyone went."},
+    {word:"Tsotsi",meaning:"A street criminal or thug",pos:"noun",
+     etymology:"From Sotho/Tswana languages, possibly from 'ho tsotsa' (to sharpen/dress sharply). Refers to young urban criminals. The 2005 Oscar-winning film 'Tsotsi' popularized the word globally.",
+     example:"Be careful with your phone in that area \u2014 the tsotsis are always watching."},
+    {word:"Tuckshop",meaning:"A small convenience shop or school canteen",pos:"noun",
+     etymology:"From British English 'tuck shop' (a shop selling snacks at a school). In Zimbabwean English it expanded to mean any small neighborhood shop selling everyday items.",
+     example:"Run to the tuckshop and get some bread and milk before it closes."},
+    {word:"Sharp-sharp",meaning:"An emphatic way of saying goodbye; everything is fine",pos:"interjection",
+     etymology:"Reduplication of 'sharp' (good/cool) for emphasis. Used as both a farewell and an affirmation across Southern African English varieties.",
+     example:"Alright, I'll see you tomorrow. Sharp-sharp!"}
+  ]
+},
+fiji:{
+  name:"Fiji",flag:"\u{1F1EB}\u{1F1EF}",dialect:"Fijian English",
+  lat:-17.71,lng:178.07,
+  description:"Fijian English blends British colonial English with iTaukei Fijian and Fiji Hindi, reflecting the island nation's dual indigenous and Indo-Fijian heritage.",
+  words:[
+    {word:"Bula",meaning:"Hello; welcome; a general greeting expressing good health",pos:"interjection",
+     etymology:"From Fijian 'bula' (life/health). The most ubiquitous word in Fiji \u2014 used by all ethnicities. 'Bula!' is Fiji's equivalent of 'Aloha' and appears on everything from signs to T-shirts.",
+     example:"Bula! Welcome to Fiji \u2014 can I get you a coconut?"},
+    {word:"Lovo",meaning:"An underground earth oven used for traditional feasting",pos:"noun",
+     etymology:"From Fijian 'lovo.' Food is wrapped in banana leaves and cooked over hot stones in a pit. A lovo feast is central to Fijian celebrations and ceremonies.",
+     example:"They prepared a lovo feast for the village wedding with whole pigs and root vegetables."},
+    {word:"Kava",meaning:"A mildly sedative drink made from the ground root of the kava plant",pos:"noun",
+     etymology:"From Polynesian/Fijian 'yaqona' (the plant) and Tongan 'kava.' The kava ceremony (yaqona) is central to Fijian social and diplomatic life. You clap once before drinking, three times after.",
+     example:"We sat in a circle on the mat for the kava ceremony and shared stories all night."},
+    {word:"Vinaka",meaning:"Thank you; good; well done",pos:"interjection",
+     etymology:"From Fijian 'vinaka' (good/thank you). 'Vinaka vakalevu' means 'thank you very much.' Used constantly in Fijian English alongside English words.",
+     example:"Vinaka for the delicious meal \u2014 everything was perfect."},
+    {word:"Kerekere",meaning:"A traditional system of communal sharing and requesting",pos:"noun",
+     etymology:"From Fijian 'kerekere' (to request/beg). A cultural practice where community members can request things from each other. Refusing kerekere is socially unacceptable in traditional Fijian culture.",
+     example:"Through kerekere, nobody in the village goes hungry \u2014 everyone shares what they have."},
+    {word:"Talanoa",meaning:"To tell stories; informal conversation and storytelling",pos:"noun/verb",
+     etymology:"From Fijian/Polynesian 'talanoa' (to talk/tell stories). Now used in Pacific diplomacy as 'Talanoa Dialogue' \u2014 an inclusive, participatory conversation method adopted by the UN.",
+     example:"The elders gathered for talanoa under the banyan tree, sharing wisdom with the youth."},
+    {word:"Sulu",meaning:"A wraparound skirt worn by both men and women",pos:"noun",
+     etymology:"From Fijian 'sulu' (garment/cloth). Fijian men wear sulus as formal and everyday attire. The 'sulu vakataga' (tailored sulu) is standard Fijian business wear for men.",
+     example:"He wore his best sulu and a bula shirt to the formal reception."},
+    {word:"Fiji Time",meaning:"A relaxed, unhurried attitude toward punctuality",pos:"noun phrase",
+     etymology:"Fijian English expression reflecting the Pacific Island philosophy that relationships matter more than schedules. Similar to 'island time.' Used both affectionately and with mild exasperation.",
+     example:"The meeting started an hour late, but nobody minded \u2014 that's Fiji time."}
+  ]
 }
 };
 
 const COUNTRY_MAP={
-  'India':['india'],'Australia':['australia'],'United Kingdom':['united_kingdom','scotland'],
+  'India':['india'],'Australia':['australia'],'United Kingdom':['united_kingdom','scotland','wales'],
   'South Africa':['south_africa'],'Canada':['canada'],'New Zealand':['new_zealand'],
   'Ireland':['ireland'],'Nigeria':['nigeria'],'Philippines':['philippines'],
-  'Jamaica':['jamaica'],'Singapore':['singapore']
+  'Jamaica':['jamaica'],'Singapore':['singapore'],'Ghana':['ghana'],
+  'Kenya':['kenya'],'United Republic of Tanzania':['tanzania'],'Tanzania':['tanzania'],
+  'Malaysia':['malaysia'],'Pakistan':['pakistan'],'Hong Kong':['hong_kong'],
+  'Trinidad and Tobago':['trinidad'],'Barbados':['barbados'],
+  'Zimbabwe':['zimbabwe'],'Fiji':['fiji'],'Bermuda':['bermuda']
 };
 
 const COMPARISONS=[
   {concept:"Flip-flops",icon:"\u{1FA74}",words:[
     {region:"australia",word:"Thongs"},{region:"new_zealand",word:"Jandals"}]},
   {concept:"Barbecue",icon:"\u{1F525}",words:[
-    {region:"australia",word:"Barbie"},{region:"south_africa",word:"Braai"}]},
+    {region:"australia",word:"Barbie"},{region:"south_africa",word:"Braai"},{region:"zimbabwe",word:"Braai"}]},
   {concept:"Pickup Truck",icon:"\u{1F69A}",words:[
     {region:"australia",word:"Ute"},{region:"south_africa",word:"Bakkie"}]},
   {concept:"To Eat",icon:"\u{1F37D}\u{FE0F}",words:[
-    {region:"jamaica",word:"Nyam"},{region:"nigeria",word:"Chop"},{region:"singapore",word:"Makan"}]},
+    {region:"jamaica",word:"Nyam"},{region:"nigeria",word:"Chop"},{region:"singapore",word:"Makan"},
+    {region:"malaysia",word:"Tapau (takeaway)"},{region:"bermuda",word:"Greeze"}]},
   {concept:"A Child",icon:"\u{1F476}",words:[
     {region:"scotland",word:"Bairn"},{region:"scotland",word:"Wean"},{region:"jamaica",word:"Pickney"}]},
   {concept:"Small Shop",icon:"\u{1F3EA}",words:[
-    {region:"new_zealand",word:"Dairy"},{region:"philippines",word:"Sari-sari Store"},{region:"singapore",word:"Kopitiam"}]},
-  {concept:"Gas Station",icon:"\u26FD",words:[
-    {region:"australia",word:"Servo"},{region:"india",word:"Petrol Bunk"}]},
+    {region:"new_zealand",word:"Dairy"},{region:"philippines",word:"Sari-sari Store"},
+    {region:"singapore",word:"Kopitiam"},{region:"zimbabwe",word:"Tuckshop"}]},
+  {concept:"Minibus Transport",icon:"\u{1F690}",words:[
+    {region:"kenya",word:"Matatu"},{region:"ghana",word:"Tro-tro"},
+    {region:"tanzania",word:"Dala Dala"},{region:"zimbabwe",word:"Kombi"}]},
+  {concept:"Encouragement",icon:"\u{1F4AA}",words:[
+    {region:"hong_kong",word:"Add Oil"},{region:"jamaica",word:"Irie"}]},
+  {concept:"Staple Porridge",icon:"\u{1F35A}",words:[
+    {region:"tanzania",word:"Ugali"},{region:"zimbabwe",word:"Sadza"},
+    {region:"barbados",word:"Cou-cou"}]},
+  {concept:"To Hang Out",icon:"\u{1F389}",words:[
+    {region:"trinidad",word:"Lime"},{region:"malaysia",word:"Yum Cha"},
+    {region:"australia",word:"Arvo session"}]},
+  {concept:"Excellent / Great",icon:"\u2B50",words:[
+    {region:"ireland",word:"Deadly"},{region:"new_zealand",word:"Choice"},
+    {region:"singapore",word:"Shiok"},{region:"scotland",word:"Braw"},
+    {region:"wales",word:"Lush"},{region:"fiji",word:"Vinaka"}]},
+  {concept:"A Warm Embrace",icon:"\u{1F917}",words:[
+    {region:"wales",word:"Cwtch"}]},
   {concept:"Broken / Ruined",icon:"\u{1F4A5}",words:[
     {region:"ireland",word:"Banjaxed"},{region:"new_zealand",word:"Munted"}]},
-  {concept:"Exhausted",icon:"\u{1F634}",words:[
-    {region:"united_kingdom",word:"Knackered"},{region:"ireland",word:"Banjaxed"}]},
-  {concept:"Excellent / Great",icon:"\u2B50",words:[
-    {region:"ireland",word:"Deadly"},{region:"new_zealand",word:"Choice"},{region:"singapore",word:"Shiok"},{region:"scotland",word:"Braw"}]}
+  {concept:"Street Food Stall",icon:"\u{1F35C}",words:[
+    {region:"hong_kong",word:"Dai Pai Dong"},{region:"ghana",word:"Chop Bar"},
+    {region:"nigeria",word:"Buka"},{region:"malaysia",word:"Mamak"}]},
+  {concept:"Foolish Person",icon:"\u{1F921}",words:[
+    {region:"australia",word:"Drongo"},{region:"ireland",word:"Eejit"},
+    {region:"barbados",word:"Cunumunu"}]}
 ];
 
 /* ─── State ─── */
@@ -941,15 +1334,7 @@ function initGlobe(){
   globe.controls().enableDamping=true;
   globe.pointOfView({lat:20,lng:30,altitude:2.5});
 
-  fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl@master/example/datasets/ne_110m_admin_0_countries.geojson')
-    .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-    .then(d=>{globe.polygonsData(d.features);addSmallCountryMarkers();})
-    .catch(()=>{
-      fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
-        .then(r=>r.json())
-        .then(d=>{globe.polygonsData(d.features);addSmallCountryMarkers();})
-        .catch(console.error);
-    });
+  loadCountryData();
 
   window.addEventListener('mousemove',e=>{
     const hl=document.getElementById('hover-label');
@@ -960,30 +1345,87 @@ function initGlobe(){
   });
 }
 
-function addSmallCountryMarkers(){
-  const polyCountries=new Set();
-  (globe.polygonsData()||[]).forEach(f=>{
-    const n=f.properties.ADMIN||f.properties.name||f.properties.NAME||'';
-    const keys=COUNTRY_MAP[n];
-    if(keys)keys.forEach(k=>polyCountries.add(k));
+const ISO_NAMES={"004":"Afghanistan","008":"Albania","010":"Antarctica","012":"Algeria","016":"American Samoa","020":"Andorra","024":"Angola","028":"Antigua and Barbuda","031":"Azerbaijan","032":"Argentina","036":"Australia","040":"Austria","044":"Bahamas","048":"Bahrain","050":"Bangladesh","051":"Armenia","052":"Barbados","056":"Belgium","060":"Bermuda","064":"Bhutan","068":"Bolivia","070":"Bosnia and Herzegovina","072":"Botswana","076":"Brazil","084":"Belize","090":"Solomon Islands","092":"British Virgin Islands","096":"Brunei","100":"Bulgaria","104":"Myanmar","108":"Burundi","112":"Belarus","116":"Cambodia","120":"Cameroon","124":"Canada","132":"Cape Verde","140":"Central African Republic","144":"Sri Lanka","148":"Chad","152":"Chile","156":"China","158":"Taiwan","170":"Colombia","174":"Comoros","178":"Republic of the Congo","180":"Democratic Republic of the Congo","184":"Cook Islands","188":"Costa Rica","191":"Croatia","192":"Cuba","196":"Cyprus","203":"Czech Republic","204":"Benin","208":"Denmark","212":"Dominica","214":"Dominican Republic","218":"Ecuador","222":"El Salvador","226":"Equatorial Guinea","231":"Ethiopia","232":"Eritrea","233":"Estonia","234":"Faroe Islands","238":"Falkland Islands","242":"Fiji","246":"Finland","250":"France","254":"French Guiana","258":"French Polynesia","260":"French Southern Territories","262":"Djibouti","266":"Gabon","268":"Georgia","270":"Gambia","275":"Palestine","276":"Germany","288":"Ghana","296":"Kiribati","300":"Greece","304":"Greenland","308":"Grenada","312":"Guadeloupe","316":"Guam","320":"Guatemala","324":"Guinea","328":"Guyana","332":"Haiti","340":"Honduras","344":"Hong Kong","348":"Hungary","352":"Iceland","356":"India","360":"Indonesia","364":"Iran","368":"Iraq","372":"Ireland","376":"Israel","380":"Italy","384":"Ivory Coast","388":"Jamaica","392":"Japan","398":"Kazakhstan","400":"Jordan","404":"Kenya","408":"North Korea","410":"South Korea","414":"Kuwait","417":"Kyrgyzstan","418":"Laos","422":"Lebanon","426":"Lesotho","428":"Latvia","430":"Liberia","434":"Libya","438":"Liechtenstein","440":"Lithuania","442":"Luxembourg","446":"Macau","450":"Madagascar","454":"Malawi","458":"Malaysia","462":"Maldives","466":"Mali","470":"Malta","474":"Martinique","478":"Mauritania","480":"Mauritius","484":"Mexico","492":"Monaco","496":"Mongolia","498":"Moldova","499":"Montenegro","504":"Morocco","508":"Mozambique","512":"Oman","516":"Namibia","520":"Nauru","524":"Nepal","528":"Netherlands","531":"Cura\u00e7ao","533":"Aruba","540":"New Caledonia","548":"Vanuatu","554":"New Zealand","558":"Nicaragua","562":"Niger","566":"Nigeria","570":"Niue","574":"Norfolk Island","578":"Norway","580":"Northern Mariana Islands","583":"Micronesia","584":"Marshall Islands","585":"Palau","586":"Pakistan","591":"Panama","598":"Papua New Guinea","600":"Paraguay","604":"Peru","608":"Philippines","612":"Pitcairn Islands","616":"Poland","620":"Portugal","624":"Guinea-Bissau","626":"East Timor","630":"Puerto Rico","634":"Qatar","642":"Romania","643":"Russia","646":"Rwanda","652":"Saint Barth\u00e9lemy","659":"Saint Kitts and Nevis","660":"Anguilla","662":"Saint Lucia","666":"Saint Pierre and Miquelon","670":"Saint Vincent and the Grenadines","674":"San Marino","678":"Sao Tome and Principe","682":"Saudi Arabia","686":"Senegal","688":"Serbia","690":"Seychelles","694":"Sierra Leone","702":"Singapore","703":"Slovakia","704":"Vietnam","705":"Slovenia","706":"Somalia","710":"South Africa","716":"Zimbabwe","720":"South Yemen","724":"Spain","728":"South Sudan","729":"Sudan","732":"Western Sahara","740":"Suriname","744":"Svalbard and Jan Mayen","748":"Eswatini","752":"Sweden","756":"Switzerland","760":"Syria","762":"Tajikistan","764":"Thailand","768":"Togo","772":"Tokelau","776":"Tonga","780":"Trinidad and Tobago","784":"United Arab Emirates","788":"Tunisia","792":"Turkey","795":"Turkmenistan","796":"Turks and Caicos Islands","798":"Tuvalu","800":"Uganda","804":"Ukraine","807":"North Macedonia","818":"Egypt","826":"United Kingdom","831":"Guernsey","832":"Jersey","833":"Isle of Man","834":"United Republic of Tanzania","840":"United States of America","854":"Burkina Faso","858":"Uruguay","860":"Uzbekistan","862":"Venezuela","876":"Wallis and Futuna","882":"Samoa","887":"Yemen","894":"Zambia"};
+
+function makeMiniPoly(lat,lng,name,sz){
+  const s=sz||0.35;
+  return{type:"Feature",properties:{ADMIN:name},geometry:{type:"Polygon",
+    coordinates:[[[lng-s,lat-s],[lng+s,lat-s],[lng+s,lat+s],[lng-s,lat+s],[lng-s,lat-s]]]}};
+}
+
+const SYNTH_POLYS=[
+  {name:"Singapore",lat:1.35,lng:103.82,sz:0.2},
+  {name:"Hong Kong",lat:22.40,lng:114.11,sz:0.25},
+  {name:"Barbados",lat:13.19,lng:-59.54,sz:0.2},
+  {name:"Bermuda",lat:32.32,lng:-64.76,sz:0.15}
+];
+
+function getCentroid(feat){
+  let sLat=0,sLng=0,n=0;
+  const polys=feat.geometry.type==='Polygon'?[feat.geometry.coordinates]:feat.geometry.coordinates;
+  polys.forEach(p=>p[0].forEach(c=>{sLng+=c[0];sLat+=c[1];n++;}));
+  return n?{lat:sLat/n,lng:sLng/n}:{lat:0,lng:0};
+}
+
+function getArea(feat){
+  let mnLa=90,mxLa=-90,mnLn=180,mxLn=-180;
+  const polys=feat.geometry.type==='Polygon'?[feat.geometry.coordinates]:feat.geometry.coordinates;
+  polys.forEach(p=>p[0].forEach(c=>{
+    if(c[1]<mnLa)mnLa=c[1];if(c[1]>mxLa)mxLa=c[1];
+    if(c[0]<mnLn)mnLn=c[0];if(c[0]>mxLn)mxLn=c[0];
+  }));
+  return(mxLa-mnLa)*(mxLn-mnLn);
+}
+
+function processCountryData(features){
+  const existingNames=new Set(features.map(f=>(f.properties.ADMIN||f.properties.name||'')));
+  SYNTH_POLYS.forEach(s=>{
+    if(!existingNames.has(s.name))features.push(makeMiniPoly(s.lat,s.lng,s.name,s.sz));
   });
-  const markers=Object.entries(REGIONS)
-    .filter(([k])=>!polyCountries.has(k))
-    .map(([k,r])=>({id:k,lat:r.lat,lng:r.lng,name:r.name,flag:r.flag,
-      words:r.words.length,keys:[k]}));
-  if(!markers.length)return;
+  globe.polygonsData(features);
+
+  const labels=features.map(f=>{
+    const nm=f.properties.ADMIN||f.properties.name||f.properties.NAME||'';
+    if(!nm||nm.length<2)return null;
+    const c=getCentroid(f);
+    const a=getArea(f);
+    const keys=getRegionKeys(f);
+    const sz=Math.max(0.15,Math.min(1.8,Math.sqrt(a)*0.022));
+    return{lat:c.lat,lng:c.lng,name:nm,size:sz,hasWords:!!keys};
+  }).filter(Boolean);
+
   globe
-    .labelsData(markers)
+    .labelsData(labels)
     .labelLat(d=>d.lat).labelLng(d=>d.lng)
-    .labelText(d=>d.flag+' '+d.name)
-    .labelSize(1.2).labelDotRadius(.4)
-    .labelColor(()=>'rgba(78,205,196,0.9)')
-    .labelResolution(3)
-    .onLabelClick(d=>{
-      d.keys.forEach(k=>visited.add(k));persist();updateStats();
-      selectedRegion=d.keys[0];
-      globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.2},800);
-      openPanel(d.keys);
+    .labelText(d=>d.name)
+    .labelSize(d=>d.size)
+    .labelDotRadius(0)
+    .labelColor(d=>d.hasWords?'rgba(78,205,196,0.22)':'rgba(200,210,230,0.1)')
+    .labelResolution(2)
+    .labelAltitude(0.007)
+    .onLabelClick(null)
+    .onLabelHover(null);
+}
+
+function loadCountryData(){
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
+    .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
+    .then(world=>{
+      const geo=topojson.feature(world,world.objects.countries);
+      geo.features.forEach(f=>{
+        const id=String(f.id).padStart(3,'0');
+        if(id&&ISO_NAMES[id]){
+          f.properties=f.properties||{};
+          f.properties.ADMIN=ISO_NAMES[id];
+        }
+      });
+      processCountryData(geo.features);
+    })
+    .catch(()=>{
+      fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl@master/example/datasets/ne_110m_admin_0_countries.geojson')
+        .then(r=>r.json())
+        .then(d=>processCountryData(d.features))
+        .catch(console.error);
     });
 }
 
@@ -1082,7 +1524,7 @@ function openSearch(){
   document.getElementById('search-overlay').classList.add('open');
   const inp=document.getElementById('search-input');
   inp.value='';inp.focus();
-  document.getElementById('search-results').innerHTML='<div class="search-empty">Start typing to search 120+ regional English words</div>';
+  document.getElementById('search-results').innerHTML='<div class="search-empty">Start typing to search 200+ regional English words</div>';
 }
 function closeSearch(){document.getElementById('search-overlay').classList.remove('open');}
 document.addEventListener('keydown',e=>{

@@ -11,16 +11,16 @@ export function setupPostProcessing(scene: Scene, camera: Camera): DefaultRender
 
   pipeline.bloomEnabled = true;
   pipeline.bloomThreshold = 0.3;
-  pipeline.bloomWeight = 0.6;
-  pipeline.bloomKernel = 64;
-  pipeline.bloomScale = 0.5;
+  pipeline.bloomWeight = 0.5;
+  pipeline.bloomKernel = 32;
+  pipeline.bloomScale = 0.3;
 
   pipeline.chromaticAberrationEnabled = true;
-  pipeline.chromaticAberration.aberrationAmount = 15;
-  pipeline.chromaticAberration.radialIntensity = 0.5;
+  pipeline.chromaticAberration.aberrationAmount = 3;
+  pipeline.chromaticAberration.radialIntensity = 0.3;
 
   pipeline.grainEnabled = true;
-  pipeline.grain.intensity = 8;
+  pipeline.grain.intensity = 3;
   pipeline.grain.animated = true;
 
   pipeline.sharpenEnabled = true;
@@ -29,11 +29,11 @@ export function setupPostProcessing(scene: Scene, camera: Camera): DefaultRender
   pipeline.fxaaEnabled = true;
 
   if (pipeline.imageProcessing) {
-    pipeline.imageProcessing.contrast = 1.3;
-    pipeline.imageProcessing.exposure = 1.1;
+    pipeline.imageProcessing.contrast = 1.2;
+    pipeline.imageProcessing.exposure = 1.2;
     pipeline.imageProcessing.toneMappingEnabled = true;
     pipeline.imageProcessing.vignetteEnabled = true;
-    pipeline.imageProcessing.vignetteWeight = 3;
+    pipeline.imageProcessing.vignetteWeight = 1.5;
     pipeline.imageProcessing.vignetteCentreX = 0;
     pipeline.imageProcessing.vignetteCentreY = 0;
     pipeline.imageProcessing.vignetteStretch = 0.5;

@@ -103,23 +103,23 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   const s = type.scale;
 
   const bodyMat = new PBRMaterial(`eMat_body_${root.name}`, scene);
-  bodyMat.albedoColor = new Color3(0.08, 0.06, 0.1);
-  bodyMat.roughness = 0.3;
-  bodyMat.metallic = 0.8;
+  bodyMat.albedoColor = new Color3(0.12, 0.1, 0.15);
+  bodyMat.roughness = 0.7;
+  bodyMat.metallic = 0.15;
 
   const glowMat = new PBRMaterial(`eMat_glow_${root.name}`, scene);
   glowMat.albedoColor = new Color3(c[0] * 0.2, c[1] * 0.2, c[2] * 0.2);
   glowMat.emissiveColor = new Color3(ec[0], ec[1], ec[2]);
   glowMat.emissiveIntensity = type.isBoss ? 4 : 2.5;
-  glowMat.roughness = 0.1;
-  glowMat.metallic = 0.9;
+  glowMat.roughness = 0.3;
+  glowMat.metallic = 0.3;
 
   const hitMat = new PBRMaterial(`eMat_hit_${root.name}`, scene);
   hitMat.albedoColor = new Color3(1, 1, 1);
   hitMat.emissiveColor = new Color3(1, 1, 1);
   hitMat.emissiveIntensity = 5;
-  hitMat.roughness = 0.1;
-  hitMat.metallic = 0.9;
+  hitMat.roughness = 0.3;
+  hitMat.metallic = 0.3;
 
   const makePart = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, isHead = false): Mesh => {
     const mesh = opts.diameter !== undefined

@@ -236,34 +236,53 @@ const WEAPON_SWITCH_TIME = 0.3;
 let prevWeaponIdx = 0;
 
 const WEAPON_COLORS: Color3[] = [
-  new Color3(0.3, 0.7, 0.5),
-  new Color3(0.3, 0.5, 0.8),
-  new Color3(0.8, 0.3, 0.4),
-  new Color3(0.8, 0.5, 0.2),
+  new Color3(0.15, 0.85, 0.55),
+  new Color3(0.2, 0.5, 1),
+  new Color3(0.95, 0.2, 0.3),
+  new Color3(1, 0.6, 0.1),
 ];
 
 function buildWeaponModel(scene: Scene): void {
   weaponModel = new TransformNode('weaponRoot', scene);
   weaponModel.parent = camera;
-
   weaponModels = [];
 
   const gunMat = new StandardMaterial('gunMat', scene);
-  gunMat.diffuseColor = new Color3(0.25, 0.25, 0.28);
-  gunMat.specularColor = new Color3(0.3, 0.3, 0.3);
+  gunMat.diffuseColor = new Color3(0.18, 0.19, 0.22);
+  gunMat.specularColor = new Color3(0.35, 0.35, 0.4);
+  gunMat.specularPower = 64;
   gunMat.freeze();
+
+  const gunDark = new StandardMaterial('gunDark', scene);
+  gunDark.diffuseColor = new Color3(0.1, 0.1, 0.12);
+  gunDark.specularColor = new Color3(0.2, 0.2, 0.25);
+  gunDark.specularPower = 48;
+  gunDark.freeze();
+
+  const gunLight = new StandardMaterial('gunLight', scene);
+  gunLight.diffuseColor = new Color3(0.3, 0.32, 0.36);
+  gunLight.specularColor = new Color3(0.4, 0.4, 0.45);
+  gunLight.specularPower = 80;
+  gunLight.freeze();
 
   for (let w = 0; w < 4; w++) {
     const model = new TransformNode(`weaponModel_${w}`, scene);
     model.parent = weaponModel;
     model.setEnabled(w === 0);
 
+    const glowMat = new StandardMaterial(`gunGlow_${w}`, scene);
+    glowMat.diffuseColor = WEAPON_COLORS[w];
+    glowMat.emissiveColor = WEAPON_COLORS[w].scale(0.5);
+    glowMat.specularColor = Color3.Black();
+    glowMat.freeze();
+
     const accentMat = new StandardMaterial(`gunAccent_${w}`, scene);
-    accentMat.diffuseColor = WEAPON_COLORS[w];
-    accentMat.specularColor = Color3.Black();
+    accentMat.diffuseColor = WEAPON_COLORS[w].scale(0.5);
+    accentMat.specularColor = new Color3(0.3, 0.3, 0.3);
+    accentMat.specularPower = 48;
     accentMat.freeze();
 
-    const makePart = (name: string, opts: any, pos: Vector3, mat: StandardMaterial, rot?: Vector3): Mesh => {
+    const p = (name: string, opts: any, pos: Vector3, mat: StandardMaterial, rot?: Vector3): Mesh => {
       const mesh = MeshBuilder.CreateBox(`${name}_${w}`, opts, scene);
       mesh.position = pos;
       if (rot) mesh.rotation = rot;
@@ -272,44 +291,105 @@ function buildWeaponModel(scene: Scene): void {
       mesh.isPickable = false;
       return mesh;
     };
+    const cyl = (name: string, opts: any, pos: Vector3, mat: StandardMaterial, rot?: Vector3): Mesh => {
+      const mesh = MeshBuilder.CreateCylinder(`${name}_${w}`, opts, scene);
+      mesh.position = pos;
+      if (rot) mesh.rotation = rot;
+      mesh.parent = model;
+      mesh.material = mat;
+      mesh.isPickable = false;
+      return mesh;
+    };
 
+    const ox = 0.25;
     switch (w) {
-      case 0:
-        makePart('barrel', { width: 0.05, height: 0.05, depth: 0.5 }, new Vector3(0.25, -0.18, 0.45), gunMat);
-        makePart('body', { width: 0.1, height: 0.11, depth: 0.28 }, new Vector3(0.25, -0.2, 0.25), gunMat);
-        makePart('grip', { width: 0.05, height: 0.13, depth: 0.05 }, new Vector3(0.25, -0.3, 0.18), gunMat, new Vector3(0.3, 0, 0));
-        makePart('stock', { width: 0.04, height: 0.06, depth: 0.15 }, new Vector3(0.25, -0.19, 0.03), gunMat);
-        makePart('mag', { width: 0.04, height: 0.09, depth: 0.07 }, new Vector3(0.25, -0.3, 0.28), gunMat);
-        makePart('accent1', { width: 0.12, height: 0.015, depth: 0.3 }, new Vector3(0.25, -0.14, 0.3), accentMat);
-        makePart('sight', { width: 0.03, height: 0.035, depth: 0.04 }, new Vector3(0.25, -0.125, 0.4), gunMat);
+      case 0: {
+        // PULSE RIFLE - sleek sci-fi assault rifle
+        p('receiver', { width: 0.1, height: 0.1, depth: 0.28 }, new Vector3(ox, -0.2, 0.22), gunMat);
+        p('receiverTop', { width: 0.08, height: 0.03, depth: 0.32 }, new Vector3(ox, -0.15, 0.24), gunLight);
+        p('barrel', { width: 0.045, height: 0.045, depth: 0.42 }, new Vector3(ox, -0.18, 0.47), gunDark);
+        p('barrelShroud', { width: 0.065, height: 0.065, depth: 0.2 }, new Vector3(ox, -0.18, 0.56), gunMat);
+        p('muzzleBrake', { width: 0.055, height: 0.055, depth: 0.04 }, new Vector3(ox, -0.18, 0.68), gunLight);
+        p('handguard', { width: 0.07, height: 0.06, depth: 0.15 }, new Vector3(ox, -0.22, 0.4), gunMat);
+        p('grip', { width: 0.04, height: 0.12, depth: 0.04 }, new Vector3(ox, -0.3, 0.17), gunDark, new Vector3(0.25, 0, 0));
+        p('triggerGuard', { width: 0.04, height: 0.01, depth: 0.08 }, new Vector3(ox, -0.26, 0.2), gunDark);
+        p('stock', { width: 0.04, height: 0.065, depth: 0.16 }, new Vector3(ox, -0.19, 0.0), gunMat);
+        p('stockPad', { width: 0.05, height: 0.07, depth: 0.02 }, new Vector3(ox, -0.19, -0.08), gunLight);
+        p('mag', { width: 0.035, height: 0.1, depth: 0.06 }, new Vector3(ox, -0.3, 0.27), gunDark);
+        p('magWell', { width: 0.05, height: 0.03, depth: 0.07 }, new Vector3(ox, -0.24, 0.27), gunMat);
+        // Glow accents
+        p('energyLine', { width: 0.105, height: 0.01, depth: 0.25 }, new Vector3(ox, -0.145, 0.28), glowMat);
+        p('barrelGlow', { width: 0.015, height: 0.015, depth: 0.18 }, new Vector3(ox, -0.155, 0.56), glowMat);
+        p('sightDot', { width: 0.015, height: 0.015, depth: 0.015 }, new Vector3(ox, -0.13, 0.5), glowMat);
+        // Iron sights
+        p('rearSight', { width: 0.04, height: 0.025, depth: 0.015 }, new Vector3(ox, -0.13, 0.15), gunDark);
+        p('frontSight', { width: 0.015, height: 0.03, depth: 0.01 }, new Vector3(ox, -0.13, 0.58), gunDark);
         break;
-      case 1:
-        makePart('barrel1', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.22, -0.17, 0.4), gunMat);
-        makePart('barrel2', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.28, -0.17, 0.4), gunMat);
-        makePart('body', { width: 0.14, height: 0.12, depth: 0.25 }, new Vector3(0.25, -0.2, 0.2), gunMat);
-        makePart('grip', { width: 0.06, height: 0.14, depth: 0.06 }, new Vector3(0.25, -0.32, 0.15), gunMat, new Vector3(0.2, 0, 0));
-        makePart('pump', { width: 0.08, height: 0.05, depth: 0.12 }, new Vector3(0.25, -0.24, 0.35), accentMat);
-        makePart('accent', { width: 0.16, height: 0.02, depth: 0.06 }, new Vector3(0.25, -0.13, 0.3), accentMat);
+      }
+      case 1: {
+        // PLASMA SHOTGUN - wide, aggressive double barrel
+        p('receiver', { width: 0.14, height: 0.11, depth: 0.22 }, new Vector3(ox, -0.2, 0.18), gunMat);
+        p('receiverPlate', { width: 0.15, height: 0.03, depth: 0.24 }, new Vector3(ox, -0.14, 0.19), gunLight);
+        cyl('barrel1', { height: 0.35, diameter: 0.045, tessellation: 8 }, new Vector3(ox - 0.035, -0.17, 0.42), gunDark, new Vector3(Math.PI / 2, 0, 0));
+        cyl('barrel2', { height: 0.35, diameter: 0.045, tessellation: 8 }, new Vector3(ox + 0.035, -0.17, 0.42), gunDark, new Vector3(Math.PI / 2, 0, 0));
+        p('barrelHousing', { width: 0.13, height: 0.07, depth: 0.15 }, new Vector3(ox, -0.17, 0.35), gunMat);
+        p('muzzle1', { width: 0.055, height: 0.055, depth: 0.02 }, new Vector3(ox - 0.035, -0.17, 0.6), accentMat);
+        p('muzzle2', { width: 0.055, height: 0.055, depth: 0.02 }, new Vector3(ox + 0.035, -0.17, 0.6), accentMat);
+        p('grip', { width: 0.055, height: 0.14, depth: 0.05 }, new Vector3(ox, -0.32, 0.13), gunDark, new Vector3(0.2, 0, 0));
+        p('pumpHandle', { width: 0.08, height: 0.04, depth: 0.1 }, new Vector3(ox, -0.24, 0.38), accentMat);
+        p('stock', { width: 0.06, height: 0.08, depth: 0.1 }, new Vector3(ox, -0.2, 0.0), gunMat);
+        // Glow accents
+        p('plasmaVent1', { width: 0.14, height: 0.015, depth: 0.06 }, new Vector3(ox, -0.135, 0.3), glowMat);
+        p('plasmaVent2', { width: 0.08, height: 0.015, depth: 0.04 }, new Vector3(ox, -0.135, 0.45), glowMat);
+        p('shellGlow', { width: 0.04, height: 0.04, depth: 0.015 }, new Vector3(ox, -0.2, 0.3), glowMat);
         break;
-      case 2:
-        makePart('barrel', { width: 0.035, height: 0.035, depth: 0.7 }, new Vector3(0.25, -0.17, 0.5), gunMat);
-        makePart('body', { width: 0.08, height: 0.09, depth: 0.22 }, new Vector3(0.25, -0.19, 0.18), gunMat);
-        makePart('grip', { width: 0.04, height: 0.12, depth: 0.04 }, new Vector3(0.25, -0.29, 0.15), gunMat, new Vector3(0.3, 0, 0));
-        makePart('stock', { width: 0.04, height: 0.05, depth: 0.2 }, new Vector3(0.25, -0.18, -0.02), gunMat);
-        makePart('scope', { width: 0.04, height: 0.04, depth: 0.1 }, new Vector3(0.25, -0.11, 0.35), gunMat);
-        makePart('scopeLens', { width: 0.035, height: 0.035, depth: 0.015 }, new Vector3(0.25, -0.11, 0.405), accentMat);
-        makePart('rail1', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.22, -0.15, 0.45), accentMat);
-        makePart('rail2', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.28, -0.15, 0.45), accentMat);
+      }
+      case 2: {
+        // RAIL SNIPER - long, sleek, precision weapon
+        cyl('barrel', { height: 0.7, diameter: 0.035, tessellation: 8 }, new Vector3(ox, -0.17, 0.5), gunDark, new Vector3(Math.PI / 2, 0, 0));
+        p('barrelShroud', { width: 0.05, height: 0.05, depth: 0.4 }, new Vector3(ox, -0.17, 0.6), gunMat);
+        p('receiver', { width: 0.08, height: 0.085, depth: 0.2 }, new Vector3(ox, -0.19, 0.16), gunMat);
+        p('receiverExtend', { width: 0.06, height: 0.06, depth: 0.12 }, new Vector3(ox, -0.18, 0.3), gunLight);
+        p('grip', { width: 0.035, height: 0.12, depth: 0.035 }, new Vector3(ox, -0.29, 0.13), gunDark, new Vector3(0.25, 0, 0));
+        p('triggerGuard', { width: 0.035, height: 0.01, depth: 0.07 }, new Vector3(ox, -0.25, 0.15), gunDark);
+        p('stock', { width: 0.035, height: 0.05, depth: 0.22 }, new Vector3(ox, -0.18, -0.04), gunMat);
+        p('stockCheek', { width: 0.04, height: 0.03, depth: 0.08 }, new Vector3(ox, -0.155, -0.05), gunLight);
+        p('bipodL', { width: 0.01, height: 0.08, depth: 0.01 }, new Vector3(ox - 0.04, -0.26, 0.4), gunDark, new Vector3(0, 0, 0.3));
+        p('bipodR', { width: 0.01, height: 0.08, depth: 0.01 }, new Vector3(ox + 0.04, -0.26, 0.4), gunDark, new Vector3(0, 0, -0.3));
+        // Scope
+        cyl('scope', { height: 0.12, diameter: 0.04, tessellation: 8 }, new Vector3(ox, -0.1, 0.33), gunDark, new Vector3(Math.PI / 2, 0, 0));
+        p('scopeBody', { width: 0.035, height: 0.035, depth: 0.08 }, new Vector3(ox, -0.1, 0.33), gunMat);
+        p('scopeLens', { width: 0.035, height: 0.035, depth: 0.01 }, new Vector3(ox, -0.1, 0.38), glowMat);
+        p('scopeMount', { width: 0.02, height: 0.02, depth: 0.06 }, new Vector3(ox, -0.12, 0.33), gunDark);
+        // Rail accents
+        p('rail1', { width: 0.008, height: 0.008, depth: 0.55 }, new Vector3(ox - 0.028, -0.15, 0.5), glowMat);
+        p('rail2', { width: 0.008, height: 0.008, depth: 0.55 }, new Vector3(ox + 0.028, -0.15, 0.5), glowMat);
+        p('muzzleFlare', { width: 0.045, height: 0.045, depth: 0.015 }, new Vector3(ox, -0.17, 0.86), glowMat);
         break;
-      case 3:
-        makePart('tube', { width: 0.09, height: 0.09, depth: 0.45 }, new Vector3(0.25, -0.16, 0.4), gunMat);
-        makePart('body', { width: 0.13, height: 0.14, depth: 0.2 }, new Vector3(0.25, -0.2, 0.15), gunMat);
-        makePart('grip', { width: 0.06, height: 0.15, depth: 0.06 }, new Vector3(0.25, -0.34, 0.12), gunMat, new Vector3(0.25, 0, 0));
-        makePart('handle', { width: 0.04, height: 0.06, depth: 0.08 }, new Vector3(0.25, -0.12, 0.3), gunMat);
-        makePart('muzzle', { width: 0.11, height: 0.11, depth: 0.03 }, new Vector3(0.25, -0.16, 0.63), accentMat);
-        makePart('vent1', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.19, -0.16, 0.5), accentMat);
-        makePart('vent2', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.31, -0.16, 0.5), accentMat);
+      }
+      case 3: {
+        // HAVOC LAUNCHER - chunky sci-fi rocket launcher
+        cyl('tube', { height: 0.48, diameter: 0.09, tessellation: 10 }, new Vector3(ox, -0.16, 0.42), gunDark, new Vector3(Math.PI / 2, 0, 0));
+        p('tubeHousing', { width: 0.11, height: 0.11, depth: 0.35 }, new Vector3(ox, -0.16, 0.35), gunMat);
+        p('receiver', { width: 0.12, height: 0.13, depth: 0.18 }, new Vector3(ox, -0.2, 0.12), gunMat);
+        p('receiverTop', { width: 0.1, height: 0.03, depth: 0.2 }, new Vector3(ox, -0.13, 0.13), gunLight);
+        p('grip', { width: 0.05, height: 0.14, depth: 0.05 }, new Vector3(ox, -0.33, 0.1), gunDark, new Vector3(0.2, 0, 0));
+        p('foregrip', { width: 0.04, height: 0.06, depth: 0.06 }, new Vector3(ox, -0.25, 0.35), gunDark);
+        p('topHandle', { width: 0.04, height: 0.04, depth: 0.1 }, new Vector3(ox, -0.1, 0.28), gunMat);
+        p('handlePost1', { width: 0.015, height: 0.03, depth: 0.015 }, new Vector3(ox, -0.12, 0.23), gunDark);
+        p('handlePost2', { width: 0.015, height: 0.03, depth: 0.015 }, new Vector3(ox, -0.12, 0.33), gunDark);
+        // Muzzle ring
+        p('muzzleRing', { width: 0.12, height: 0.12, depth: 0.02 }, new Vector3(ox, -0.16, 0.66), accentMat);
+        p('muzzleInner', { width: 0.08, height: 0.08, depth: 0.02 }, new Vector3(ox, -0.16, 0.665), gunDark);
+        // Vents and glow
+        p('vent1', { width: 0.02, height: 0.12, depth: 0.03 }, new Vector3(ox - 0.06, -0.16, 0.5), accentMat);
+        p('vent2', { width: 0.02, height: 0.12, depth: 0.03 }, new Vector3(ox + 0.06, -0.16, 0.5), accentMat);
+        p('ventGlow1', { width: 0.015, height: 0.08, depth: 0.025 }, new Vector3(ox - 0.06, -0.16, 0.5), glowMat);
+        p('ventGlow2', { width: 0.015, height: 0.08, depth: 0.025 }, new Vector3(ox + 0.06, -0.16, 0.5), glowMat);
+        p('rearGlow', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(ox, -0.16, 0.17), glowMat);
+        p('energyStrip', { width: 0.12, height: 0.012, depth: 0.2 }, new Vector3(ox, -0.1, 0.4), glowMat);
         break;
+      }
     }
 
     weaponModels.push(model);
@@ -392,20 +472,26 @@ function setupPickups(): void {
   pickups = [];
 
   const pickupColors: Record<string, Color3> = {
-    health: new Color3(0.2, 0.8, 0.3),
-    armor: new Color3(0.3, 0.5, 0.9),
-    ammo: new Color3(0.9, 0.7, 0.1),
+    health: new Color3(0.15, 0.9, 0.35),
+    armor: new Color3(0.2, 0.5, 1),
+    ammo: new Color3(1, 0.75, 0.1),
   };
 
   const pickupMats: Record<string, StandardMaterial> = {};
   for (const [key, color] of Object.entries(pickupColors)) {
     const mat = new StandardMaterial(`pickupMat_${key}`, scene);
     mat.diffuseColor = color;
-    mat.emissiveColor = color.scale(0.3);
+    mat.emissiveColor = color.scale(0.5);
     mat.specularColor = Color3.Black();
     mat.freeze();
     pickupMats[key] = mat;
   }
+
+  const pickupBaseMat = new StandardMaterial('pickupBase', scene);
+  pickupBaseMat.diffuseColor = new Color3(0.15, 0.16, 0.2);
+  pickupBaseMat.specularColor = new Color3(0.25, 0.25, 0.3);
+  pickupBaseMat.specularPower = 48;
+  pickupBaseMat.freeze();
 
   mapData.pickupLocations.forEach((pos, i) => {
     const types: Array<'health' | 'armor' | 'ammo'> = ['health', 'armor', 'ammo'];
@@ -416,14 +502,28 @@ function setupPickups(): void {
       ammo: 0,
     };
 
-    const mesh = MeshBuilder.CreateBox(`pickup_${i}`, { width: 0.6, height: 0.6, depth: 0.6 }, scene);
-    mesh.position = pos.add(new Vector3(0, 0.5, 0));
-    mesh.material = pickupMats[type];
-    mesh.checkCollisions = false;
-    mesh.isPickable = false;
+    const core = MeshBuilder.CreateBox(`pickup_${i}`, { width: 0.45, height: 0.45, depth: 0.45 }, scene);
+    core.position = pos.add(new Vector3(0, 0.7, 0));
+    core.material = pickupMats[type];
+    core.checkCollisions = false;
+    core.isPickable = false;
+
+    const frame = MeshBuilder.CreateBox(`pickupFrame_${i}`, { width: 0.6, height: 0.6, depth: 0.6 }, scene);
+    frame.parent = core;
+    frame.position = Vector3.Zero();
+    frame.material = pickupBaseMat;
+    frame.checkCollisions = false;
+    frame.isPickable = false;
+
+    const ring = MeshBuilder.CreateTorus(`pickupRing_${i}`, { diameter: 0.8, thickness: 0.04, tessellation: 12 }, scene);
+    ring.parent = core;
+    ring.position = Vector3.Zero();
+    ring.material = pickupMats[type];
+    ring.checkCollisions = false;
+    ring.isPickable = false;
 
     pickups.push({
-      mesh,
+      mesh: core,
       type,
       value: values[type],
       respawnTimer: 0,

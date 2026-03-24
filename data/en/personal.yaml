@@ -124,7 +124,7 @@ sections:
         image: "/games/game_placeholder.svg"
       - title: Lexicon Atlas
         genre: Educational interactive
-        summary: "Spin a 3D globe and discover 120+ English words unique to their homeland — from 'brinjal' in India to 'robot' meaning traffic light in South Africa."
+        summary: "Spin a 3D globe and discover 200+ English words unique to their homeland — from 'brinjal' in India to 'robot' meaning traffic light in South Africa."
         tags: ["browser", "3D", "educational"]
         link:
           label: Explore Lexicon Atlas

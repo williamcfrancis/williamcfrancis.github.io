@@ -75,19 +75,43 @@ export const ENEMY_TYPES: EnemyType[] = [
 
 const _matCache = new Map<string, StandardMaterial>();
 
-function getEnemyMat(scene: Scene, color: [number, number, number], highlight: boolean): StandardMaterial {
-  const key = `${color.join(',')}_${highlight}`;
+function getEnemyMat(scene: Scene, color: [number, number, number], variant: 'body' | 'head' | 'armor' | 'glow' | 'dark'): StandardMaterial {
+  const key = `${color.join(',')}_${variant}`;
   let mat = _matCache.get(key);
   if (mat) return mat;
 
   mat = new StandardMaterial('eMat_' + key, scene);
-  if (highlight) {
-    mat.diffuseColor = new Color3(color[0], color[1], color[2]);
-    mat.emissiveColor = new Color3(color[0] * 0.3, color[1] * 0.3, color[2] * 0.3);
-  } else {
-    mat.diffuseColor = new Color3(color[0] * 0.5, color[1] * 0.5, color[2] * 0.5);
+  const c = new Color3(color[0], color[1], color[2]);
+
+  switch (variant) {
+    case 'body':
+      mat.diffuseColor = new Color3(0.2, 0.22, 0.25);
+      mat.specularColor = new Color3(0.25, 0.25, 0.3);
+      mat.specularPower = 32;
+      break;
+    case 'head':
+      mat.diffuseColor = c.scale(0.7);
+      mat.emissiveColor = c.scale(0.15);
+      mat.specularColor = new Color3(0.3, 0.3, 0.35);
+      mat.specularPower = 48;
+      break;
+    case 'armor':
+      mat.diffuseColor = c.scale(0.4);
+      mat.specularColor = new Color3(0.35, 0.35, 0.4);
+      mat.specularPower = 64;
+      break;
+    case 'glow':
+      mat.diffuseColor = c;
+      mat.emissiveColor = c.scale(0.6);
+      mat.specularColor = Color3.Black();
+      break;
+    case 'dark':
+      mat.diffuseColor = new Color3(0.12, 0.13, 0.16);
+      mat.specularColor = new Color3(0.15, 0.15, 0.18);
+      mat.specularPower = 24;
+      break;
   }
-  mat.specularColor = Color3.Black();
+
   mat.freeze();
   _matCache.set(key, mat);
   return mat;
@@ -100,51 +124,181 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   const bodyParts: Mesh[] = [];
   const s = type.scale;
 
-  const bodyMat = getEnemyMat(scene, type.color, false);
-  const headMat = getEnemyMat(scene, type.color, true);
+  const bodyMat = getEnemyMat(scene, type.color, 'body');
+  const headMat = getEnemyMat(scene, type.color, 'head');
+  const armorMat = getEnemyMat(scene, type.color, 'armor');
+  const glowMat = getEnemyMat(scene, type.color, 'glow');
+  const darkMat = getEnemyMat(scene, type.color, 'dark');
 
-  const torso = MeshBuilder.CreateBox('torso', { width: 0.8 * s, height: 1.2 * s, depth: 0.5 * s }, scene);
-  torso.position.y = 1.1 * s;
-  torso.parent = root;
-  torso.material = bodyMat;
-  bodyParts.push(torso);
+  const addPart = (name: string, mesh: Mesh, mat: StandardMaterial, isHead = false): Mesh => {
+    mesh.parent = root;
+    mesh.material = mat;
+    mesh.isPickable = false;
+    if (isHead) mesh.metadata = { isHead: true };
+    bodyParts.push(mesh);
+    return mesh;
+  };
 
-  const head = MeshBuilder.CreateSphere('head', { diameter: 0.45 * s, segments: 6 }, scene);
-  head.position.y = 2 * s;
-  head.parent = root;
-  head.material = headMat;
-  head.metadata = { isHead: true };
-  bodyParts.push(head);
+  // --- PELVIS / HIP ---
+  const pelvis = MeshBuilder.CreateBox('pelvis', { width: 0.6 * s, height: 0.3 * s, depth: 0.35 * s }, scene);
+  pelvis.position.y = 0.6 * s;
+  addPart('pelvis', pelvis, darkMat);
 
-  const visor = MeshBuilder.CreateBox('visor', { width: 0.35 * s, height: 0.1 * s, depth: 0.3 * s }, scene);
-  visor.position.y = 2 * s;
-  visor.position.z = 0.15 * s;
-  visor.parent = root;
-  visor.material = headMat;
-  bodyParts.push(visor);
+  // --- TORSO (multi-segment) ---
+  const torsoLower = MeshBuilder.CreateBox('torsoLower', { width: 0.75 * s, height: 0.5 * s, depth: 0.4 * s }, scene);
+  torsoLower.position.y = 1.0 * s;
+  addPart('torsoLower', torsoLower, bodyMat);
 
-  for (const side of [-1, 1]) {
-    const leg = MeshBuilder.CreateBox('leg', { width: 0.25 * s, height: 0.9 * s, depth: 0.3 * s }, scene);
-    leg.position = new Vector3(side * 0.25 * s, 0.45 * s, 0);
-    leg.parent = root;
-    leg.material = bodyMat;
-    bodyParts.push(leg);
+  const torsoUpper = MeshBuilder.CreateBox('torsoUpper', { width: 0.8 * s, height: 0.5 * s, depth: 0.42 * s }, scene);
+  torsoUpper.position.y = 1.45 * s;
+  addPart('torsoUpper', torsoUpper, bodyMat);
+
+  // Chest armor plate
+  const chestPlate = MeshBuilder.CreateBox('chestPlate', { width: 0.6 * s, height: 0.35 * s, depth: 0.08 * s }, scene);
+  chestPlate.position = new Vector3(0, 1.45 * s, 0.22 * s);
+  addPart('chestPlate', chestPlate, armorMat);
+
+  // Glowing core on chest
+  const core = MeshBuilder.CreateSphere('core', { diameter: 0.15 * s, segments: 6 }, scene);
+  core.position = new Vector3(0, 1.35 * s, 0.28 * s);
+  addPart('core', core, glowMat);
+
+  // Back panel
+  const backPanel = MeshBuilder.CreateBox('backPanel', { width: 0.5 * s, height: 0.3 * s, depth: 0.06 * s }, scene);
+  backPanel.position = new Vector3(0, 1.5 * s, -0.22 * s);
+  addPart('backPanel', backPanel, armorMat);
+
+  // --- NECK ---
+  const neck = MeshBuilder.CreateCylinder('neck', { height: 0.15 * s, diameter: 0.2 * s, tessellation: 6 }, scene);
+  neck.position.y = 1.78 * s;
+  addPart('neck', neck, darkMat);
+
+  // --- HEAD ---
+  const head = MeshBuilder.CreateBox('head', { width: 0.38 * s, height: 0.35 * s, depth: 0.35 * s }, scene);
+  head.position.y = 2.03 * s;
+  addPart('head', head, headMat, true);
+
+  // Visor (glowing eye slit)
+  const visor = MeshBuilder.CreateBox('visor', { width: 0.32 * s, height: 0.08 * s, depth: 0.06 * s }, scene);
+  visor.position = new Vector3(0, 2.05 * s, 0.18 * s);
+  addPart('visor', visor, glowMat);
+
+  // Antenna / crest based on enemy type
+  if (type.behavior === 'snipe') {
+    const scope = MeshBuilder.CreateCylinder('scope', { height: 0.25 * s, diameter: 0.06 * s, tessellation: 6 }, scene);
+    scope.position = new Vector3(0.15 * s, 2.15 * s, 0.1 * s);
+    scope.rotation.x = Math.PI / 6;
+    addPart('scope', scope, armorMat);
+
+    const lens = MeshBuilder.CreateSphere('lens', { diameter: 0.08 * s, segments: 4 }, scene);
+    lens.position = new Vector3(0.15 * s, 2.22 * s, 0.18 * s);
+    addPart('lens', lens, glowMat);
+  } else if (type.behavior === 'rush' && type.scale > 1) {
+    // Juggernaut horns
+    for (const side of [-1, 1]) {
+      const horn = MeshBuilder.CreateCylinder('horn', { height: 0.25 * s, diameterTop: 0.03 * s, diameterBottom: 0.08 * s, tessellation: 5 }, scene);
+      horn.position = new Vector3(side * 0.18 * s, 2.25 * s, 0);
+      horn.rotation.z = side * -0.4;
+      addPart('horn', horn, armorMat);
+    }
+  } else {
+    const antenna = MeshBuilder.CreateCylinder('antenna', { height: 0.2 * s, diameter: 0.03 * s, tessellation: 4 }, scene);
+    antenna.position = new Vector3(0.12 * s, 2.28 * s, 0);
+    addPart('antenna', antenna, darkMat);
+
+    const antennaTip = MeshBuilder.CreateSphere('antennaTip', { diameter: 0.06 * s, segments: 4 }, scene);
+    antennaTip.position = new Vector3(0.12 * s, 2.4 * s, 0);
+    addPart('antennaTip', antennaTip, glowMat);
   }
 
+  // --- SHOULDERS ---
   for (const side of [-1, 1]) {
-    const arm = MeshBuilder.CreateBox('arm', { width: 0.2 * s, height: 0.8 * s, depth: 0.25 * s }, scene);
-    arm.position = new Vector3(side * 0.55 * s, 1.1 * s, 0);
-    arm.parent = root;
-    arm.material = bodyMat;
-    bodyParts.push(arm);
+    const shoulderJoint = MeshBuilder.CreateSphere('shoulderJoint', { diameter: 0.22 * s, segments: 6 }, scene);
+    shoulderJoint.position = new Vector3(side * 0.52 * s, 1.65 * s, 0);
+    addPart('shoulderJoint', shoulderJoint, darkMat);
+
+    const shoulderPad = MeshBuilder.CreateBox('shoulderPad', { width: 0.3 * s, height: 0.12 * s, depth: 0.35 * s }, scene);
+    shoulderPad.position = new Vector3(side * 0.55 * s, 1.72 * s, 0);
+    addPart('shoulderPad', shoulderPad, armorMat);
+
+    // Upper arm
+    const upperArm = MeshBuilder.CreateBox('upperArm', { width: 0.16 * s, height: 0.45 * s, depth: 0.18 * s }, scene);
+    upperArm.position = new Vector3(side * 0.55 * s, 1.35 * s, 0);
+    addPart('upperArm', upperArm, bodyMat);
+
+    // Elbow joint
+    const elbow = MeshBuilder.CreateSphere('elbow', { diameter: 0.14 * s, segments: 4 }, scene);
+    elbow.position = new Vector3(side * 0.55 * s, 1.1 * s, 0);
+    addPart('elbow', elbow, darkMat);
+
+    // Forearm
+    const forearm = MeshBuilder.CreateBox('forearm', { width: 0.14 * s, height: 0.35 * s, depth: 0.16 * s }, scene);
+    forearm.position = new Vector3(side * 0.55 * s, 0.88 * s, 0.08 * s);
+    addPart('forearm', forearm, bodyMat);
+
+    // Hand/weapon mount
+    if (side === 1) {
+      const gunMount = MeshBuilder.CreateBox('gunMount', { width: 0.1 * s, height: 0.08 * s, depth: 0.3 * s }, scene);
+      gunMount.position = new Vector3(side * 0.55 * s, 0.7 * s, 0.2 * s);
+      addPart('gunMount', gunMount, darkMat);
+
+      const barrel = MeshBuilder.CreateCylinder('eBarrel', { height: 0.25 * s, diameter: 0.06 * s, tessellation: 6 }, scene);
+      barrel.position = new Vector3(side * 0.55 * s, 0.7 * s, 0.4 * s);
+      barrel.rotation.x = Math.PI / 2;
+      addPart('eBarrel', barrel, darkMat);
+
+      const muzzle = MeshBuilder.CreateSphere('muzzle', { diameter: 0.08 * s, segments: 4 }, scene);
+      muzzle.position = new Vector3(side * 0.55 * s, 0.7 * s, 0.52 * s);
+      addPart('muzzle', muzzle, glowMat);
+    }
   }
 
+  // --- LEGS ---
   for (const side of [-1, 1]) {
-    const shoulder = MeshBuilder.CreateBox('shoulder', { width: 0.35 * s, height: 0.15 * s, depth: 0.4 * s }, scene);
-    shoulder.position = new Vector3(side * 0.55 * s, 1.7 * s, 0);
-    shoulder.parent = root;
-    shoulder.material = headMat;
-    bodyParts.push(shoulder);
+    const hipJoint = MeshBuilder.CreateSphere('hipJoint', { diameter: 0.18 * s, segments: 4 }, scene);
+    hipJoint.position = new Vector3(side * 0.22 * s, 0.5 * s, 0);
+    addPart('hipJoint', hipJoint, darkMat);
+
+    const thigh = MeshBuilder.CreateBox('leg', { width: 0.18 * s, height: 0.4 * s, depth: 0.2 * s }, scene);
+    thigh.position = new Vector3(side * 0.22 * s, 0.28 * s, 0);
+    addPart('thigh', thigh, bodyMat);
+
+    const knee = MeshBuilder.CreateSphere('knee', { diameter: 0.14 * s, segments: 4 }, scene);
+    knee.position = new Vector3(side * 0.22 * s, 0.08 * s, 0.04 * s);
+    addPart('knee', knee, darkMat);
+
+    const shin = MeshBuilder.CreateBox('leg', { width: 0.15 * s, height: 0.35 * s, depth: 0.18 * s }, scene);
+    shin.position = new Vector3(side * 0.22 * s, -0.12 * s, 0.02 * s);
+    addPart('shin', shin, bodyMat);
+
+    // Shin armor
+    const shinGuard = MeshBuilder.CreateBox('shinGuard', { width: 0.12 * s, height: 0.2 * s, depth: 0.06 * s }, scene);
+    shinGuard.position = new Vector3(side * 0.22 * s, -0.08 * s, 0.12 * s);
+    addPart('shinGuard', shinGuard, armorMat);
+
+    const foot = MeshBuilder.CreateBox('foot', { width: 0.2 * s, height: 0.08 * s, depth: 0.28 * s }, scene);
+    foot.position = new Vector3(side * 0.22 * s, -0.32 * s, 0.05 * s);
+    addPart('foot', foot, darkMat);
+  }
+
+  // Type-specific extras
+  if (type.behavior === 'rush' && type.scale > 1) {
+    // Juggernaut: extra armor plates and back engine
+    const backEngine = MeshBuilder.CreateCylinder('backEngine', { height: 0.3 * s, diameter: 0.25 * s, tessellation: 6 }, scene);
+    backEngine.position = new Vector3(0, 1.2 * s, -0.28 * s);
+    addPart('backEngine', backEngine, darkMat);
+
+    const engineGlow = MeshBuilder.CreateSphere('engineGlow', { diameter: 0.18 * s, segments: 4 }, scene);
+    engineGlow.position = new Vector3(0, 1.2 * s, -0.4 * s);
+    addPart('engineGlow', engineGlow, glowMat);
+  }
+
+  if (type.behavior === 'flank') {
+    for (const side of [-1, 1]) {
+      const blade = MeshBuilder.CreateBox('blade', { width: 0.03 * s, height: 0.06 * s, depth: 0.35 * s }, scene);
+      blade.position = new Vector3(side * 0.4 * s, 0.9 * s, 0.1 * s);
+      addPart('blade', blade, glowMat);
+    }
   }
 
   return {
@@ -201,10 +355,19 @@ export function updateEnemy(
     }
     enemy.bodyParts.forEach(part => { part.material = _hitFlashMat; });
   } else {
-    const bodyMat = getEnemyMat(scene, enemy.type.color, false);
-    const headMat = getEnemyMat(scene, enemy.type.color, true);
+    const bodyMat = getEnemyMat(scene, enemy.type.color, 'body');
+    const headMat = getEnemyMat(scene, enemy.type.color, 'head');
+    const armorMat = getEnemyMat(scene, enemy.type.color, 'armor');
+    const glowMat = getEnemyMat(scene, enemy.type.color, 'glow');
+    const darkMat = getEnemyMat(scene, enemy.type.color, 'dark');
+
     enemy.bodyParts.forEach(part => {
-      part.material = (part.metadata?.isHead || part.name === 'visor' || part.name === 'shoulder') ? headMat : bodyMat;
+      const n = part.name;
+      if (part.metadata?.isHead) part.material = headMat;
+      else if (n === 'visor' || n === 'core' || n === 'antennaTip' || n === 'muzzle' || n === 'engineGlow' || n === 'blade' || n === 'lens') part.material = glowMat;
+      else if (n === 'chestPlate' || n === 'shoulderPad' || n === 'backPanel' || n === 'shinGuard' || n === 'horn' || n === 'scope') part.material = armorMat;
+      else if (n === 'pelvis' || n === 'neck' || n === 'shoulderJoint' || n === 'elbow' || n === 'hipJoint' || n === 'knee' || n === 'foot' || n === 'gunMount' || n === 'eBarrel' || n === 'backEngine' || n === 'antenna') part.material = darkMat;
+      else part.material = bodyMat;
     });
   }
 
@@ -322,9 +485,20 @@ export function updateEnemy(
   const walkSpeed = new Vector3(enemy.velocity.x, 0, enemy.velocity.z).length();
   if (walkSpeed > 0.5) {
     const time = performance.now() * 0.006;
+    const legAmplitude = 0.4 * (walkSpeed / enemy.type.speed);
     enemy.bodyParts.forEach((part, i) => {
       if (part.name === 'leg') {
-        part.rotation.x = Math.sin(time + i * Math.PI) * 0.4 * (walkSpeed / enemy.type.speed);
+        part.rotation.x = Math.sin(time + i * Math.PI) * legAmplitude;
+      }
+    });
+  }
+
+  // Subtle idle bob for the head
+  if (enemy.alive) {
+    const idleBob = Math.sin(performance.now() * 0.003) * 0.02;
+    enemy.bodyParts.forEach(part => {
+      if (part.metadata?.isHead) {
+        part.position.y = 2.03 * enemy.type.scale + idleBob;
       }
     });
   }

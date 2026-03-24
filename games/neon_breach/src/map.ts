@@ -33,23 +33,23 @@ export function buildMap(scene: Scene): MapData {
   scene.fogDensity = 0.004;
   scene.fogColor = new Color3(0.02, 0.01, 0.05);
 
-  const glow = new GlowLayer('glow', scene, { mainTextureSamples: 4 });
+  const glow = new GlowLayer('glow', scene, { mainTextureSamples: 1 });
   glow.intensity = 0.8;
 
   // Lights
   const hemi = new HemisphericLight('hemi', new Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.3;
-  hemi.diffuse = new Color3(0.4, 0.3, 0.6);
-  hemi.groundColor = new Color3(0.05, 0.02, 0.1);
+  hemi.intensity = 0.6;
+  hemi.diffuse = new Color3(0.5, 0.4, 0.7);
+  hemi.groundColor = new Color3(0.1, 0.06, 0.15);
 
   const dirLight = new DirectionalLight('dir', new Vector3(-0.5, -1, 0.5), scene);
-  dirLight.intensity = 0.6;
+  dirLight.intensity = 1.0;
   dirLight.diffuse = new Color3(0.6, 0.5, 0.9);
   dirLight.position = new Vector3(0, 80, 0);
 
   let shadowGen: CascadedShadowGenerator | null = null;
   try {
-    shadowGen = new CascadedShadowGenerator(1024, dirLight);
+    shadowGen = new CascadedShadowGenerator(512, dirLight);
     shadowGen.bias = 0.005;
     shadowGen.normalBias = 0.02;
     shadowGen.lambda = 0.9;
@@ -62,47 +62,47 @@ export function buildMap(scene: Scene): MapData {
 
   // Materials
   const floorMat = new PBRMaterial('floor', scene);
-  floorMat.albedoColor = new Color3(0.04, 0.03, 0.06);
-  floorMat.roughness = 0.7;
-  floorMat.metallic = 0.3;
+  floorMat.albedoColor = new Color3(0.08, 0.06, 0.1);
+  floorMat.roughness = 0.9;
+  floorMat.metallic = 0.05;
 
   const wallMat = new PBRMaterial('wall', scene);
-  wallMat.albedoColor = new Color3(0.06, 0.04, 0.08);
-  wallMat.roughness = 0.5;
-  wallMat.metallic = 0.6;
+  wallMat.albedoColor = new Color3(0.1, 0.07, 0.12);
+  wallMat.roughness = 0.8;
+  wallMat.metallic = 0.1;
 
   const platformMat = new PBRMaterial('platform', scene);
-  platformMat.albedoColor = new Color3(0.05, 0.04, 0.07);
-  platformMat.roughness = 0.4;
-  platformMat.metallic = 0.7;
+  platformMat.albedoColor = new Color3(0.09, 0.07, 0.11);
+  platformMat.roughness = 0.8;
+  platformMat.metallic = 0.1;
 
   const neonCyan = new PBRMaterial('neonCyan', scene);
   neonCyan.albedoColor = new Color3(0, 0.2, 0.3);
   neonCyan.emissiveColor = new Color3(0, 0.8, 1);
   neonCyan.emissiveIntensity = 3;
-  neonCyan.roughness = 0.1;
-  neonCyan.metallic = 0.9;
+  neonCyan.roughness = 0.3;
+  neonCyan.metallic = 0.3;
 
   const neonMagenta = new PBRMaterial('neonMagenta', scene);
   neonMagenta.albedoColor = new Color3(0.3, 0, 0.2);
   neonMagenta.emissiveColor = new Color3(1, 0, 0.6);
   neonMagenta.emissiveIntensity = 3;
-  neonMagenta.roughness = 0.1;
-  neonMagenta.metallic = 0.9;
+  neonMagenta.roughness = 0.3;
+  neonMagenta.metallic = 0.3;
 
   const neonPurple = new PBRMaterial('neonPurple', scene);
   neonPurple.albedoColor = new Color3(0.15, 0, 0.3);
   neonPurple.emissiveColor = new Color3(0.5, 0.1, 1);
   neonPurple.emissiveIntensity = 3;
-  neonPurple.roughness = 0.1;
-  neonPurple.metallic = 0.9;
+  neonPurple.roughness = 0.3;
+  neonPurple.metallic = 0.3;
 
   const neonOrange = new PBRMaterial('neonOrange', scene);
   neonOrange.albedoColor = new Color3(0.3, 0.1, 0);
   neonOrange.emissiveColor = new Color3(1, 0.4, 0);
   neonOrange.emissiveIntensity = 3;
-  neonOrange.roughness = 0.1;
-  neonOrange.metallic = 0.9;
+  neonOrange.roughness = 0.3;
+  neonOrange.metallic = 0.3;
 
   const neonMats = [neonCyan, neonMagenta, neonPurple, neonOrange];
 
@@ -114,7 +114,7 @@ export function buildMap(scene: Scene): MapData {
 
   // Grid lines on floor
   const gridLines: Mesh[] = [];
-  for (let i = -90; i <= 90; i += 10) {
+  for (let i = -90; i <= 90; i += 20) {
     const lineX = MeshBuilder.CreateBox(`gridX_${i}`, { width: 180, height: 0.02, depth: 0.06 }, scene);
     lineX.position = new Vector3(0, 0.01, i);
     lineX.material = neonCyan;
@@ -194,9 +194,9 @@ export function buildMap(scene: Scene): MapData {
 
   // Ramps to center
   const rampMat = new PBRMaterial('ramp', scene);
-  rampMat.albedoColor = new Color3(0.04, 0.04, 0.06);
-  rampMat.roughness = 0.5;
-  rampMat.metallic = 0.5;
+  rampMat.albedoColor = new Color3(0.08, 0.07, 0.1);
+  rampMat.roughness = 0.8;
+  rampMat.metallic = 0.1;
 
   const createRamp = (x: number, z: number, rotY: number): void => {
     const ramp = MeshBuilder.CreateBox('ramp', { width: 4, height: 0.3, depth: 10 }, scene);
@@ -236,9 +236,9 @@ export function buildMap(scene: Scene): MapData {
 
   // Mid-height catwalks connecting corners
   const catwalkMat = new PBRMaterial('catwalk', scene);
-  catwalkMat.albedoColor = new Color3(0.04, 0.03, 0.06);
-  catwalkMat.roughness = 0.4;
-  catwalkMat.metallic = 0.8;
+  catwalkMat.albedoColor = new Color3(0.08, 0.06, 0.1);
+  catwalkMat.roughness = 0.8;
+  catwalkMat.metallic = 0.1;
 
   const catwalks: [number, number, number, number, number][] = [
     [0, 6, -55, 98, 3],
@@ -391,17 +391,13 @@ export function buildMap(scene: Scene): MapData {
     [-50, 6, 50, new Color3(0.5, 0.1, 1)],
     [50, 6, 50, new Color3(1, 0.4, 0)],
     [0, 8, 0, new Color3(0, 1, 0.8)],
-    [-30, 4, 0, new Color3(0, 0.6, 1)],
-    [30, 4, 0, new Color3(1, 0.2, 0.5)],
-    [0, 4, -30, new Color3(0.4, 0, 1)],
-    [0, 4, 30, new Color3(1, 0.5, 0)],
   ];
 
   lightColors.forEach(([x, y, z, color], i) => {
     const pl = new PointLight(`pLight_${i}`, new Vector3(x, y, z), scene);
     pl.diffuse = color;
-    pl.intensity = 15;
-    pl.range = 35;
+    pl.intensity = 20;
+    pl.range = 45;
   });
 
   // Grapple points (visible orbs at strategic locations)

@@ -292,17 +292,17 @@ function buildWeaponModel(_scene: Scene): void {
     model.setEnabled(w === 0);
 
     const gunMat = new PBRMaterial(`gunMat_${w}`, _scene);
-    gunMat.albedoColor = new Color3(0.15, 0.15, 0.18);
-    gunMat.roughness = 0.3;
-    gunMat.metallic = 0.8;
+    gunMat.albedoColor = new Color3(0.2, 0.18, 0.22);
+    gunMat.roughness = 0.6;
+    gunMat.metallic = 0.2;
 
     const glowColor = WEAPON_GLOW_COLORS[w];
     const glowMat = new PBRMaterial(`gunGlow_${w}`, _scene);
     glowMat.albedoColor = glowColor.scale(0.1);
     glowMat.emissiveColor = glowColor;
     glowMat.emissiveIntensity = 2;
-    glowMat.roughness = 0.2;
-    glowMat.metallic = 0.9;
+    glowMat.roughness = 0.3;
+    glowMat.metallic = 0.3;
 
     const part = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, rot?: Vector3): Mesh => {
       const m = MeshBuilder.CreateBox(`${name}_${w}`, opts, _scene);
@@ -487,8 +487,8 @@ function setupPickups(): void {
     mat.albedoColor = color.scale(0.3);
     mat.emissiveColor = color;
     mat.emissiveIntensity = 2;
-    mat.roughness = 0.2;
-    mat.metallic = 0.8;
+    mat.roughness = 0.3;
+    mat.metallic = 0.2;
     mesh.material = mat;
     mesh.checkCollisions = false;
     mesh.isPickable = false;
