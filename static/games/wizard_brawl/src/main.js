@@ -331,6 +331,214 @@ function loadImageFromUrl(url) {
   });
 }
 
+const EFFECT_RENDERERS = {
+  glow(ctx, x, y, r, t, _vx, _vy, color) {
+    ctx.save();
+    ctx.globalAlpha = 0.25 + Math.sin(t * 4) * 0.1;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  },
+  orbit(ctx, x, y, r, t, _vx, _vy, color) {
+    ctx.save();
+    ctx.fillStyle = color;
+    for (let i = 0; i < 4; i++) {
+      const a = t * 3 + i * Math.PI / 2;
+      ctx.globalAlpha = 0.55;
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * r * 1.6, y + Math.sin(a) * r * 1.6, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  },
+  pulse(ctx, x, y, r, t, _vx, _vy, color) {
+    const s = 1.0 + Math.sin(t * 6) * 0.35;
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, r * s * 1.8, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  },
+  flame(ctx, x, y, r, t, _vx, _vy, color) {
+    ctx.save();
+    for (let i = 0; i < 5; i++) {
+      const off = Math.sin(t * 8 + i * 1.3) * r * 0.6;
+      const h = r * (1.2 + Math.sin(t * 10 + i) * 0.5);
+      ctx.globalAlpha = 0.3 - i * 0.04;
+      ctx.fillStyle = i < 2 ? color : '#ff8800';
+      ctx.fillRect(x - r * 0.3 + off, y - h, r * 0.4, h);
+    }
+    ctx.restore();
+  },
+  frost(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    ctx.strokeStyle = '#aaeeff';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const a = t * 0.5 + i * Math.PI / 3;
+      const len = r * (1.2 + Math.sin(t * 3 + i) * 0.3);
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  electric(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    ctx.strokeStyle = '#88ccff';
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.6;
+    for (let i = 0; i < 3; i++) {
+      const a = t * 5 + i * 2.1;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      const mx = x + (Math.random() - 0.5) * r * 2;
+      const my = y + (Math.random() - 0.5) * r * 2;
+      const ex = x + Math.cos(a) * r * 2;
+      const ey = y + Math.sin(a) * r * 2;
+      ctx.lineTo(mx, my);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  holy(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    ctx.strokeStyle = '#ffffaa';
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.35 + Math.sin(t * 3) * 0.1;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.2;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  },
+  shadow(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    for (let i = 0; i < 4; i++) {
+      const a = t * 2 + i * Math.PI / 2;
+      const d = r * (1.0 + Math.sin(t * 3 + i) * 0.5);
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#220033';
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  },
+  nature(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    ctx.fillStyle = '#66cc44';
+    for (let i = 0; i < 5; i++) {
+      const a = t * 2 + i * Math.PI * 2 / 5;
+      const d = r * 1.5;
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.ellipse(x + Math.cos(a) * d, y + Math.sin(a) * d, r * 0.35, r * 0.15, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  },
+  ripple(ctx, x, y, r, t, _vx, _vy, color) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const phase = (t * 3 + i * 0.8) % 2;
+      const rad = r * (0.8 + phase * 1.5);
+      ctx.globalAlpha = Math.max(0, 0.4 - phase * 0.2);
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  crystal(ctx, x, y, r, t, _vx, _vy, color) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.35;
+    const sides = 6;
+    for (let ring = 0; ring < 2; ring++) {
+      const rad = r * (1.3 + ring * 0.8);
+      ctx.beginPath();
+      for (let i = 0; i <= sides; i++) {
+        const a = t * 0.8 + ring * 0.5 + i * Math.PI * 2 / sides;
+        const px = x + Math.cos(a) * rad;
+        const py = y + Math.sin(a) * rad;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  chaos(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.sin(t * 7 + i * 11.1) * Math.PI;
+      const d = r * (0.5 + Math.abs(Math.sin(t * 5 + i * 3.7)));
+      const hue = ((t * 60 + i * 60) % 360) | 0;
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = `hsl(${hue},80%,60%)`;
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  },
+  void_effect(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    ctx.globalAlpha = 0.2 + Math.sin(t * 2) * 0.08;
+    ctx.fillStyle = '#110022';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#6633aa';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.8 + Math.sin(t * 4) * r * 0.3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  },
+  rainbow(ctx, x, y, r, t, _vx, _vy, _color) {
+    ctx.save();
+    const hue = ((t * 90) % 360) | 0;
+    ctx.fillStyle = `hsl(${hue},85%,65%)`;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `hsl(${(hue + 120) % 360},85%,65%)`;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
+function resolveEffectFn(effectCode) {
+  if (!effectCode || typeof effectCode !== 'string') return null;
+  const key = effectCode.trim().toLowerCase().replace(/[^a-z_]/g, '');
+  return EFFECT_RENDERERS[key] || null;
+}
+
 async function loadWeaponImages(weapon) {
   const [wImg, pImg] = await Promise.all([
     loadImageFromUrl(weapon.weapon_image_url),
@@ -338,18 +546,8 @@ async function loadWeaponImages(weapon) {
   ]);
   weapon._weaponImg = wImg;
   weapon._projectileImg = pImg;
-  weapon._effectFn = compileEffectCode(weapon.effect_code);
+  weapon._effectFn = resolveEffectFn(weapon.effect_code);
   return weapon;
-}
-
-function compileEffectCode(code) {
-  if (!code || typeof code !== 'string' || code.length < 5) return null;
-  try {
-    return new Function('ctx', 'x', 'y', 'r', 't', 'vx', 'vy', 'color', code);
-  } catch (e) {
-    console.warn('[effect_code] compile failed:', e.message);
-    return null;
-  }
 }
 
 const canvas = document.getElementById('game');

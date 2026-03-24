@@ -292,13 +292,14 @@ function clampWeapon(mod, requestText) {
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, Number(v) || lo)); }
 
+const VALID_EFFECTS = new Set([
+  'glow', 'orbit', 'pulse', 'flame', 'frost', 'electric', 'holy',
+  'shadow', 'nature', 'ripple', 'crystal', 'chaos', 'void_effect', 'rainbow',
+]);
+
 function sanitizeEffectCode(code) {
-  const s = String(code || '').slice(0, 1500);
-  const banned = ['eval', 'Function', 'import', 'require', 'fetch', 'XMLHttp', 'document', 'window', 'location', 'cookie', 'localStorage', 'sessionStorage', 'Worker', 'setTimeout', 'setInterval'];
-  for (const kw of banned) {
-    if (s.includes(kw)) return '';
-  }
-  return s;
+  const s = String(code || '').trim().toLowerCase().replace(/[^a-z_]/g, '');
+  return VALID_EFFECTS.has(s) ? s : 'glow';
 }
 
 exports.handler = async (event) => {
@@ -356,14 +357,16 @@ IMAGE PROMPT REQUIREMENTS:
   Focus on shape and glow. Example: "glowing pink star orb" or "translucent blue bubble".
 - These prompts feed an AI image generator, so be vivid and concise.
 
-EFFECT CODE REQUIREMENTS (strict):
-- effect_code: a JavaScript function BODY (no function keyword) that draws a custom visual overlay.
-- It receives these variables: ctx (CanvasRenderingContext2D), x, y (position), r (radius), t (time in seconds), vx, vy (velocity), color (hex string).
-- Use ONLY: ctx methods (fillRect, arc, beginPath, fill, stroke, save, restore, globalAlpha, fillStyle, strokeStyle, lineWidth, closePath, moveTo, lineTo, translate, rotate, scale), Math functions, and the provided variables.
-- Keep it under 800 characters. No loops over 20 iterations. No recursion.
-- The code renders OVER the projectile image as a glow/aura/particle overlay.
-- Example: "ctx.save();ctx.globalAlpha=0.4;ctx.beginPath();ctx.arc(x,y,r*2,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.restore();"
-- Make the effect match the weapon concept (fire aura for fire weapons, sparkles for magical, ripples for water, etc.).
+PROJECTILE EFFECT OVERLAY:
+- effect_code: choose exactly ONE from the following predefined effect names:
+  glow, orbit, pulse, flame, frost, electric, holy, shadow, nature, ripple, crystal, chaos, void_effect, rainbow
+- This draws a visual overlay OVER the projectile image to add flair.
+- Match the effect to the weapon concept:
+  fire/lava/dragon → flame, ice/frost/snow → frost, lightning/shock → electric,
+  holy/divine/light → holy, dark/shadow/void → shadow or void_effect,
+  nature/leaf/wood → nature, water/wave/ocean → ripple, crystal/gem/glass → crystal,
+  chaos/random/wild → chaos, magical/enchanted → glow or orbit,
+  heartbeat/living → pulse, prismatic/rainbow → rainbow
 
 SFX/VFX MAPPING HINTS:
 - trail_style one of: sparkle, petals, bubbles, smoke, leaf, rainbow, ember

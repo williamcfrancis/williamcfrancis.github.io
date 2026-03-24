@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lexicon Atlas — English Words Around the World</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0b0d17;--panel:rgba(12,14,28,.95);--card:rgba(25,30,55,.55);
+  --card-hover:rgba(40,48,85,.7);--text:#eef0f6;--text2:#8892b0;--muted:#4a5270;
+  --gold:#f4c542;--teal:#4ecdc4;--coral:#ff6b6b;--blue:#64b5f6;
+  --border:rgba(100,120,180,.15);--radius:12px;--rsm:8px;
+  --font:'Inter',system-ui,sans-serif;--heading:'Playfair Display',Georgia,serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--muted);border-radius:3px}
+
+#globe-container{position:fixed;inset:0;z-index:1}
+
+header{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;
+  justify-content:space-between;padding:14px 24px;
+  background:linear-gradient(180deg,rgba(11,13,23,.92) 60%,transparent);pointer-events:none}
+header>*{pointer-events:auto}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+.logo svg{width:28px;height:28px}
+.logo span{font-family:var(--heading);font-size:1.25rem;font-weight:700;letter-spacing:.5px}
+.logo small{font-size:.7rem;color:var(--text2);font-family:var(--font);font-weight:400;margin-left:4px}
+nav{display:flex;gap:6px;align-items:center}
+.nav-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text2);
+  padding:8px 16px;border-radius:20px;font-size:.8rem;font-weight:500;cursor:pointer;
+  transition:all .25s;display:flex;align-items:center;gap:6px;font-family:var(--font)}
+.nav-btn:hover{background:rgba(255,255,255,.12);color:var(--text);border-color:var(--teal)}
+.nav-btn.active{background:rgba(78,205,196,.15);color:var(--teal);border-color:var(--teal)}
+.back-link{color:var(--text2);text-decoration:none;font-size:.85rem;display:flex;align-items:center;gap:4px;
+  padding:6px 12px;border-radius:16px;transition:color .2s}
+.back-link:hover{color:var(--text)}
+
+#country-panel{position:fixed;top:0;right:0;width:420px;max-width:90vw;height:100%;z-index:200;
+  background:var(--panel);border-left:1px solid var(--border);
+  transform:translateX(100%);transition:transform .4s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;overflow:hidden;backdrop-filter:blur(20px)}
+#country-panel.open{transform:translateX(0)}
+.panel-header{padding:24px 24px 0;flex-shrink:0}
+.panel-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text2);
+  font-size:1.4rem;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;
+  justify-content:center;border-radius:50%;transition:all .2s}
+.panel-close:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.panel-flag{font-size:2.8rem;margin-bottom:8px}
+.panel-title{font-family:var(--heading);font-size:1.6rem;font-weight:700;margin-bottom:4px}
+.panel-dialect{color:var(--teal);font-size:.85rem;font-weight:600;margin-bottom:8px}
+.panel-desc{color:var(--text2);font-size:.82rem;line-height:1.6;margin-bottom:16px}
+.panel-tabs{display:flex;gap:4px;margin-bottom:4px}
+.panel-tab{padding:6px 14px;border-radius:16px;font-size:.78rem;font-weight:600;cursor:pointer;
+  background:transparent;border:1px solid transparent;color:var(--text2);transition:all .2s}
+.panel-tab.active{background:rgba(78,205,196,.12);color:var(--teal);border-color:rgba(78,205,196,.3)}
+.panel-tab:hover:not(.active){color:var(--text)}
+.panel-words{flex:1;overflow-y:auto;padding:16px 24px 24px}
+
+.word-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:10px;cursor:pointer;transition:all .3s;
+  animation:cardIn .4s ease both}
+.word-card:hover{background:var(--card-hover);border-color:rgba(78,205,196,.25);
+  transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.word-card.expanded{border-color:rgba(78,205,196,.4)}
+.word-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.word-name{font-size:1.15rem;font-weight:700;color:var(--gold)}
+.word-pos{font-size:.65rem;color:var(--teal);background:rgba(78,205,196,.1);padding:2px 8px;
+  border-radius:8px;font-weight:600;text-transform:uppercase;white-space:nowrap}
+.word-meaning{color:var(--text);font-size:.88rem;line-height:1.5;margin-bottom:6px}
+.word-example{color:var(--text2);font-size:.8rem;font-style:italic;line-height:1.5;
+  padding-left:10px;border-left:2px solid var(--muted)}
+.word-etymology{overflow:hidden;max-height:0;transition:max-height .4s ease,padding .3s;padding:0}
+.word-card.expanded .word-etymology{max-height:300px;padding-top:12px}
+.etym-label{font-size:.7rem;font-weight:600;color:var(--teal);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:6px}
+.etym-text{color:var(--text2);font-size:.82rem;line-height:1.6}
+.word-actions{display:flex;gap:8px;margin-top:10px}
+.word-action-btn{background:none;border:1px solid var(--border);color:var(--text2);
+  padding:4px 10px;border-radius:12px;font-size:.72rem;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:4px;font-family:var(--font)}
+.word-action-btn:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.word-action-btn.faved{color:var(--coral);border-color:rgba(255,107,107,.3)}
+
+@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+#search-overlay{position:fixed;inset:0;z-index:300;background:rgba(6,6,14,.92);
+  backdrop-filter:blur(12px);display:none;flex-direction:column;align-items:center;padding-top:12vh}
+#search-overlay.open{display:flex}
+.search-box{width:90%;max-width:560px;position:relative}
+.search-input{width:100%;padding:16px 20px 16px 48px;background:rgba(25,30,55,.8);
+  border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:1.05rem;
+  font-family:var(--font);outline:none;transition:border-color .2s}
+.search-input:focus{border-color:var(--teal)}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:1.1rem}
+.search-close{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;
+  border:none;color:var(--text2);font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.search-results{width:90%;max-width:560px;margin-top:16px;max-height:60vh;overflow-y:auto}
+.search-result{display:flex;align-items:center;gap:12px;padding:14px 16px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--rsm);
+  margin-bottom:6px;cursor:pointer;transition:all .2s}
+.search-result:hover{background:var(--card-hover);border-color:rgba(78,205,196,.2)}
+.sr-flag{font-size:1.5rem}
+.sr-word{font-weight:600;color:var(--gold);font-size:.95rem}
+.sr-meaning{color:var(--text2);font-size:.8rem;margin-top:2px}
+.sr-region{color:var(--teal);font-size:.7rem;font-weight:600}
+.search-empty{color:var(--muted);text-align:center;padding:40px;font-size:.95rem}
+
+#quiz-overlay{position:fixed;inset:0;z-index:300;background:rgba(6,6,14,.94);
+  backdrop-filter:blur(12px);display:none;flex-direction:column;align-items:center;
+  justify-content:center;padding:24px}
+#quiz-overlay.open{display:flex}
+.quiz-container{width:90%;max-width:520px;text-align:center}
+.quiz-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}
+.quiz-score{color:var(--teal);font-weight:600;font-size:.9rem}
+.quiz-progress{color:var(--text2);font-size:.85rem}
+.quiz-close{background:none;border:none;color:var(--text2);font-size:1.3rem;cursor:pointer;padding:4px}
+.quiz-word{font-family:var(--heading);font-size:2.4rem;font-weight:700;color:var(--gold);margin-bottom:8px}
+.quiz-meaning{color:var(--text2);font-size:1rem;margin-bottom:32px;line-height:1.5}
+.quiz-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
+.quiz-option{padding:16px;background:var(--card);border:2px solid var(--border);border-radius:var(--radius);
+  cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:10px;text-align:left;
+  font-family:var(--font);font-size:.9rem;color:var(--text)}
+.quiz-option:hover:not(.locked){background:var(--card-hover);border-color:rgba(255,255,255,.15)}
+.quiz-option.locked{cursor:default;opacity:.85}
+.quiz-option.correct{border-color:var(--teal);background:rgba(78,205,196,.15);color:var(--teal)}
+.quiz-option.wrong{border-color:var(--coral);background:rgba(255,107,107,.1);color:var(--coral)}
+.quiz-option .qo-flag{font-size:1.6rem}
+.quiz-etym{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:20px;
+  text-align:left;display:none}
+.quiz-etym.show{display:block}
+.quiz-etym-label{font-size:.7rem;font-weight:600;color:var(--teal);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:6px}
+.quiz-etym-text{color:var(--text2);font-size:.82rem;line-height:1.5}
+.quiz-next{padding:12px 32px;background:linear-gradient(135deg,var(--teal),#3db8b0);color:#0b0d17;
+  border:none;border-radius:20px;font-size:.9rem;font-weight:600;cursor:pointer;
+  transition:transform .2s,box-shadow .2s;font-family:var(--font);display:none}
+.quiz-next:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(78,205,196,.3)}
+.quiz-next.show{display:inline-block}
+.quiz-end{display:none}
+.quiz-end.show{display:block}
+.quiz-end h2{font-family:var(--heading);font-size:1.8rem;color:var(--gold);margin-bottom:8px}
+.quiz-end .score-big{font-size:3rem;font-weight:700;color:var(--teal);margin:12px 0}
+.quiz-end .score-label{color:var(--text2);font-size:1rem;margin-bottom:20px}
+.quiz-end .rating{color:var(--gold);font-size:1.1rem;font-weight:600;margin-bottom:24px}
+
+#connections-overlay{position:fixed;inset:0;z-index:300;background:rgba(6,6,14,.92);
+  backdrop-filter:blur(12px);display:none;flex-direction:column;align-items:center;
+  padding:80px 24px 24px;overflow-y:auto}
+#connections-overlay.open{display:flex}
+.connections-header{text-align:center;margin-bottom:32px;max-width:500px}
+.connections-header h2{font-family:var(--heading);font-size:1.6rem;margin-bottom:8px}
+.connections-header p{color:var(--text2);font-size:.88rem;line-height:1.5}
+.conn-close{position:fixed;top:20px;right:24px;background:none;border:none;color:var(--text2);
+  font-size:1.5rem;cursor:pointer;z-index:301}
+.conn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;
+  width:100%;max-width:900px}
+.conn-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.conn-concept{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.conn-concept span:first-child{font-size:1.5rem}
+.conn-concept span:last-child{font-weight:700;font-size:1rem}
+.conn-words{display:flex;flex-wrap:wrap;gap:8px}
+.conn-word{display:flex;align-items:center;gap:6px;padding:6px 12px;
+  background:rgba(78,205,196,.08);border:1px solid rgba(78,205,196,.15);border-radius:16px}
+.conn-word .cw-flag{font-size:1rem}
+.conn-word .cw-text{font-size:.82rem;font-weight:600;color:var(--teal)}
+
+#random-card{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);
+  z-index:300;width:90%;max-width:440px;background:var(--panel);border:1px solid var(--border);
+  border-radius:16px;padding:28px;display:none;backdrop-filter:blur(16px);
+  box-shadow:0 24px 80px rgba(0,0,0,.5)}
+#random-card.open{display:block;animation:popIn .35s ease forwards}
+#random-backdrop{position:fixed;inset:0;z-index:299;background:rgba(6,6,14,.7);display:none}
+#random-backdrop.open{display:block}
+.rc-flag{font-size:2rem;margin-bottom:6px}
+.rc-region{color:var(--teal);font-size:.8rem;font-weight:600;margin-bottom:12px}
+.rc-word{font-family:var(--heading);font-size:2rem;font-weight:700;color:var(--gold);margin-bottom:6px}
+.rc-pos{display:inline-block;font-size:.65rem;color:var(--teal);background:rgba(78,205,196,.1);
+  padding:2px 8px;border-radius:8px;font-weight:600;text-transform:uppercase;margin-bottom:10px}
+.rc-meaning{font-size:.92rem;line-height:1.5;margin-bottom:10px}
+.rc-example{color:var(--text2);font-size:.84rem;font-style:italic;line-height:1.5;
+  padding-left:10px;border-left:2px solid var(--muted);margin-bottom:14px}
+.rc-etym-label{font-size:.7rem;font-weight:600;color:var(--teal);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:4px}
+.rc-etym{color:var(--text2);font-size:.82rem;line-height:1.6;margin-bottom:16px}
+.rc-actions{display:flex;gap:8px}
+
+@keyframes popIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+#welcome{position:fixed;inset:0;z-index:500;background:radial-gradient(ellipse at center,
+  rgba(11,13,23,.85) 0%,rgba(11,13,23,.97) 100%);display:flex;align-items:center;
+  justify-content:center;backdrop-filter:blur(8px);transition:opacity .6s,visibility .6s}
+#welcome.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.welcome-inner{text-align:center;max-width:520px;padding:24px}
+.welcome-badge{display:inline-block;padding:6px 16px;border-radius:20px;
+  background:rgba(78,205,196,.1);border:1px solid rgba(78,205,196,.2);
+  color:var(--teal);font-size:.78rem;font-weight:600;margin-bottom:20px}
+.welcome-inner h1{font-family:var(--heading);font-size:3rem;font-weight:800;
+  background:linear-gradient(135deg,var(--gold),#e8a820);-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px}
+.welcome-subtitle{color:var(--text2);font-size:1.05rem;line-height:1.6;margin-bottom:24px}
+.welcome-stats{display:flex;justify-content:center;gap:40px;margin-bottom:32px}
+.welcome-stat{text-align:center}
+.welcome-stat .num{font-size:1.8rem;font-weight:700;color:var(--teal);display:block}
+.welcome-stat .label{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
+#start-btn{padding:14px 40px;background:linear-gradient(135deg,var(--gold),#e8a820);
+  color:#0b0d17;border:none;border-radius:24px;font-size:1rem;font-weight:700;cursor:pointer;
+  font-family:var(--font);transition:transform .2s,box-shadow .2s;letter-spacing:.5px}
+#start-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(244,197,66,.3)}
+
+.hover-label{position:fixed;z-index:150;pointer-events:none;padding:8px 14px;
+  background:rgba(12,14,28,.9);border:1px solid var(--border);border-radius:var(--rsm);
+  font-size:.82rem;color:var(--text);white-space:nowrap;display:none;
+  backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.hover-label .hl-name{font-weight:600}
+.hover-label .hl-count{color:var(--teal);font-size:.75rem;margin-top:2px}
+
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);
+  z-index:400;padding:10px 20px;background:rgba(78,205,196,.15);border:1px solid rgba(78,205,196,.3);
+  border-radius:20px;color:var(--teal);font-size:.85rem;font-weight:500;opacity:0;
+  transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+#stats-bar{position:fixed;bottom:16px;left:16px;z-index:100;display:flex;gap:16px;
+  padding:10px 18px;background:rgba(12,14,28,.85);border:1px solid var(--border);
+  border-radius:20px;backdrop-filter:blur(8px);font-size:.78rem;color:var(--text2)}
+.stat-item{display:flex;align-items:center;gap:6px}
+.stat-item .stat-val{color:var(--teal);font-weight:600}
+
+@media(max-width:640px){
+  header{padding:10px 14px}
+  .logo span{font-size:1rem}
+  .logo small{display:none}
+  .nav-btn{padding:6px 10px;font-size:.72rem}
+  .nav-btn span.label{display:none}
+  #country-panel{width:100%;max-width:100%;border-left:none;border-top:1px solid var(--border)}
+  .panel-title{font-size:1.3rem}
+  .quiz-word{font-size:1.8rem}
+  .quiz-options{grid-template-columns:1fr}
+  .welcome-inner h1{font-size:2.2rem}
+  #stats-bar{bottom:8px;left:8px;right:8px;justify-content:center;font-size:.7rem;gap:10px}
+}
+</style>
+</head>
+<body>
+
+<div id="globe-container"></div>
+
+<header>
+  <a href="/personal/#games" class="back-link">&#8592; Games</a>
+  <a href="#" class="logo" onclick="return false">
+    <span>Lexicon Atlas</span>
+    <small>English Around the World</small>
+  </a>
+  <nav>
+    <button class="nav-btn" onclick="openSearch()" title="Search words"><span class="ico">&#128270;</span><span class="label">Search</span></button>
+    <button class="nav-btn" onclick="openQuiz()" title="Quiz mode"><span class="ico">&#9889;</span><span class="label">Quiz</span></button>
+    <button class="nav-btn" onclick="showRandom()" title="Random word"><span class="ico">&#127922;</span><span class="label">Random</span></button>
+    <button class="nav-btn" onclick="openConnections()" title="Word connections"><span class="ico">&#128279;</span><span class="label">Connections</span></button>
+  </nav>
+</header>
+
+<div class="hover-label" id="hover-label">
+  <div class="hl-name"></div>
+  <div class="hl-count"></div>
+</div>
+
+<aside id="country-panel">
+  <div class="panel-header">
+    <button class="panel-close" onclick="closePanel()">&times;</button>
+    <div class="panel-flag" id="p-flag"></div>
+    <div class="panel-title" id="p-title"></div>
+    <div class="panel-dialect" id="p-dialect"></div>
+    <div class="panel-desc" id="p-desc"></div>
+    <div class="panel-tabs" id="p-tabs"></div>
+  </div>
+  <div class="panel-words" id="p-words"></div>
+</aside>
+
+<div id="search-overlay">
+  <div class="search-box">
+    <span class="search-icon">&#128270;</span>
+    <input class="search-input" id="search-input" placeholder="Search words, meanings, or regions..." autocomplete="off">
+    <button class="search-close" onclick="closeSearch()">&times;</button>
+  </div>
+  <div class="search-results" id="search-results"></div>
+</div>
+
+<div id="quiz-overlay">
+  <div class="quiz-container" id="quiz-container">
+    <div class="quiz-header">
+      <span class="quiz-score" id="q-score">0 / 0</span>
+      <span class="quiz-progress" id="q-progress">Question 1 of 10</span>
+      <button class="quiz-close" onclick="closeQuiz()">&times;</button>
+    </div>
+    <div id="quiz-body">
+      <p style="color:var(--text2);margin-bottom:12px;font-size:.85rem">Where is this word primarily used?</p>
+      <div class="quiz-word" id="q-word"></div>
+      <div class="quiz-meaning" id="q-meaning"></div>
+      <div class="quiz-options" id="q-options"></div>
+      <div class="quiz-etym" id="q-etym">
+        <div class="quiz-etym-label">Etymology</div>
+        <div class="quiz-etym-text" id="q-etym-text"></div>
+      </div>
+      <button class="quiz-next" id="q-next" onclick="nextQuestion()">Next Question</button>
+    </div>
+    <div class="quiz-end" id="quiz-end">
+      <h2>Quiz Complete!</h2>
+      <div class="score-big" id="qe-score"></div>
+      <div class="score-label">correct answers</div>
+      <div class="rating" id="qe-rating"></div>
+      <button class="quiz-next show" onclick="openQuiz()">Play Again</button>
+      <button class="nav-btn" style="margin:12px auto 0;display:inline-flex" onclick="closeQuiz()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="connections-overlay">
+  <button class="conn-close" onclick="closeConnections()">&times;</button>
+  <div class="connections-header">
+    <h2>Same Concept, Different Words</h2>
+    <p>English speakers around the world invented entirely different words for the same everyday things. Explore the connections.</p>
+  </div>
+  <div class="conn-grid" id="conn-grid"></div>
+</div>
+
+<div id="random-backdrop" onclick="closeRandom()"></div>
+<div id="random-card"></div>
+
+<div id="stats-bar">
+  <div class="stat-item"><span>&#127758;</span> <span class="stat-val" id="s-countries">0</span>/<span id="s-total-countries">12</span> regions</div>
+  <div class="stat-item"><span>&#128218;</span> <span class="stat-val" id="s-words">0</span>/<span id="s-total-words">0</span> words</div>
+</div>
+
+<div id="welcome">
+  <div class="welcome-inner">
+    <div class="welcome-badge">&#127758; Interactive Language Atlas</div>
+    <h1>Lexicon Atlas</h1>
+    <p class="welcome-subtitle">
+      From <em>brinjal</em> in India to <em>robot</em> meaning traffic light in South Africa &mdash;
+      English speaks differently everywhere. Spin the globe and discover 120+ words unique to their homeland.
+    </p>
+    <div class="welcome-stats">
+      <div class="welcome-stat"><span class="num">12</span><span class="label">Regions</span></div>
+      <div class="welcome-stat"><span class="num">120+</span><span class="label">Words</span></div>
+      <div class="welcome-stat"><span class="num">&infin;</span><span class="label">Stories</span></div>
+    </div>
+    <button id="start-btn" onclick="startExploring()">Start Exploring</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="//unpkg.com/globe.gl@2.45.1"></script>
+<script>
+const REGIONS={
+india:{
+  name:"India",flag:"\u{1F1EE}\u{1F1F3}",dialect:"Indian English",
+  lat:20.59,lng:78.96,
+  description:"Indian English blends British colonial heritage with Hindi, Sanskrit, Tamil, and dozens of other languages, producing a vibrant dialect spoken by over 125 million people.",
+  words:[
+    {word:"Brinjal",meaning:"Eggplant / aubergine",pos:"noun",
+     etymology:"From Portuguese 'berinjela', from Arabic 'b\u0101\u1e0finj\u0101n', from Persian 'b\u0101ding\u0101n', ultimately from Sanskrit 'v\u0101ti\u1e45ga\u1e47a'. The word traveled the Silk Road before settling into Indian English.",
+     example:"Could you pick up some brinjals from the market on your way home?"},
+    {word:"Prepone",meaning:"To move an event to an earlier time (opposite of postpone)",pos:"verb",
+     etymology:"Coined from Latin prefix 'pre-' (before) + the root of 'postpone' (p\u014dnere, to place). First appeared in a 1913 New York Times letter; became standard in Indian English by the 1980s.",
+     example:"The client wants to prepone the meeting from Thursday to Tuesday."},
+    {word:"Lakh",meaning:"The number 100,000",pos:"noun",
+     etymology:"From Sanskrit \u0932\u0915\u094d\u0937 (lak\u1e63a), originally meaning 'mark' or 'stake in gambling,' used as a numeral since the Gupta era (4th\u20136th century CE).",
+     example:"The car costs twelve lakhs, which is a bit over my budget."},
+    {word:"Crore",meaning:"The number 10,000,000 (ten million)",pos:"noun",
+     etymology:"From Prakrit kro\u1e0di, from Sanskrit \u0915\u094b\u091f\u093f (ko\u1e6di), meaning ten million. Part of the South Asian numbering system that groups digits differently from the Western system.",
+     example:"The government allocated five hundred crores for the new highway project."},
+    {word:"Godown",meaning:"A warehouse or storage facility",pos:"noun",
+     etymology:"From Malay 'gudang' (warehouse), possibly via Portuguese 'gud\u00e3o'. Adopted during colonial-era maritime trade across the Indian Ocean.",
+     example:"All the imported fabric is stored in the godown near the port."},
+    {word:"Jugaad",meaning:"A creative, low-cost improvised solution or workaround",pos:"noun",
+     etymology:"From Hindi \u091c\u0941\u0917\u093e\u0921\u093c (jug\u0101\u1e5b), meaning a hack or makeshift fix. Rooted in the Indian concept of frugal innovation. Increasingly used in global business literature.",
+     example:"We don't have the right tool, but he'll find some jugaad to get it done."},
+    {word:"Timepass",meaning:"An activity done just to pass the time; something trivial",pos:"noun",
+     etymology:"Indian English compound of 'time' + 'pass'; emerged from colloquial Hindi-English code-mixing in the late 20th century.",
+     example:"That movie was nothing special, just timepass really."},
+    {word:"Topper",meaning:"The student who scores highest in an exam or class",pos:"noun",
+     etymology:"From English 'top' + agent suffix '-er'. While 'topper' exists in other Englishes (meaning a top hat), the academic rank sense is uniquely Indian.",
+     example:"She was the topper in her board exams and got into the best medical college."},
+    {word:"Dabbawala",meaning:"A person who delivers home-cooked lunch boxes to offices",pos:"noun",
+     etymology:"From Hindi/Marathi: 'dabba' (box/container) + 'wala' (person associated with). Mumbai's dabbawalas have been studied by Harvard Business School for their logistics efficiency.",
+     example:"The Mumbai dabbawalas deliver over 200,000 lunches every day with almost zero errors."},
+    {word:"Petrol Bunk",meaning:"A gas station / petrol station",pos:"noun",
+     etymology:"Indian English compound: 'petrol' (British English for gasoline) + 'bunk' (possibly from 'bunker', a storage place for fuel). Unique to southern Indian English.",
+     example:"Pull over at the next petrol bunk \u2014 we're running low on fuel."}
+  ]
+},
+australia:{
+  name:"Australia",flag:"\u{1F1E6}\u{1F1FA}",dialect:"Australian English / Strine",
+  lat:-25.27,lng:133.78,
+  description:"Australian English is famous for its abbreviations and the distinctive '-o' and '-ie' suffixes. It carries vocabulary from Aboriginal languages, British settlers, and a uniquely laconic humor.",
+  words:[
+    {word:"Arvo",meaning:"Afternoon",pos:"noun",
+     etymology:"Australian abbreviation of 'afternoon' with the characteristic '-o' suffix, a productive pattern in Australian slang (also: servo, smoko, garbo).",
+     example:"We're heading to the beach this arvo if you want to come."},
+    {word:"Yakka",meaning:"Hard work, labor",pos:"noun",
+     etymology:"From 'yaga' meaning 'work' in the Yagara language, an Aboriginal language of the Brisbane region. Entered Australian pidgin in the 1840s.",
+     example:"Building that deck was hard yakka, but it looks fantastic."},
+    {word:"Drongo",meaning:"A fool or stupid person",pos:"noun",
+     etymology:"Named after Drongo, a racehorse in the 1920s (itself named after the Spangled Drongo bird, from Malagasy) that famously never won a race despite 37 starts.",
+     example:"Don't be such a drongo \u2014 you put the shirt on inside out."},
+    {word:"Budgie Smugglers",meaning:"Tight-fitting men's swimming trunks (Speedos)",pos:"noun",
+     etymology:"Jocular Australian coinage: 'budgie' (short for budgerigar, a small Australian parakeet) + 'smugglers,' referencing the revealing outline. Added to the OED in 2016.",
+     example:"He turned up to the pool party in budgie smugglers and no one was surprised."},
+    {word:"Bottle-o",meaning:"A liquor store / bottle shop",pos:"noun",
+     etymology:"Australian abbreviation of 'bottle shop' with the '-o' suffix, part of a broader pattern of truncation unique to Australian English.",
+     example:"Can you stop at the bottle-o and pick up some wine on your way over?"},
+    {word:"Bludger",meaning:"A lazy person; someone who avoids work",pos:"noun",
+     etymology:"From British slang 'bludgeoner' (a thug with a bludgeon). In Australia the meaning shifted from 'violent criminal' to 'someone who lives off others' efforts.'",
+     example:"He hasn't done any work all day \u2014 what a bludger."},
+    {word:"Ute",meaning:"A utility vehicle / pickup truck",pos:"noun",
+     etymology:"Abbreviation of 'utility vehicle.' The first ute was designed in Australia in 1934 by Ford Australia after a farmer's wife requested a vehicle for church on Sunday and pigs on Monday.",
+     example:"Throw the surfboards in the back of the ute and let's go."},
+    {word:"Chunder",meaning:"To vomit",pos:"verb",
+     etymology:"Possibly from rhyming slang via 'Chunder Loo of Akim Foo,' a cartoon character in boot-polish ads; alternatively from nautical slang 'watch under!' \u2014 a warning to those below deck.",
+     example:"He ate too many meat pies and chundered on the side of the road."},
+    {word:"Battler",meaning:"A person who works hard despite limited means",pos:"noun",
+     etymology:"From English 'battle' (to struggle) + '-er'. Uniquely Australian in its connotation of admirable resilience in ordinary life, a core cultural value.",
+     example:"She's a real battler \u2014 raised three kids on her own while working two jobs."},
+    {word:"Servo",meaning:"A petrol/gas station",pos:"noun",
+     etymology:"Australian abbreviation of 'service station' with the characteristic '-o' suffix. One of the most widely used Australian abbreviations.",
+     example:"We need to stop at the servo \u2014 the tank's nearly empty."}
+  ]
+},
+united_kingdom:{
+  name:"United Kingdom",flag:"\u{1F1EC}\u{1F1E7}",dialect:"British English",
+  lat:53.38,lng:-1.47,
+  description:"The birthplace of English \u2014 British English preserves centuries-old vocabulary and has developed a rich slang tradition, from Cockney rhyming slang to modern colloquialisms.",
+  words:[
+    {word:"Boffin",meaning:"An expert or scientist, especially in technical fields",pos:"noun",
+     etymology:"Origin uncertain; possibly from WWII RAF slang. Some link it to Nicodemus Boffin, a character in Dickens' Our Mutual Friend (1865). First recorded in the 1940s.",
+     example:"The boffins at the lab have finally cracked the formula."},
+    {word:"Gobsmacked",meaning:"Utterly astonished or amazed",pos:"adjective",
+     etymology:"Compound of 'gob' (mouth, from Irish/Scottish Gaelic) + 'smacked' \u2014 as if struck in the mouth with surprise. A vivid Northern English coinage.",
+     example:"I was absolutely gobsmacked when they announced the winner."},
+    {word:"Skint",meaning:"Having no money; broke",pos:"adjective",
+     etymology:"Variant of 'skinned' (stripped of money), from Northern English dialect. Related to being 'skinned alive' by expenses.",
+     example:"I can't come out tonight \u2014 I'm completely skint until payday."},
+    {word:"Dodgy",meaning:"Suspicious, unreliable, or of questionable quality",pos:"adjective",
+     etymology:"From 'dodge' (to evade) + '-y'. Carries a distinctly British connotation of something not quite right, from food to people to business deals.",
+     example:"That bloke selling watches in the car park looked a bit dodgy."},
+    {word:"Chuffed",meaning:"Very pleased or delighted",pos:"adjective",
+     etymology:"Originally Northern English dialect; possibly from 'chuff' meaning puffed up or swollen with pride. Recorded from the 1860s. Confusingly, 'chuffed' also once meant 'displeased' in some dialects.",
+     example:"She was dead chuffed when she got the promotion."},
+    {word:"Gutted",meaning:"Extremely disappointed or devastated",pos:"adjective",
+     etymology:"Figurative British English: as if one's guts have been removed, leaving one hollow with disappointment. Became widespread in the 1980s.",
+     example:"He was absolutely gutted when his team lost the final."},
+    {word:"Fortnight",meaning:"A period of two weeks",pos:"noun",
+     etymology:"From Old English 'f\u0113owertyne niht' ('fourteen nights'). While historically common across English, it is now primarily British and Commonwealth; virtually unused in American English.",
+     example:"We're going on holiday for a fortnight in August."},
+    {word:"Whinge",meaning:"To whine or complain persistently",pos:"verb",
+     etymology:"From Old English 'hwinsian' (to whine). Retained in British and Australian English while falling out of use in American English. Subtly different from 'whine' \u2014 implies more persistent, nasal complaining.",
+     example:"Stop whingeing about the weather and put a coat on."},
+    {word:"Knackered",meaning:"Extremely tired or exhausted",pos:"adjective",
+     etymology:"From 'knacker' \u2014 a person who bought and slaughtered old horses. To be 'knackered' originally meant to be fit only for the knacker's yard, i.e., completely done for.",
+     example:"I've been on my feet all day \u2014 I'm absolutely knackered."},
+    {word:"Naff",meaning:"Unfashionable, tacky, or lacking quality",pos:"adjective",
+     etymology:"Origin debated: possibly from Polari (British gay slang) where it meant 'nothing' or 'straight person'; alternatively from Northern English dialect. Popularized in the 1960s\u201370s.",
+     example:"Those curtains are a bit naff \u2014 they look like something from the 1970s."}
+  ]
+},
+scotland:{
+  name:"Scotland",flag:"\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",dialect:"Scots English",
+  lat:56.49,lng:-4.20,
+  description:"Scots English preserves vocabulary from Old English and Old Norse that vanished elsewhere, alongside words from Scottish Gaelic, creating one of the most distinctive English dialects.",
+  words:[
+    {word:"Bairn",meaning:"A baby or young child",pos:"noun",
+     etymology:"From Old English 'bearn' (child), from Proto-Germanic *barnan. Appears in Beowulf. Restricted to Scotland and Northern England since around 1700.",
+     example:"She's got three bairns under the age of five."},
+    {word:"Dreich",meaning:"Wet, gray, dreary weather",pos:"adjective",
+     etymology:"From Old Norse 'drj\u00fagr' (enduring/lasting), arriving with the Angles around 600 AD. Originally (15th century) meant 'patient/steadfast' before shifting to describe tedious, miserable weather.",
+     example:"It's been dreich all week \u2014 nothing but rain and gray skies."},
+    {word:"Ken",meaning:"To know",pos:"verb",
+     etymology:"From Old English 'cennan' (to make known) and Old Norse 'kenna' (to know/perceive). A core Scots vocabulary word still in daily use.",
+     example:"D'ye ken where the nearest chemist is?"},
+    {word:"Wee",meaning:"Small or little",pos:"adjective",
+     etymology:"From Old English 'w\u01e3g' (weight/quantity). Not used as an adjective meaning 'small' until the 15th century. Now quintessentially Scottish.",
+     example:"Just a wee bit of sugar in my tea, please."},
+    {word:"Braw",meaning:"Fine, splendid, handsome, excellent",pos:"adjective",
+     etymology:"Scots variant of 'brave' in the archaic sense of 'fine/splendid,' from Old French 'brave'. Documented in Scots poetry since the 16th century.",
+     example:"It's a braw day for a walk in the hills."},
+    {word:"Blether",meaning:"To talk at length about unimportant things; idle chatter",pos:"verb/noun",
+     etymology:"From Scots/Northern English dialect; related to Old Norse 'bla\u00f0ra' (to mutter). Documented since at least the 1700s.",
+     example:"We had a good blether over a cup of tea."},
+    {word:"Canny",meaning:"Careful, prudent, shrewd; also 'good' or 'nice'",pos:"adjective",
+     etymology:"From Northern English/Scots dialect, 1630s: 'can' (to know) + '-y.' From Old English 'cunnan' (to know how). A doublet of 'cunning.'",
+     example:"She's canny with her money \u2014 never wastes a penny."},
+    {word:"Dinnae",meaning:"Don't / do not",pos:"contraction",
+     etymology:"Scots contraction of 'do not,' reflecting Scots phonological patterns distinct from Standard English. Part of the Scots verb system.",
+     example:"Dinnae worry about it \u2014 it'll sort itself out."},
+    {word:"Hogmanay",meaning:"New Year's Eve and its celebrations",pos:"noun",
+     etymology:"Origin debated: possibly from Old French 'aguillanneuf' (a New Year's gift), or Norman French 'hoginan\u00e9'. Documented in Scotland since the 17th century.",
+     example:"Edinburgh's Hogmanay celebrations are famous around the world."},
+    {word:"Wean",meaning:"A young child",pos:"noun",
+     etymology:"Contraction of 'wee ane' (little one), combining Scots 'wee' + 'ane' (Scots for 'one'). Used primarily in Western Scotland.",
+     example:"The weans are playing in the garden."}
+  ]
+},
+south_africa:{
+  name:"South Africa",flag:"\u{1F1FF}\u{1F1E6}",dialect:"South African English",
+  lat:-30.56,lng:22.94,
+  description:"South African English draws from Afrikaans, Zulu, Xhosa, and other Bantu languages, creating a uniquely diverse dialect where 'robot' means traffic light and 'braai' is a way of life.",
+  words:[
+    {word:"Braai",meaning:"A barbecue; also the social event of grilling meat outdoors",pos:"noun/verb",
+     etymology:"From Afrikaans 'braaivleis' (grilled meat), ultimately from Dutch 'braden' (to roast). September 24 is National Braai Day in South Africa.",
+     example:"Come over Saturday \u2014 we're having a braai at our place."},
+    {word:"Robot",meaning:"A traffic light",pos:"noun",
+     etymology:"South African semantic shift: early automated traffic signals in the 1930s were called 'robot policemen' because they replaced human traffic officers. The name was later shortened to 'robot.'",
+     example:"Turn left at the second robot and the shop is on your right."},
+    {word:"Bakkie",meaning:"A pickup truck or light utility vehicle",pos:"noun",
+     etymology:"From Afrikaans: 'bak' (container/tray) + diminutive suffix '-ie'. Originally meant a small bowl; by the 1960s it referred to pickup trucks with open cargo trays.",
+     example:"Load the camping gear into the bakkie and we'll head out at dawn."},
+    {word:"Ubuntu",meaning:"A philosophy of shared humanity; 'I am because we are'",pos:"noun",
+     etymology:"From Zulu/Xhosa 'ubuntu,' built on the Bantu noun stem '-ntu' (person/human). Archbishop Desmond Tutu popularized the concept internationally.",
+     example:"The community showed real ubuntu when they rallied to rebuild after the flood."},
+    {word:"Shebeen",meaning:"An informal, often unlicensed bar or drinking establishment",pos:"noun",
+     etymology:"From Irish 's\u00edb\u00edn' (small mug / bad ale), a diminutive of 'seibe' (mug). Migrated from Ireland to South Africa with settlers in the 19th century.",
+     example:"We ended up at a shebeen in the township where the music was incredible."},
+    {word:"Howzit",meaning:"An informal greeting meaning 'how's it going?'",pos:"interjection",
+     etymology:"South African contraction of 'how is it?' \u2014 a casual all-purpose greeting used across all demographics.",
+     example:"Howzit, bru \u2014 haven't seen you in ages!"},
+    {word:"Eish",meaning:"An exclamation expressing surprise, dismay, or exasperation",pos:"interjection",
+     etymology:"From Zulu and various Bantu languages; an interjection that has become ubiquitous across South African English speakers of all backgrounds.",
+     example:"Eish, the traffic on the N1 was terrible this morning."},
+    {word:"Biltong",meaning:"Dried, cured meat (similar to jerky but thicker and spiced differently)",pos:"noun",
+     etymology:"From Afrikaans: 'bil' (buttock/rump) + 'tong' (strip/tongue), referring to strips of meat cut from the rump. A staple South African snack since the 17th century.",
+     example:"I always pack biltong for road trips \u2014 it's the best snack."},
+    {word:"Bundu",meaning:"Remote wilderness or bush far from civilization",pos:"noun",
+     etymology:"From Shona 'bundo' (grasslands/wilderness), entering South African English via settlers in Zimbabwe/Rhodesia.",
+     example:"Their farm is out in the bundu \u2014 the nearest town is an hour away."},
+    {word:"Boerewors",meaning:"A traditional coiled spiced sausage",pos:"noun",
+     etymology:"From Afrikaans: 'boere' (farmer) + 'wors' (sausage). Legally defined in South Africa \u2014 must contain at least 90% meat to be called boerewors.",
+     example:"You can't have a proper braai without boerewors on the grill."}
+  ]
+},
+canada:{
+  name:"Canada",flag:"\u{1F1E8}\u{1F1E6}",dialect:"Canadian English",
+  lat:56.13,lng:-106.35,
+  description:"Canadian English uniquely blends British and American influences with French loanwords and indigenous vocabulary, reflecting the country's bilingual and multicultural identity.",
+  words:[
+    {word:"Toque",meaning:"A knitted winter hat (beanie)",pos:"noun",
+     etymology:"From French 'toque' (a brimless hat style from the 16th century). French-Canadian settlers adapted it for warm knitted caps. Pronounced 'tuke.' Sometimes spelled 'tuque.'",
+     example:"Don't forget your toque \u2014 it's minus twenty out there."},
+    {word:"Loonie",meaning:"The Canadian one-dollar coin",pos:"noun",
+     etymology:"Named after the common loon bird depicted on the coin's reverse, introduced in 1987. The Royal Canadian Mint trademarked the term in 2006.",
+     example:"Do you have a loonie for the shopping cart?"},
+    {word:"Toonie",meaning:"The Canadian two-dollar coin",pos:"noun",
+     etymology:"Portmanteau of 'two' + 'loonie,' coined when the bimetallic $2 coin was introduced in 1996. Also spelled 'twonie.'",
+     example:"I found a toonie on the ground \u2014 that's my lucky day."},
+    {word:"Double-double",meaning:"A coffee with two creams and two sugars",pos:"noun",
+     etymology:"Originated as Tim Hortons staff shorthand in the 1990s for their most popular order. Became a national cultural term synonymous with Canadian identity.",
+     example:"I'll grab a double-double from Tims on the way to work."},
+    {word:"Chesterfield",meaning:"A sofa or couch",pos:"noun",
+     etymology:"From the Chesterfield style of furniture (named after the Earl of Chesterfield). In Canadian English it became a generic term for any couch, though usage is declining with younger generations.",
+     example:"Come in and have a seat on the chesterfield."},
+    {word:"Chinook",meaning:"A warm, dry wind that rapidly raises winter temperatures",pos:"noun",
+     etymology:"From the Chinook people of the Pacific Northwest. In Canadian English, specifically refers to the f\u00f6hn-like wind phenomenon in Alberta that can raise temperatures by 20\u00b0C in hours.",
+     example:"We went from minus thirty to plus ten in a few hours thanks to a chinook."},
+    {word:"Hydro",meaning:"Electricity or an electric utility bill",pos:"noun",
+     etymology:"Canadian shortening of 'hydroelectric,' reflecting that much of Canada's electricity is generated by hydroelectric dams, especially in Ontario, Quebec, and British Columbia.",
+     example:"The hydro bill was really high this month because of the space heaters."},
+    {word:"Keener",meaning:"An overly eager person, especially a student or employee",pos:"noun",
+     etymology:"Canadian English from 'keen' (eager) + '-er.' Carries a mildly mocking tone \u2014 similar to 'teacher's pet' but broader.",
+     example:"She showed up an hour early to set up \u2014 what a keener."},
+    {word:"Mickey",meaning:"A small (375 ml) bottle of liquor",pos:"noun",
+     etymology:"Canadian English; origin uncertain, possibly from the concept of a 'mickey' being small or hidden (as in 'slip a mickey'). A uniquely Canadian size designation.",
+     example:"He brought a mickey of rum to the party."},
+    {word:"Parkade",meaning:"A parking garage or multi-story car park",pos:"noun",
+     etymology:"Western Canadian English blend of 'park' + '-ade' (suffix suggesting a structure). Not used in Eastern Canada or the US.",
+     example:"There's a parkade on 4th Avenue where you can leave the car."}
+  ]
+},
+new_zealand:{
+  name:"New Zealand",flag:"\u{1F1F3}\u{1F1FF}",dialect:"New Zealand English / Kiwi English",
+  lat:-40.90,lng:174.89,
+  description:"New Zealand English is shaped by M\u0101ori vocabulary, British heritage, and the country's geographic isolation, producing distinctive words like 'jandal' and 'bach' found nowhere else.",
+  words:[
+    {word:"Jandal",meaning:"A flip-flop / thong sandal",pos:"noun",
+     etymology:"Blend of 'Japanese' + 'sandal.' Registered as a trademark in New Zealand in 1957 by Morris Yock, who imported them from Japan. The name became genericized.",
+     example:"Kick off your jandals and come inside."},
+    {word:"Bach",meaning:"A small, modest holiday cottage (usually near the coast)",pos:"noun",
+     etymology:"Short for 'bachelor pad'; became popular in the 1950s as New Zealanders built simple beach getaways. In the South Island, the equivalent term is 'crib.' Pronounced 'batch.'",
+     example:"We're heading up to the bach in the Coromandel this weekend."},
+    {word:"Chur",meaning:"An expression of thanks, agreement, or approval",pos:"interjection",
+     etymology:"Contemporary New Zealand slang of uncertain origin; possibly a phonetic reduction of 'cheers.' Widely used across New Zealand demographics.",
+     example:"You brought me a coffee? Chur, bro!"},
+    {word:"Wop-wops",meaning:"Remote, rural, or isolated areas far from towns",pos:"noun",
+     etymology:"New Zealand English; origin uncertain, possibly related to earlier dialectal terms for desolate places. Sometimes written as 'wopwops.'",
+     example:"Their house is way out in the wop-wops \u2014 no cell reception at all."},
+    {word:"Kumara",meaning:"Sweet potato",pos:"noun",
+     etymology:"From M\u0101ori 'k\u016bmara,' ultimately from Proto-Polynesian. The kumara was brought to New Zealand by Polynesian settlers and has deep cultural significance.",
+     example:"Roast kumara is the perfect side dish for a Sunday roast."},
+    {word:"Dairy",meaning:"A corner shop / convenience store",pos:"noun",
+     etymology:"New Zealand English semantic shift: originally these small shops primarily sold dairy products, but the name stuck as they diversified into general convenience stores.",
+     example:"I'm just popping down to the dairy for some milk and bread."},
+    {word:"Togs",meaning:"Swimwear / swimming costume",pos:"noun",
+     etymology:"From English dialectal 'tog' (a coat or garment), possibly from Latin 'toga.' In New Zealand (and parts of Australia) it specifically means swimwear.",
+     example:"Pack your togs \u2014 we're going to the hot pools."},
+    {word:"Tramping",meaning:"Hiking or bushwalking, especially multi-day treks",pos:"noun/verb",
+     etymology:"From English 'tramp' (to walk heavily). In New Zealand it specifically denotes recreational hiking through bush or mountains \u2014 what Americans would call 'backpacking.'",
+     example:"We spent three days tramping the Milford Track."},
+    {word:"Munted",meaning:"Broken, damaged, or ruined",pos:"adjective",
+     etymology:"New Zealand slang, possibly from British dialect 'munt' (to butt or bump). Gained wide usage after the 2011 Christchurch earthquake to describe damaged buildings.",
+     example:"The earthquake left half the buildings in the CBD completely munted."},
+    {word:"Choice",meaning:"Excellent, awesome, cool",pos:"adjective/interjection",
+     etymology:"Standard English word given an intensified slang meaning unique to New Zealand English, roughly equivalent to 'awesome.' Often combined with 'as' ('choice as').",
+     example:"You got tickets to the All Blacks? Choice as, bro!"}
+  ]
+},
+ireland:{
+  name:"Ireland",flag:"\u{1F1EE}\u{1F1EA}",dialect:"Hiberno-English",
+  lat:53.14,lng:-7.69,
+  description:"Hiberno-English is deeply shaped by Irish Gaelic grammar and vocabulary, producing a lyrical dialect where 'grand' means merely 'fine' and a cupboard is a 'press.'",
+  words:[
+    {word:"Craic",meaning:"Fun, entertainment, good conversation, or news",pos:"noun",
+     etymology:"From Middle English 'crak' (loud conversation/bragging), through Scots into Ulster English. The Gaelicized spelling 'craic' was adopted in mid-20th century Irish.",
+     example:"The craic was mighty at the pub last night."},
+    {word:"Eejit",meaning:"A fool or idiot (milder and more affectionate than 'idiot')",pos:"noun",
+     etymology:"Hiberno-English dialectal pronunciation of 'idiot,' influenced by Irish phonology. Carries warmth rather than malice.",
+     example:"Ah, don't mind him \u2014 he's a harmless eejit."},
+    {word:"Banjaxed",meaning:"Completely broken, ruined, or wrecked",pos:"adjective",
+     etymology:"Dublin slang; origin uncertain, first recorded in the 1930s. Popularized by Irish writer and broadcaster Brendan Behan.",
+     example:"The washing machine is banjaxed again \u2014 we'll have to get a new one."},
+    {word:"Grand",meaning:"Fine, okay, satisfactory (understated approval)",pos:"adjective",
+     etymology:"From Old French 'grand' (great). In Irish English it underwent semantic narrowing to mean simply 'fine' or 'acceptable' \u2014 a characteristic Irish understatement.",
+     example:"'How are you feeling?' 'Ah, I'm grand, thanks.'"},
+    {word:"Press",meaning:"A cupboard or wardrobe",pos:"noun",
+     etymology:"From Old French 'presse' (a storage place). Retained in Hiberno-English from Middle English while dying out elsewhere in the English-speaking world.",
+     example:"The plates are in the press above the sink."},
+    {word:"Bold",meaning:"Naughty or mischievous (especially of children)",pos:"adjective",
+     etymology:"From Old English 'bald' (brave/daring). In Hiberno-English it shifted to mean 'badly behaved,' influenced by the Irish word 'd\u00e1na' which means both 'bold' and 'naughty.'",
+     example:"Stop pulling the cat's tail \u2014 you're being very bold!"},
+    {word:"Deadly",meaning:"Excellent, brilliant, fantastic",pos:"adjective",
+     etymology:"Irish English semantic inversion: 'deadly' (normally meaning lethal) is used as emphatic praise, similar to 'wicked' or 'sick' in other dialects.",
+     example:"That concert was deadly \u2014 the band played for three hours straight."},
+    {word:"Feck",meaning:"A mild expletive (less offensive substitute)",pos:"interjection",
+     etymology:"From Middle English 'fek' (value/amount) or possibly Irish 'feic' (see/look). Distinct from the stronger profanity. Popularized internationally by the TV show Father Ted.",
+     example:"Oh feck, I left my umbrella on the bus."},
+    {word:"Messages",meaning:"Groceries or shopping errands",pos:"noun",
+     etymology:"Hiberno-English usage from the older English sense of 'message' as 'an errand or mission.' 'Doing the messages' means doing the grocery shopping.",
+     example:"I have to go into town to do the messages \u2014 we're out of milk."},
+    {word:"Gobshite",meaning:"A stupid, incompetent, or excessively talkative person",pos:"noun",
+     etymology:"From Irish English 'gob' (mouth, from Irish 'gob') + 'shite.' A distinctly Irish insult that is more socially acceptable than its components suggest.",
+     example:"Your man on the telly is a right gobshite \u2014 doesn't know what he's on about."}
+  ]
+},
+singapore:{
+  name:"Singapore",flag:"\u{1F1F8}\u{1F1EC}",dialect:"Singlish",
+  lat:1.35,lng:103.82,
+  description:"Singlish is a creole-influenced English that blends Malay, Hokkien, Cantonese, Tamil, and British English, creating a grammatically unique dialect with distinctive sentence-final particles.",
+  words:[
+    {word:"Kiasu",meaning:"Afraid of losing out; competitive anxiety about missing opportunities",pos:"adjective",
+     etymology:"From Hokkien: 'kia' (fear) + 'su' (to lose). Entered Singlish in the 1980s. Added to the Oxford English Dictionary in 2007.",
+     example:"She queued for two hours just for free samples \u2014 so kiasu!"},
+    {word:"Shiok",meaning:"An expression of pleasure or delight; delicious, fantastic",pos:"adjective/interjection",
+     etymology:"From Malay 'syok' (pleasure/enjoyment). Added to the OED in 2016. One of the most expressive words in Singlish.",
+     example:"This laksa is damn shiok \u2014 best I've ever had."},
+    {word:"Chope",meaning:"To reserve a seat or table (often by placing a tissue packet on it)",pos:"verb",
+     etymology:"From English 'chop' (to stamp/seal), via Malay 'cap', from Hindi \u091b\u093e\u092a (ch\u0101p, stamp). The tissue-packet method is uniquely Singaporean.",
+     example:"Quick, go chope that table before someone else takes it."},
+    {word:"Lah",meaning:"A sentence-ending particle adding emphasis or informality",pos:"particle",
+     etymology:"From Malay/Hokkien; a discourse particle with no direct English translation. One of the earliest Singlish words added to the OED (2000). The most iconic feature of Singlish.",
+     example:"Don't worry about it lah, everything will be fine."},
+    {word:"Kopitiam",meaning:"A traditional coffee shop serving local food and drinks",pos:"noun",
+     etymology:"From Malay/Indonesian 'kopi' (coffee, from Dutch 'koffie') + Hokkien 'tiam' (\u5e97, shop). A cornerstone of Singaporean food culture.",
+     example:"Let's meet at the kopitiam downstairs for breakfast."},
+    {word:"Ang Moh",meaning:"A Caucasian person; a foreigner of European descent",pos:"noun",
+     etymology:"From Hokkien \u7d05\u6bdb (\u00e2ng-mo\u0358), literally 'red hair,' originally referring to Dutch colonists who arrived in Southeast Asia in the 17th century.",
+     example:"The ang moh at the hawker centre ordered chilli crab like a local."},
+    {word:"Makan",meaning:"Food; to eat",pos:"noun/verb",
+     etymology:"From Malay 'makan' (to eat). Reflects how deeply Malay vocabulary is woven into everyday Singlish.",
+     example:"Where you want to go makan tonight?"},
+    {word:"Blur",meaning:"Confused, clueless, or slow to understand",pos:"adjective",
+     etymology:"Standard English word given a uniquely Singlish adjectival meaning. Often intensified as 'blur like sotong' (confused like a squid, since squids squirt ink when confused).",
+     example:"He's damn blur \u2014 told him three times and he still doesn't get it."},
+    {word:"Sabo",meaning:"To sabotage; to deliberately cause trouble for someone",pos:"verb",
+     etymology:"Clipped form of English 'sabotage,' used as a casual verb in Singlish. Added to the OED in 2016.",
+     example:"Don't sabo me \u2014 I need this presentation to go well."},
+    {word:"Hawker Centre",meaning:"An open-air complex of food stalls with affordable local cuisine",pos:"noun",
+     etymology:"English compound coined in Singapore: 'hawker' (itinerant vendor) + 'centre.' UNESCO inscribed Singapore's hawker culture as Intangible Cultural Heritage in 2020.",
+     example:"Singapore's hawker centres serve some of the best food in the world."}
+  ]
+},
+jamaica:{
+  name:"Jamaica",flag:"\u{1F1EF}\u{1F1F2}",dialect:"Jamaican English / Patois",
+  lat:18.11,lng:-77.30,
+  description:"Jamaican English blends West African languages, Spanish, and British English into a vibrant creole continuum. Rastafarian culture has further enriched its vocabulary with globally influential words.",
+  words:[
+    {word:"Irie",meaning:"Good, pleasing, happy; a state of well-being",pos:"adjective",
+     etymology:"Possibly from a Jamaican pronunciation of 'all right' or related to 'high.' Exact origin debated. Widely used in Rastafarian culture and reggae music worldwide.",
+     example:"Everything irie, man \u2014 just enjoying the sunshine."},
+    {word:"Nyam",meaning:"To eat",pos:"verb",
+     etymology:"From Wolof 'nyam' (to eat). Some sources suggest Twi or Fula origins. The English word 'yam' (the root vegetable) may share this West African root.",
+     example:"Come nyam some food \u2014 dinner is ready."},
+    {word:"Duppy",meaning:"A ghost or restless spirit of the dead",pos:"noun",
+     etymology:"From the Ga language of Ghana: 'adope' (spirit). In Ghanaian folklore, spirits were depicted as small beings. Crossed to Jamaica via the Atlantic slave trade.",
+     example:"Don't go walking through the cemetery at night \u2014 you might meet a duppy."},
+    {word:"Pickney",meaning:"A child or children",pos:"noun",
+     etymology:"From Portuguese 'pequenino' (very small one), entering Jamaican Creole through Atlantic slave-trade contact languages. Also found in other Caribbean creoles.",
+     example:"The pickney dem are playing outside in the yard."},
+    {word:"Braata",meaning:"A little extra; a bonus given by a vendor",pos:"noun",
+     etymology:"From Spanish 'barata' (cheap/bargain). Reflects the market culture of adding something extra to a purchase, similar to a baker's dozen.",
+     example:"The fruit seller gave me a braata \u2014 two extra mangoes for free."},
+    {word:"Bashment",meaning:"A big party, dance, or celebration",pos:"noun",
+     etymology:"Jamaican English derivation from 'bash' (a party) + '-ment' suffix. Also refers to a genre of dancehall music popular since the 1990s.",
+     example:"There's a massive bashment downtown this Saturday night."},
+    {word:"Likkle",meaning:"Little or small",pos:"adjective",
+     etymology:"Jamaican Creole phonological adaptation of English 'little,' reflecting Creole pronunciation patterns. Has spread to Multicultural London English via Caribbean diaspora.",
+     example:"Give me a likkle time and I'll sort it out."},
+    {word:"Bredren",meaning:"A close male friend; brethren",pos:"noun",
+     etymology:"From English 'brethren' adapted through Jamaican Creole phonology. Carries a sense of deep brotherhood. The female equivalent is 'sistren.'",
+     example:"Mi bredren and I are going to the beach."},
+    {word:"Yaad",meaning:"Home; yard; Jamaica itself (when abroad)",pos:"noun",
+     etymology:"From English 'yard' with Creole pronunciation. Jamaicans abroad refer to Jamaica as 'yaad' (back home). The term 'Yardie' derives from this.",
+     example:"I'm going back to yaad for Christmas this year."},
+    {word:"Runnings",meaning:"Happenings, business, or activities",pos:"noun",
+     etymology:"From English 'running' (ongoing activities) given a distinctly Jamaican plural usage. Popularized internationally by the 1993 film 'Cool Runnings' about Jamaica's bobsled team.",
+     example:"What's the runnings tonight? Anything happening downtown?"}
+  ]
+},
+philippines:{
+  name:"Philippines",flag:"\u{1F1F5}\u{1F1ED}",dialect:"Philippine English",
+  lat:12.88,lng:121.77,
+  description:"Philippine English, shaped by Spanish colonization and American education, has developed unique semantic shifts where familiar English words take on entirely different local meanings.",
+  words:[
+    {word:"Salvage",meaning:"To execute extrajudicially; summary killing",pos:"verb",
+     etymology:"A false friend from Spanish 'salvaje' (savage). Emerged during the Marcos martial-law era to describe extrajudicial killings. The meaning is exactly opposite to standard English 'salvage' (to rescue).",
+     example:"Several activists were salvaged during that dark period of martial law."},
+    {word:"Comfort Room",meaning:"A bathroom or restroom (abbreviated C.R.)",pos:"noun",
+     etymology:"Philippine English compound. Possibly derived from American colonial euphemism for lavatory. Standard across all Philippine establishments; universally abbreviated as 'C.R.'",
+     example:"Excuse me, where is the comfort room?"},
+    {word:"Balikbayan",meaning:"A Filipino returning home from abroad; also a care package sent overseas",pos:"noun",
+     etymology:"From Tagalog: 'balik' (return) + 'bayan' (town/country). Added to the OED. 'Balikbayan box' refers to the large care packages sent home by overseas Filipinos.",
+     example:"My aunt is a balikbayan \u2014 she's coming home from the US for the holidays."},
+    {word:"Sari-sari Store",meaning:"A small neighborhood variety shop selling everyday items",pos:"noun",
+     etymology:"From Tagalog 'sari-sari' (variety/various), a reduplication meaning 'assorted.' There are over 1 million sari-sari stores across the Philippines.",
+     example:"You can get almost anything at the sari-sari store down the street."},
+    {word:"Jeepney",meaning:"A colorfully decorated public transport vehicle made from surplus US jeeps",pos:"noun",
+     etymology:"From 'jeep' + 'jitney' (a small bus). Post-WWII Filipinos converted surplus American military jeeps into public transport, creating an iconic national symbol.",
+     example:"I take the jeepney to work every day \u2014 it's the cheapest way around Manila."},
+    {word:"Merienda",meaning:"An afternoon snack or light meal between lunch and dinner",pos:"noun",
+     etymology:"From Spanish 'merienda' (afternoon snack), retained in Philippine English from the 333-year colonial period. Reflects the Filipino tradition of multiple daily meals.",
+     example:"Let's have merienda \u2014 I picked up some empanadas."},
+    {word:"Kilig",meaning:"The giddy, butterflies-in-the-stomach feeling of romantic excitement",pos:"noun/adjective",
+     etymology:"From Tagalog 'kilig' (trembling/shivering with excitement). Added to the OED. Has no direct single-word English equivalent, making it a lexical gap filler.",
+     example:"That scene where he confessed his love \u2014 I felt so kilig!"},
+    {word:"Videoke",meaning:"Karaoke with a video/screen display",pos:"noun",
+     etymology:"Philippine English blend of 'video' + 'karaoke,' coined in the 1990s. Videoke machines are ubiquitous in Filipino homes and establishments.",
+     example:"Every birthday party ends up as a videoke session that lasts until midnight."},
+    {word:"Trapo",meaning:"A corrupt or traditional politician",pos:"noun",
+     etymology:"Acronym from 'TRAditional POlitician,' reinforced by Tagalog 'trapo' (rag/dirty cloth). A deliberate bilingual pun equating corrupt politicians with dirty rags.",
+     example:"The voters are tired of trapos \u2014 they want real change."},
+    {word:"Tricycle",meaning:"A motorcycle with an attached passenger sidecar used as local transport",pos:"noun",
+     etymology:"English 'tricycle' given a uniquely Philippine meaning: not a pedal-powered bike but a motorcycle with an enclosed passenger cab, used for short-distance transit.",
+     example:"Take a tricycle from the main road to get to the barangay hall."}
+  ]
+},
+nigeria:{
+  name:"Nigeria",flag:"\u{1F1F3}\u{1F1EC}",dialect:"Nigerian English",
+  lat:9.08,lng:7.49,
+  description:"Nigerian English is Africa's largest English-speaking population, blending Yoruba, Hausa, Igbo, and pidgin influences into a creative dialect where language bends to fit local realities.",
+  words:[
+    {word:"Okada",meaning:"A motorcycle taxi",pos:"noun",
+     etymology:"Named after Okada Air, a defunct 1990s Nigerian airline, because motorcycle taxis \u2014 like the airline \u2014 could navigate Lagos traffic quickly. Added to the OED in 2020.",
+     example:"I took an okada to beat the traffic on Third Mainland Bridge."},
+    {word:"Wahala",meaning:"Trouble, problems, or difficulty",pos:"noun",
+     etymology:"From Hausa, originally borrowed from Arabic 'wahla' (anxiety). Universally understood across Nigeria's 250+ ethnic groups and increasingly used in global pop culture.",
+     example:"No wahala \u2014 I'll take care of it."},
+    {word:"Oga",meaning:"Boss, leader, or authority figure",pos:"noun",
+     etymology:"From Yoruba '\u1ecd\u0300g\u00e1' (master/boss). Used across Nigerian English regardless of the speaker's ethnic background. Extended to mean any person in charge.",
+     example:"Ask the oga if we can leave early today."},
+    {word:"Buka",meaning:"A cheap roadside restaurant or food stall",pos:"noun",
+     etymology:"From Hausa/Yoruba. First recorded in 1972. Added to the OED in 2020. Bukas are the backbone of Nigerian street food culture.",
+     example:"The best jollof rice in Lagos comes from a little buka near the market."},
+    {word:"Mama Put",meaning:"A street food establishment; also the woman who runs it",pos:"noun",
+     etymology:"From the typical ordering phrase: 'Mama, put...' (asking the woman to serve food onto a plate). First recorded 1979. Added to the OED in 2020.",
+     example:"Let's eat at the mama put around the corner \u2014 her egusi soup is amazing."},
+    {word:"Send-forth",meaning:"A farewell party for someone leaving",pos:"noun",
+     etymology:"Nigerian English coinage: 'send' + 'forth,' conveying optimism about the person's journey ahead rather than sadness at their departure.",
+     example:"The office organized a send-forth for Chioma before she relocated to London."},
+    {word:"Chop",meaning:"To eat; also to embezzle or misappropriate money",pos:"verb",
+     etymology:"'Chop' (eat) extended metaphorically to mean embezzling public funds. Added to the OED in 2020. The dual meaning reflects a cultural commentary on corruption.",
+     example:"The politicians have chopped all the money meant for road construction."},
+    {word:"Ember Months",meaning:"September, October, November, December",pos:"noun",
+     etymology:"Nigerian English coinage highlighting the shared '-ember/-ber' suffix. Associated with increased spending, travel dangers, and heightened spiritual vigilance.",
+     example:"Be careful on the roads during ember months \u2014 there are always more accidents."},
+    {word:"Next Tomorrow",meaning:"The day after tomorrow",pos:"adverb",
+     etymology:"Nigerian English calque from Yoruba and other Nigerian languages that have a single word for 'the day after tomorrow.' Fills a genuine lexical gap in English.",
+     example:"The meeting isn't tomorrow \u2014 it's next tomorrow."},
+    {word:"Japa",meaning:"To flee, escape, or emigrate for better opportunities",pos:"verb",
+     etymology:"From Yoruba 'j\u00e1p\u00e1' (to run away/escape). Recently added to the OED (2024). Reflects Nigeria's ongoing brain-drain phenomenon.",
+     example:"Half of my university classmates have japaed to Canada or the UK."}
+  ]
+}
+};
+
+const COUNTRY_MAP={
+  'India':['india'],'Australia':['australia'],'United Kingdom':['united_kingdom','scotland'],
+  'South Africa':['south_africa'],'Canada':['canada'],'New Zealand':['new_zealand'],
+  'Ireland':['ireland'],'Nigeria':['nigeria'],'Philippines':['philippines'],
+  'Jamaica':['jamaica'],'Singapore':['singapore']
+};
+
+const COMPARISONS=[
+  {concept:"Flip-flops",icon:"\u{1FA74}",words:[
+    {region:"australia",word:"Thongs"},{region:"new_zealand",word:"Jandals"}]},
+  {concept:"Barbecue",icon:"\u{1F525}",words:[
+    {region:"australia",word:"Barbie"},{region:"south_africa",word:"Braai"}]},
+  {concept:"Pickup Truck",icon:"\u{1F69A}",words:[
+    {region:"australia",word:"Ute"},{region:"south_africa",word:"Bakkie"}]},
+  {concept:"To Eat",icon:"\u{1F37D}\u{FE0F}",words:[
+    {region:"jamaica",word:"Nyam"},{region:"nigeria",word:"Chop"},{region:"singapore",word:"Makan"}]},
+  {concept:"A Child",icon:"\u{1F476}",words:[
+    {region:"scotland",word:"Bairn"},{region:"scotland",word:"Wean"},{region:"jamaica",word:"Pickney"}]},
+  {concept:"Small Shop",icon:"\u{1F3EA}",words:[
+    {region:"new_zealand",word:"Dairy"},{region:"philippines",word:"Sari-sari Store"},{region:"singapore",word:"Kopitiam"}]},
+  {concept:"Gas Station",icon:"\u26FD",words:[
+    {region:"australia",word:"Servo"},{region:"india",word:"Petrol Bunk"}]},
+  {concept:"Broken / Ruined",icon:"\u{1F4A5}",words:[
+    {region:"ireland",word:"Banjaxed"},{region:"new_zealand",word:"Munted"}]},
+  {concept:"Exhausted",icon:"\u{1F634}",words:[
+    {region:"united_kingdom",word:"Knackered"},{region:"ireland",word:"Banjaxed"}]},
+  {concept:"Excellent / Great",icon:"\u2B50",words:[
+    {region:"ireland",word:"Deadly"},{region:"new_zealand",word:"Choice"},{region:"singapore",word:"Shiok"},{region:"scotland",word:"Braw"}]}
+];
+
+/* ─── State ─── */
+let globe,hoveredPoly=null,selectedRegion=null;
+const visited=new Set(JSON.parse(localStorage.getItem('la_visited')||'[]'));
+const viewedWords=new Set(JSON.parse(localStorage.getItem('la_viewed')||'[]'));
+const favorites=new Set(JSON.parse(localStorage.getItem('la_favs')||'[]'));
+
+function persist(){
+  localStorage.setItem('la_visited',JSON.stringify([...visited]));
+  localStorage.setItem('la_viewed',JSON.stringify([...viewedWords]));
+  localStorage.setItem('la_favs',JSON.stringify([...favorites]));
+}
+
+function allWords(){
+  const out=[];
+  for(const[k,r]of Object.entries(REGIONS)){
+    r.words.forEach(w=>out.push({...w,regionKey:k,regionName:r.name,flag:r.flag,dialect:r.dialect}));
+  }
+  return out;
+}
+const ALL_WORDS=allWords();
+
+function getRegionKeys(feat){
+  const n=feat.properties.ADMIN||feat.properties.name||feat.properties.NAME||'';
+  return COUNTRY_MAP[n]||null;
+}
+
+function updateStats(){
+  document.getElementById('s-countries').textContent=visited.size;
+  document.getElementById('s-words').textContent=viewedWords.size;
+  document.getElementById('s-total-words').textContent=ALL_WORDS.length;
+  document.getElementById('s-total-countries').textContent=Object.keys(REGIONS).length;
+}
+
+/* ─── Globe ─── */
+function initGlobe(){
+  globe=Globe()(document.getElementById('globe-container'))
+    .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+    .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+    .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+    .showAtmosphere(true)
+    .atmosphereColor('#3a4cc0')
+    .atmosphereAltitude(0.18)
+    .polygonAltitude(d=>{
+      const keys=getRegionKeys(d);
+      if(keys&&keys.includes(selectedRegion))return 0.025;
+      if(d===hoveredPoly)return 0.015;
+      return 0.006;
+    })
+    .polygonCapColor(d=>{
+      const keys=getRegionKeys(d);
+      if(keys&&keys.includes(selectedRegion))return 'rgba(78,205,196,0.55)';
+      if(d===hoveredPoly&&keys)return 'rgba(78,205,196,0.35)';
+      if(d===hoveredPoly)return 'rgba(200,200,220,0.08)';
+      if(keys)return 'rgba(78,205,196,0.12)';
+      return 'rgba(200,200,220,0.03)';
+    })
+    .polygonSideColor(d=>{
+      const keys=getRegionKeys(d);
+      if(keys&&keys.includes(selectedRegion))return 'rgba(78,205,196,0.25)';
+      if(keys)return 'rgba(78,205,196,0.06)';
+      return 'rgba(200,200,220,0.02)';
+    })
+    .polygonStrokeColor(d=>{
+      const keys=getRegionKeys(d);
+      if(keys)return 'rgba(78,205,196,0.25)';
+      return 'rgba(200,200,220,0.06)';
+    })
+    .polygonLabel(()=>'')
+    .onPolygonHover(p=>{
+      hoveredPoly=p;
+      globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
+      const hl=document.getElementById('hover-label');
+      if(p){
+        const nm=p.properties.ADMIN||p.properties.name||p.properties.NAME||'';
+        const keys=getRegionKeys(p);
+        hl.querySelector('.hl-name').textContent=nm;
+        if(keys){
+          const total=keys.reduce((s,k)=>s+(REGIONS[k]?REGIONS[k].words.length:0),0);
+          hl.querySelector('.hl-count').textContent=total+' regional words \u2014 click to explore';
+        }else{
+          hl.querySelector('.hl-count').textContent='';
+        }
+        hl.style.display='block';
+        document.body.style.cursor=keys?'pointer':'default';
+      }else{
+        hl.style.display='none';
+        document.body.style.cursor='default';
+      }
+    })
+    .onPolygonClick(p=>{
+      const keys=getRegionKeys(p);
+      if(!keys||!keys.length)return;
+      selectedRegion=keys[0];
+      keys.forEach(k=>visited.add(k));
+      persist();
+      updateStats();
+      const r=REGIONS[keys[0]];
+      globe.pointOfView({lat:r.lat,lng:r.lng,altitude:1.8},800);
+      setTimeout(()=>globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor()),50);
+      openPanel(keys);
+    });
+
+  globe.controls().autoRotate=true;
+  globe.controls().autoRotateSpeed=0.4;
+  globe.controls().enableDamping=true;
+  globe.pointOfView({lat:20,lng:30,altitude:2.5});
+
+  fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl@master/example/datasets/ne_110m_admin_0_countries.geojson')
+    .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
+    .then(d=>{globe.polygonsData(d.features);addSmallCountryMarkers();})
+    .catch(()=>{
+      fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+        .then(r=>r.json())
+        .then(d=>{globe.polygonsData(d.features);addSmallCountryMarkers();})
+        .catch(console.error);
+    });
+
+  window.addEventListener('mousemove',e=>{
+    const hl=document.getElementById('hover-label');
+    if(hl.style.display==='block'){
+      hl.style.left=(e.clientX+14)+'px';
+      hl.style.top=(e.clientY+14)+'px';
+    }
+  });
+}
+
+function addSmallCountryMarkers(){
+  const polyCountries=new Set();
+  (globe.polygonsData()||[]).forEach(f=>{
+    const n=f.properties.ADMIN||f.properties.name||f.properties.NAME||'';
+    const keys=COUNTRY_MAP[n];
+    if(keys)keys.forEach(k=>polyCountries.add(k));
+  });
+  const markers=Object.entries(REGIONS)
+    .filter(([k])=>!polyCountries.has(k))
+    .map(([k,r])=>({id:k,lat:r.lat,lng:r.lng,name:r.name,flag:r.flag,
+      words:r.words.length,keys:[k]}));
+  if(!markers.length)return;
+  globe
+    .labelsData(markers)
+    .labelLat(d=>d.lat).labelLng(d=>d.lng)
+    .labelText(d=>d.flag+' '+d.name)
+    .labelSize(1.2).labelDotRadius(.4)
+    .labelColor(()=>'rgba(78,205,196,0.9)')
+    .labelResolution(3)
+    .onLabelClick(d=>{
+      d.keys.forEach(k=>visited.add(k));persist();updateStats();
+      selectedRegion=d.keys[0];
+      globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.2},800);
+      openPanel(d.keys);
+    });
+}
+
+/* ─── Country Panel ─── */
+function openPanel(keys){
+  const panel=document.getElementById('country-panel');
+  const first=REGIONS[keys[0]];
+  document.getElementById('p-flag').textContent=first.flag;
+  document.getElementById('p-title').textContent=first.name;
+  document.getElementById('p-dialect').textContent=first.dialect;
+  document.getElementById('p-desc').textContent=first.description;
+
+  const tabs=document.getElementById('p-tabs');
+  tabs.innerHTML='';
+  if(keys.length>1){
+    keys.forEach((k,i)=>{
+      const t=document.createElement('button');
+      t.className='panel-tab'+(i===0?' active':'');
+      t.textContent=REGIONS[k].dialect;
+      t.onclick=()=>{
+        tabs.querySelectorAll('.panel-tab').forEach(b=>b.classList.remove('active'));
+        t.classList.add('active');
+        renderWords(k);
+        document.getElementById('p-flag').textContent=REGIONS[k].flag;
+        document.getElementById('p-dialect').textContent=REGIONS[k].dialect;
+        document.getElementById('p-desc').textContent=REGIONS[k].description;
+      };
+      tabs.appendChild(t);
+    });
+  }
+
+  renderWords(keys[0]);
+  panel.classList.add('open');
+  globe.controls().autoRotate=false;
+}
+
+function renderWords(regionKey){
+  const container=document.getElementById('p-words');
+  container.innerHTML='';
+  const region=REGIONS[regionKey];
+  if(!region)return;
+  region.words.forEach((w,i)=>{
+    const id=regionKey+'::'+w.word;
+    viewedWords.add(id);
+    const card=document.createElement('div');
+    card.className='word-card';
+    card.style.animationDelay=(i*0.06)+'s';
+    const isFav=favorites.has(id);
+    card.innerHTML=`
+      <div class="word-top">
+        <span class="word-name">${w.word}</span>
+        <span class="word-pos">${w.pos}</span>
+      </div>
+      <div class="word-meaning">${w.meaning}</div>
+      <div class="word-example">${w.example}</div>
+      <div class="word-etymology">
+        <div class="etym-label">Etymology</div>
+        <div class="etym-text">${w.etymology}</div>
+      </div>
+      <div class="word-actions">
+        <button class="word-action-btn ${isFav?'faved':''}" data-fav="${id}">\u2665 ${isFav?'Saved':'Save'}</button>
+        <button class="word-action-btn" data-share="${w.word}|${w.meaning}|${region.name}">\u2197 Share</button>
+      </div>`;
+    card.addEventListener('click',e=>{
+      if(e.target.closest('.word-action-btn'))return;
+      card.classList.toggle('expanded');
+    });
+    card.querySelector('[data-fav]').addEventListener('click',e=>{
+      e.stopPropagation();
+      const btn=e.currentTarget;
+      if(favorites.has(id)){favorites.delete(id);btn.classList.remove('faved');btn.innerHTML='\u2665 Save';}
+      else{favorites.add(id);btn.classList.add('faved');btn.innerHTML='\u2665 Saved';toast('Saved to favorites');}
+      persist();
+    });
+    card.querySelector('[data-share]').addEventListener('click',e=>{
+      e.stopPropagation();
+      const[sw,sm,sr]=e.currentTarget.dataset.share.split('|');
+      const txt=`\u{1F30D} ${sw} (${sr}): ${sm}\nvia Lexicon Atlas`;
+      navigator.clipboard.writeText(txt).then(()=>toast('Copied to clipboard!')).catch(()=>toast('Could not copy'));
+    });
+    container.appendChild(card);
+  });
+  persist();
+  updateStats();
+}
+
+function closePanel(){
+  document.getElementById('country-panel').classList.remove('open');
+  selectedRegion=null;
+  globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
+  globe.controls().autoRotate=true;
+}
+
+/* ─── Search ─── */
+function openSearch(){
+  document.getElementById('search-overlay').classList.add('open');
+  const inp=document.getElementById('search-input');
+  inp.value='';inp.focus();
+  document.getElementById('search-results').innerHTML='<div class="search-empty">Start typing to search 120+ regional English words</div>';
+}
+function closeSearch(){document.getElementById('search-overlay').classList.remove('open');}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeSearch();closeQuiz();closeConnections();closeRandom();}
+});
+document.getElementById('search-input').addEventListener('input',e=>{
+  const q=e.target.value.toLowerCase().trim();
+  const res=document.getElementById('search-results');
+  if(!q){res.innerHTML='<div class="search-empty">Start typing to search 120+ regional English words</div>';return;}
+  const matches=ALL_WORDS.filter(w=>
+    w.word.toLowerCase().includes(q)||w.meaning.toLowerCase().includes(q)||
+    w.regionName.toLowerCase().includes(q)||w.dialect.toLowerCase().includes(q)||
+    w.etymology.toLowerCase().includes(q)
+  );
+  if(!matches.length){res.innerHTML='<div class="search-empty">No words found for \u201c'+q+'\u201d</div>';return;}
+  res.innerHTML=matches.slice(0,20).map(w=>`
+    <div class="search-result" data-region="${w.regionKey}" data-word="${w.word}">
+      <span class="sr-flag">${w.flag}</span>
+      <div>
+        <div class="sr-word">${highlight(w.word,q)}</div>
+        <div class="sr-meaning">${highlight(w.meaning,q)}</div>
+        <div class="sr-region">${w.regionName} \u2022 ${w.dialect}</div>
+      </div>
+    </div>`).join('');
+  res.querySelectorAll('.search-result').forEach(el=>{
+    el.addEventListener('click',()=>{
+      closeSearch();
+      const rk=el.dataset.region;
+      const keys=Object.entries(COUNTRY_MAP).find(([_,v])=>v.includes(rk));
+      const allKeys=keys?keys[1]:[rk];
+      visited.add(rk);persist();updateStats();
+      const r=REGIONS[rk];
+      globe.pointOfView({lat:r.lat,lng:r.lng,altitude:1.8},800);
+      selectedRegion=rk;
+      setTimeout(()=>{
+        globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
+      },50);
+      openPanel(allKeys);
+    });
+  });
+});
+function highlight(text,q){
+  const i=text.toLowerCase().indexOf(q);
+  if(i<0)return text;
+  return text.slice(0,i)+'<mark style="background:rgba(244,197,66,.25);color:var(--gold);border-radius:2px">'+text.slice(i,i+q.length)+'</mark>'+text.slice(i+q.length);
+}
+
+/* ─── Quiz ─── */
+let quiz={questions:[],current:0,score:0};
+function openQuiz(){
+  quiz={questions:generateQuiz(),current:0,score:0};
+  document.getElementById('quiz-overlay').classList.add('open');
+  document.getElementById('quiz-end').classList.remove('show');
+  document.getElementById('quiz-body').style.display='block';
+  showQuestion();
+}
+function closeQuiz(){document.getElementById('quiz-overlay').classList.remove('open');}
+function generateQuiz(){
+  const shuffled=[...ALL_WORDS].sort(()=>Math.random()-.5);
+  const regionKeys=Object.keys(REGIONS);
+  return shuffled.slice(0,10).map(w=>{
+    const wrong=regionKeys.filter(k=>k!==w.regionKey).sort(()=>Math.random()-.5).slice(0,3);
+    const options=[w.regionKey,...wrong].sort(()=>Math.random()-.5);
+    return{word:w,options,correct:w.regionKey};
+  });
+}
+function showQuestion(){
+  const q=quiz.questions[quiz.current];
+  document.getElementById('q-score').textContent=quiz.score+' / '+quiz.current;
+  document.getElementById('q-progress').textContent='Question '+(quiz.current+1)+' of 10';
+  document.getElementById('q-word').textContent=q.word.word;
+  document.getElementById('q-meaning').textContent=q.word.meaning;
+  document.getElementById('q-etym').classList.remove('show');
+  document.getElementById('q-next').classList.remove('show');
+  const opts=document.getElementById('q-options');
+  opts.innerHTML=q.options.map(k=>`
+    <button class="quiz-option" data-key="${k}">
+      <span class="qo-flag">${REGIONS[k].flag}</span>
+      <span>${REGIONS[k].name}</span>
+    </button>`).join('');
+  opts.querySelectorAll('.quiz-option').forEach(btn=>{
+    btn.addEventListener('click',()=>answerQuestion(btn,q));
+  });
+}
+function answerQuestion(btn,q){
+  const opts=document.querySelectorAll('.quiz-option');
+  if(btn.classList.contains('locked'))return;
+  opts.forEach(o=>o.classList.add('locked'));
+  const chosen=btn.dataset.key;
+  const isCorrect=chosen===q.correct;
+  if(isCorrect){quiz.score++;btn.classList.add('correct');}
+  else{btn.classList.add('wrong');opts.forEach(o=>{if(o.dataset.key===q.correct)o.classList.add('correct');});}
+  document.getElementById('q-score').textContent=quiz.score+' / '+(quiz.current+1);
+  document.getElementById('q-etym-text').textContent=q.word.etymology;
+  document.getElementById('q-etym').classList.add('show');
+  if(quiz.current<9)document.getElementById('q-next').classList.add('show');
+  else setTimeout(showQuizEnd,1200);
+}
+function nextQuestion(){
+  quiz.current++;
+  if(quiz.current>=10){showQuizEnd();return;}
+  showQuestion();
+}
+function showQuizEnd(){
+  document.getElementById('quiz-body').style.display='none';
+  const end=document.getElementById('quiz-end');
+  end.classList.add('show');
+  document.getElementById('qe-score').textContent=quiz.score+' / 10';
+  const ratings=['Just Getting Started','Just Getting Started','Just Getting Started','Just Getting Started',
+    'Curious Explorer','Curious Explorer','Word Wanderer','Word Wanderer',
+    'Globe Trotter','Globe Trotter','Linguist Extraordinaire!'];
+  document.getElementById('qe-rating').textContent=ratings[quiz.score];
+}
+
+/* ─── Connections ─── */
+function openConnections(){
+  document.getElementById('connections-overlay').classList.add('open');
+  const grid=document.getElementById('conn-grid');
+  if(grid.children.length)return;
+  grid.innerHTML=COMPARISONS.map(c=>`
+    <div class="conn-card">
+      <div class="conn-concept"><span>${c.icon}</span><span>${c.concept}</span></div>
+      <div class="conn-words">
+        ${c.words.map(w=>`<span class="conn-word"><span class="cw-flag">${REGIONS[w.region].flag}</span><span class="cw-text">${w.word}</span></span>`).join('')}
+      </div>
+    </div>`).join('');
+}
+function closeConnections(){document.getElementById('connections-overlay').classList.remove('open');}
+
+/* ─── Random Word ─── */
+function showRandom(){
+  const w=ALL_WORDS[Math.floor(Math.random()*ALL_WORDS.length)];
+  const id=w.regionKey+'::'+w.word;
+  viewedWords.add(id);persist();updateStats();
+  const card=document.getElementById('random-card');
+  const isFav=favorites.has(id);
+  card.innerHTML=`
+    <div class="rc-flag">${w.flag}</div>
+    <div class="rc-region">${w.regionName} \u2022 ${w.dialect}</div>
+    <div class="rc-word">${w.word}</div>
+    <div class="rc-pos">${w.pos}</div>
+    <div class="rc-meaning">${w.meaning}</div>
+    <div class="rc-example">${w.example}</div>
+    <div class="rc-etym-label">Etymology</div>
+    <div class="rc-etym">${w.etymology}</div>
+    <div class="rc-actions">
+      <button class="word-action-btn ${isFav?'faved':''}" id="rc-fav">\u2665 ${isFav?'Saved':'Save'}</button>
+      <button class="word-action-btn" id="rc-share">\u2197 Share</button>
+      <button class="word-action-btn" onclick="closeRandom();showRandom()">\u{1F3B2} Another</button>
+    </div>`;
+  document.getElementById('rc-fav').addEventListener('click',()=>{
+    const btn=document.getElementById('rc-fav');
+    if(favorites.has(id)){favorites.delete(id);btn.classList.remove('faved');btn.innerHTML='\u2665 Save';}
+    else{favorites.add(id);btn.classList.add('faved');btn.innerHTML='\u2665 Saved';toast('Saved to favorites');}
+    persist();
+  });
+  document.getElementById('rc-share').addEventListener('click',()=>{
+    const txt=`\u{1F30D} ${w.word} (${w.regionName}): ${w.meaning}\nvia Lexicon Atlas`;
+    navigator.clipboard.writeText(txt).then(()=>toast('Copied to clipboard!')).catch(()=>toast('Could not copy'));
+  });
+  card.classList.add('open');
+  document.getElementById('random-backdrop').classList.add('open');
+}
+function closeRandom(){
+  document.getElementById('random-card').classList.remove('open');
+  document.getElementById('random-backdrop').classList.remove('open');
+}
+
+/* ─── Toast ─── */
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+/* ─── Welcome ─── */
+function startExploring(){
+  document.getElementById('welcome').classList.add('hidden');
+}
+
+/* ─── Init ─── */
+initGlobe();
+updateStats();
+</script>
+</body>
+</html>
