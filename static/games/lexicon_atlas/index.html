@@ -356,7 +356,6 @@ nav{display:flex;gap:6px;align-items:center}
 <div class="toast" id="toast"></div>
 
 <script src="//unpkg.com/globe.gl@2.45.1"></script>
-<script src="//unpkg.com/topojson-client@3"></script>
 <script>
 const REGIONS={
 india:{
@@ -1228,7 +1227,7 @@ const COMPARISONS=[
 ];
 
 /* ─── State ─── */
-let globe,hoveredPoly=null,selectedRegion=null;
+let globe,selectedRegion=null;
 const visited=new Set(JSON.parse(localStorage.getItem('la_visited')||'[]'));
 const viewedWords=new Set(JSON.parse(localStorage.getItem('la_viewed')||'[]'));
 const favorites=new Set(JSON.parse(localStorage.getItem('la_favs')||'[]'));
@@ -1261,78 +1260,46 @@ function updateStats(){
 }
 
 /* ─── Globe ─── */
+const _rkCache=new WeakMap();
+function cachedRegionKeys(d){
+  if(_rkCache.has(d))return _rkCache.get(d);
+  const v=getRegionKeys(d);
+  _rkCache.set(d,v);
+  return v;
+}
+
 function initGlobe(){
-  globe=Globe()(document.getElementById('globe-container'))
+  globe=Globe({rendererConfig:{antialias:false,alpha:false,powerPreference:'high-performance'}})(document.getElementById('globe-container'))
     .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-    .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
     .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
     .showAtmosphere(true)
     .atmosphereColor('#3a4cc0')
-    .atmosphereAltitude(0.18)
+    .atmosphereAltitude(0.15)
+    .polygonsTransitionDuration(0)
     .polygonAltitude(d=>{
-      const keys=getRegionKeys(d);
-      if(keys&&keys.includes(selectedRegion))return 0.025;
-      if(d===hoveredPoly)return 0.015;
-      return 0.006;
+      const keys=cachedRegionKeys(d);
+      if(keys&&keys.includes(selectedRegion))return 0.02;
+      return keys?0.005:0.001;
     })
     .polygonCapColor(d=>{
-      const keys=getRegionKeys(d);
+      const keys=cachedRegionKeys(d);
       if(keys&&keys.includes(selectedRegion))return 'rgba(78,205,196,0.55)';
-      if(d===hoveredPoly&&keys)return 'rgba(78,205,196,0.35)';
-      if(d===hoveredPoly)return 'rgba(200,200,220,0.08)';
-      if(keys)return 'rgba(78,205,196,0.12)';
-      return 'rgba(200,200,220,0.03)';
-    })
-    .polygonSideColor(d=>{
-      const keys=getRegionKeys(d);
-      if(keys&&keys.includes(selectedRegion))return 'rgba(78,205,196,0.25)';
-      if(keys)return 'rgba(78,205,196,0.06)';
+      if(keys)return 'rgba(78,205,196,0.10)';
       return 'rgba(200,200,220,0.02)';
     })
-    .polygonStrokeColor(d=>{
-      const keys=getRegionKeys(d);
-      if(keys)return 'rgba(78,205,196,0.25)';
-      return 'rgba(200,200,220,0.06)';
-    })
+    .polygonSideColor(()=>'rgba(0,0,0,0)')
+    .polygonStrokeColor(()=>false)
     .polygonLabel(()=>'')
-    .onPolygonHover(p=>{
-      hoveredPoly=p;
-      globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
-      const hl=document.getElementById('hover-label');
-      if(p){
-        const nm=p.properties.ADMIN||p.properties.name||p.properties.NAME||'';
-        const keys=getRegionKeys(p);
-        hl.querySelector('.hl-name').textContent=nm;
-        if(keys){
-          const total=keys.reduce((s,k)=>s+(REGIONS[k]?REGIONS[k].words.length:0),0);
-          hl.querySelector('.hl-count').textContent=total+' regional words \u2014 click to explore';
-        }else{
-          hl.querySelector('.hl-count').textContent='';
-        }
-        hl.style.display='block';
-        document.body.style.cursor=keys?'pointer':'default';
-      }else{
-        hl.style.display='none';
-        document.body.style.cursor='default';
-      }
-    })
-    .onPolygonClick(p=>{
-      const keys=getRegionKeys(p);
-      if(!keys||!keys.length)return;
-      selectedRegion=keys[0];
-      keys.forEach(k=>visited.add(k));
-      persist();
-      updateStats();
-      const r=REGIONS[keys[0]];
-      globe.pointOfView({lat:r.lat,lng:r.lng,altitude:1.8},800);
-      setTimeout(()=>globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor()),50);
-      openPanel(keys);
-    });
+    .onPolygonHover(hoverPoly)
+    .onPolygonClick(clickPoly);
 
   globe.controls().autoRotate=true;
   globe.controls().autoRotateSpeed=0.4;
   globe.controls().enableDamping=true;
+  globe.controls().dampingFactor=0.12;
   globe.pointOfView({lat:20,lng:30,altitude:2.5});
+
+  globe.renderer().setPixelRatio(Math.min(window.devicePixelRatio,1.5));
 
   loadCountryData();
 
@@ -1345,7 +1312,38 @@ function initGlobe(){
   });
 }
 
-const ISO_NAMES={"004":"Afghanistan","008":"Albania","010":"Antarctica","012":"Algeria","016":"American Samoa","020":"Andorra","024":"Angola","028":"Antigua and Barbuda","031":"Azerbaijan","032":"Argentina","036":"Australia","040":"Austria","044":"Bahamas","048":"Bahrain","050":"Bangladesh","051":"Armenia","052":"Barbados","056":"Belgium","060":"Bermuda","064":"Bhutan","068":"Bolivia","070":"Bosnia and Herzegovina","072":"Botswana","076":"Brazil","084":"Belize","090":"Solomon Islands","092":"British Virgin Islands","096":"Brunei","100":"Bulgaria","104":"Myanmar","108":"Burundi","112":"Belarus","116":"Cambodia","120":"Cameroon","124":"Canada","132":"Cape Verde","140":"Central African Republic","144":"Sri Lanka","148":"Chad","152":"Chile","156":"China","158":"Taiwan","170":"Colombia","174":"Comoros","178":"Republic of the Congo","180":"Democratic Republic of the Congo","184":"Cook Islands","188":"Costa Rica","191":"Croatia","192":"Cuba","196":"Cyprus","203":"Czech Republic","204":"Benin","208":"Denmark","212":"Dominica","214":"Dominican Republic","218":"Ecuador","222":"El Salvador","226":"Equatorial Guinea","231":"Ethiopia","232":"Eritrea","233":"Estonia","234":"Faroe Islands","238":"Falkland Islands","242":"Fiji","246":"Finland","250":"France","254":"French Guiana","258":"French Polynesia","260":"French Southern Territories","262":"Djibouti","266":"Gabon","268":"Georgia","270":"Gambia","275":"Palestine","276":"Germany","288":"Ghana","296":"Kiribati","300":"Greece","304":"Greenland","308":"Grenada","312":"Guadeloupe","316":"Guam","320":"Guatemala","324":"Guinea","328":"Guyana","332":"Haiti","340":"Honduras","344":"Hong Kong","348":"Hungary","352":"Iceland","356":"India","360":"Indonesia","364":"Iran","368":"Iraq","372":"Ireland","376":"Israel","380":"Italy","384":"Ivory Coast","388":"Jamaica","392":"Japan","398":"Kazakhstan","400":"Jordan","404":"Kenya","408":"North Korea","410":"South Korea","414":"Kuwait","417":"Kyrgyzstan","418":"Laos","422":"Lebanon","426":"Lesotho","428":"Latvia","430":"Liberia","434":"Libya","438":"Liechtenstein","440":"Lithuania","442":"Luxembourg","446":"Macau","450":"Madagascar","454":"Malawi","458":"Malaysia","462":"Maldives","466":"Mali","470":"Malta","474":"Martinique","478":"Mauritania","480":"Mauritius","484":"Mexico","492":"Monaco","496":"Mongolia","498":"Moldova","499":"Montenegro","504":"Morocco","508":"Mozambique","512":"Oman","516":"Namibia","520":"Nauru","524":"Nepal","528":"Netherlands","531":"Cura\u00e7ao","533":"Aruba","540":"New Caledonia","548":"Vanuatu","554":"New Zealand","558":"Nicaragua","562":"Niger","566":"Nigeria","570":"Niue","574":"Norfolk Island","578":"Norway","580":"Northern Mariana Islands","583":"Micronesia","584":"Marshall Islands","585":"Palau","586":"Pakistan","591":"Panama","598":"Papua New Guinea","600":"Paraguay","604":"Peru","608":"Philippines","612":"Pitcairn Islands","616":"Poland","620":"Portugal","624":"Guinea-Bissau","626":"East Timor","630":"Puerto Rico","634":"Qatar","642":"Romania","643":"Russia","646":"Rwanda","652":"Saint Barth\u00e9lemy","659":"Saint Kitts and Nevis","660":"Anguilla","662":"Saint Lucia","666":"Saint Pierre and Miquelon","670":"Saint Vincent and the Grenadines","674":"San Marino","678":"Sao Tome and Principe","682":"Saudi Arabia","686":"Senegal","688":"Serbia","690":"Seychelles","694":"Sierra Leone","702":"Singapore","703":"Slovakia","704":"Vietnam","705":"Slovenia","706":"Somalia","710":"South Africa","716":"Zimbabwe","720":"South Yemen","724":"Spain","728":"South Sudan","729":"Sudan","732":"Western Sahara","740":"Suriname","744":"Svalbard and Jan Mayen","748":"Eswatini","752":"Sweden","756":"Switzerland","760":"Syria","762":"Tajikistan","764":"Thailand","768":"Togo","772":"Tokelau","776":"Tonga","780":"Trinidad and Tobago","784":"United Arab Emirates","788":"Tunisia","792":"Turkey","795":"Turkmenistan","796":"Turks and Caicos Islands","798":"Tuvalu","800":"Uganda","804":"Ukraine","807":"North Macedonia","818":"Egypt","826":"United Kingdom","831":"Guernsey","832":"Jersey","833":"Isle of Man","834":"United Republic of Tanzania","840":"United States of America","854":"Burkina Faso","858":"Uruguay","860":"Uzbekistan","862":"Venezuela","876":"Wallis and Futuna","882":"Samoa","887":"Yemen","894":"Zambia"};
+function hoverPoly(p){
+  const hl=document.getElementById('hover-label');
+  if(p){
+    const nm=p.properties.ADMIN||p.properties.name||p.properties.NAME||'';
+    const keys=cachedRegionKeys(p);
+    hl.querySelector('.hl-name').textContent=nm;
+    if(keys){
+      const total=keys.reduce((s,k)=>s+(REGIONS[k]?REGIONS[k].words.length:0),0);
+      hl.querySelector('.hl-count').textContent=total+' regional words \u2014 click to explore';
+    }else{
+      hl.querySelector('.hl-count').textContent='';
+    }
+    hl.style.display='block';
+    document.body.style.cursor=keys?'pointer':'default';
+  }else{
+    hl.style.display='none';
+    document.body.style.cursor='default';
+  }
+}
+
+function clickPoly(p){
+  const keys=cachedRegionKeys(p);
+  if(!keys||!keys.length)return;
+  selectedRegion=keys[0];
+  keys.forEach(k=>visited.add(k));
+  persist();
+  updateStats();
+  const r=REGIONS[keys[0]];
+  globe.pointOfView({lat:r.lat,lng:r.lng,altitude:1.8},800);
+  requestAnimationFrame(()=>globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor()));
+  openPanel(keys);
+}
 
 function makeMiniPoly(lat,lng,name,sz){
   const s=sz||0.35;
@@ -1354,79 +1352,23 @@ function makeMiniPoly(lat,lng,name,sz){
 }
 
 const SYNTH_POLYS=[
-  {name:"Singapore",lat:1.35,lng:103.82,sz:0.2},
-  {name:"Hong Kong",lat:22.40,lng:114.11,sz:0.25},
-  {name:"Barbados",lat:13.19,lng:-59.54,sz:0.2},
-  {name:"Bermuda",lat:32.32,lng:-64.76,sz:0.15}
+  {name:"Singapore",lat:1.35,lng:103.82,sz:0.25},
+  {name:"Hong Kong",lat:22.40,lng:114.11,sz:0.3},
+  {name:"Barbados",lat:13.19,lng:-59.54,sz:0.25},
+  {name:"Bermuda",lat:32.32,lng:-64.76,sz:0.2}
 ];
 
-function getCentroid(feat){
-  let sLat=0,sLng=0,n=0;
-  const polys=feat.geometry.type==='Polygon'?[feat.geometry.coordinates]:feat.geometry.coordinates;
-  polys.forEach(p=>p[0].forEach(c=>{sLng+=c[0];sLat+=c[1];n++;}));
-  return n?{lat:sLat/n,lng:sLng/n}:{lat:0,lng:0};
-}
-
-function getArea(feat){
-  let mnLa=90,mxLa=-90,mnLn=180,mxLn=-180;
-  const polys=feat.geometry.type==='Polygon'?[feat.geometry.coordinates]:feat.geometry.coordinates;
-  polys.forEach(p=>p[0].forEach(c=>{
-    if(c[1]<mnLa)mnLa=c[1];if(c[1]>mxLa)mxLa=c[1];
-    if(c[0]<mnLn)mnLn=c[0];if(c[0]>mxLn)mxLn=c[0];
-  }));
-  return(mxLa-mnLa)*(mxLn-mnLn);
-}
-
-function processCountryData(features){
-  const existingNames=new Set(features.map(f=>(f.properties.ADMIN||f.properties.name||'')));
-  SYNTH_POLYS.forEach(s=>{
-    if(!existingNames.has(s.name))features.push(makeMiniPoly(s.lat,s.lng,s.name,s.sz));
-  });
-  globe.polygonsData(features);
-
-  const labels=features.map(f=>{
-    const nm=f.properties.ADMIN||f.properties.name||f.properties.NAME||'';
-    if(!nm||nm.length<2)return null;
-    const c=getCentroid(f);
-    const a=getArea(f);
-    const keys=getRegionKeys(f);
-    const sz=Math.max(0.15,Math.min(1.8,Math.sqrt(a)*0.022));
-    return{lat:c.lat,lng:c.lng,name:nm,size:sz,hasWords:!!keys};
-  }).filter(Boolean);
-
-  globe
-    .labelsData(labels)
-    .labelLat(d=>d.lat).labelLng(d=>d.lng)
-    .labelText(d=>d.name)
-    .labelSize(d=>d.size)
-    .labelDotRadius(0)
-    .labelColor(d=>d.hasWords?'rgba(78,205,196,0.22)':'rgba(200,210,230,0.1)')
-    .labelResolution(2)
-    .labelAltitude(0.007)
-    .onLabelClick(null)
-    .onLabelHover(null);
-}
-
 function loadCountryData(){
-  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
+  fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl@master/example/datasets/ne_110m_admin_0_countries.geojson')
     .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-    .then(world=>{
-      const geo=topojson.feature(world,world.objects.countries);
-      geo.features.forEach(f=>{
-        const id=String(f.id).padStart(3,'0');
-        if(id&&ISO_NAMES[id]){
-          f.properties=f.properties||{};
-          f.properties.ADMIN=ISO_NAMES[id];
-        }
+    .then(d=>{
+      const existing=new Set(d.features.map(f=>(f.properties.ADMIN||f.properties.name||'')));
+      SYNTH_POLYS.forEach(s=>{
+        if(!existing.has(s.name))d.features.push(makeMiniPoly(s.lat,s.lng,s.name,s.sz));
       });
-      processCountryData(geo.features);
+      globe.polygonsData(d.features);
     })
-    .catch(()=>{
-      fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl@master/example/datasets/ne_110m_admin_0_countries.geojson')
-        .then(r=>r.json())
-        .then(d=>processCountryData(d.features))
-        .catch(console.error);
-    });
+    .catch(console.error);
 }
 
 /* ─── Country Panel ─── */
