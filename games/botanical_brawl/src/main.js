@@ -18,7 +18,7 @@ import {
 } from './pickups.js';
 import {
   fireProjectile, updateProjectiles, handleForge, clearProjectiles,
-  createDefaultWeapon,
+  createDefaultWeapon, updateGravityWells, clearGravityWells,
 } from './weapons.js';
 import {
   updateHUD, updateBossHpBar, updateMinimap,
@@ -30,10 +30,6 @@ import {
 } from './persistence.js';
 import { startForgeAnimation, stopForgeAnimation } from './forge-bg.js';
 import { updateDebris, clearDebris } from './debris.ts';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { flashDamage, flashImpact, updateScreenFx, clearScreenFx } from './screen-fx.ts';
 
 // ── Constants ──
@@ -181,18 +177,6 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.4;
 els.canvas.appendChild(renderer.domElement);
 
-// ── Post-Processing (bloom) ──
-
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.35,
-  0.5,
-  0.82,
-);
-composer.addPass(bloomPass);
-composer.addPass(new OutputPass());
 
 // ── Lighting (no shadows for performance) ──
 
@@ -732,7 +716,6 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 window.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1125,6 +1108,7 @@ function resetGame() {
   clearPickups(state, scene);
   clearAllVfx(scene);
   clearDebris(scene);
+  clearGravityWells();
   clearTerrain();
   buildInitialTerrain();
 
@@ -1187,6 +1171,7 @@ function quitToTitle() {
   clearPickups(state, scene);
   clearAllVfx(scene);
   clearDebris(scene);
+  clearGravityWells();
   clearTerrain();
   if (els.pauseOverlay) els.pauseOverlay.style.display = 'none';
   els.gameoverScreen.style.display = 'none';
@@ -1324,7 +1309,7 @@ function gameLoop(timestamp) {
   state.dt60 = state.dt * 60;
 
   if (!state.started || state.paused) {
-    composer.render();
+    renderer.render(scene, camera);
     updateClouds();
     updateWorldAnimations();
     return;
@@ -1342,6 +1327,7 @@ function gameLoop(timestamp) {
   updateEnemyHpBars(state.enemies, camera);
   updatePollen(state.dt60);
   updateDebris(scene, state.dt60);
+  updateGravityWells(state, state.dt60);
   updateClouds();
   updateWorldAnimations();
   checkWave();
@@ -1359,7 +1345,7 @@ function gameLoop(timestamp) {
     triggerGameOver();
   }
 
-  composer.render();
+  renderer.render(scene, camera);
 }
 
 requestAnimationFrame(gameLoop);

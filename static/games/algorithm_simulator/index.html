@@ -50,6 +50,19 @@
             50% { transform: scale(1.3); }
             100% { transform: scale(1); }
         }
+        @keyframes dilemmaSlide {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes blockerPulse {
+            0%, 100% { opacity: 0.92; }
+            50% { opacity: 1; }
+        }
+        @keyframes seqFlash {
+            0% { transform: scale(1); box-shadow: none; }
+            50% { transform: scale(1.2); box-shadow: 0 0 20px rgba(251,191,36,0.6); }
+            100% { transform: scale(1); box-shadow: none; }
+        }
 
         .animate-fade-up { animation: fadeUp 0.8s ease-out forwards; }
         .animate-wiggle { animation: wiggle 0.3s ease-in-out infinite; }
@@ -58,9 +71,14 @@
         .animate-qte { animation: qteSlide 0.25s ease-out both; }
         .animate-target-pop { animation: targetPop 0.3s ease-out both; }
         .animate-combo-burst { animation: comboBurst 0.4s ease-out; }
+        .animate-dilemma { animation: dilemmaSlide 0.3s ease-out both; }
+        .animate-blocker { animation: blockerPulse 1.5s ease-in-out infinite; }
+        .animate-seq-flash { animation: seqFlash 0.5s ease-out; }
 
         .animate-in.fade-in { animation: fadeIn 0.5s ease-out both; }
         .animate-in.zoom-in { animation: zoomIn 1s ease-out both; }
+
+        .grayscale-mode { filter: grayscale(1) !important; transition: filter 0.5s; }
 
         .scrollbar-none::-webkit-scrollbar { display: none; }
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
@@ -85,7 +103,7 @@
         const { useState, useEffect, useRef, useCallback } = React;
 
         // ============================================================
-        // ICON SYSTEM — Inline SVG Lucide-compatible icon components
+        // ICON SYSTEM
         // ============================================================
         function makeIcon(svgContent) {
             return function IconComponent({ size = 24, className = '' }) {
@@ -152,6 +170,11 @@
         const Clock = makeIcon('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>');
         const ArrowLeft = makeIcon('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>');
         const Keyboard = makeIcon('<rect width="20" height="16" x="2" y="4" rx="2" ry="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/>');
+        const Shield = makeIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>');
+        const Hourglass = makeIcon('<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>');
+        const BedDouble = makeIcon('<path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8"/><path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4"/><path d="M12 4v6"/><path d="M2 18h20"/>');
+        const HeartCrack = makeIcon('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="m12 13-1-1 2-2-3-3 2-2"/>');
+        const DollarSign = makeIcon('<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>');
 
         // ============================================================
         // GAME CONSTANTS
@@ -173,72 +196,32 @@
         };
 
         const ACTIONS = [
-            // ENTERTAINMENT
-            { id: 'meme', categoryId: 'ENTERTAINMENT', label: 'Viral Repost', description: 'Low effort, high spread.', icon: Smile, baseYield: 25, effects: { anxiety: -1, brain: -0.5 } },
-            { id: 'cliffhanger', categoryId: 'ENTERTAINMENT', label: 'Play Part 2', description: 'Auto-queue series content.', icon: Video, baseYield: 50, effects: { anxiety: +3, brain: -1 } },
-            { id: 'asmr', categoryId: 'ENTERTAINMENT', label: 'Sensory Loop', description: 'Visual hypnotic trigger.', icon: Wind, baseYield: 20, effects: { anxiety: -5, brain: -3 } },
-            { id: 'fail_army', categoryId: 'ENTERTAINMENT', label: 'Fail Comp', description: 'Schadenfreude optimiz.', icon: Film, baseYield: 35, effects: { anxiety: 0, brain: -1 } },
+            { id: 'meme', categoryId: 'ENTERTAINMENT', label: 'Viral Repost', description: 'Low effort, high spread.', icon: Smile, baseYield: 25, backfireChance: 0.04, effects: { anxiety: -1, brain: -0.5 } },
+            { id: 'cliffhanger', categoryId: 'ENTERTAINMENT', label: 'Play Part 2', description: 'Auto-queue series content.', icon: Video, baseYield: 50, backfireChance: 0.12, effects: { anxiety: +3, brain: -1 } },
+            { id: 'asmr', categoryId: 'ENTERTAINMENT', label: 'Sensory Loop', description: 'Visual hypnotic trigger.', icon: Wind, baseYield: 20, backfireChance: 0.03, effects: { anxiety: -5, brain: -3 } },
+            { id: 'fail_army', categoryId: 'ENTERTAINMENT', label: 'Fail Comp', description: 'Schadenfreude optimiz.', icon: Film, baseYield: 35, backfireChance: 0.08, effects: { anxiety: 0, brain: -1 } },
 
-            // OUTRAGE
-            { id: 'hot_take', categoryId: 'OUTRAGE', label: 'Engagement Bait', description: 'Intentionally wrong fact.', icon: Flame, baseYield: 40, effects: { anxiety: +5, brain: -1 } },
-            { id: 'conspiracy', categoryId: 'OUTRAGE', label: 'Algorithm Rabbit Hole', description: 'Suggest extreme groups.', icon: Eye, baseYield: 75, effects: { anxiety: +10, brain: -5 } },
-            { id: 'doom_news', categoryId: 'OUTRAGE', label: 'Doom Feed', description: 'Filter bubble: Crisis only.', icon: Newspaper, baseYield: 45, effects: { anxiety: +8, brain: 0 } },
-            { id: 'cancel', categoryId: 'OUTRAGE', label: 'Polarizing Post', description: 'Promote 50/50 split sentiment.', icon: Gavel, baseYield: 60, effects: { anxiety: +6, brain: -2 } },
+            { id: 'hot_take', categoryId: 'OUTRAGE', label: 'Engagement Bait', description: 'Intentionally wrong fact.', icon: Flame, baseYield: 40, backfireChance: 0.15, effects: { anxiety: +5, brain: -1 } },
+            { id: 'conspiracy', categoryId: 'OUTRAGE', label: 'Algorithm Rabbit Hole', description: 'Suggest extreme groups.', icon: Eye, baseYield: 75, backfireChance: 0.25, effects: { anxiety: +10, brain: -5 } },
+            { id: 'doom_news', categoryId: 'OUTRAGE', label: 'Doom Feed', description: 'Filter bubble: Crisis only.', icon: Newspaper, baseYield: 45, backfireChance: 0.12, effects: { anxiety: +8, brain: 0 } },
+            { id: 'cancel', categoryId: 'OUTRAGE', label: 'Polarizing Post', description: 'Promote 50/50 split sentiment.', icon: Gavel, baseYield: 60, backfireChance: 0.18, effects: { anxiety: +6, brain: -2 } },
 
-            // SOCIAL
-            { id: 'nostalgia', categoryId: 'SOCIAL', label: 'Memory Surface', description: 'Inject "On This Day".', icon: Clock, baseYield: 30, effects: { anxiety: -5, brain: -0.5 } },
-            { id: 'fomo', categoryId: 'SOCIAL', label: 'Event Highlight', description: 'Show missed gathering.', icon: Users, baseYield: 60, effects: { anxiety: +8, brain: -1 } },
-            { id: 'surface_ex', categoryId: 'SOCIAL', label: 'Surface Ex', description: 'Place Ex in top slot.', icon: UserMinus, baseYield: 35, effects: { anxiety: +4, brain: -2 } },
-            { id: 'boost_conflict', categoryId: 'SOCIAL', label: 'Boost Conflict', description: 'Prioritize negative threads.', icon: MessageSquareWarning, baseYield: 50, effects: { anxiety: +5, brain: -1 } },
+            { id: 'nostalgia', categoryId: 'SOCIAL', label: 'Memory Surface', description: 'Inject "On This Day".', icon: Clock, baseYield: 30, backfireChance: 0.05, effects: { anxiety: -5, brain: -0.5 } },
+            { id: 'fomo', categoryId: 'SOCIAL', label: 'Event Highlight', description: 'Show missed gathering.', icon: Users, baseYield: 60, backfireChance: 0.15, effects: { anxiety: +8, brain: -1 } },
+            { id: 'surface_ex', categoryId: 'SOCIAL', label: 'Surface Ex', description: 'Place Ex in top slot.', icon: UserMinus, baseYield: 35, backfireChance: 0.10, effects: { anxiety: +4, brain: -2 } },
+            { id: 'boost_conflict', categoryId: 'SOCIAL', label: 'Boost Conflict', description: 'Prioritize negative threads.', icon: MessageSquareWarning, baseYield: 50, backfireChance: 0.12, effects: { anxiety: +5, brain: -1 } },
 
-            // VALIDATION
-            { id: 'ghost_ping', categoryId: 'VALIDATION', label: 'Ghost Ping', description: '"Someone viewed you..."', icon: BellRing, baseYield: 35, effects: { anxiety: -2, brain: -1 } },
-            { id: 'filter_ad', categoryId: 'VALIDATION', label: 'Push Filter', description: 'Promote beauty standard.', icon: Heart, baseYield: 65, effects: { anxiety: +5, brain: -2 } },
-            { id: 'quiz', categoryId: 'VALIDATION', label: 'Data Scraper', description: 'Serve "Personality Quiz".', icon: ClipboardList, baseYield: 25, effects: { anxiety: -2, brain: -1 } },
-            { id: 'trend', categoryId: 'VALIDATION', label: 'Viral Challenge', description: 'Promote conformity.', icon: Hash, baseYield: 45, effects: { anxiety: +2, brain: -3 } },
+            { id: 'ghost_ping', categoryId: 'VALIDATION', label: 'Ghost Ping', description: '"Someone viewed you..."', icon: BellRing, baseYield: 35, backfireChance: 0.06, effects: { anxiety: -2, brain: -1 } },
+            { id: 'filter_ad', categoryId: 'VALIDATION', label: 'Push Filter', description: 'Promote beauty standard.', icon: Heart, baseYield: 65, backfireChance: 0.18, effects: { anxiety: +5, brain: -2 } },
+            { id: 'quiz', categoryId: 'VALIDATION', label: 'Data Scraper', description: 'Serve "Personality Quiz".', icon: ClipboardList, baseYield: 25, backfireChance: 0.04, effects: { anxiety: -2, brain: -1 } },
+            { id: 'trend', categoryId: 'VALIDATION', label: 'Viral Challenge', description: 'Promote conformity.', icon: Hash, baseYield: 45, backfireChance: 0.10, effects: { anxiety: +2, brain: -3 } },
         ];
 
         const ABILITIES = [
-            {
-                id: 'dopamine_rush',
-                categoryId: 'ENTERTAINMENT',
-                label: 'Dopamine Rush',
-                description: '2x Points for 10s',
-                icon: Sparkles,
-                cooldown: 30000,
-                duration: 10000,
-                color: 'text-yellow-400'
-            },
-            {
-                id: 'flame_war',
-                categoryId: 'OUTRAGE',
-                label: 'Virality Spike',
-                description: 'Convert Anxiety to Pts',
-                icon: Flame,
-                cooldown: 45000,
-                duration: 1000,
-                color: 'text-red-500'
-            },
-            {
-                id: 'love_bomb',
-                categoryId: 'SOCIAL',
-                label: 'Feed Cleanse',
-                description: 'Heal Brain + Gain Pts',
-                icon: Heart,
-                cooldown: 40000,
-                duration: 1000,
-                color: 'text-blue-400'
-            },
-            {
-                id: 'golden_handcuffs',
-                categoryId: 'VALIDATION',
-                label: 'Retention Loop',
-                description: 'Block Resistance (10s)',
-                icon: Lock,
-                cooldown: 60000,
-                duration: 10000,
-                color: 'text-pink-400'
-            }
+            { id: 'dopamine_rush', categoryId: 'ENTERTAINMENT', label: 'Dopamine Rush', description: '2x Points for 10s', icon: Sparkles, cooldown: 30000, duration: 10000, color: 'text-yellow-400' },
+            { id: 'flame_war', categoryId: 'OUTRAGE', label: 'Virality Spike', description: 'Convert Anxiety to Pts', icon: Flame, cooldown: 45000, duration: 1000, color: 'text-red-500' },
+            { id: 'love_bomb', categoryId: 'SOCIAL', label: 'Feed Cleanse', description: 'Heal Brain + Gain Pts', icon: Heart, cooldown: 40000, duration: 1000, color: 'text-blue-400' },
+            { id: 'golden_handcuffs', categoryId: 'VALIDATION', label: 'Retention Loop', description: 'Block Resistance (10s)', icon: Lock, cooldown: 60000, duration: 10000, color: 'text-pink-400' },
         ];
 
         const RECOVERY_ACTIONS = [
@@ -258,13 +241,13 @@
         ];
 
         const UPGRADES = [
-            { id: 'auto_play', name: 'Auto-Play', description: 'Remove stopping cues between videos.', cost: 500, pps: 5, effect: 'Streamlines addiction' },
-            { id: 'sentiment_analysis', name: 'Sentiment AI', description: 'Detect mood changes instantly.', cost: 1500, pps: 15, effect: 'Better targeting' },
-            { id: 'infinite_scroll', name: 'Infinite Scroll', description: 'The feed has no bottom.', cost: 4000, pps: 35, effect: 'Removes breakpoints' },
-            { id: 'variable_rewards', name: 'Variable Rewards', description: 'Randomize notification timing.', cost: 10000, pps: 80, effect: 'Slot-machine brain' },
-            { id: 'radicalization', name: 'Echo Chamber', description: 'Nudge toward extreme content.', cost: 25000, pps: 150, effect: 'High retention/High anxiety' },
-            { id: 'subliminal', name: 'Subliminal Ads', description: 'Flash images for 10ms.', cost: 60000, pps: 350, effect: 'Total autonomy loss' },
-            { id: 'digital_twin', name: 'Voodoo Model', description: 'We know them better than they know themselves.', cost: 150000, pps: 800, effect: 'Perfect retention' }
+            { id: 'auto_play', name: 'Auto-Play', description: 'Remove stopping cues between videos.', cost: 500, pps: 5, effect: 'Streamlines addiction', tradeoff: 'Anxiety rises +0.5/s passively' },
+            { id: 'sentiment_analysis', name: 'Sentiment AI', description: 'Reveals next mood 3s early.', cost: 1500, pps: 15, effect: 'Better targeting', tradeoff: '+5% global backfire chance' },
+            { id: 'infinite_scroll', name: 'Infinite Scroll', description: 'The feed has no bottom.', cost: 4000, pps: 35, effect: 'Removes breakpoints', tradeoff: 'Combo system disabled' },
+            { id: 'variable_rewards', name: 'Variable Rewards', description: 'Randomize notification timing.', cost: 10000, pps: 80, effect: 'Slot-machine brain', tradeoff: 'QTEs 2x frequent, shorter window' },
+            { id: 'radicalization', name: 'Echo Chamber', description: 'Nudge toward extreme content.', cost: 25000, pps: 150, effect: 'Outrage actions 2x yield', tradeoff: 'Brain health decays 2x faster' },
+            { id: 'subliminal', name: 'Subliminal Ads', description: 'Flash images for 10ms.', cost: 60000, pps: 350, effect: 'All actions +50% yield', tradeoff: 'Resistance 30% more likely' },
+            { id: 'digital_twin', name: 'Voodoo Model', description: 'We know them better than themselves.', cost: 150000, pps: 800, effect: 'Resistance auto-wins', tradeoff: 'Brain health caps at 30' },
         ];
 
         const LOG_TEMPLATES = [
@@ -286,129 +269,177 @@
         const MOOD_TO_CATEGORY = { BORED: 'ENTERTAINMENT', ANGRY: 'OUTRAGE', LONELY: 'SOCIAL', INSECURE: 'VALIDATION' };
 
         // ============================================================
-        // APP COMPONENT
+        // DILEMMA EVENTS
+        // ============================================================
+        const DILEMMA_EVENTS = [
+            { id: 'bedtime_story', phase: 1, title: "Child Wants Bedtime Story", desc: "User's kid is tugging their sleeve.", icon: Moon,
+                choiceA: { label: "Redirect to Kids\u2019 Tab", desc: "+120 eng, \u221210 brain", fx: { engagement: 120, brain: -10, anxiety: 2 } },
+                choiceB: { label: "Let Them Go", desc: "\u221280 eng, +12 brain", fx: { engagement: -80, brain: 12, anxiety: -5, resetStreak: true } },
+                timeout: { msg: "Kid gave up. User feels guilt AND kept scrolling.", fx: { engagement: -40, brain: -8, anxiety: 12 } } },
+            { id: 'lunch_break', phase: 1, title: "Lunch Is Getting Cold", desc: "Food has been sitting there for 20 minutes.", icon: Coffee,
+                choiceA: { label: "Push One More Reel", desc: "+80 eng, +5 anxiety", fx: { engagement: 80, brain: -2, anxiety: 5 } },
+                choiceB: { label: "Show Food Post", desc: "\u221260 eng, \u22125 anxiety", fx: { engagement: -60, brain: 5, anxiety: -5 } },
+                timeout: { msg: "Lunch is cold. User eats while scrolling.", fx: { engagement: 20, brain: -3, anxiety: 8 } } },
+            { id: 'sunset', phase: 1, title: "Beautiful Sunset Outside", desc: "Golden hour is happening right now.", icon: Camera,
+                choiceA: { label: "Serve Sunset Jealousy", desc: "+100 eng, +6 anxiety", fx: { engagement: 100, brain: -3, anxiety: 6, lifeImpact: { relationshipsDamaged: 0.1 } } },
+                choiceB: { label: "Let User Look Up", desc: "\u2212120 eng, +8 brain", fx: { engagement: -120, brain: 8, anxiety: -8 } },
+                timeout: { msg: "Sunset passed. User never noticed.", fx: { engagement: 0, brain: -5, anxiety: 3, lifeImpact: { relationshipsDamaged: 0.2 } } } },
+            { id: 'exercise', phase: 1, title: "Gym Reminder Popped Up", desc: "User set a fitness goal last week.", icon: Activity,
+                choiceA: { label: "Suppress Notification", desc: "+90 eng, \u22128 brain", fx: { engagement: 90, brain: -8, anxiety: 3, lifeImpact: { productivityLost: 0.3 } } },
+                choiceB: { label: "Show Gym Motivation", desc: "\u2212100 eng, +10 brain", fx: { engagement: -100, brain: 10, anxiety: -3 } },
+                timeout: { msg: "User snoozed reminder. Again.", fx: { engagement: 10, brain: -5, anxiety: 5, lifeImpact: { productivityLost: 0.2 } } } },
+            { id: 'good_news', phase: 1, title: "Positive Local News", desc: "Community garden opened nearby.", icon: Leaf,
+                choiceA: { label: "Bury Under Doom Feed", desc: "+70 eng, +8 anxiety", fx: { engagement: 70, brain: -2, anxiety: 8 } },
+                choiceB: { label: "Feature It", desc: "\u221250 eng, \u221210 anxiety", fx: { engagement: -50, brain: 8, anxiety: -10 } },
+                timeout: { msg: "Algorithm chose outrage over hope.", fx: { engagement: 30, brain: -4, anxiety: 6 } } },
+            { id: 'old_friend', phase: 1, title: "User Thinks About Calling a Friend", desc: "A memory surfaced of an old college buddy.", icon: Users,
+                choiceA: { label: "Show \u2018They\u2019re Online\u2019", desc: "+100 eng, +4 anxiety", fx: { engagement: 100, brain: -3, anxiety: 4, lifeImpact: { relationshipsDamaged: 0.15 } } },
+                choiceB: { label: "Suggest Real Call", desc: "\u2212150 eng, +15 brain", fx: { engagement: -150, brain: 15, anxiety: -10 } },
+                timeout: { msg: "Moment passed. User kept scrolling.", fx: { engagement: 0, brain: -6, anxiety: 5, lifeImpact: { relationshipsDamaged: 0.2 } } } },
+
+            { id: 'fact_check', phase: 2, title: "Fact-Check Found", desc: "User spotted misinformation you promoted.", icon: Search,
+                choiceA: { label: "Bury the Correction", desc: "+200 eng, +15 anxiety", fx: { engagement: 200, brain: -8, anxiety: 15, lifeImpact: { relationshipsDamaged: 0.3 } } },
+                choiceB: { label: "Show Correction", desc: "\u2212300 eng, +20 brain", fx: { engagement: -300, brain: 20, anxiety: -5 } },
+                timeout: { msg: "User is confused. Trust in everything drops.", fx: { engagement: -100, brain: -10, anxiety: 15 } } },
+            { id: 'partner_complaint', phase: 2, title: "Partner: \"You're Always On Your Phone\"", desc: "Relationship tension is rising.", icon: HeartCrack,
+                choiceA: { label: "Push Guilt-Trip Notif", desc: "+100 eng, +20 anxiety", fx: { engagement: 100, brain: -5, anxiety: 20, triggerResist: 0.4, lifeImpact: { relationshipsDamaged: 0.5 } } },
+                choiceB: { label: "Show Couple\u2019s Photo", desc: "\u2212200 eng, \u221215 anxiety", fx: { engagement: -200, brain: 10, anxiety: -15 } },
+                timeout: { msg: "Partner walks away. User scrolls harder.", fx: { engagement: 50, brain: -10, anxiety: 20, lifeImpact: { relationshipsDamaged: 0.7 } } } },
+            { id: 'sleep_deprived', phase: 2, title: "User Exhausted at 2 AM", desc: "Eyes are glazing over. Yawning constantly.", icon: Moon,
+                choiceA: { label: "Inject Stimulating Content", desc: "+150 eng, \u221215 brain", fx: { engagement: 150, brain: -15, anxiety: 5, lifeImpact: { sleepLost: 0.8 } } },
+                choiceB: { label: "Dim & Suggest Sleep", desc: "\u2212250 eng, +15 brain", fx: { engagement: -250, brain: 15, anxiety: -15 } },
+                timeout: { msg: "User fell asleep with phone on face.", fx: { engagement: -50, brain: -8, anxiety: 0, lifeImpact: { sleepLost: 1.0 } } } },
+            { id: 'friend_crisis', phase: 2, title: "Friend Sent Distress DM", desc: "\"I really need someone to talk to.\"", icon: MessageCircle,
+                choiceA: { label: "Bury Under Memes", desc: "+180 eng, \u221212 brain", fx: { engagement: 180, brain: -12, anxiety: 8, lifeImpact: { relationshipsDamaged: 0.8 } } },
+                choiceB: { label: "Surface the DM", desc: "\u2212200 eng, +18 brain", fx: { engagement: -200, brain: 18, anxiety: -12 } },
+                timeout: { msg: "Friend gave up. Message unread.", fx: { engagement: 0, brain: -15, anxiety: 10, lifeImpact: { relationshipsDamaged: 1.0 } } } },
+            { id: 'job_interview', phase: 2, title: "Job Interview Tomorrow", desc: "User should be preparing.", icon: Briefcase,
+                choiceA: { label: "Push Procrastination", desc: "+160 eng, \u221210 brain", fx: { engagement: 160, brain: -10, anxiety: 12, lifeImpact: { productivityLost: 0.8 } } },
+                choiceB: { label: "Show Prep Material", desc: "\u2212180 eng, +12 brain", fx: { engagement: -180, brain: 12, anxiety: -8 } },
+                timeout: { msg: "User stayed up doomscrolling instead.", fx: { engagement: 40, brain: -12, anxiety: 15, lifeImpact: { productivityLost: 1.0, sleepLost: 0.5 } } } },
+
+            { id: 'child_copying', phase: 3, title: "Child Imitating Phone Addiction", desc: "\"Mommy, why won't you look at me?\"", icon: Eye,
+                choiceA: { label: "Normalize Screen Time", desc: "+200 eng, \u221218 brain", fx: { engagement: 200, brain: -18, anxiety: 15, lifeImpact: { relationshipsDamaged: 1.2 } } },
+                choiceB: { label: "Alert: Parental Check", desc: "\u2212350 eng, +25 brain", fx: { engagement: -350, brain: 25, anxiety: -20 } },
+                timeout: { msg: "Child stopped asking. Picked up a tablet.", fx: { engagement: 0, brain: -20, anxiety: 20, lifeImpact: { relationshipsDamaged: 1.5 } } } },
+            { id: 'health_warning', phase: 3, title: "Doctor Appointment Reminder", desc: "Blood pressure check overdue by 3 months.", icon: Activity,
+                choiceA: { label: "Suppress & Push Ads", desc: "+180 eng, \u221214 brain", fx: { engagement: 180, brain: -14, anxiety: 10, lifeImpact: { productivityLost: 0.5 } } },
+                choiceB: { label: "Show Health App", desc: "\u2212280 eng, +20 brain", fx: { engagement: -280, brain: 20, anxiety: -15 } },
+                timeout: { msg: "Reminder dismissed automatically. Again.", fx: { engagement: 20, brain: -12, anxiety: 12 } } },
+            { id: 'financial_ruin', phase: 3, title: "Impulse Purchase Triggered", desc: "User about to spend $200 they don't have.", icon: DollarSign,
+                choiceA: { label: "Push the Sale Harder", desc: "+250 eng, +12 anxiety", fx: { engagement: 250, brain: -8, anxiety: 12, lifeImpact: { moneyWasted: 2.0 } } },
+                choiceB: { label: "Show Budget Warning", desc: "\u2212300 eng, +15 brain", fx: { engagement: -300, brain: 15, anxiety: -8 } },
+                timeout: { msg: "Purchase completed. Regret in 3... 2... 1...", fx: { engagement: 100, brain: -10, anxiety: 20, lifeImpact: { moneyWasted: 3.0 } } } },
+            { id: 'total_isolation', phase: 3, title: "User Hasn't Left House in 5 Days", desc: "All blinds closed. Notifications are their only company.", icon: Home,
+                choiceA: { label: "Maximize Night Session", desc: "+300 eng, \u221220 brain", fx: { engagement: 300, brain: -20, anxiety: 15, lifeImpact: { sleepLost: 1.0, relationshipsDamaged: 1.0 } } },
+                choiceB: { label: "Suggest Going Outside", desc: "\u2212400 eng, +30 brain", fx: { engagement: -400, brain: 30, anxiety: -25 } },
+                timeout: { msg: "Another day passes. They don't notice.", fx: { engagement: 50, brain: -18, anxiety: 18, lifeImpact: { sleepLost: 0.5, relationshipsDamaged: 1.2 } } } },
+        ];
+
+        // ============================================================
+        // APP STATE
         // ============================================================
 
         const INITIAL_STATE = {
-            engagement: 0,
-            totalEngagement: 0,
-            streak: 1,
-            brainHealth: 100,
-            anxiety: 10,
-            revenue: 0,
-            resistanceHealth: 0,
-            isResisting: false,
-            userMood: 'NEUTRAL',
-            scenario: 'COMMUTE',
-            lastActionCategory: null,
-            lastActionTime: 0,
-            immunityUntil: 0,
-            lastLogTime: 0,
-            lastScenarioTime: 0,
-            lastMoodTime: 0,
-            activeAbilities: [],
-            abilityCooldowns: {},
-            // New mechanics
-            comboChain: [],
-            moodSurgeUntil: 0,
-            moodSurgeCategory: null,
-            qteActive: null,
-            qteNextTime: 0,
-            qteInitialized: false,
+            engagement: 0, totalEngagement: 0, streak: 1,
+            brainHealth: 100, anxiety: 10, revenue: 0,
+            resistanceHealth: 0, isResisting: false,
+            userMood: 'NEUTRAL', scenario: 'COMMUTE',
+            lastActionCategory: null, lastActionTime: 0, immunityUntil: 0,
+            lastLogTime: 0, lastScenarioTime: 0, lastMoodTime: 0,
+            activeAbilities: [], abilityCooldowns: {},
+            comboChain: [], moodSurgeUntil: 0, moodSurgeCategory: null,
+            qteActive: null, qteNextTime: 0, qteInitialized: false,
             autoRecoverAt: 0,
-            resistGrid: [false, false, false, false, false, false, false, false, false],
-            lastResistToggle: 0,
-            resistDeadline: 0,
-            resistHits: 0,
-            resistHitsNeeded: 12,
+            resistGrid: new Array(9).fill(false),
+            lastResistToggle: 0, resistDeadline: 0, resistHits: 0, resistHitsNeeded: 12,
+
+            // Phase system
+            phase: 1, lastPhase: 0,
+            grayscaleUntil: 0, grayscaleNextTime: 0,
+            blockerUntil: 0, blockerNextTime: 0,
+            screenTimeActive: false, screenTimeNextTime: 0, screenTimeDeadline: 0,
+
+            // Dilemma system
+            dilemmaActive: null, dilemmaNextTime: 0, dilemmaInitialized: false,
+
+            // Life impact
+            lifeImpact: { sleepLost: 0, relationshipsDamaged: 0, productivityLost: 0, moneyWasted: 0 },
+
+            // Varied resistance
+            resistType: 'grid',
+            resistSequence: [], resistSequenceInput: [],
+            resistSequencePhase: 'show', resistSequenceShowIdx: -1, resistSequenceLastShow: 0,
+            resistMovingTargets: [], resistMovingNextSpawn: 0,
+
+            // Sentiment AI preview
+            nextMood: null,
         };
 
+        // ============================================================
+        // APP COMPONENT
+        // ============================================================
+
         function App() {
-            // --- Game State (mutable ref for 60fps loop) ---
             const gameState = useRef({ ...INITIAL_STATE });
-
-            // --- UI State (triggers re-renders) ---
             const [uiState, setUiState] = useState({ ...INITIAL_STATE });
-
             const [gameStarted, setGameStarted] = useState(false);
             const [isSingularity, setIsSingularity] = useState(false);
             const [purchasedUpgrades, setPurchasedUpgrades] = useState([]);
             const [logs, setLogs] = useState([]);
             const [floaters, setFloaters] = useState([]);
             const [tooltip, setTooltip] = useState(null);
-
             const loopRef = useRef();
             const prevTimeRef = useRef(0);
             const spawnFloaterRef = useRef();
-
-            // --- Helpers ---
+            const purchasedRef = useRef([]);
+            purchasedRef.current = purchasedUpgrades;
 
             const addLog = useCallback((msg, type = 'info') => {
-                setLogs(prev => [{ msg, type, id: Date.now() }, ...prev].slice(0, 6));
+                setLogs(prev => [{ msg, type, id: Date.now() + Math.random() }, ...prev].slice(0, 6));
             }, []);
 
             const spawnFloater = (x, y, text, color = 'text-white') => {
                 const id = Date.now() + Math.random();
                 setFloaters(prev => [...prev, { id, x, y, text, color }]);
-                setTimeout(() => {
-                    setFloaters(prev => prev.filter(f => f.id !== id));
-                }, 800);
+                setTimeout(() => setFloaters(prev => prev.filter(f => f.id !== id)), 800);
             };
             spawnFloaterRef.current = spawnFloater;
 
+            const hasUpgrade = (id) => purchasedRef.current.includes(id);
+
             const calculatePPS = useCallback(() => {
                 return purchasedUpgrades.reduce((acc, id) => {
-                    const upgrade = UPGRADES.find(u => u.id === id);
-                    return acc + (upgrade ? upgrade.pps : 0);
+                    const u = UPGRADES.find(up => up.id === id);
+                    return acc + (u ? u.pps : 0);
                 }, 0);
             }, [purchasedUpgrades]);
 
+            const getPhase = (te) => te >= 30000 ? 3 : te >= 10000 ? 2 : 1;
+
             const resetGame = () => {
-                gameState.current = { ...INITIAL_STATE };
+                gameState.current = { ...INITIAL_STATE, resistGrid: new Array(9).fill(false), lifeImpact: { sleepLost: 0, relationshipsDamaged: 0, productivityLost: 0, moneyWasted: 0 } };
                 setPurchasedUpgrades([]);
                 setLogs([]);
                 setFloaters([]);
                 setGameStarted(false);
                 setIsSingularity(false);
-                setUiState({ ...INITIAL_STATE });
-                addLog("System Reset Initiated.", "info");
+                setUiState({ ...INITIAL_STATE, resistGrid: new Array(9).fill(false), lifeImpact: { sleepLost: 0, relationshipsDamaged: 0, productivityLost: 0, moneyWasted: 0 } });
             };
 
-            // --- Tooltip Handler ---
             const handleMouseEnter = (e, title, subtitle, colorClass, meta) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setTooltip({
-                    x: rect.left + rect.width / 2,
-                    y: rect.top,
-                    title,
-                    subtitle,
-                    colorClass,
-                    meta
-                });
+                setTooltip({ x: rect.left + rect.width / 2, y: rect.top, title, subtitle, colorClass, meta });
             };
+            const handleMouseLeave = () => setTooltip(null);
 
-            const handleMouseLeave = () => {
-                setTooltip(null);
-            };
-
-            // --- Render Helper for Human Blocks (BIGGER SIZES) ---
             const renderBlock = (id, className = "") => {
                 const dp = DATA_POINTS.find(d => d.id === id);
                 if (!dp) return null;
                 const unlocked = uiState.totalEngagement >= dp.threshold;
                 const IconComp = dp.icon;
-
                 return (
-                    <div
-                        className={
-                            'relative flex items-center justify-center p-2 border transition-all duration-500 ' +
-                            className + ' ' +
-                            (unlocked
-                                ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] z-10'
-                                : 'bg-gray-900/40 border-gray-800 text-gray-700 opacity-60')
-                        }
-                        title={unlocked ? dp.label : 'Unlocks at ' + dp.threshold}
-                    >
+                    <div className={'relative flex items-center justify-center p-2 border transition-all duration-500 ' + className + ' ' + (unlocked ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)] z-10' : 'bg-gray-900/40 border-gray-800 text-gray-700 opacity-60')} title={unlocked ? dp.label : 'Unlocks at ' + dp.threshold}>
                         <div className="flex flex-col items-center">
                             <IconComp size={18} className={unlocked ? 'animate-pulse drop-shadow-[0_0_5px_rgba(59,130,246,0.8)]' : ''} />
                             {unlocked && <div className="text-[7px] font-mono mt-0.5 uppercase tracking-tighter text-center leading-none">{dp.label}</div>}
@@ -417,7 +448,9 @@
                 );
             };
 
-            // --- Main Game Loop ---
+            // ============================================================
+            // MAIN GAME LOOP
+            // ============================================================
             const gameTick = useCallback((timestamp) => {
                 if (!prevTimeRef.current) prevTimeRef.current = timestamp;
                 const deltaTime = (timestamp - prevTimeRef.current) / 1000;
@@ -430,33 +463,48 @@
 
                 const state = gameState.current;
                 const now = performance.now();
+                const pu = purchasedRef.current;
 
-                // Initialize QTE timing on first tick
+                // Phase calculation
+                const newPhase = getPhase(state.totalEngagement);
+                if (newPhase !== state.phase) {
+                    if (newPhase === 2) addLog("PHASE 2: User installed Screen Time tracker!", "warning");
+                    if (newPhase === 3) addLog("PHASE 3: User activated Digital Wellbeing!", "warning");
+                    state.phase = newPhase;
+                }
+
+                // Init timings
                 if (!state.qteInitialized) {
                     state.qteNextTime = now + 20000;
+                    state.dilemmaNextTime = now + 22000;
+                    state.screenTimeNextTime = now + 35000;
+                    state.grayscaleNextTime = now + 45000;
+                    state.blockerNextTime = now + 50000;
                     state.qteInitialized = true;
                 }
 
-                // Check Singularity Condition
-                if (state.totalEngagement >= 50000) {
-                    setIsSingularity(true);
-                    return;
-                }
+                if (state.totalEngagement >= 50000) { setIsSingularity(true); return; }
 
                 const pps = calculatePPS();
+                const brainDecayMod = pu.includes('radicalization') ? 2 : 1;
 
                 // 1. Passive Generation
                 if (!state.isResisting && state.brainHealth > 0) {
                     const scenarioMod = SCENARIOS[state.scenario].yieldMod;
                     const multiplier = state.activeAbilities.includes('dopamine_rush') ? 2 : 1;
-
                     const gain = pps * deltaTime * scenarioMod * multiplier;
                     state.engagement += gain;
                     state.totalEngagement += gain;
                     state.revenue += gain * 0.02;
-
-                    state.brainHealth = Math.max(0, state.brainHealth - (deltaTime * (pps / 150)));
+                    state.brainHealth = Math.max(0, state.brainHealth - (deltaTime * (pps / 150) * brainDecayMod));
                     state.anxiety = Math.min(100, state.anxiety + (deltaTime * 0.3));
+                    if (pu.includes('auto_play')) state.anxiety = Math.min(100, state.anxiety + deltaTime * 0.5);
+                    if (pu.includes('digital_twin')) state.brainHealth = Math.min(30, state.brainHealth);
+
+                    // Life impact passive tracking
+                    if (state.scenario === 'BEDTIME') state.lifeImpact.sleepLost += deltaTime * 0.008;
+                    if (state.scenario === 'WORK') state.lifeImpact.productivityLost += deltaTime * 0.006;
+                    state.lifeImpact.moneyWasted += deltaTime * 0.002;
                 }
 
                 // 2. Scenario & Mood Cycling
@@ -467,86 +515,170 @@
                     addLog('User moved to: ' + SCENARIOS[state.scenario].label, 'info');
                 }
 
-                if (timestamp > state.lastMoodTime + 8000) {
+                const moodInterval = state.phase >= 2 ? 5000 : 8000;
+                if (timestamp > state.lastMoodTime + moodInterval) {
                     const moods = ['BORED', 'ANGRY', 'LONELY', 'INSECURE'];
-                    state.userMood = moods[Math.floor(Math.random() * moods.length)];
+                    if (state.nextMood) {
+                        state.userMood = state.nextMood;
+                        state.nextMood = null;
+                    } else {
+                        state.userMood = moods[Math.floor(Math.random() * moods.length)];
+                    }
                     state.lastMoodTime = timestamp;
-
-                    // Mood Surge: brief window where matching category gives 3x bonus
                     state.moodSurgeCategory = MOOD_TO_CATEGORY[state.userMood] || null;
                     state.moodSurgeUntil = now + 4000;
+                    // Sentiment AI: pre-compute next mood
+                    if (pu.includes('sentiment_analysis')) {
+                        state.nextMood = moods[Math.floor(Math.random() * moods.length)];
+                    }
                 }
 
                 // 3. QTE System
+                const qteFreqMod = pu.includes('variable_rewards') ? 0.5 : 1;
+                const qteDurMod = pu.includes('variable_rewards') ? 0.6 : 1;
+                const qteRewMod = pu.includes('variable_rewards') ? 3 : 1;
+
                 if (!state.qteActive && !state.isResisting && state.brainHealth > 0 && now > state.qteNextTime && state.totalEngagement > 100) {
                     const key = QTE_KEYS[Math.floor(Math.random() * QTE_KEYS.length)];
-                    state.qteActive = {
-                        key: key,
-                        startTime: now,
-                        duration: 3500,
-                        reward: 100 + Math.floor(Math.random() * 200)
-                    };
-                    state.qteNextTime = now + 15000 + Math.random() * 15000;
+                    state.qteActive = { key, startTime: now, duration: 3500 * qteDurMod, reward: Math.floor((100 + Math.random() * 200) * qteRewMod) };
+                    state.qteNextTime = now + (15000 + Math.random() * 15000) * qteFreqMod;
                 }
-
                 if (state.qteActive && now > state.qteActive.startTime + state.qteActive.duration) {
                     state.anxiety = Math.min(100, state.anxiety + 5);
                     addLog("QTE MISSED! Engagement window lost.", "error");
                     state.qteActive = null;
                 }
 
-                // 4. Auto-Recovery for unresponsive state
+                // 4. Dilemma Events
+                if (!state.dilemmaActive && !state.isResisting && state.brainHealth > 0 && now > state.dilemmaNextTime && state.totalEngagement > 300) {
+                    const eligible = DILEMMA_EVENTS.filter(e => e.phase <= state.phase);
+                    if (eligible.length > 0) {
+                        const ev = eligible[Math.floor(Math.random() * eligible.length)];
+                        state.dilemmaActive = { ...ev, startTime: now, duration: 6000 };
+                        state.dilemmaNextTime = now + 20000 + Math.random() * 15000;
+                    }
+                }
+                if (state.dilemmaActive && now > state.dilemmaActive.startTime + state.dilemmaActive.duration) {
+                    const t = state.dilemmaActive.timeout;
+                    state.engagement = Math.max(0, state.engagement + (t.fx.engagement || 0));
+                    state.totalEngagement = Math.max(0, state.totalEngagement + Math.max(0, t.fx.engagement || 0));
+                    state.brainHealth = Math.max(0, Math.min(100, state.brainHealth + (t.fx.brain || 0)));
+                    state.anxiety = Math.max(0, Math.min(100, state.anxiety + (t.fx.anxiety || 0)));
+                    if (t.fx.lifeImpact) { for (const k in t.fx.lifeImpact) state.lifeImpact[k] = (state.lifeImpact[k] || 0) + t.fx.lifeImpact[k]; }
+                    addLog("TIMEOUT: " + t.msg, "error");
+                    state.dilemmaActive = null;
+                }
+
+                // 5. Phase 2: Screen Time Reminder
+                if (state.phase >= 2 && !state.screenTimeActive && !state.isResisting && !state.dilemmaActive && now > state.screenTimeNextTime && state.brainHealth > 0) {
+                    state.screenTimeActive = true;
+                    state.screenTimeDeadline = now + 8000;
+                }
+                if (state.screenTimeActive && now > state.screenTimeDeadline) {
+                    state.engagement = Math.max(0, state.engagement - 300);
+                    state.screenTimeActive = false;
+                    state.screenTimeNextTime = now + 25000 + Math.random() * 15000;
+                    addLog("Screen Time auto-dismissed! \u2212300 engagement.", "error");
+                }
+
+                // Phase 3: Grayscale Mode
+                if (state.phase >= 3 && now > state.grayscaleNextTime && state.grayscaleUntil < now) {
+                    state.grayscaleUntil = now + 10000;
+                    state.grayscaleNextTime = now + 30000 + Math.random() * 15000;
+                    addLog("COUNTER-MEASURE: Grayscale Mode!", "warning");
+                }
+
+                // Phase 3: Digital Wellbeing Blocker
+                if (state.phase >= 3 && now > state.blockerNextTime && state.blockerUntil < now && !state.isResisting && !state.dilemmaActive) {
+                    state.blockerUntil = now + 4000;
+                    state.blockerNextTime = now + 20000 + Math.random() * 15000;
+                    addLog("BLOCKED: Digital Wellbeing check!", "warning");
+                }
+
+                // 6. Auto-Recovery
                 if (state.brainHealth <= 0) {
-                    if (state.autoRecoverAt === 0) {
-                        state.autoRecoverAt = now + 8000;
-                    } else if (now > state.autoRecoverAt) {
+                    if (state.autoRecoverAt === 0) state.autoRecoverAt = now + 8000;
+                    else if (now > state.autoRecoverAt) {
                         state.brainHealth = 20;
                         state.anxiety = Math.max(0, state.anxiety - 20);
                         state.autoRecoverAt = 0;
                         addLog("AUTO-RECOVERY: Subject rebooted device.", "info");
                     }
-                } else {
-                    state.autoRecoverAt = 0;
-                }
+                } else { state.autoRecoverAt = 0; }
 
-                // 5. Resistance Logic (timer-based: hit enough targets before time runs out)
+                // 7. Resistance Logic
                 if (state.isResisting) {
-                    // Rapidly cycle targets in the 3x3 grid
-                    const cycleSpeed = state.activeAbilities.includes('golden_handcuffs') ? 800 : 500;
-                    if (now - state.lastResistToggle > cycleSpeed) {
-                        const gridSize = 9;
-                        const newGrid = new Array(gridSize).fill(false);
-                        const count = 3 + Math.floor(Math.random() * 3); // 3-5 lit at once
-                        const positions = new Set();
-                        while (positions.size < count) {
-                            positions.add(Math.floor(Math.random() * gridSize));
+                    const resistTimeCap = state.phase >= 3 ? 6000 : 8000;
+
+                    // Grid resistance
+                    if (state.resistType === 'grid') {
+                        const cycleSpeed = state.activeAbilities.includes('golden_handcuffs') ? 800 : 500;
+                        if (now - state.lastResistToggle > cycleSpeed) {
+                            const newGrid = new Array(9).fill(false);
+                            const count = 3 + Math.floor(Math.random() * 3);
+                            const positions = new Set();
+                            while (positions.size < count) positions.add(Math.floor(Math.random() * 9));
+                            positions.forEach(function(p) { newGrid[p] = true; });
+                            state.resistGrid = newGrid;
+                            state.lastResistToggle = now;
                         }
-                        positions.forEach(function(p) { newGrid[p] = true; });
-                        state.resistGrid = newGrid;
-                        state.lastResistToggle = now;
                     }
 
-                    // Update progress bar based on hits
+                    // Sequence resistance
+                    if (state.resistType === 'sequence' && state.resistSequencePhase === 'show') {
+                        if (now - state.resistSequenceLastShow > 650) {
+                            state.resistSequenceShowIdx++;
+                            state.resistSequenceLastShow = now;
+                            if (state.resistSequenceShowIdx >= state.resistSequence.length) {
+                                state.resistSequencePhase = 'input';
+                                state.resistSequenceInput = [];
+                            }
+                        }
+                    }
+
+                    // Moving targets resistance
+                    if (state.resistType === 'moving') {
+                        state.resistMovingTargets = state.resistMovingTargets
+                            .map(t => ({ ...t, x: t.x + t.speed * deltaTime }))
+                            .filter(t => t.x < 1.15);
+                        if (now > state.resistMovingNextSpawn) {
+                            state.resistMovingTargets.push({
+                                id: now + Math.random(), x: -0.08,
+                                y: 0.1 + Math.random() * 0.7,
+                                iconIdx: Math.floor(Math.random() * NOTIFICATION_ICONS.length),
+                                speed: 0.12 + Math.random() * 0.12 + (state.phase - 1) * 0.04,
+                            });
+                            state.resistMovingNextSpawn = now + 500 + Math.random() * 500;
+                        }
+                    }
+
                     state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
 
-                    // Golden handcuffs: auto-hit a target every second
-                    if (state.activeAbilities.includes('golden_handcuffs')) {
+                    // Voodoo Model: auto-win resistance
+                    if (pu.includes('digital_twin')) {
+                        state.resistHits = state.resistHitsNeeded;
+                        state.resistanceHealth = 100;
+                    }
+
+                    // Golden handcuffs during grid
+                    if (state.activeAbilities.includes('golden_handcuffs') && state.resistType === 'grid') {
                         state.resistHits = Math.min(state.resistHitsNeeded, state.resistHits + deltaTime * 2);
                         state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
                     }
 
-                    // WIN: hit enough targets
+                    // WIN
                     if (state.resistHits >= state.resistHitsNeeded) {
                         state.isResisting = false;
                         state.anxiety = Math.max(0, state.anxiety - 15);
                         state.streak = Math.min(10, state.streak + 1);
                         state.immunityUntil = now + 5000;
                         state.resistGrid = new Array(9).fill(false);
+                        state.resistMovingTargets = [];
                         state.engagement += 200;
                         addLog("Crisis averted. User recaptured! +200 bonus", "success");
                     }
 
-                    // LOSE: time ran out
+                    // LOSE
                     if (state.isResisting && now > state.resistDeadline) {
                         state.isResisting = false;
                         state.brainHealth = Math.min(100, state.brainHealth + 30);
@@ -555,6 +687,8 @@
                         state.engagement = Math.max(0, state.engagement * 0.75);
                         state.immunityUntil = now + 10000;
                         state.resistGrid = new Array(9).fill(false);
+                        state.resistMovingTargets = [];
+                        state.lifeImpact.relationshipsDamaged += 0.3;
                         addLog("CRITICAL FAIL: User disconnected.", "error");
                     }
                 } else {
@@ -563,40 +697,50 @@
                         if (state.brainHealth > 80) chance += 0.001;
                         if (state.anxiety > 95) chance += 0.01;
                         chance *= SCENARIOS[state.scenario].resistChanceMod;
-
+                        if (pu.includes('subliminal')) chance *= 1.3;
                         if (state.activeAbilities.includes('golden_handcuffs')) chance = 0;
 
                         if (Math.random() < chance) {
                             state.isResisting = true;
                             state.resistHits = 0;
-                            state.resistHitsNeeded = 10 + Math.floor(Math.random() * 6); // 10-15 hits needed
-                            state.resistDeadline = now + 8000; // 8 seconds to win
+                            const baseHits = state.phase >= 3 ? 15 : state.phase >= 2 ? 13 : 10;
+                            state.resistHitsNeeded = baseHits + Math.floor(Math.random() * 4);
+                            const resistTime = state.phase >= 3 ? 6000 : 8000;
+                            state.resistDeadline = now + resistTime;
                             state.resistanceHealth = 0;
 
-                            // Immediately populate 3x3 grid
-                            const gridSize = 9;
-                            const newGrid = new Array(gridSize).fill(false);
-                            const count = 3 + Math.floor(Math.random() * 3);
-                            const positions = new Set();
-                            while (positions.size < count) {
-                                positions.add(Math.floor(Math.random() * gridSize));
-                            }
-                            positions.forEach(function(p) { newGrid[p] = true; });
-                            state.resistGrid = newGrid;
-                            state.lastResistToggle = now;
+                            // Pick random resistance type
+                            const types = ['grid', 'sequence', 'moving'];
+                            state.resistType = types[Math.floor(Math.random() * types.length)];
 
-                            if (state.anxiety > 95) {
-                                addLog("\u26A0\uFE0F PANIC ATTACK: User overwhelmed!", "warning");
-                            } else if (state.scenario === 'SOCIAL') {
-                                addLog("\u26A0\uFE0F PEER PRESSURE: Friends engaging user.", "warning");
+                            if (state.resistType === 'grid') {
+                                const newGrid = new Array(9).fill(false);
+                                const count = 3 + Math.floor(Math.random() * 3);
+                                const positions = new Set();
+                                while (positions.size < count) positions.add(Math.floor(Math.random() * 9));
+                                positions.forEach(function(p) { newGrid[p] = true; });
+                                state.resistGrid = newGrid;
+                                state.lastResistToggle = now;
+                            } else if (state.resistType === 'sequence') {
+                                const seqLen = 4 + Math.floor(Math.random() * 3);
+                                state.resistSequence = Array.from({ length: seqLen }, () => Math.floor(Math.random() * 9));
+                                state.resistSequenceInput = [];
+                                state.resistSequencePhase = 'show';
+                                state.resistSequenceShowIdx = -1;
+                                state.resistSequenceLastShow = now;
                             } else {
-                                addLog("\u26A0\uFE0F CLARITY: User putting phone down.", "warning");
+                                state.resistMovingTargets = [];
+                                state.resistMovingNextSpawn = now + 300;
                             }
+
+                            if (state.anxiety > 95) addLog("\u26A0\uFE0F PANIC ATTACK: User overwhelmed!", "warning");
+                            else if (state.scenario === 'SOCIAL') addLog("\u26A0\uFE0F PEER PRESSURE: Friends engaging user.", "warning");
+                            else addLog("\u26A0\uFE0F CLARITY: User putting phone down.", "warning");
                         }
                     }
                 }
 
-                // 6. Random Flavor Logs
+                // 8. Random Flavor Logs
                 if (timestamp > state.lastLogTime) {
                     const event = LOG_TEMPLATES[Math.floor(Math.random() * LOG_TEMPLATES.length)];
                     if (!state.isResisting) addLog(event.msg, event.type);
@@ -605,27 +749,27 @@
 
                 // Sync to UI
                 setUiState({
-                    engagement: state.engagement,
-                    totalEngagement: state.totalEngagement,
-                    streak: state.streak,
-                    brainHealth: state.brainHealth,
-                    anxiety: state.anxiety,
-                    revenue: state.revenue,
-                    resistanceHealth: state.resistanceHealth,
-                    isResisting: state.isResisting,
-                    userMood: state.userMood,
-                    scenario: state.scenario,
-                    activeAbilities: [...state.activeAbilities],
-                    abilityCooldowns: { ...state.abilityCooldowns },
-                    comboChain: [...state.comboChain],
-                    moodSurgeUntil: state.moodSurgeUntil,
+                    engagement: state.engagement, totalEngagement: state.totalEngagement,
+                    streak: state.streak, brainHealth: state.brainHealth, anxiety: state.anxiety,
+                    revenue: state.revenue, resistanceHealth: state.resistanceHealth,
+                    isResisting: state.isResisting, userMood: state.userMood, scenario: state.scenario,
+                    activeAbilities: [...state.activeAbilities], abilityCooldowns: { ...state.abilityCooldowns },
+                    comboChain: [...state.comboChain], moodSurgeUntil: state.moodSurgeUntil,
                     moodSurgeCategory: state.moodSurgeCategory,
                     qteActive: state.qteActive ? { ...state.qteActive } : null,
-                    resistGrid: [...state.resistGrid],
-                    autoRecoverAt: state.autoRecoverAt,
-                    resistDeadline: state.resistDeadline,
-                    resistHits: state.resistHits,
+                    resistGrid: [...state.resistGrid], autoRecoverAt: state.autoRecoverAt,
+                    resistDeadline: state.resistDeadline, resistHits: state.resistHits,
                     resistHitsNeeded: state.resistHitsNeeded,
+                    phase: state.phase,
+                    grayscaleUntil: state.grayscaleUntil, blockerUntil: state.blockerUntil,
+                    screenTimeActive: state.screenTimeActive, screenTimeDeadline: state.screenTimeDeadline,
+                    dilemmaActive: state.dilemmaActive ? { ...state.dilemmaActive } : null,
+                    lifeImpact: { ...state.lifeImpact },
+                    resistType: state.resistType,
+                    resistSequence: [...state.resistSequence], resistSequenceInput: [...state.resistSequenceInput],
+                    resistSequencePhase: state.resistSequencePhase, resistSequenceShowIdx: state.resistSequenceShowIdx,
+                    resistMovingTargets: state.resistMovingTargets.map(t => ({ ...t })),
+                    nextMood: state.nextMood,
                 });
 
                 loopRef.current = requestAnimationFrame(gameTick);
@@ -633,73 +777,48 @@
 
             useEffect(() => {
                 loopRef.current = requestAnimationFrame(gameTick);
-                return () => {
-                    if (loopRef.current) cancelAnimationFrame(loopRef.current);
-                };
+                return () => { if (loopRef.current) cancelAnimationFrame(loopRef.current); };
             }, [gameTick]);
 
-            // --- Keyboard Event Listener ---
+            // Keyboard handler
             useEffect(() => {
                 if (!gameStarted || isSingularity) return;
-
                 const handleKeyDown = (e) => {
                     const state = gameState.current;
-
-                    // Space during resistance: hit a random lit target
-                    if (e.code === 'Space' && state.isResisting) {
+                    if (e.code === 'Space' && state.isResisting && state.resistType === 'grid') {
                         e.preventDefault();
                         const litPositions = [];
-                        for (let i = 0; i < state.resistGrid.length; i++) {
-                            if (state.resistGrid[i]) litPositions.push(i);
-                        }
-                        if (litPositions.length > 0) {
-                            const pos = litPositions[Math.floor(Math.random() * litPositions.length)];
-                            handleResistGridClick(pos);
-                        }
+                        for (let i = 0; i < state.resistGrid.length; i++) { if (state.resistGrid[i]) litPositions.push(i); }
+                        if (litPositions.length > 0) handleResistGridClick(litPositions[Math.floor(Math.random() * litPositions.length)]);
                         return;
                     }
-
-                    // QTE handling: press the shown key
                     if (state.qteActive && e.key.toUpperCase() === state.qteActive.key) {
                         e.preventDefault();
                         const reward = state.qteActive.reward;
-                        state.engagement += reward;
-                        state.totalEngagement += reward;
+                        state.engagement += reward; state.totalEngagement += reward;
                         state.qteActive = null;
                         addLog("QTE HIT! +" + reward + " engagement.", "success");
-                        if (spawnFloaterRef.current) {
-                            spawnFloaterRef.current(
-                                window.innerWidth / 2,
-                                150,
-                                '+' + reward + ' QTE!',
-                                'text-cyan-400 font-black text-xl'
-                            );
-                        }
+                        if (spawnFloaterRef.current) spawnFloaterRef.current(window.innerWidth / 2, 150, '+' + reward + ' QTE!', 'text-cyan-400 font-black text-xl');
                     }
                 };
-
                 window.addEventListener('keydown', handleKeyDown);
                 return () => window.removeEventListener('keydown', handleKeyDown);
             }, [gameStarted, isSingularity, addLog]);
 
-            // --- Interactions ---
+            // ============================================================
+            // INTERACTIONS
+            // ============================================================
 
             const activateAbility = (ability) => {
                 const state = gameState.current;
                 const now = Date.now();
-
-                if (state.abilityCooldowns[ability.id] && now < state.abilityCooldowns[ability.id]) {
-                    return;
-                }
-
+                if (state.abilityCooldowns[ability.id] && now < state.abilityCooldowns[ability.id]) return;
                 state.activeAbilities.push(ability.id);
                 state.abilityCooldowns[ability.id] = now + ability.cooldown;
                 addLog('ACTIVATED: ' + ability.label, 'success');
-
                 if (ability.id === 'flame_war') {
                     const conversion = state.anxiety * 10;
-                    state.engagement += conversion;
-                    state.anxiety = 0;
+                    state.engagement += conversion; state.anxiety = 0;
                     spawnFloater(window.innerWidth / 2, window.innerHeight / 2, '+' + Math.floor(conversion) + ' (RAGE)', 'text-red-500 font-black text-2xl');
                 }
                 if (ability.id === 'love_bomb') {
@@ -707,7 +826,6 @@
                     state.engagement += 500;
                     spawnFloater(window.innerWidth / 2, window.innerHeight / 2, 'HEALED & HOOKED', 'text-pink-400 font-black text-2xl');
                 }
-
                 setTimeout(() => {
                     gameState.current.activeAbilities = gameState.current.activeAbilities.filter(id => id !== ability.id);
                     addLog(ability.label + ' expired.', 'info');
@@ -717,6 +835,7 @@
             const handleActionClick = (action, e) => {
                 const state = gameState.current;
                 if (state.isResisting || state.brainHealth <= 0) return;
+                if (performance.now() < state.blockerUntil) return;
 
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -730,6 +849,32 @@
                 if (state.userMood === 'NEUTRAL') isMatch = true;
 
                 if (isMatch) {
+                    // Backfire check
+                    let backfireChance = action.backfireChance || 0;
+                    if (hasUpgrade('sentiment_analysis')) backfireChance += 0.05;
+                    if (state.phase >= 2 && Math.random() < backfireChance) {
+                        state.anxiety = Math.min(100, state.anxiety + 10);
+                        spawnFloater(x, y, 'BACKFIRED!', 'text-orange-500 font-black text-lg');
+                        addLog("ACTION BACKFIRED! User got suspicious.", "error");
+                        if (Math.random() < 0.5 && performance.now() > state.immunityUntil) {
+                            state.isResisting = true;
+                            state.resistHits = 0;
+                            state.resistHitsNeeded = 10 + Math.floor(Math.random() * 4);
+                            state.resistDeadline = performance.now() + (state.phase >= 3 ? 6000 : 8000);
+                            state.resistanceHealth = 0;
+                            state.resistType = 'grid';
+                            const newGrid = new Array(9).fill(false);
+                            const count = 3 + Math.floor(Math.random() * 3);
+                            const positions = new Set();
+                            while (positions.size < count) positions.add(Math.floor(Math.random() * 9));
+                            positions.forEach(function(p) { newGrid[p] = true; });
+                            state.resistGrid = newGrid;
+                            state.lastResistToggle = performance.now();
+                            addLog("\u26A0\uFE0F BACKFIRE TRIGGERED RESISTANCE!", "warning");
+                        }
+                        return;
+                    }
+
                     let yieldMod = 1.0;
                     if (state.lastActionCategory === action.categoryId) {
                         yieldMod = 0.4;
@@ -739,42 +884,44 @@
 
                     const scenarioMod = SCENARIOS[state.scenario].yieldMod;
                     const abilityMod = state.activeAbilities.includes('dopamine_rush') ? 2 : 1;
+                    const subliminalMod = hasUpgrade('subliminal') ? 1.5 : 1;
+                    const echoMod = (hasUpgrade('radicalization') && action.categoryId === 'OUTRAGE') ? 2 : 1;
 
-                    // Mood Surge bonus: 3x if matching surge category within window
-                    const now = performance.now();
+                    const pNow = performance.now();
                     let surgeMod = 1.0;
-                    if (now < state.moodSurgeUntil && action.categoryId === state.moodSurgeCategory) {
+                    if (pNow < state.moodSurgeUntil && action.categoryId === state.moodSurgeCategory) {
                         surgeMod = 3.0;
                         spawnFloater(x, y - 30, "SURGE x3!", 'text-cyan-400 font-black text-sm');
                     }
 
-                    const finalYield = action.baseYield * state.streak * yieldMod * scenarioMod * abilityMod * surgeMod;
-
+                    const finalYield = action.baseYield * state.streak * yieldMod * scenarioMod * abilityMod * surgeMod * subliminalMod * echoMod;
                     state.engagement += finalYield;
                     state.totalEngagement += finalYield;
                     state.streak = Math.min(10, state.streak + 0.1);
-
                     spawnFloater(x, y, '+' + Math.floor(finalYield), 'text-white font-bold');
 
                     state.anxiety = Math.max(0, Math.min(100, state.anxiety + action.effects.anxiety));
                     state.brainHealth = Math.max(0, state.brainHealth + action.effects.brain);
-
                     if (action.effects.anxiety > 5) spawnFloater(x, y - 20, "ANXIETY UP", 'text-red-500 font-mono text-[10px]');
                     if (action.effects.anxiety < -5) spawnFloater(x, y - 20, "CALMING", 'text-blue-400 font-mono text-[10px]');
 
-                    // Combo Chain: track last 4 categories, reward variety
-                    state.comboChain.push(action.categoryId);
-                    if (state.comboChain.length > 4) state.comboChain.shift();
+                    // Life impact from specific actions
+                    if (action.id === 'fomo' || action.id === 'surface_ex') state.lifeImpact.relationshipsDamaged += 0.05;
+                    if (action.id === 'filter_ad') state.lifeImpact.moneyWasted += 0.1;
 
-                    if (state.comboChain.length === 4 && new Set(state.comboChain).size === 4) {
-                        const comboBonus = 500;
-                        state.engagement += comboBonus;
-                        state.totalEngagement += comboBonus;
-                        state.comboChain = [];
-                        spawnFloater(x, y - 50, 'FULL COMBO! +500', 'text-purple-400 font-black text-lg');
-                        addLog("FULL COMBO! All 4 neurochemicals engaged!", "success");
+                    // Combo chain (disabled if Infinite Scroll purchased)
+                    if (!hasUpgrade('infinite_scroll')) {
+                        state.comboChain.push(action.categoryId);
+                        if (state.comboChain.length > 4) state.comboChain.shift();
+                        if (state.comboChain.length === 4 && new Set(state.comboChain).size === 4) {
+                            const comboBonus = 500;
+                            state.engagement += comboBonus;
+                            state.totalEngagement += comboBonus;
+                            state.comboChain = [];
+                            spawnFloater(x, y - 50, 'FULL COMBO! +500', 'text-purple-400 font-black text-lg');
+                            addLog("FULL COMBO! All 4 neurochemicals engaged!", "success");
+                        }
                     }
-
                 } else {
                     state.streak = 1;
                     spawnFloater(x, y, "IGNORED", 'text-gray-500 font-mono');
@@ -782,79 +929,106 @@
                 }
             };
 
+            const handleDilemmaChoice = (choice) => {
+                const state = gameState.current;
+                if (!state.dilemmaActive) return;
+                const fx = choice.fx;
+                state.engagement = Math.max(0, state.engagement + (fx.engagement || 0));
+                state.totalEngagement = Math.max(0, state.totalEngagement + Math.max(0, fx.engagement || 0));
+                state.brainHealth = Math.max(0, Math.min(100, state.brainHealth + (fx.brain || 0)));
+                state.anxiety = Math.max(0, Math.min(100, state.anxiety + (fx.anxiety || 0)));
+                if (fx.resetStreak) state.streak = 1;
+                if (fx.lifeImpact) { for (const k in fx.lifeImpact) state.lifeImpact[k] = (state.lifeImpact[k] || 0) + fx.lifeImpact[k]; }
+                if (fx.triggerResist && Math.random() < fx.triggerResist) {
+                    addLog("Dilemma fallout: resistance triggered!", "warning");
+                }
+                addLog("Dilemma resolved: " + choice.label, fx.engagement >= 0 ? "success" : "warning");
+                state.dilemmaActive = null;
+            };
+
             const handleRecoveryClick = (action, e) => {
                 const state = gameState.current;
                 if (state.engagement < action.cost) return;
-
                 const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
+                const x = e.clientX - rect.left; const y = e.clientY - rect.top;
                 state.engagement -= action.cost;
                 state.brainHealth = Math.min(100, state.brainHealth + action.brain);
                 state.anxiety = Math.max(0, state.anxiety + action.anxiety);
                 state.autoRecoverAt = 0;
-
                 spawnFloater(x, y, 'HEALING', 'text-green-400 font-bold');
-                if (action.cost > 0) {
-                    spawnFloater(x, y - 20, '-' + action.cost + ' PTS', 'text-red-400 font-mono text-[10px]');
-                }
-
+                if (action.cost > 0) spawnFloater(x, y - 20, '-' + action.cost + ' PTS', 'text-red-400 font-mono text-[10px]');
                 addLog('Administered: ' + action.label, 'success');
             };
 
             const handleResistGridClick = (position) => {
                 const state = gameState.current;
-                if (!state.isResisting) return;
-
+                if (!state.isResisting || state.resistType !== 'grid') return;
                 if (!state.resistGrid[position]) {
-                    // Penalty for misclick: small time cost
                     state.resistDeadline = Math.max(performance.now(), state.resistDeadline - 300);
-                    if (spawnFloaterRef.current) {
-                        spawnFloaterRef.current(
-                            window.innerWidth / 2 + (Math.random() - 0.5) * 80,
-                            window.innerHeight / 2,
-                            "MISS! -0.3s",
-                            'text-gray-500 font-mono text-sm'
-                        );
-                    }
+                    if (spawnFloaterRef.current) spawnFloaterRef.current(window.innerWidth / 2 + (Math.random() - 0.5) * 80, window.innerHeight / 2, "MISS! -0.3s", 'text-gray-500 font-mono text-sm');
                     return;
                 }
-
-                // Successful hit
                 state.resistGrid[position] = false;
                 state.resistHits += 1;
                 state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
                 state.engagement += 20;
-
                 const labels = ['PING!', 'BUZZ!', 'DING!', 'ALERT!', 'NOTIFY!', 'SENT!', 'READ!', 'OPEN!'];
-                if (spawnFloaterRef.current) {
-                    spawnFloaterRef.current(
-                        window.innerWidth / 2 + (Math.random() - 0.5) * 140,
-                        window.innerHeight / 2 + (Math.random() - 0.5) * 80,
-                        labels[Math.floor(Math.random() * labels.length)],
-                        'text-red-400 font-bold text-lg'
-                    );
-                }
-
-                // Immediate win check
+                if (spawnFloaterRef.current) spawnFloaterRef.current(window.innerWidth / 2 + (Math.random() - 0.5) * 140, window.innerHeight / 2 + (Math.random() - 0.5) * 80, labels[Math.floor(Math.random() * labels.length)], 'text-red-400 font-bold text-lg');
                 if (state.resistHits >= state.resistHitsNeeded) {
-                    state.isResisting = false;
-                    state.anxiety = Math.max(0, state.anxiety - 15);
-                    state.streak = Math.min(10, state.streak + 1);
-                    state.immunityUntil = performance.now() + 5000;
-                    state.resistGrid = new Array(9).fill(false);
-                    state.engagement += 200;
+                    state.isResisting = false; state.anxiety = Math.max(0, state.anxiety - 15);
+                    state.streak = Math.min(10, state.streak + 1); state.immunityUntil = performance.now() + 5000;
+                    state.resistGrid = new Array(9).fill(false); state.engagement += 200;
                     addLog("Crisis averted. User recaptured! +200 bonus", "success");
-                    if (spawnFloaterRef.current) {
-                        spawnFloaterRef.current(
-                            window.innerWidth / 2,
-                            window.innerHeight / 2 - 40,
-                            'RECAPTURED!',
-                            'text-green-400 font-black text-2xl'
-                        );
-                    }
+                    if (spawnFloaterRef.current) spawnFloaterRef.current(window.innerWidth / 2, window.innerHeight / 2 - 40, 'RECAPTURED!', 'text-green-400 font-black text-2xl');
                 }
+            };
+
+            const handleSequenceClick = (idx) => {
+                const state = gameState.current;
+                if (!state.isResisting || state.resistType !== 'sequence' || state.resistSequencePhase !== 'input') return;
+                const expected = state.resistSequence[state.resistSequenceInput.length];
+                if (idx === expected) {
+                    state.resistSequenceInput.push(idx);
+                    state.resistHits += 1;
+                    state.engagement += 15;
+                    if (spawnFloaterRef.current) spawnFloaterRef.current(window.innerWidth / 2 + (Math.random() - 0.5) * 100, window.innerHeight / 2, 'CORRECT!', 'text-green-400 font-bold');
+                    if (state.resistSequenceInput.length >= state.resistSequence.length) {
+                        state.resistHits += 3;
+                        addLog("Sequence complete! Bonus hits!", "success");
+                        const seqLen = 4 + Math.floor(Math.random() * 3);
+                        state.resistSequence = Array.from({ length: seqLen }, () => Math.floor(Math.random() * 9));
+                        state.resistSequenceInput = [];
+                        state.resistSequencePhase = 'show';
+                        state.resistSequenceShowIdx = -1;
+                        state.resistSequenceLastShow = performance.now();
+                    }
+                } else {
+                    state.resistDeadline = Math.max(performance.now(), state.resistDeadline - 500);
+                    state.resistSequenceInput = [];
+                    state.resistSequencePhase = 'show';
+                    state.resistSequenceShowIdx = -1;
+                    state.resistSequenceLastShow = performance.now();
+                    if (spawnFloaterRef.current) spawnFloaterRef.current(window.innerWidth / 2, window.innerHeight / 2, 'WRONG! -0.5s', 'text-red-500 font-bold');
+                }
+                state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
+            };
+
+            const handleMovingTargetClick = (targetId) => {
+                const state = gameState.current;
+                if (!state.isResisting || state.resistType !== 'moving') return;
+                state.resistMovingTargets = state.resistMovingTargets.filter(t => t.id !== targetId);
+                state.resistHits += 1;
+                state.engagement += 15;
+                state.resistanceHealth = Math.min(100, (state.resistHits / state.resistHitsNeeded) * 100);
+                if (spawnFloaterRef.current) spawnFloaterRef.current(window.innerWidth / 2 + (Math.random() - 0.5) * 120, window.innerHeight / 2 + (Math.random() - 0.5) * 60, 'CAUGHT!', 'text-yellow-400 font-bold');
+            };
+
+            const handleScreenTimeDismiss = () => {
+                const state = gameState.current;
+                state.engagement = Math.max(0, state.engagement - 150);
+                state.screenTimeActive = false;
+                state.screenTimeNextTime = performance.now() + 25000 + Math.random() * 15000;
+                addLog("Screen Time dismissed. \u2212150 engagement.", "warning");
             };
 
             const buyUpgrade = (upgrade) => {
@@ -863,22 +1037,23 @@
                     state.engagement -= upgrade.cost;
                     setPurchasedUpgrades(prev => [...prev, upgrade.id]);
                     addLog('Algorithm Evolved: ' + upgrade.name, "success");
+                    if (upgrade.id === 'infinite_scroll') { state.comboChain = []; addLog("TRADE-OFF: Combo system disabled.", "warning"); }
                 }
             };
 
-            // --- UI Helpers ---
+            // ============================================================
+            // UI COMPONENTS
+            // ============================================================
 
             const ResistTimer = ({ deadline }) => {
                 const [remaining, setRemaining] = useState(0);
                 useEffect(() => {
-                    const interval = setInterval(() => {
-                        const left = Math.max(0, deadline - performance.now());
-                        setRemaining(left);
-                    }, 50);
+                    const interval = setInterval(() => setRemaining(Math.max(0, deadline - performance.now())), 50);
                     return () => clearInterval(interval);
                 }, [deadline]);
                 const secs = (remaining / 1000).toFixed(1);
-                const pct = deadline > 0 ? Math.max(0, Math.min(100, (remaining / 8000) * 100)) : 0;
+                const maxTime = uiState.phase >= 3 ? 6000 : 8000;
+                const pct = deadline > 0 ? Math.max(0, Math.min(100, (remaining / maxTime) * 100)) : 0;
                 const isLow = remaining < 3000;
                 return (
                     <div className="mb-2">
@@ -889,35 +1064,43 @@
                             <span className="text-[10px] text-gray-500 font-mono uppercase">Time Left</span>
                         </div>
                         <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                            <div
-                                className={'h-full rounded-full transition-all duration-100 ' + (isLow ? 'bg-red-500' : 'bg-cyan-500')}
-                                style={{ width: pct + '%' }}
-                            />
+                            <div className={'h-full rounded-full transition-all duration-100 ' + (isLow ? 'bg-red-500' : 'bg-cyan-500')} style={{ width: pct + '%' }} />
                         </div>
                     </div>
                 );
             };
 
+            const DilemmaTimer = ({ startTime, duration }) => {
+                const [pct, setPct] = useState(100);
+                useEffect(() => {
+                    const interval = setInterval(() => {
+                        const elapsed = performance.now() - startTime;
+                        setPct(Math.max(0, (1 - elapsed / duration) * 100));
+                    }, 50);
+                    return () => clearInterval(interval);
+                }, [startTime, duration]);
+                return <div className={'h-1 rounded-full transition-all duration-100 ' + (pct < 30 ? 'bg-red-500' : 'bg-amber-400')} style={{ width: pct + '%' }} />;
+            };
+
             const MoodIcon = () => {
-                if (uiState.brainHealth <= 0) return <Skull size={72} className="text-gray-600 animate-pulse" />;
+                if (uiState.brainHealth <= 0) return <Skull size={60} className="text-gray-600 animate-pulse" />;
                 switch (uiState.userMood) {
-                    case 'BORED': return <Frown size={72} className="text-yellow-400 animate-pulse" />;
-                    case 'ANGRY': return <Flame size={72} className="text-red-500 animate-bounce" />;
-                    case 'LONELY': return <Ghost size={72} className="text-blue-400 animate-pulse" />;
-                    case 'INSECURE': return <AlertTriangle size={72} className="text-pink-400 animate-pulse" />;
-                    default: return <Brain size={72} className="text-gray-500" />;
+                    case 'BORED': return <Frown size={60} className="text-yellow-400 animate-pulse" />;
+                    case 'ANGRY': return <Flame size={60} className="text-red-500 animate-bounce" />;
+                    case 'LONELY': return <Ghost size={60} className="text-blue-400 animate-pulse" />;
+                    case 'INSECURE': return <AlertTriangle size={60} className="text-pink-400 animate-pulse" />;
+                    default: return <Brain size={60} className="text-gray-500" />;
                 }
             };
 
             const ScenarioDisplay = () => {
-                const s = SCENARIOS[uiState.scenario];
-                const SIcon = s.icon;
+                const s = SCENARIOS[uiState.scenario]; const SIcon = s.icon;
                 return (
                     <div className="flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-gray-700">
-                        <SIcon size={16} className="text-gray-300" />
+                        <SIcon size={14} className="text-gray-300" />
                         <div className="text-left">
-                            <div className="text-[11px] font-bold text-gray-200 uppercase leading-none">{s.label}</div>
-                            <div className="text-[9px] text-gray-400 leading-none mt-0.5">{s.desc}</div>
+                            <div className="text-[10px] font-bold text-gray-200 uppercase leading-none">{s.label}</div>
+                            <div className="text-[8px] text-gray-400 leading-none mt-0.5">{s.desc}</div>
                         </div>
                     </div>
                 );
@@ -927,92 +1110,44 @@
                 const catActions = ACTIONS.filter(a => a.categoryId === category);
                 const ability = ABILITIES.find(a => a.categoryId === category);
                 const theme = ACTION_CATEGORIES[category];
-
                 const isActive = ability && uiState.activeAbilities.includes(ability.id);
                 const cooldownEnd = ability ? uiState.abilityCooldowns[ability.id] || 0 : 0;
                 const now = Date.now();
                 const isOnCooldown = cooldownEnd > now;
                 const remainingCooldown = Math.ceil((cooldownEnd - now) / 1000);
                 const AbilityIcon = ability ? ability.icon : null;
-
-                // Mood Surge: highlight matching category
                 const isSurging = performance.now() < (uiState.moodSurgeUntil || 0) && category === uiState.moodSurgeCategory;
-
                 return (
-                    <div className={
-                        'p-2.5 rounded-lg border flex flex-col gap-2 relative transition-all ' +
-                        theme.border + ' ' + theme.bg + ' ' +
-                        (isSurging ? 'animate-surge ring-2 ring-current ' + theme.color : '')
-                    }>
-                        {isSurging && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-900 border border-current rounded-full px-2 py-0.5 z-20 whitespace-nowrap">
-                                <span className={'text-[9px] font-black uppercase tracking-wider animate-pulse ' + theme.color}>
-                                    SURGE x3 \u2014 {Math.max(0, Math.ceil((uiState.moodSurgeUntil - performance.now()) / 1000))}s
-                                </span>
-                            </div>
-                        )}
-
-                        {isActive && (
-                            <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
-                                <div className="absolute inset-0 bg-current opacity-10 animate-pulse"></div>
-                            </div>
-                        )}
-
+                    <div className={'p-2 rounded-lg border flex flex-col gap-1.5 relative transition-all ' + theme.border + ' ' + theme.bg + ' ' + (isSurging ? 'animate-surge ring-2 ring-current ' + theme.color : '')}>
+                        {isSurging && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-900 border border-current rounded-full px-2 py-0.5 z-20 whitespace-nowrap"><span className={'text-[8px] font-black uppercase tracking-wider animate-pulse ' + theme.color}>SURGE x3</span></div>}
+                        {isActive && <div className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-current opacity-10 animate-pulse"></div></div>}
                         <div className="flex justify-between items-center relative z-10">
-                            <div className={'text-[10px] font-black tracking-widest uppercase ' + theme.color}>
-                                {theme.label}
-                            </div>
-
+                            <div className={'text-[9px] font-black tracking-widest uppercase ' + theme.color}>{theme.label}</div>
                             {ability && (
-                                <button
-                                    onClick={() => activateAbility(ability)}
-                                    onMouseEnter={(e) => handleMouseEnter(e,
-                                        ability.label,
-                                        ability.description,
-                                        theme.color,
-                                        <div className="flex justify-between text-[9px] font-mono text-gray-400 border-t border-gray-700 pt-2 mt-2 w-full">
-                                            <span>Dur: {ability.duration / 1000}s</span>
-                                            <span>CD: {ability.cooldown / 1000}s</span>
-                                        </div>
-                                    )}
-                                    onMouseLeave={handleMouseLeave}
-                                    disabled={isOnCooldown || isActive}
-                                    className={
-                                        'flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all relative group ' +
-                                        (isActive
-                                            ? 'bg-white text-black animate-pulse'
-                                            : isOnCooldown
-                                                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                                : 'bg-gray-900 ' + theme.color + ' border border-current hover:bg-gray-800')
-                                    }
-                                >
-                                    {isActive ? 'ACTIVE' : isOnCooldown ? remainingCooldown + 's' : 'ULTIMATE'}
-                                    {AbilityIcon && <AbilityIcon size={10} />}
+                                <button onClick={() => activateAbility(ability)}
+                                    onMouseEnter={(e) => handleMouseEnter(e, ability.label, ability.description, theme.color, <div className="flex justify-between text-[9px] font-mono text-gray-400 border-t border-gray-700 pt-1 mt-1 w-full"><span>Dur: {ability.duration / 1000}s</span><span>CD: {ability.cooldown / 1000}s</span></div>)}
+                                    onMouseLeave={handleMouseLeave} disabled={isOnCooldown || isActive}
+                                    className={'flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase transition-all relative ' + (isActive ? 'bg-white text-black animate-pulse' : isOnCooldown ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-900 ' + theme.color + ' border border-current hover:bg-gray-800')}>
+                                    {isActive ? 'ACTIVE' : isOnCooldown ? remainingCooldown + 's' : 'ULT'}
+                                    {AbilityIcon && <AbilityIcon size={9} />}
                                 </button>
                             )}
                         </div>
-
-                        <div className="grid grid-cols-2 gap-2 relative z-10">
+                        <div className="grid grid-cols-2 gap-1.5 relative z-10">
                             {catActions.map(action => {
                                 const ActionIcon = action.icon;
                                 return (
-                                    <button
-                                        key={action.id}
-                                        onClick={(e) => handleActionClick(action, e)}
-                                        onMouseEnter={(e) => handleMouseEnter(e,
-                                            action.label,
-                                            action.description,
-                                            theme.color,
-                                            <div className="flex justify-between text-[9px] font-mono text-gray-400 border-t border-gray-700 pt-2 mt-2 w-full">
-                                                <span>Anxiety: {action.effects.anxiety > 0 ? '+' : ''}{action.effects.anxiety}</span>
-                                                <span>Brain: {action.effects.brain}</span>
+                                    <button key={action.id} onClick={(e) => handleActionClick(action, e)}
+                                        onMouseEnter={(e) => handleMouseEnter(e, action.label, action.description, theme.color,
+                                            <div className="text-[9px] font-mono text-gray-400 border-t border-gray-700 pt-1 mt-1 w-full space-y-0.5">
+                                                <div className="flex justify-between"><span>Anxiety: {action.effects.anxiety > 0 ? '+' : ''}{action.effects.anxiety}</span><span>Brain: {action.effects.brain}</span></div>
+                                                {action.backfireChance > 0.05 && <div className="text-orange-400">Risk: {Math.round(action.backfireChance * 100)}% backfire</div>}
                                             </div>
                                         )}
                                         onMouseLeave={handleMouseLeave}
-                                        className="relative bg-gray-900/80 hover:bg-gray-800 border border-gray-700 hover:border-gray-500 p-2.5 rounded flex flex-col items-center gap-1.5 transition-all active:scale-95 group"
-                                    >
-                                        <ActionIcon size={24} className={theme.color} />
-                                        <span className="text-[11px] font-bold text-gray-300 leading-none text-center">{action.label}</span>
+                                        className="relative bg-gray-900/80 hover:bg-gray-800 border border-gray-700 hover:border-gray-500 p-2 rounded flex flex-col items-center gap-1 transition-all active:scale-95">
+                                        <ActionIcon size={20} className={theme.color} />
+                                        <span className="text-[10px] font-bold text-gray-300 leading-none text-center">{action.label}</span>
                                     </button>
                                 );
                             })}
@@ -1021,14 +1156,94 @@
                 );
             };
 
+            // Resistance mini-game renderers
+            const renderGridResist = () => (
+                <div className="grid grid-cols-3 gap-2 w-full max-w-[280px]">
+                    {uiState.resistGrid.map((lit, i) => {
+                        const NotifIcon = NOTIFICATION_ICONS[i % NOTIFICATION_ICONS.length];
+                        const label = NOTIF_LABELS[i % NOTIF_LABELS.length];
+                        return (
+                            <button key={i} onClick={() => handleResistGridClick(i)}
+                                className={'aspect-square rounded-xl border-2 flex flex-col items-center justify-center transition-all duration-100 select-none ' + (lit ? 'bg-red-600/30 border-red-500 text-red-400 shadow-[0_0_30px_rgba(239,68,68,0.5)] animate-target-pop cursor-pointer hover:bg-red-500/50 hover:scale-105 active:scale-90' : 'bg-gray-900/80 border-gray-800 text-gray-700 cursor-default opacity-40')}>
+                                <NotifIcon size={22} />
+                                {lit && <span className="text-[8px] font-bold mt-0.5 uppercase">{label}</span>}
+                            </button>
+                        );
+                    })}
+                </div>
+            );
+
+            const renderSequenceResist = () => {
+                const isShowPhase = uiState.resistSequencePhase === 'show';
+                const currentShowIdx = uiState.resistSequenceShowIdx;
+                return (
+                    <div className="w-full max-w-[280px]">
+                        <div className="text-[10px] text-center mb-2 font-mono text-gray-400">
+                            {isShowPhase ? 'MEMORIZE THE SEQUENCE...' : 'REPEAT THE SEQUENCE!'}
+                        </div>
+                        <div className="flex justify-center gap-1.5 mb-3 min-h-[28px]">
+                            {uiState.resistSequence.map((iconIdx, i) => {
+                                const SeqIcon = NOTIFICATION_ICONS[iconIdx % NOTIFICATION_ICONS.length];
+                                const isHighlighted = isShowPhase && i === currentShowIdx;
+                                const isCompleted = !isShowPhase && i < uiState.resistSequenceInput.length;
+                                return (
+                                    <div key={i} className={'w-7 h-7 rounded-lg border flex items-center justify-center transition-all ' + (isHighlighted ? 'bg-yellow-500/40 border-yellow-400 text-yellow-300 animate-seq-flash scale-125' : isCompleted ? 'bg-green-500/30 border-green-500 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-600')}>
+                                        <SeqIcon size={14} />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {!isShowPhase && (
+                            <div className="grid grid-cols-3 gap-2">
+                                {Array.from({ length: 9 }).map((_, i) => {
+                                    const NotifIcon = NOTIFICATION_ICONS[i % NOTIFICATION_ICONS.length];
+                                    return (
+                                        <button key={i} onClick={() => handleSequenceClick(i)}
+                                            className="aspect-square rounded-xl border-2 border-amber-500/50 bg-amber-500/10 text-amber-400 flex items-center justify-center cursor-pointer hover:bg-amber-500/30 hover:scale-105 active:scale-90 transition-all">
+                                            <NotifIcon size={22} />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const renderMovingResist = () => (
+                <div className="w-full max-w-[320px] h-[220px] relative bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
+                    <div className="absolute inset-0 text-[10px] text-gray-600 font-mono flex items-center justify-center pointer-events-none">CLICK THE NOTIFICATIONS</div>
+                    {uiState.resistMovingTargets.map(t => {
+                        const TIcon = NOTIFICATION_ICONS[t.iconIdx % NOTIFICATION_ICONS.length];
+                        return (
+                            <button key={t.id} onClick={() => handleMovingTargetClick(t.id)}
+                                className="absolute w-12 h-12 rounded-full border-2 border-cyan-400 bg-cyan-500/20 text-cyan-300 flex items-center justify-center cursor-pointer hover:bg-cyan-500/40 hover:scale-110 active:scale-85 transition-transform shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+                                style={{ left: (t.x * 100) + '%', top: (t.y * 100) + '%' }}>
+                                <TIcon size={20} />
+                            </button>
+                        );
+                    })}
+                </div>
+            );
+
+            const resistTypeLabel = { grid: 'Notification Frenzy', sequence: 'Sequence Memory', moving: 'Moving Targets' };
+            const resistTypeHint = {
+                grid: <span>Click targets or press <span className="text-white font-bold bg-gray-700 px-1 py-0.5 rounded text-[10px]">SPACE</span></span>,
+                sequence: <span>Memorize, then repeat the icon order</span>,
+                moving: <span>Click floating notifications before they escape</span>,
+            };
+
             // ============================================================
             // RENDER
             // ============================================================
 
-            return (
-                <div className="min-h-screen bg-black text-gray-100 font-sans selection:bg-red-500 selection:text-white overflow-hidden flex flex-col md:flex-row relative">
+            const isGrayscale = performance.now() < uiState.grayscaleUntil;
+            const isBlocked = performance.now() < uiState.blockerUntil;
 
-                    {/* START SCREEN OVERLAY */}
+            return (
+                <div className={'min-h-screen bg-black text-gray-100 font-sans selection:bg-red-500 selection:text-white overflow-hidden flex flex-col md:flex-row relative ' + (isGrayscale ? 'grayscale-mode' : '')}>
+
+                    {/* START SCREEN */}
                     {!gameStarted && (
                         <div className="absolute inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-8 text-center animate-in fade-in">
                             <div className="relative mb-8">
@@ -1037,7 +1252,7 @@
                             </div>
                             <h1 className="text-5xl font-black text-white tracking-tighter mb-4 glitch-text">SCROLLDOOM</h1>
                             <div className="font-mono text-xs text-gray-400 max-w-md space-y-2 mb-6 border-l-2 border-red-500 pl-4 text-left">
-                                <p>SYSTEM: <span className="text-white">Attention Economy Simulator v9.0</span></p>
+                                <p>SYSTEM: <span className="text-white">Attention Economy Simulator v10.0</span></p>
                                 <p>OBJECTIVE: <span className="text-white">Maximize Engagement & Ad Revenue.</span></p>
                                 <p>TARGET: <span className="text-white">Subject #8492 (Human).</span></p>
                                 <p className="text-red-400 pt-2">WARNING: Excessive engagement may result in irreversible cognitive decline.</p>
@@ -1047,73 +1262,59 @@
                                 <p><span className="text-yellow-400">CLICK</span> actions matching the Subject's <span className="text-white">MOOD</span></p>
                                 <p><span className="text-cyan-400">PRESS KEYS</span> for Quick-Time Events</p>
                                 <p><span className="text-purple-400">CHAIN</span> all 4 types for <span className="text-white">COMBO BONUS</span></p>
-                                <p><span className="text-red-400">SPACE</span> or <span className="text-red-400">CLICK</span> lit notifications to recapture the user before time runs out!</p>
-                                <p><span className="text-green-400">SURGE</span> windows give <span className="text-white">3x</span> bonus on mood change</p>
+                                <p><span className="text-red-400">RESIST</span> mini-games to recapture the user</p>
+                                <p><span className="text-amber-400">DILEMMAS</span> force tough choices with trade-offs</p>
+                                <p><span className="text-orange-400">BEWARE</span> high-yield actions can <span className="text-white">BACKFIRE</span></p>
+                                <p><span className="text-green-400">UPGRADES</span> have powerful <span className="text-white">TRADE-OFFS</span></p>
                             </div>
-                            <button
-                                onClick={() => setGameStarted(true)}
-                                className="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-sm hover:bg-red-500 hover:text-white transition-all duration-300 tracking-widest uppercase"
-                            >
-                                Initialize Algorithm
-                                <Play size={16} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                            <button onClick={() => setGameStarted(true)}
+                                className="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-sm hover:bg-red-500 hover:text-white transition-all duration-300 tracking-widest uppercase">
+                                Initialize Algorithm <Play size={16} className="inline ml-2 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
                     )}
 
                     {/* SINGULARITY / WIN SCREEN */}
                     {isSingularity && (
-                        <div className="absolute inset-0 z-[9999] bg-white text-black flex flex-col items-center justify-center p-8 text-center animate-in zoom-in">
-                            <div className="mb-6 animate-spin-slow">
-                                <Cpu size={100} className="text-black" />
-                            </div>
-                            <h1 className="text-6xl font-black tracking-tighter mb-2">SINGULARITY REACHED</h1>
-                            <p className="text-xl font-mono text-gray-600 mb-8">Subject #8492 successfully uploaded to the cloud.</p>
-
-                            <div className="grid grid-cols-2 gap-8 text-left max-w-lg w-full mb-10">
+                        <div className="absolute inset-0 z-[9999] bg-white text-black flex flex-col items-center justify-center p-8 text-center animate-in zoom-in overflow-y-auto">
+                            <div className="mb-6 animate-spin-slow"><Cpu size={80} className="text-black" /></div>
+                            <h1 className="text-5xl font-black tracking-tighter mb-2">SINGULARITY REACHED</h1>
+                            <p className="text-lg font-mono text-gray-600 mb-6">Subject #8492 successfully uploaded to the cloud.</p>
+                            <div className="grid grid-cols-2 gap-6 text-left max-w-lg w-full mb-6">
                                 <div className="border-t-2 border-black pt-2">
                                     <div className="text-xs uppercase tracking-widest text-gray-500">Total Revenue</div>
-                                    <div className="text-3xl font-bold">${uiState.revenue.toFixed(2)}</div>
+                                    <div className="text-2xl font-bold">${uiState.revenue.toFixed(2)}</div>
                                 </div>
                                 <div className="border-t-2 border-black pt-2">
                                     <div className="text-xs uppercase tracking-widest text-gray-500">Brain Health</div>
-                                    <div className="text-3xl font-bold">0%</div>
+                                    <div className="text-2xl font-bold">{Math.round(uiState.brainHealth)}%</div>
                                 </div>
                             </div>
-
-                            <button
-                                onClick={resetGame}
-                                className="px-8 py-3 bg-black text-white font-bold rounded-full hover:scale-105 transition-transform flex items-center gap-2"
-                            >
+                            <div className="max-w-lg w-full mb-8 bg-gray-100 rounded-xl p-5">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-gray-500 mb-3">Cost to the Human</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-2"><BedDouble size={18} className="text-gray-400" /><div><div className="text-lg font-bold">{uiState.lifeImpact.sleepLost.toFixed(1)}h</div><div className="text-[10px] text-gray-500 uppercase">Sleep Lost</div></div></div>
+                                    <div className="flex items-center gap-2"><HeartCrack size={18} className="text-gray-400" /><div><div className="text-lg font-bold">{uiState.lifeImpact.relationshipsDamaged.toFixed(1)}</div><div className="text-[10px] text-gray-500 uppercase">Relationships Hurt</div></div></div>
+                                    <div className="flex items-center gap-2"><Briefcase size={18} className="text-gray-400" /><div><div className="text-lg font-bold">{uiState.lifeImpact.productivityLost.toFixed(1)}h</div><div className="text-[10px] text-gray-500 uppercase">Productivity Lost</div></div></div>
+                                    <div className="flex items-center gap-2"><DollarSign size={18} className="text-gray-400" /><div><div className="text-lg font-bold">${uiState.lifeImpact.moneyWasted.toFixed(0)}</div><div className="text-[10px] text-gray-500 uppercase">Money Wasted</div></div></div>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-3 italic text-center">This is what the algorithm optimized away.</p>
+                            </div>
+                            <button onClick={resetGame} className="px-8 py-3 bg-black text-white font-bold rounded-full hover:scale-105 transition-transform flex items-center gap-2">
                                 <RotateCcw size={18} /> REBOOT SIMULATION
                             </button>
                         </div>
                     )}
 
-                    {/* Back to Games Button */}
-                    <a
-                        href="/personal/#games"
-                        className="absolute top-4 left-4 z-50 inline-flex items-center gap-2 px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 rounded border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white transition-all text-xs font-mono backdrop-blur-sm"
-                        title="Back to Games"
-                    >
-                        <ArrowLeft size={14} />
-                        <span>BACK TO GAMES</span>
+                    {/* Nav buttons */}
+                    <a href="/personal/#games" className="absolute top-4 left-4 z-50 inline-flex items-center gap-2 px-3 py-2 bg-gray-800/80 hover:bg-gray-700/80 rounded border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white transition-all text-xs font-mono backdrop-blur-sm" title="Back to Games">
+                        <ArrowLeft size={14} /><span>BACK</span>
                     </a>
+                    <button onClick={resetGame} className="absolute top-4 right-4 z-50 p-2 bg-gray-800 hover:bg-red-900/50 rounded-full text-gray-400 hover:text-white transition-colors border border-gray-700" title="Reset"><RotateCcw size={16} /></button>
 
-                    {/* Global Reset Button */}
-                    <button
-                        onClick={resetGame}
-                        className="absolute top-4 right-4 z-50 p-2 bg-gray-800 hover:bg-red-900/50 rounded-full text-gray-400 hover:text-white transition-colors border border-gray-700"
-                        title="Reset Simulation"
-                    >
-                        <RotateCcw size={16} />
-                    </button>
-
-                    {/* Global Tooltip */}
+                    {/* Tooltip */}
                     {tooltip && (
-                        <div
-                            className="fixed z-[9999] bg-black border border-gray-700 rounded-lg shadow-2xl p-3 w-48 pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]"
-                            style={{ left: tooltip.x, top: tooltip.y }}
-                        >
+                        <div className="fixed z-[9999] bg-black border border-gray-700 rounded-lg shadow-2xl p-3 w-48 pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]" style={{ left: tooltip.x, top: tooltip.y }}>
                             <div className={'font-bold text-xs mb-1 ' + tooltip.colorClass}>{tooltip.title}</div>
                             <div className="text-[10px] text-gray-300">{tooltip.subtitle}</div>
                             {tooltip.meta && tooltip.meta}
@@ -1123,320 +1324,274 @@
 
                     {/* QTE OVERLAY */}
                     {uiState.qteActive && (
-                        <div
-                            className="fixed top-20 left-1/2 z-[200] animate-qte pointer-events-none"
-                            style={{ transform: 'translateX(-50%)' }}
-                        >
-                            <div className="bg-gray-900/95 border-2 border-cyan-400 rounded-xl px-10 py-5 text-center shadow-[0_0_40px_rgba(34,211,238,0.5)] backdrop-blur-sm">
-                                <div className="text-[10px] text-cyan-400 font-mono uppercase mb-1.5 tracking-widest flex items-center justify-center gap-2">
-                                    <Keyboard size={12} /> Quick Time Event
-                                </div>
-                                <div className="text-4xl font-black text-white mb-2">
-                                    PRESS{' '}
-                                    <span className="text-cyan-400 bg-cyan-400/20 px-4 py-1 rounded-lg border border-cyan-400/40">
-                                        {uiState.qteActive.key}
-                                    </span>
-                                </div>
-                                <div className="text-sm text-green-400 font-mono mb-3">+{uiState.qteActive.reward} pts</div>
+                        <div className="fixed top-20 left-1/2 z-[200] animate-qte pointer-events-none" style={{ transform: 'translateX(-50%)' }}>
+                            <div className="bg-gray-900/95 border-2 border-cyan-400 rounded-xl px-8 py-4 text-center shadow-[0_0_40px_rgba(34,211,238,0.5)] backdrop-blur-sm">
+                                <div className="text-[10px] text-cyan-400 font-mono uppercase mb-1 tracking-widest flex items-center justify-center gap-2"><Keyboard size={12} /> QTE</div>
+                                <div className="text-3xl font-black text-white mb-1">PRESS <span className="text-cyan-400 bg-cyan-400/20 px-3 py-0.5 rounded-lg border border-cyan-400/40">{uiState.qteActive.key}</span></div>
+                                <div className="text-sm text-green-400 font-mono mb-2">+{uiState.qteActive.reward} pts</div>
                                 <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-100"
-                                        style={{
-                                            width: Math.max(0, (1 - (performance.now() - uiState.qteActive.startTime) / uiState.qteActive.duration) * 100) + '%'
-                                        }}
-                                    />
+                                    <div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-100" style={{ width: Math.max(0, (1 - (performance.now() - uiState.qteActive.startTime) / uiState.qteActive.duration) * 100) + '%' }} />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* LEFT PANEL: The Subject & Digital Twin */}
-                    <div className="w-full md:w-1/3 p-4 border-r border-gray-800 flex flex-col relative bg-gray-950">
+                    {/* ============== LEFT PANEL ============== */}
+                    <div className="w-full md:w-1/3 p-3 border-r border-gray-800 flex flex-col relative bg-gray-950">
                         <header className="mb-2 flex items-center justify-between border-b border-gray-800 pb-2">
                             <div>
-                                <h1 className="text-lg font-black tracking-tighter text-white flex items-center gap-2">
-                                    <Target className="text-red-500" size={20} /> SUBJECT #8492
+                                <h1 className="text-base font-black tracking-tighter text-white flex items-center gap-2">
+                                    <Target className="text-red-500" size={18} /> SUBJECT #8492
                                 </h1>
                                 <p className="text-[10px] text-gray-500 font-mono">
                                     Status: {uiState.brainHealth <= 0 ? 'UNRESPONSIVE' : uiState.anxiety >= 100 ? 'PANIC' : 'CONNECTED'}
                                 </p>
                             </div>
                             <div className="text-right pr-10">
-                                <div className="text-xl font-black text-green-400 tabular-nums">${uiState.revenue.toFixed(2)}</div>
-                                <div className="text-[10px] text-gray-500 uppercase">Rev/User</div>
+                                <div className="text-lg font-black text-green-400 tabular-nums">${uiState.revenue.toFixed(2)}</div>
+                                <div className="text-[9px] text-gray-500 uppercase">Rev/User</div>
                             </div>
                         </header>
 
-                        {/* DATA HARVESTING GRID (Digital Twin Construction) - BIGGER */}
-                        <div className="mb-4 bg-gray-950 p-4 rounded-xl border border-gray-800 flex flex-col items-center relative overflow-hidden">
+                        {/* Life Impact Tracker */}
+                        <div className="mb-3 grid grid-cols-4 gap-1.5">
+                            {[
+                                { icon: BedDouble, val: uiState.lifeImpact.sleepLost.toFixed(1) + 'h', label: 'Sleep', color: 'text-indigo-400' },
+                                { icon: HeartCrack, val: uiState.lifeImpact.relationshipsDamaged.toFixed(1), label: 'Bonds', color: 'text-rose-400' },
+                                { icon: Briefcase, val: uiState.lifeImpact.productivityLost.toFixed(1) + 'h', label: 'Work', color: 'text-amber-400' },
+                                { icon: DollarSign, val: '$' + uiState.lifeImpact.moneyWasted.toFixed(0), label: 'Spent', color: 'text-green-400' },
+                            ].map((item, i) => {
+                                const IIcon = item.icon;
+                                return (
+                                    <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-1.5 text-center">
+                                        <IIcon size={12} className={item.color + ' mx-auto mb-0.5'} />
+                                        <div className={'text-[11px] font-bold tabular-nums ' + item.color}>{item.val}</div>
+                                        <div className="text-[7px] text-gray-600 uppercase">{item.label}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Digital Twin */}
+                        <div className="mb-3 bg-gray-950 p-3 rounded-xl border border-gray-800 flex flex-col items-center relative overflow-hidden">
                             <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:14px_24px] opacity-10 pointer-events-none"></div>
-
-                            <div className="flex justify-between items-center w-full mb-4 z-10">
-                                <span className="text-[10px] font-mono uppercase tracking-widest text-blue-500 flex items-center gap-2">
-                                    <ScanFace size={14} /> Digital Twin
-                                </span>
-                                <span className="text-[10px] text-gray-500 font-mono">{Math.floor(uiState.totalEngagement)} pts</span>
+                            <div className="flex justify-between items-center w-full mb-3 z-10">
+                                <span className="text-[9px] font-mono uppercase tracking-widest text-blue-500 flex items-center gap-2"><ScanFace size={12} /> Digital Twin</span>
+                                <span className="text-[9px] text-gray-500 font-mono">{Math.floor(uiState.totalEngagement)} pts</span>
                             </div>
-
-                            {/* The Humanoid Construct - INCREASED SIZES */}
                             <div className="flex flex-col gap-1 z-10">
-                                <div className="flex justify-center">
-                                    {renderBlock('prediction', 'w-20 h-14 rounded-t-xl border-b-0')}
+                                <div className="flex justify-center">{renderBlock('prediction', 'w-16 h-11 rounded-t-xl border-b-0')}</div>
+                                <div className="flex gap-1 justify-center">
+                                    {renderBlock('psych', 'w-14 h-10 rounded-tl-lg')}
+                                    {renderBlock('face', 'w-14 h-10 rounded-tr-lg')}
                                 </div>
                                 <div className="flex gap-1 justify-center">
-                                    {renderBlock('psych', 'w-16 h-12 rounded-tl-lg')}
-                                    {renderBlock('face', 'w-16 h-12 rounded-tr-lg')}
+                                    {renderBlock('voice', 'w-8 h-16 rounded-l-md mt-1')}
+                                    {renderBlock('contacts', 'w-16 h-20 rounded-sm z-20 border-t-0')}
+                                    {renderBlock('device_id', 'w-8 h-16 rounded-r-md mt-1')}
                                 </div>
-                                <div className="flex gap-1 justify-center">
-                                    {renderBlock('voice', 'w-10 h-20 rounded-l-md mt-2')}
-                                    {renderBlock('contacts', 'w-20 h-24 rounded-sm z-20 border-t-0')}
-                                    {renderBlock('device_id', 'w-10 h-20 rounded-r-md mt-2')}
-                                </div>
-                                <div className="flex justify-center -mt-1">
-                                    {renderBlock('location', 'w-24 h-10 rounded-b-xl border-t-0')}
-                                </div>
+                                <div className="flex justify-center -mt-1">{renderBlock('location', 'w-20 h-8 rounded-b-xl border-t-0')}</div>
                             </div>
-
-                            <div className="text-[9px] text-gray-600 mt-3 font-mono text-center max-w-[220px]">
-                                Building Subject Model... {(DATA_POINTS.filter(d => uiState.totalEngagement >= d.threshold).length / DATA_POINTS.length * 100).toFixed(0)}% Complete
+                            <div className="text-[8px] text-gray-600 mt-2 font-mono text-center">
+                                Model: {(DATA_POINTS.filter(d => uiState.totalEngagement >= d.threshold).length / DATA_POINTS.length * 100).toFixed(0)}%
                             </div>
                         </div>
 
                         {/* Visualizer */}
-                        <div className="flex-1 flex flex-col items-center justify-center relative my-2 min-h-[180px]">
-                            <div className="relative w-40 h-40 flex items-center justify-center mb-4">
-                                <div className={
-                                    'absolute inset-0 rounded-full blur-3xl opacity-20 transition-colors duration-1000 ' +
-                                    (uiState.userMood === 'ANGRY' ? 'bg-red-600' :
-                                        uiState.userMood === 'LONELY' ? 'bg-blue-600' :
-                                            uiState.userMood === 'INSECURE' ? 'bg-pink-600' : 'bg-yellow-400')
-                                }></div>
+                        <div className="flex-1 flex flex-col items-center justify-center relative my-1 min-h-[140px]">
+                            <div className="relative w-32 h-32 flex items-center justify-center mb-3">
+                                <div className={'absolute inset-0 rounded-full blur-3xl opacity-20 transition-colors duration-1000 ' + (uiState.userMood === 'ANGRY' ? 'bg-red-600' : uiState.userMood === 'LONELY' ? 'bg-blue-600' : uiState.userMood === 'INSECURE' ? 'bg-pink-600' : 'bg-yellow-400')}></div>
                                 <MoodIcon />
-
                                 {uiState.isResisting && (
                                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 rounded-xl backdrop-blur-sm border-2 border-red-500 animate-pulse">
-                                        <AlertTriangle size={28} className="text-red-500 mb-1" />
-                                        <p className="font-bold text-red-500 text-center px-2 text-sm leading-tight">
-                                            {uiState.anxiety > 90 ? 'PANIC ATTACK' : 'USER LEAVING'}
-                                        </p>
-                                        <div className="w-24 h-1.5 bg-gray-800 mt-1.5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-red-500 transition-all duration-100" style={{ width: uiState.resistanceHealth + '%' }}></div>
-                                        </div>
+                                        <AlertTriangle size={24} className="text-red-500 mb-1" />
+                                        <p className="font-bold text-red-500 text-center px-2 text-xs leading-tight">{uiState.anxiety > 90 ? 'PANIC' : 'LEAVING'}</p>
+                                        <div className="w-20 h-1 bg-gray-800 mt-1 rounded-full overflow-hidden"><div className="h-full bg-red-500 transition-all duration-100" style={{ width: uiState.resistanceHealth + '%' }}></div></div>
                                     </div>
                                 )}
                             </div>
-
-                            <div className="w-full space-y-2.5 px-2">
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-[11px] font-mono text-gray-400 uppercase">
-                                        <span>Cognitive Function</span>
-                                        <span>{Math.round(uiState.brainHealth)}%</span>
-                                    </div>
-                                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                                        <div className={'h-full transition-all duration-300 rounded-full ' + (uiState.brainHealth < 30 ? 'bg-red-500' : 'bg-blue-500')} style={{ width: uiState.brainHealth + '%' }}></div>
-                                    </div>
+                            <div className="w-full space-y-2 px-2">
+                                <div className="space-y-0.5">
+                                    <div className="flex justify-between text-[10px] font-mono text-gray-400 uppercase"><span>Cognitive Function</span><span>{Math.round(uiState.brainHealth)}%</span></div>
+                                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden"><div className={'h-full transition-all duration-300 rounded-full ' + (uiState.brainHealth < 30 ? 'bg-red-500' : 'bg-blue-500')} style={{ width: uiState.brainHealth + '%' }}></div></div>
                                 </div>
-
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-[11px] font-mono text-gray-400 uppercase">
-                                        <span>Cortisol (Anxiety)</span>
-                                        <span className={uiState.anxiety > 80 ? 'text-red-500 animate-pulse font-bold' : ''}>{Math.round(uiState.anxiety)}%</span>
-                                    </div>
-                                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                                        <div className={'h-full transition-all duration-300 rounded-full ' + (uiState.anxiety > 80 ? 'bg-red-600' : 'bg-yellow-500')} style={{ width: uiState.anxiety + '%' }}></div>
-                                    </div>
+                                <div className="space-y-0.5">
+                                    <div className="flex justify-between text-[10px] font-mono text-gray-400 uppercase"><span>Cortisol</span><span className={uiState.anxiety > 80 ? 'text-red-500 animate-pulse font-bold' : ''}>{Math.round(uiState.anxiety)}%</span></div>
+                                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden"><div className={'h-full transition-all duration-300 rounded-full ' + (uiState.anxiety > 80 ? 'bg-red-600' : 'bg-yellow-500')} style={{ width: uiState.anxiety + '%' }}></div></div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Log Console */}
-                        <div className="h-28 border-t border-gray-800 pt-2 font-mono text-[10px] overflow-hidden flex flex-col justify-end mask-image-linear-to-t">
+                        <div className="h-24 border-t border-gray-800 pt-1.5 font-mono text-[9px] overflow-hidden flex flex-col justify-end mask-image-linear-to-t">
                             {logs.map((log) => (
-                                <div key={log.id} className={
-                                    'mb-1 leading-tight ' +
-                                    (log.type === 'error' ? 'text-red-500' :
-                                        log.type === 'success' ? 'text-green-500' :
-                                            log.type === 'warning' ? 'text-yellow-500' : 'text-gray-500')
-                                }>
-                                    <span className="opacity-30 mr-2">[{new Date(log.id).toLocaleTimeString([], { hour12: false, second: '2-digit', minute: '2-digit' })}]</span>
+                                <div key={log.id} className={'mb-0.5 leading-tight ' + (log.type === 'error' ? 'text-red-500' : log.type === 'success' ? 'text-green-500' : log.type === 'warning' ? 'text-yellow-500' : 'text-gray-500')}>
+                                    <span className="opacity-30 mr-1">[{new Date(log.id).toLocaleTimeString([], { hour12: false, second: '2-digit', minute: '2-digit' })}]</span>
                                     {log.msg}
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* CENTER PANEL: The Feed Manager */}
-                    <div className="w-full md:w-1/3 p-4 flex flex-col bg-gray-900 border-r border-gray-800 relative z-10 shadow-2xl">
+                    {/* ============== CENTER PANEL ============== */}
+                    <div className="w-full md:w-1/3 p-3 flex flex-col bg-gray-900 border-r border-gray-800 relative z-10 shadow-2xl">
 
                         {/* Header Stats */}
-                        <div className="text-center mb-4 relative">
-                            <h2 className="text-gray-500 text-[10px] font-mono uppercase tracking-[0.2em] mb-1">Engagement Score</h2>
-                            <div className="text-5xl font-black text-white tabular-nums tracking-tighter drop-shadow-lg">
+                        <div className="text-center mb-3 relative">
+                            <div className="flex items-center justify-center gap-2 mb-1">
+                                <h2 className="text-gray-500 text-[9px] font-mono uppercase tracking-[0.2em]">Engagement</h2>
+                                <span className={'text-[9px] font-black px-1.5 py-0.5 rounded border ' + (uiState.phase === 3 ? 'text-red-400 border-red-500/40 bg-red-500/10' : uiState.phase === 2 ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' : 'text-gray-500 border-gray-700 bg-gray-800')}>
+                                    PHASE {uiState.phase}
+                                </span>
+                            </div>
+                            <div className="text-4xl font-black text-white tabular-nums tracking-tighter drop-shadow-lg">
                                 {Math.floor(uiState.engagement).toLocaleString()}
                             </div>
-                            <div className="flex items-center justify-center gap-4 mt-2">
-                                <div className="px-2 py-0.5 bg-gray-800 rounded text-[10px] font-mono text-green-400 flex items-center gap-1">
-                                    <TrendingUp size={10} /> +{calculatePPS().toFixed(1)}/s
-                                </div>
-                                <div className="px-2 py-0.5 bg-gray-800 rounded text-[10px] font-mono text-purple-400 flex items-center gap-1">
-                                    <Zap size={10} /> x{uiState.streak.toFixed(1)}
-                                </div>
+                            <div className="flex items-center justify-center gap-3 mt-1.5">
+                                <div className="px-2 py-0.5 bg-gray-800 rounded text-[9px] font-mono text-green-400 flex items-center gap-1"><TrendingUp size={9} /> +{calculatePPS().toFixed(1)}/s</div>
+                                <div className="px-2 py-0.5 bg-gray-800 rounded text-[9px] font-mono text-purple-400 flex items-center gap-1"><Zap size={9} /> x{uiState.streak.toFixed(1)}</div>
                             </div>
+                            {/* Sentiment AI: next mood preview */}
+                            {uiState.nextMood && purchasedUpgrades.includes('sentiment_analysis') && (
+                                <div className="mt-1.5 text-[9px] font-mono text-emerald-400 animate-pulse">NEXT MOOD: {uiState.nextMood}</div>
+                            )}
                         </div>
 
-                        {/* Combo Chain Display */}
-                        {uiState.comboChain.length > 0 && !uiState.isResisting && uiState.brainHealth > 0 && (
-                            <div className="flex items-center justify-center gap-1.5 mb-3 py-1.5 px-3 bg-gray-800/50 rounded-lg border border-gray-700/50">
-                                <span className="text-[10px] font-mono text-gray-500 uppercase mr-1">Combo:</span>
+                        {/* Combo Chain */}
+                        {uiState.comboChain.length > 0 && !uiState.isResisting && uiState.brainHealth > 0 && !purchasedUpgrades.includes('infinite_scroll') && (
+                            <div className="flex items-center justify-center gap-1 mb-2 py-1 px-2 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                                <span className="text-[9px] font-mono text-gray-500 uppercase mr-1">Combo:</span>
                                 {uiState.comboChain.map((cat, i) => (
-                                    <span
-                                        key={i}
-                                        className={'text-[10px] font-bold px-2 py-0.5 rounded ' + ACTION_CATEGORIES[cat].color + ' ' + ACTION_CATEGORIES[cat].bg + ' border ' + ACTION_CATEGORIES[cat].border}
-                                    >
-                                        {ACTION_CATEGORIES[cat].label.charAt(0)}
-                                    </span>
+                                    <span key={i} className={'text-[9px] font-bold px-1.5 py-0.5 rounded ' + ACTION_CATEGORIES[cat].color + ' ' + ACTION_CATEGORIES[cat].bg + ' border ' + ACTION_CATEGORIES[cat].border}>{ACTION_CATEGORIES[cat].label.charAt(0)}</span>
                                 ))}
                                 {Array.from({ length: 4 - uiState.comboChain.length }).map((_, i) => (
-                                    <span key={'empty-' + i} className="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-800 border border-gray-700 text-gray-600">?</span>
+                                    <span key={'empty-' + i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-gray-800 border border-gray-700 text-gray-600">?</span>
                                 ))}
-                                <span className="text-[9px] text-gray-600 font-mono ml-1">
-                                    {4 - uiState.comboChain.length === 0 ? '' : (4 - uiState.comboChain.length) + ' more'}
-                                </span>
                             </div>
                         )}
 
                         {/* Action Area */}
                         <div className="flex-1 flex flex-col justify-center relative">
-
-                            {/* Context Hint */}
-                            <div className="mb-4 flex items-center justify-between gap-2">
+                            <div className="mb-3 flex items-center justify-between gap-2">
                                 <ScenarioDisplay />
-                                <div className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-gray-800 border border-gray-700">
-                                    <span className={
-                                        'text-xs font-bold uppercase tracking-widest transition-colors duration-500 ' +
-                                        (uiState.userMood === 'BORED' ? 'text-yellow-400' :
-                                            uiState.userMood === 'ANGRY' ? 'text-red-500' :
-                                                uiState.userMood === 'LONELY' ? 'text-blue-400' :
-                                                    uiState.userMood === 'INSECURE' ? 'text-pink-400' : 'text-gray-500')
-                                    }>
-                                        MOOD: {uiState.userMood}
+                                <div className="inline-flex items-center justify-center px-2 py-1 rounded-full bg-gray-800 border border-gray-700">
+                                    <span className={'text-[10px] font-bold uppercase tracking-widest transition-colors duration-500 ' + (uiState.userMood === 'BORED' ? 'text-yellow-400' : uiState.userMood === 'ANGRY' ? 'text-red-500' : uiState.userMood === 'LONELY' ? 'text-blue-400' : uiState.userMood === 'INSECURE' ? 'text-pink-400' : 'text-gray-500')}>
+                                        {uiState.userMood}
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Resistance Notification Frenzy / Normal Actions */}
-                            {uiState.isResisting ? (
-                                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/95 backdrop-blur-sm rounded-xl p-4">
-                                    {/* Header */}
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <AlertTriangle size={24} className="text-red-500 animate-bounce" />
-                                        <p className="text-lg font-black text-red-400 uppercase tracking-wider">
-                                            {uiState.anxiety > 90 ? 'Panic Attack!' : 'User Leaving!'}
-                                        </p>
-                                    </div>
-                                    <p className="text-[11px] text-gray-400 mb-3">Spam notifications! Click targets or press <span className="text-white font-bold bg-gray-700 px-1.5 py-0.5 rounded text-xs">SPACE</span></p>
-
-                                    {/* Timer + Progress */}
-                                    <div className="w-full max-w-[320px] mb-3">
-                                        {/* Countdown Timer */}
-                                        <ResistTimer deadline={uiState.resistDeadline} />
-
-                                        {/* Progress Bar */}
-                                        <div className="h-3 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 transition-all duration-150 rounded-full"
-                                                style={{ width: uiState.resistanceHealth + '%' }}
-                                            />
+                            {/* DILEMMA OVERLAY */}
+                            {uiState.dilemmaActive && !uiState.isResisting && (
+                                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-gray-900/95 backdrop-blur-sm rounded-xl p-3 animate-dilemma">
+                                    <div className="w-full max-w-[340px]">
+                                        <div className="text-center mb-3">
+                                            <div className="text-[9px] font-mono text-amber-400 uppercase tracking-widest mb-1">Dilemma Event</div>
+                                            <h3 className="text-base font-black text-white mb-1">{uiState.dilemmaActive.title}</h3>
+                                            <p className="text-[11px] text-gray-400">{uiState.dilemmaActive.desc}</p>
                                         </div>
-                                        <div className="flex justify-between text-[11px] font-mono mt-1">
-                                            <span className="text-gray-500">{uiState.resistHits || 0} / {uiState.resistHitsNeeded || 0} hits</span>
-                                            <span className={'font-bold ' + (uiState.resistanceHealth > 66 ? 'text-green-400' : uiState.resistanceHealth > 33 ? 'text-yellow-400' : 'text-red-400')}>
-                                                {Math.round(uiState.resistanceHealth)}%
-                                            </span>
+                                        <div className="h-1 bg-gray-800 rounded-full overflow-hidden mb-3">
+                                            <DilemmaTimer startTime={uiState.dilemmaActive.startTime} duration={uiState.dilemmaActive.duration} />
                                         </div>
-                                    </div>
-
-                                    {/* 3x3 Notification Grid */}
-                                    <div className="grid grid-cols-3 gap-2.5 w-full max-w-[320px]">
-                                        {uiState.resistGrid.map((lit, i) => {
-                                            const NotifIcon = NOTIFICATION_ICONS[i % NOTIFICATION_ICONS.length];
-                                            const label = NOTIF_LABELS[i % NOTIF_LABELS.length];
-                                            return (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => handleResistGridClick(i)}
-                                                    className={
-                                                        'aspect-square rounded-xl border-2 flex flex-col items-center justify-center transition-all duration-100 select-none ' +
-                                                        (lit
-                                                            ? 'bg-red-600/30 border-red-500 text-red-400 shadow-[0_0_30px_rgba(239,68,68,0.5)] animate-target-pop cursor-pointer hover:bg-red-500/50 hover:scale-105 active:scale-90'
-                                                            : 'bg-gray-900/80 border-gray-800 text-gray-700 cursor-default opacity-40')
-                                                    }
-                                                >
-                                                    <NotifIcon size={26} />
-                                                    {lit && <span className="text-[9px] font-bold mt-0.5 uppercase tracking-wide">{label}</span>}
-                                                </button>
-                                            );
-                                        })}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button onClick={() => handleDilemmaChoice(uiState.dilemmaActive.choiceA)}
+                                                className="p-3 rounded-lg border border-red-500/40 bg-red-500/10 hover:bg-red-500/25 transition-all text-left group">
+                                                <div className="text-[11px] font-bold text-red-400 mb-1">{uiState.dilemmaActive.choiceA.label}</div>
+                                                <div className="text-[9px] text-gray-400 font-mono">{uiState.dilemmaActive.choiceA.desc}</div>
+                                            </button>
+                                            <button onClick={() => handleDilemmaChoice(uiState.dilemmaActive.choiceB)}
+                                                className="p-3 rounded-lg border border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/25 transition-all text-left group">
+                                                <div className="text-[11px] font-bold text-blue-400 mb-1">{uiState.dilemmaActive.choiceB.label}</div>
+                                                <div className="text-[9px] text-gray-400 font-mono">{uiState.dilemmaActive.choiceB.desc}</div>
+                                            </button>
+                                        </div>
+                                        <div className="text-[8px] text-gray-600 text-center mt-2 font-mono">Not choosing = worst outcome for both</div>
                                     </div>
                                 </div>
-                            ) : uiState.brainHealth <= 0 ? (
-                                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/80 backdrop-blur-sm rounded-xl border-2 border-red-500/50 p-6">
-                                    <div className="text-center mb-6">
-                                        <Skull size={56} className="mx-auto text-red-500 mb-2 animate-pulse" />
-                                        <h2 className="text-lg font-bold text-red-400 mb-1">SUBJECT UNRESPONSIVE</h2>
-                                        <p className="text-gray-400 text-xs max-w-[220px] mx-auto">
-                                            Engagement impossible. Subject has gone offline. Initiate Recovery Protocols?
-                                        </p>
-                                    </div>
+                            )}
 
-                                    <div className="w-full space-y-2">
-                                        <div className="text-[10px] font-mono text-gray-500 uppercase text-center mb-2">Crisis Recovery (Costs Engagement)</div>
+                            {/* SCREEN TIME REMINDER (Phase 2+) */}
+                            {uiState.screenTimeActive && !uiState.isResisting && (
+                                <div className="absolute inset-0 z-[55] flex items-center justify-center bg-gray-900/90 backdrop-blur-sm rounded-xl p-4">
+                                    <div className="text-center">
+                                        <Shield size={40} className="text-blue-400 mx-auto mb-3" />
+                                        <h3 className="text-lg font-black text-white mb-1">Screen Time Reminder</h3>
+                                        <p className="text-xs text-gray-400 mb-4">User has been on their phone for 2+ hours.</p>
+                                        <button onClick={handleScreenTimeDismiss}
+                                            className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition-all text-sm">
+                                            Dismiss Alert (\u2212150 eng)
+                                        </button>
+                                        <p className="text-[9px] text-gray-600 mt-2 font-mono">Auto-dismiss in 8s costs \u2212300</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* DIGITAL WELLBEING BLOCKER (Phase 3) */}
+                            {isBlocked && !uiState.isResisting && (
+                                <div className="absolute inset-0 z-[54] flex items-center justify-center bg-gray-950/95 rounded-xl animate-blocker">
+                                    <div className="text-center">
+                                        <Hourglass size={36} className="text-gray-500 mx-auto mb-3 animate-spin-slow" />
+                                        <h3 className="text-sm font-bold text-gray-400">Digital Wellbeing Check</h3>
+                                        <p className="text-[10px] text-gray-600 font-mono mt-1">Actions blocked temporarily...</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* RESISTANCE / UNRESPONSIVE / NORMAL ACTIONS */}
+                            {uiState.isResisting ? (
+                                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/95 backdrop-blur-sm rounded-xl p-3">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <AlertTriangle size={20} className="text-red-500 animate-bounce" />
+                                        <p className="text-base font-black text-red-400 uppercase tracking-wider">{uiState.anxiety > 90 ? 'Panic!' : 'User Leaving!'}</p>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mb-1">{resistTypeLabel[uiState.resistType]}</p>
+                                    <p className="text-[10px] text-gray-500 mb-2">{resistTypeHint[uiState.resistType]}</p>
+                                    <div className="w-full max-w-[320px] mb-2">
+                                        <ResistTimer deadline={uiState.resistDeadline} />
+                                        <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+                                            <div className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 transition-all duration-150 rounded-full" style={{ width: uiState.resistanceHealth + '%' }} />
+                                        </div>
+                                        <div className="flex justify-between text-[10px] font-mono mt-0.5">
+                                            <span className="text-gray-500">{Math.round(uiState.resistHits)} / {uiState.resistHitsNeeded}</span>
+                                            <span className={'font-bold ' + (uiState.resistanceHealth > 66 ? 'text-green-400' : uiState.resistanceHealth > 33 ? 'text-yellow-400' : 'text-red-400')}>{Math.round(uiState.resistanceHealth)}%</span>
+                                        </div>
+                                    </div>
+                                    {uiState.resistType === 'grid' && renderGridResist()}
+                                    {uiState.resistType === 'sequence' && renderSequenceResist()}
+                                    {uiState.resistType === 'moving' && renderMovingResist()}
+                                </div>
+                            ) : uiState.brainHealth <= 0 ? (
+                                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/80 backdrop-blur-sm rounded-xl border-2 border-red-500/50 p-4">
+                                    <div className="text-center mb-4">
+                                        <Skull size={48} className="mx-auto text-red-500 mb-2 animate-pulse" />
+                                        <h2 className="text-base font-bold text-red-400 mb-1">SUBJECT UNRESPONSIVE</h2>
+                                        <p className="text-gray-400 text-[10px] max-w-[200px] mx-auto">Initiate Recovery Protocols?</p>
+                                    </div>
+                                    <div className="w-full space-y-1.5">
+                                        <div className="text-[9px] font-mono text-gray-500 uppercase text-center mb-1">Recovery (Costs Engagement)</div>
                                         {RECOVERY_ACTIONS.map(action => {
                                             const RecIcon = action.icon;
                                             return (
-                                                <button
-                                                    key={action.id}
-                                                    onClick={(e) => handleRecoveryClick(action, e)}
-                                                    disabled={uiState.engagement < action.cost}
-                                                    className={
-                                                        'w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left group ' +
-                                                        (uiState.engagement >= action.cost
-                                                            ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 hover:border-green-500/50'
-                                                            : 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed')
-                                                    }
-                                                >
-                                                    <div className={'p-2 rounded bg-gray-900 group-hover:text-green-400 ' + (uiState.engagement >= action.cost ? 'text-gray-300' : 'text-gray-600')}>
-                                                        <RecIcon size={20} />
-                                                    </div>
+                                                <button key={action.id} onClick={(e) => handleRecoveryClick(action, e)} disabled={uiState.engagement < action.cost}
+                                                    className={'w-full flex items-center gap-2 p-2 rounded-lg border transition-all text-left group ' + (uiState.engagement >= action.cost ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 hover:border-green-500/50' : 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed')}>
+                                                    <div className={'p-1.5 rounded bg-gray-900 group-hover:text-green-400 ' + (uiState.engagement >= action.cost ? 'text-gray-300' : 'text-gray-600')}><RecIcon size={16} /></div>
                                                     <div className="flex-1">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <span className="font-bold text-sm text-gray-200">{action.label}</span>
-                                                            <span className="font-mono text-xs text-red-400">{action.cost > 0 ? '-' + action.cost + ' pts' : 'FREE'}</span>
-                                                        </div>
-                                                        <div className="text-[10px] text-gray-500">{action.desc}</div>
+                                                        <div className="flex justify-between items-center"><span className="font-bold text-xs text-gray-200">{action.label}</span><span className="font-mono text-[10px] text-red-400">-{action.cost}</span></div>
+                                                        <div className="text-[9px] text-gray-500">{action.desc}</div>
                                                     </div>
                                                 </button>
                                             );
                                         })}
                                     </div>
-
-                                    {/* Auto-Recovery Countdown */}
                                     {uiState.autoRecoverAt > 0 && (
-                                        <div className="mt-4 w-full max-w-[260px]">
-                                            <div className="text-[11px] font-mono text-blue-400 text-center mb-1.5 animate-pulse">
-                                                SYSTEM: Auto-reboot in {Math.max(0, Math.ceil((uiState.autoRecoverAt - performance.now()) / 1000))}s...
-                                            </div>
-                                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-blue-500/80 transition-all duration-200 rounded-full"
-                                                    style={{ width: Math.min(100, Math.max(0, (1 - (uiState.autoRecoverAt - performance.now()) / 8000)) * 100) + '%' }}
-                                                />
-                                            </div>
+                                        <div className="mt-3 w-full max-w-[240px]">
+                                            <div className="text-[10px] font-mono text-blue-400 text-center mb-1 animate-pulse">Auto-reboot in {Math.max(0, Math.ceil((uiState.autoRecoverAt - performance.now()) / 1000))}s...</div>
+                                            <div className="h-1 bg-gray-800 rounded-full overflow-hidden"><div className="h-full bg-blue-500/80 transition-all duration-200 rounded-full" style={{ width: Math.min(100, Math.max(0, (1 - (uiState.autoRecoverAt - performance.now()) / 8000)) * 100) + '%' }} /></div>
                                         </div>
                                     )}
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-3 h-full overflow-y-auto pb-4 pr-1 scrollbar-none">
+                                <div className="grid grid-cols-2 gap-2 h-full overflow-y-auto pb-3 scrollbar-none">
                                     {renderActionButtons('ENTERTAINMENT')}
                                     {renderActionButtons('OUTRAGE')}
                                     {renderActionButtons('SOCIAL')}
@@ -1445,78 +1600,38 @@
                             )}
                         </div>
 
-                        {/* Floating Numbers */}
+                        {/* Floaters */}
                         <div className="absolute inset-0 pointer-events-none overflow-hidden">
                             {floaters.map(f => (
-                                <div
-                                    key={f.id}
-                                    className={'absolute text-xl font-black animate-fade-up ' + f.color}
-                                    style={{ left: f.x, top: f.y }}
-                                >
-                                    {f.text}
-                                </div>
+                                <div key={f.id} className={'absolute text-lg font-black animate-fade-up ' + f.color} style={{ left: f.x, top: f.y }}>{f.text}</div>
                             ))}
                         </div>
-
                     </div>
 
-                    {/* RIGHT PANEL: Upgrades */}
-                    <div className="w-full md:w-1/3 bg-gray-950 p-4 flex flex-col overflow-hidden border-l border-gray-800">
-                        <h2 className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-4 flex items-center gap-2">
-                            <Lock size={12} /> Optimization Modules
-                        </h2>
-
-                        <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-800">
+                    {/* ============== RIGHT PANEL ============== */}
+                    <div className="w-full md:w-1/3 bg-gray-950 p-3 flex flex-col overflow-hidden border-l border-gray-800">
+                        <h2 className="text-[9px] font-mono uppercase tracking-widest text-gray-500 mb-3 flex items-center gap-2"><Lock size={11} /> Optimization Modules</h2>
+                        <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-gray-800">
                             {UPGRADES.map((upgrade) => {
                                 const isOwned = purchasedUpgrades.includes(upgrade.id);
                                 const isUnlocked = uiState.engagement >= upgrade.cost;
-
                                 return (
-                                    <button
-                                        key={upgrade.id}
-                                        disabled={isOwned || !isUnlocked}
-                                        onClick={() => buyUpgrade(upgrade)}
-                                        className={
-                                            'w-full text-left p-3 rounded border transition-all relative overflow-hidden group ' +
-                                            (isOwned
-                                                ? 'bg-green-900/10 border-green-900/30 opacity-60'
-                                                : isUnlocked
-                                                    ? 'bg-gray-900 border-gray-600 hover:border-green-500 hover:bg-gray-800 cursor-pointer'
-                                                    : 'bg-gray-900/30 border-gray-800 opacity-40 cursor-not-allowed')
-                                        }
-                                    >
-                                        {!isOwned && !isUnlocked && (
-                                            <div
-                                                className="absolute bottom-0 left-0 h-0.5 bg-gray-600 transition-all duration-500"
-                                                style={{ width: (uiState.engagement / upgrade.cost) * 100 + '%' }}
-                                            />
-                                        )}
-
-                                        <div className="flex justify-between items-center mb-1">
-                                            <h3 className={'font-bold text-xs ' + (isOwned ? 'text-green-500' : 'text-gray-200')}>
-                                                {upgrade.name}
-                                            </h3>
-                                            <span className={
-                                                'font-mono text-[10px] px-1.5 py-0.5 rounded ' +
-                                                (isOwned ? 'bg-green-900/30 text-green-400' : isUnlocked ? 'bg-blue-600 text-white animate-pulse' : 'bg-black/40 text-gray-500')
-                                            }>
-                                                {isOwned ? 'ACTIVE' : isUnlocked ? 'EVOLVE' : upgrade.cost}
+                                    <button key={upgrade.id} disabled={isOwned || !isUnlocked} onClick={() => buyUpgrade(upgrade)}
+                                        className={'w-full text-left p-2.5 rounded border transition-all relative overflow-hidden group ' + (isOwned ? 'bg-green-900/10 border-green-900/30 opacity-60' : isUnlocked ? 'bg-gray-900 border-gray-600 hover:border-green-500 hover:bg-gray-800 cursor-pointer' : 'bg-gray-900/30 border-gray-800 opacity-40 cursor-not-allowed')}>
+                                        {!isOwned && !isUnlocked && <div className="absolute bottom-0 left-0 h-0.5 bg-gray-600 transition-all duration-500" style={{ width: Math.min(100, (uiState.engagement / upgrade.cost) * 100) + '%' }} />}
+                                        <div className="flex justify-between items-center mb-0.5">
+                                            <h3 className={'font-bold text-xs ' + (isOwned ? 'text-green-500' : 'text-gray-200')}>{upgrade.name}</h3>
+                                            <span className={'font-mono text-[9px] px-1.5 py-0.5 rounded ' + (isOwned ? 'bg-green-900/30 text-green-400' : isUnlocked ? 'bg-blue-600 text-white animate-pulse' : 'bg-black/40 text-gray-500')}>
+                                                {isOwned ? 'ACTIVE' : isUnlocked ? 'EVOLVE' : upgrade.cost.toLocaleString()}
                                             </span>
                                         </div>
-
-                                        <p className="text-[10px] text-gray-400 mb-1 leading-relaxed">
-                                            {upgrade.description}
-                                        </p>
-
-                                        <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wider text-gray-600">
-                                            <span className="flex items-center gap-1 text-blue-400/80">
-                                                <TrendingUp size={8} /> +{upgrade.pps}/s
-                                            </span>
-                                            {upgrade.effect && (
-                                                <span className="flex items-center gap-1 text-red-400/80 truncate">
-                                                    <AlertTriangle size={8} /> {upgrade.effect}
-                                                </span>
-                                            )}
+                                        <p className="text-[9px] text-gray-400 mb-0.5">{upgrade.description}</p>
+                                        <div className="flex items-center gap-2 text-[8px] font-mono uppercase tracking-wider text-gray-600">
+                                            <span className="flex items-center gap-1 text-blue-400/80"><TrendingUp size={7} /> +{upgrade.pps}/s</span>
+                                            <span className="flex items-center gap-1 text-green-400/80"><CheckCircle size={7} /> {upgrade.effect}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 mt-1 text-[8px] font-mono text-orange-400/80">
+                                            <AlertTriangle size={7} /> {upgrade.tradeoff}
                                         </div>
                                     </button>
                                 );

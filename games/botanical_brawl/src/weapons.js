@@ -495,6 +495,61 @@ const SHAPE_KEYWORDS = {
   flat: ['card', 'paper', 'leaf', 'feather', 'blade', 'sword', 'katana', 'boomerang', 'wing', 'pancake', 'coin', 'shield', 'book', 'slice'],
 };
 
+const BEHAVIOR_KEYWORDS = [
+  ['beam', ['beam', 'laser', 'ray', 'railgun', 'phaser']],
+  ['homing', ['homing', 'seeking', 'tracking', 'guided', 'smart',
+              'magic', 'spell', 'arcane', 'mystic', 'sorcery', 'wizard', 'witch',
+              'bee', 'wasp', 'hawk', 'eagle', 'falcon', 'shark', 'wolf',
+              'spider', 'scorpion', 'missile',
+              'dragon', 'phoenix', 'ghost', 'spirit', 'enchant', 'hex',
+              'celestial', 'divine', 'holy', 'angel',
+              'cat', 'unicorn', 'pegasus']],
+  ['pierce', ['pierce', 'penetrate', 'through',
+              'sniper', 'arrow', 'spear', 'lance', 'dart', 'needle', 'drill',
+              'katana', 'blade', 'sword', 'knife', 'dagger',
+              'lightning', 'bolt', 'electric', 'thunder', 'zap',
+              'bullet', 'rifle', 'crossbow', 'trident',
+              'thorn', 'spike', 'fang', 'gatling', 'minigun']],
+  ['wave', ['wiggle', 'wobble', 'drunk',
+            'serpent', 'snake', 'eel', 'worm',
+            'ocean', 'tidal', 'tsunami', 'wave',
+            'music', 'song', 'violin', 'flute', 'guitar', 'piano',
+            'disco', 'dance',
+            'butterfly', 'jellyfish', 'octopus', 'squid',
+            'wind', 'gust', 'penguin', 'crab', 'duck', 'snail']],
+  ['split', ['split', 'hydra', 'cluster', 'fragment', 'shatter',
+             'firework', 'confetti', 'spore', 'seed',
+             'grape', 'cherry', 'popcorn',
+             'crystal', 'prism', 'mirror',
+             'flower', 'petal', 'dandelion', 'mushroom',
+             'sparkle', 'glitter', 'rainbow',
+             'bunny', 'rabbit', 'pizza', 'frog', 'chicken', 'egg', 'axe']],
+  ['boomerang', ['boomerang', 'return', 'frisbee', 'karma', 'echo',
+                 'rebound', 'banana', 'disc', 'disk']],
+  ['chain', ['chain', 'ricochet', 'pinball',
+             'virus', 'plague', 'infection',
+             'spark', 'static', 'shock',
+             'trampoline', 'spring',
+             'glitch', 'hack', 'matrix',
+             'dog', 'puppy', 'whip', 'tesla']],
+  ['gravity', ['gravity', 'void', 'abyss', 'vortex',
+               'tornado', 'cyclone', 'hurricane', 'whirlpool',
+               'vacuum', 'blackhole',
+               'dark', 'shadow', 'nightmare', 'cursed',
+               'warp', 'portal', 'teleport']],
+  ['burst', ['burst', 'nova', 'supernova', 'explosion', 'explod',
+             'radiant', 'solar', 'sun',
+             'pulse', 'shockwave',
+             'nuke', 'nuclear', 'atomic', 'aura',
+             'dinosaur', 'trex', 'cannon', 'bear', 'whale',
+             'hammer', 'kaboom']],
+  ['orbit', ['orbit', 'satellite', 'planet', 'galaxy', 'cosmic',
+             'nebula', 'stellar', 'shield', 'guard', 'protect',
+             'quantum', 'atom', 'electron',
+             'fairy', 'pixie', 'firefly',
+             'moon', 'lunar', 'turtle']],
+];
+
 function generateWeaponFromText(text) {
   const lower = text.toLowerCase();
   let hash = 0;
@@ -539,6 +594,11 @@ function generateWeaponFromText(text) {
   if (projShape === 'sphere' && hash % 6 === 0) projShape = 'cube';
   if (projShape === 'sphere' && hash % 7 === 0) projShape = 'star';
 
+  let behavior = 'normal';
+  for (const [beh, keywords] of BEHAVIOR_KEYWORDS) {
+    if (keywords.some(kw => lower.includes(kw))) { behavior = beh; break; }
+  }
+
   const weapon = {
     speed: clamp(1.0 * spdMult, 0.1, 5),
     damage: clamp(Math.round(40 * dmgMult), 10, 500),
@@ -555,6 +615,7 @@ function generateWeaponFromText(text) {
     projShape,
     spread: 0,
     rocketMode: false,
+    behavior,
   };
 
   if (lower.includes('shotgun') || lower.includes('buckshot') || lower.includes('scattergun')) {
@@ -682,7 +743,13 @@ function makeShotgunPellet(s, color) {
 export function fireProjectile(scene, state) {
   const now = performance.now();
   const weapon = state.weapons[state.activeWeaponIdx];
-  const cooldown = 180 / Math.max(weapon.speed, 0.3);
+  const behavior = weapon.behavior || 'normal';
+
+  let cooldownMult = 1;
+  if (behavior === 'burst') cooldownMult = 2.5;
+  if (behavior === 'beam') cooldownMult = 1.5;
+  if (behavior === 'orbit') cooldownMult = 3;
+  const cooldown = (180 / Math.max(weapon.speed, 0.3)) * cooldownMult;
   if (now - state.lastShot < cooldown) return;
   state.lastShot = now;
 
@@ -696,32 +763,83 @@ export function fireProjectile(scene, state) {
 
   shootSound(weapon.audioFreq, weapon.audioType);
 
+  if (behavior === 'beam') {
+    const geo = new THREE.BoxGeometry(0.15 * s, 0.15 * s, 1.5 * s);
+    const mat = getCachedBasicMat(projColor);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(state.playerPos);
+    mesh.position.y = 0.6;
+    _tmpLookTarget.copy(mesh.position).add(_fireDir);
+    mesh.lookAt(_tmpLookTarget);
+    scene.add(mesh);
+    state.projectiles.push({
+      mesh, vel: _fireDir.clone().multiplyScalar(1.8 * Math.max(weapon.speed, 1)),
+      damage: effectiveDmg, radius: 0.6 * s, bouncesLeft: 0, life: 50,
+      trailColor, trailCounter: 0, behavior: 'pierce',
+      _hitSet: new Set(), _projShape: weapon.projShape, _weaponScale: s,
+    });
+    return;
+  }
+
+  if (behavior === 'burst') {
+    const count = 8;
+    const dmgEach = Math.max(5, Math.round(effectiveDmg * 0.45));
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+      const mesh = _makeStdProjectile(weapon, s, projColor);
+      mesh.position.copy(state.playerPos);
+      mesh.position.y = 0.6;
+      scene.add(mesh);
+      state.projectiles.push({
+        mesh, vel: dir.multiplyScalar(0.3 * weapon.speed),
+        damage: dmgEach, radius: 0.18 * s, bouncesLeft: weapon.bounces, life: 200,
+        trailColor, trailCounter: 0, behavior: 'normal',
+        _projShape: weapon.projShape, _weaponScale: s,
+      });
+    }
+    return;
+  }
+
+  if (behavior === 'orbit') {
+    const count = 3;
+    const dmgEach = Math.round(effectiveDmg * 0.6);
+    for (let i = 0; i < count; i++) {
+      const phase = (i / count) * Math.PI * 2;
+      const mesh = _makeStdProjectile(weapon, s, projColor);
+      mesh.position.copy(state.playerPos);
+      mesh.position.y = 0.6;
+      scene.add(mesh);
+      state.projectiles.push({
+        mesh, vel: new THREE.Vector3(0, 0, 0),
+        damage: dmgEach, radius: 0.22 * s, bouncesLeft: 0, life: 400,
+        trailColor, trailCounter: 0, behavior: 'orbit',
+        _orbitPhase: phase, _orbitRadius: 1.5,
+        _projShape: weapon.projShape, _weaponScale: s,
+      });
+    }
+    return;
+  }
+
   if (weapon.spread > 1) {
     const pelletCount = weapon.spread;
     const spreadAngle = 0.35;
     const pelletDmg = Math.max(5, Math.round(effectiveDmg / pelletCount * 1.8));
     const baseAngle = Math.atan2(_fireDir.x, _fireDir.z);
-
     for (let i = 0; i < pelletCount; i++) {
       const angleOffset = ((i / (pelletCount - 1)) - 0.5) * spreadAngle;
       const a = baseAngle + angleOffset;
       _tmpShotgunDir.set(Math.sin(a), 0, Math.cos(a));
-
       const mesh = makeShotgunPellet(s, projColor);
       mesh.position.copy(state.playerPos);
       mesh.position.y = 0.6;
       scene.add(mesh);
-
       const speedJitter = 0.9 + Math.random() * 0.2;
       state.projectiles.push({
-        mesh,
-        vel: _tmpShotgunDir.clone().multiplyScalar(0.45 * speedJitter),
-        damage: pelletDmg,
-        radius: 0.1 * s,
-        bouncesLeft: weapon.bounces,
-        life: 120,
-        trailColor,
-        trailCounter: 0,
+        mesh, vel: _tmpShotgunDir.clone().multiplyScalar(0.45 * speedJitter),
+        damage: pelletDmg, radius: 0.1 * s, bouncesLeft: weapon.bounces, life: 120,
+        trailColor, trailCounter: 0, behavior,
+        _projShape: weapon.projShape, _weaponScale: s,
       });
     }
     return;
@@ -735,59 +853,101 @@ export function fireProjectile(scene, state) {
     mesh.lookAt(_tmpLookTarget);
     mesh.rotation.x += Math.PI / 2;
     scene.add(mesh);
-
     state.projectiles.push({
-      mesh,
-      vel: _fireDir.clone().multiplyScalar(0.18),
-      damage: effectiveDmg,
-      radius: 0.3 * s,
-      bouncesLeft: weapon.bounces,
-      life: 500,
-      trailColor: 0x888888,
-      trailCounter: 0,
-      isRocket: true,
-      smokeCounter: 0,
+      mesh, vel: _fireDir.clone().multiplyScalar(0.18),
+      damage: effectiveDmg, radius: 0.3 * s, bouncesLeft: weapon.bounces, life: 500,
+      trailColor: 0x888888, trailCounter: 0, isRocket: true, smokeCounter: 0,
+      behavior, _projShape: weapon.projShape, _weaponScale: s,
     });
     return;
   }
 
-  let mesh;
-  if (weapon.spriteTex) {
-    const mat = new THREE.SpriteMaterial({ map: weapon.spriteTex, transparent: true });
-    mesh = new THREE.Sprite(mat);
-    mesh.scale.set(s * 1.2, s * 1.2, 1);
-  } else {
-    const geo = getCachedGeo(weapon.projShape || 'sphere', s);
-    const mat = getCachedBasicMat(projColor);
-    mesh = new THREE.Mesh(geo, mat);
-  }
-
+  const mesh = _makeStdProjectile(weapon, s, projColor);
   mesh.position.copy(state.playerPos);
   mesh.position.y = 0.6;
   scene.add(mesh);
 
+  const baseDir = _fireDir.clone();
   state.projectiles.push({
-    mesh,
-    vel: _fireDir.clone().multiplyScalar(0.35 * weapon.speed),
-    damage: effectiveDmg,
-    radius: 0.22 * s,
-    bouncesLeft: weapon.bounces,
-    life: 400,
-    trailColor,
-    trailCounter: 0,
+    mesh, vel: _fireDir.clone().multiplyScalar(0.35 * weapon.speed),
+    damage: effectiveDmg, radius: 0.22 * s, bouncesLeft: weapon.bounces,
+    life: behavior === 'boomerang' ? 200 : 400,
+    trailColor, trailCounter: 0, behavior,
+    _baseDir: baseDir, _projShape: weapon.projShape, _weaponScale: s,
   });
+}
+
+function _makeStdProjectile(weapon, s, projColor) {
+  if (weapon.spriteTex) {
+    const mat = new THREE.SpriteMaterial({ map: weapon.spriteTex, transparent: true });
+    const spr = new THREE.Sprite(mat);
+    spr.scale.set(s * 1.2, s * 1.2, 1);
+    return spr;
+  }
+  return new THREE.Mesh(getCachedGeo(weapon.projShape || 'sphere', s), getCachedBasicMat(projColor));
 }
 
 // ── Projectile Update ──
 
 const _projNorm = new THREE.Vector3();
+const _homingDir = new THREE.Vector3();
+const _chainDir = new THREE.Vector3();
+const _boomerangDir = new THREE.Vector3();
+const _pendingSplits = [];
 
 export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, camera) {
   const dt60 = state.dt60;
   for (let i = state.projectiles.length - 1; i >= 0; i--) {
     const p = state.projectiles[i];
-    p.mesh.position.addScaledVector(p.vel, dt60);
+    const beh = p.behavior || 'normal';
+
+    if (beh === 'orbit' && (p._orbitRadius || 1.5) < 6) {
+      p._orbitPhase = (p._orbitPhase || 0) + 0.12 * dt60;
+      p._orbitRadius = (p._orbitRadius || 1.5) + 0.02 * dt60;
+      p.mesh.position.x = state.playerPos.x + Math.cos(p._orbitPhase) * p._orbitRadius;
+      p.mesh.position.z = state.playerPos.z + Math.sin(p._orbitPhase) * p._orbitRadius;
+      p.mesh.position.y = 0.6;
+    } else {
+      if (beh === 'orbit') {
+        p.vel.set(Math.cos(p._orbitPhase), 0, Math.sin(p._orbitPhase)).multiplyScalar(0.35);
+        p.behavior = 'normal';
+      }
+      if (beh === 'homing') {
+        let nearest = null, nd = Infinity;
+        for (const e of state.enemies) {
+          const hd = p.mesh.position.distanceTo(e.mesh.position);
+          if (hd < nd) { nd = hd; nearest = e; }
+        }
+        if (nearest && nd < 18) {
+          _homingDir.subVectors(nearest.mesh.position, p.mesh.position).setY(0).normalize();
+          const speed = p.vel.length();
+          p.vel.lerp(_homingDir.multiplyScalar(speed), 0.06 * dt60);
+          p.vel.setY(0).normalize().multiplyScalar(speed);
+        }
+      }
+      if (beh === 'wave' && p._baseDir) {
+        p._wavePhase = (p._wavePhase || 0) + 0.25 * dt60;
+        const amp = 0.15 * Math.sin(p._wavePhase);
+        p.mesh.position.x += -p._baseDir.z * amp * dt60;
+        p.mesh.position.z += p._baseDir.x * amp * dt60;
+      }
+      if (beh === 'boomerang') {
+        p._boomLife = (p._boomLife || 0) + dt60;
+        if (p._boomLife > 35) {
+          _boomerangDir.subVectors(state.playerPos, p.mesh.position).setY(0).normalize();
+          const speed = p.vel.length();
+          p.vel.lerp(_boomerangDir.multiplyScalar(speed * 1.1), 0.09 * dt60);
+          p.vel.setY(0).normalize().multiplyScalar(Math.min(speed * 1.02, 0.6));
+        }
+      }
+      p.mesh.position.addScaledVector(p.vel, dt60);
+    }
+
     p.life -= dt60;
+
+    if (beh === 'boomerang' || beh === 'orbit') {
+      p.mesh.rotation.y += 0.2 * dt60;
+    }
 
     if (p.isRocket) {
       p.smokeCounter = (p.smokeCounter || 0) + dt60;
@@ -798,13 +958,13 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
       }
     } else {
       p.trailCounter += dt60;
-      if (p.trailCounter >= 3) {
-        p.trailCounter -= 3;
+      const trailInterval = (beh === 'homing' || beh === 'wave' || beh === 'chain') ? 2 : 3;
+      if (p.trailCounter >= trailInterval) {
+        p.trailCounter -= trailInterval;
         spawnTrail(p.mesh.position, p.trailColor);
       }
     }
 
-    // Wall collision
     if (state.terrain) {
       for (const wall of state.terrain.walls) {
         const wdx = p.mesh.position.x - wall.x;
@@ -812,7 +972,9 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
         const overlapX = wall.hw + p.radius - Math.abs(wdx);
         const overlapZ = wall.hd + p.radius - Math.abs(wdz);
         if (overlapX > 0 && overlapZ > 0) {
-          if (p.bouncesLeft > 0) {
+          if (beh === 'pierce') {
+            // pierce goes through walls
+          } else if (p.bouncesLeft > 0) {
             p.bouncesLeft--;
             bounceSound();
             if (overlapX < overlapZ) {
@@ -835,7 +997,14 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
 
     const pDist = Math.sqrt(p.mesh.position.x ** 2 + p.mesh.position.z ** 2);
     if (pDist > islandRadius) {
-      if (p.bouncesLeft > 0) {
+      if (beh === 'boomerang') {
+        _boomerangDir.subVectors(state.playerPos, p.mesh.position).setY(0).normalize();
+        p.vel.copy(_boomerangDir.multiplyScalar(p.vel.length()));
+        const clampR = islandRadius - 0.2;
+        const angle = Math.atan2(p.mesh.position.z, p.mesh.position.x);
+        p.mesh.position.x = Math.cos(angle) * clampR;
+        p.mesh.position.z = Math.sin(angle) * clampR;
+      } else if (p.bouncesLeft > 0) {
         p.bouncesLeft--;
         bounceSound();
         _projNorm.set(p.mesh.position.x, 0, p.mesh.position.z).normalize();
@@ -851,7 +1020,6 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
       }
     }
 
-    // Destroy destructible enemy projectiles
     for (let k = state.enemyProjectiles.length - 1; k >= 0; k--) {
       const ep = state.enemyProjectiles[k];
       if (!ep.destructible) continue;
@@ -862,7 +1030,7 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
         scene.remove(ep.mesh);
         state.enemyProjectiles[k] = state.enemyProjectiles[state.enemyProjectiles.length - 1];
         state.enemyProjectiles.pop();
-        p.life = 0;
+        if (beh !== 'pierce') p.life = 0;
         break;
       }
     }
@@ -870,19 +1038,83 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
     if (p.life > 0) {
       for (let j = state.enemies.length - 1; j >= 0; j--) {
         const e = state.enemies[j];
+        if (p._hitSet && p._hitSet.has(e)) continue;
         const dx = p.mesh.position.x - e.mesh.position.x;
         const dz = p.mesh.position.z - e.mesh.position.z;
         if (Math.sqrt(dx * dx + dz * dz) < p.radius + e.radius) {
           const wasBounced = p.bouncesLeft < (state.weapons[state.activeWeaponIdx].bounces || 0);
+
           if (p.isRocket) {
             rocketExplosion(p.mesh.position, state, scene, damageEnemyFn, camera);
-          } else {
-            damageEnemyFn(e, p.damage, state, scene, camera, wasBounced);
+            p.life = 0;
+            break;
           }
+
+          damageEnemyFn(e, p.damage, state, scene, camera, wasBounced);
+
+          if (beh === 'pierce') {
+            if (!p._hitSet) p._hitSet = new Set();
+            p._hitSet.add(e);
+            p._pierceCount = (p._pierceCount || 0) + 1;
+            if (p._pierceCount >= 5) { p.life = 0; break; }
+            continue;
+          }
+
+          if (beh === 'chain') {
+            if (!p._hitSet) p._hitSet = new Set();
+            p._hitSet.add(e);
+            p._chainCount = (p._chainCount || 0) + 1;
+            if (p._chainCount < 4) {
+              let nextTarget = null, nd = Infinity;
+              for (const e2 of state.enemies) {
+                if (p._hitSet.has(e2) || e2.hp <= 0) continue;
+                const d2x = p.mesh.position.x - e2.mesh.position.x;
+                const d2z = p.mesh.position.z - e2.mesh.position.z;
+                const d2 = Math.sqrt(d2x * d2x + d2z * d2z);
+                if (d2 < nd && d2 < 10) { nd = d2; nextTarget = e2; }
+              }
+              if (nextTarget) {
+                _chainDir.subVectors(nextTarget.mesh.position, p.mesh.position).setY(0).normalize();
+                p.vel.copy(_chainDir).multiplyScalar(p.vel.length());
+                p.damage = Math.round(p.damage * 0.75);
+                spawnBurst(p.mesh.position, p.trailColor, 4);
+                break;
+              }
+            }
+            p.life = 0;
+            break;
+          }
+
+          if (beh === 'split' && !p._isSplit) {
+            _pendingSplits.push({
+              pos: p.mesh.position.clone(),
+              damage: Math.round(p.damage * 0.5),
+              radius: p.radius * 0.6,
+              trailColor: p.trailColor,
+              color: p.trailColor,
+              speed: p.vel.length() * 0.9,
+              life: 80,
+              scale: (p._weaponScale || 1) * 0.6,
+              shape: p._projShape || 'sphere',
+            });
+          }
+
+          if (beh === 'gravity') {
+            _spawnGravityWell(p.mesh.position.clone());
+            spawnBurst(p.mesh.position, 0x6200EA, 10);
+            spawnShockwave(scene, p.mesh.position, 4.0);
+          }
+
           p.life = 0;
           break;
         }
       }
+    }
+
+    if (beh === 'boomerang' && (p._boomLife || 0) > 50) {
+      const bdx = p.mesh.position.x - state.playerPos.x;
+      const bdz = p.mesh.position.z - state.playerPos.z;
+      if (Math.sqrt(bdx * bdx + bdz * bdz) < 1.5) p.life = 0;
     }
 
     if (p.life <= 0) {
@@ -891,6 +1123,25 @@ export function updateProjectiles(state, scene, islandRadius, damageEnemyFn, cam
       state.projectiles.pop();
     }
   }
+
+  for (const sp of _pendingSplits) {
+    for (let k = 0; k < 3; k++) {
+      const angle = (k / 3) * Math.PI * 2 + Math.random() * 0.5;
+      const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+      const geo = getCachedGeo(sp.shape, sp.scale);
+      const mat = getCachedBasicMat(sp.color);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(sp.pos);
+      mesh.position.y = 0.6;
+      scene.add(mesh);
+      state.projectiles.push({
+        mesh, vel: dir.multiplyScalar(sp.speed),
+        damage: sp.damage, radius: sp.radius, bouncesLeft: 0, life: sp.life,
+        trailColor: sp.trailColor, trailCounter: 0, behavior: 'normal', _isSplit: true,
+      });
+    }
+  }
+  _pendingSplits.length = 0;
 }
 
 function rocketExplosion(pos, state, scene, damageEnemyFn, camera) {
@@ -984,10 +1235,12 @@ export async function handleForge(state, els) {
   forgeCompleteSound();
 
   const rarityDef = getRarityDef(weapon.rarity);
+  const behLabel = weapon.behavior && weapon.behavior !== 'normal'
+    ? ` <span style="color:#FFD600;font-size:0.75rem;font-weight:600">[${weapon.behavior.toUpperCase()}]</span>` : '';
   els.forgeStatus.innerHTML =
     `Forged! <span style="color:${rarityDef.color};font-weight:700">[${rarityDef.label}]</span> ` +
-    `SPD:${weapon.speed.toFixed(1)} DMG:${weapon.damage} BNC:${weapon.bounces} ` +
-    `<span style="font-size:0.7rem;color:#9E9E9E">${weapon.projShape}</span>`;
+    `SPD:${weapon.speed.toFixed(1)} DMG:${weapon.damage} BNC:${weapon.bounces}` + behLabel +
+    ` <span style="font-size:0.7rem;color:#9E9E9E">${weapon.projShape}</span>`;
   els.forgeStatus.className = 'forge-status success';
 
   saveWeaponToGallery(weapon);
@@ -1017,6 +1270,47 @@ async function loadWeaponSprite(prompt, weapon) {
 export function clearProjectiles(state, scene) {
   for (const p of state.projectiles) scene.remove(p.mesh);
   state.projectiles.length = 0;
+}
+
+// ── Gravity Wells ──
+
+const _gravityWells = [];
+const _wellParticlePos = new THREE.Vector3();
+
+function _spawnGravityWell(pos) {
+  _gravityWells.push({ pos, life: 120, radius: 4 });
+}
+
+export function updateGravityWells(state, dt60) {
+  for (let i = _gravityWells.length - 1; i >= 0; i--) {
+    const well = _gravityWells[i];
+    well.life -= dt60;
+    const pullStrength = 0.12 * Math.min(1, well.life / 60);
+    for (const e of state.enemies) {
+      if (e.isBoss) continue;
+      const dx = well.pos.x - e.mesh.position.x;
+      const dz = well.pos.z - e.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < well.radius && dist > 0.3) {
+        const force = pullStrength * (1 - dist / well.radius) * dt60;
+        e.mesh.position.x += (dx / dist) * force;
+        e.mesh.position.z += (dz / dist) * force;
+      }
+    }
+    if (well.life > 0 && Math.random() < 0.3 * dt60) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * well.radius * 0.6;
+      _wellParticlePos.set(well.pos.x + Math.cos(angle) * r, 0.5, well.pos.z + Math.sin(angle) * r);
+      spawnTrail(_wellParticlePos, 0x6200EA);
+    }
+    if (well.life <= 0) {
+      _gravityWells.splice(i, 1);
+    }
+  }
+}
+
+export function clearGravityWells() {
+  _gravityWells.length = 0;
 }
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
