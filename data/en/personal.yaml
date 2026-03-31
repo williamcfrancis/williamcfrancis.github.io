@@ -138,6 +138,54 @@ sections:
           label: Try Machine Gaze
           url: "/games/machine_gaze/"
         image: "/games/game_placeholder.svg"
+      - title: How Many?
+        genre: Interactive size comparison
+        summary: "Pick any two objects — from atoms to galaxies — and discover how many of the smaller fit inside the larger. A playful sense-of-scale calculator."
+        tags: ["browser", "educational", "interactive"]
+        link:
+          label: Try How Many?
+          url: "/games/how_many/"
+        image: "/games/game_placeholder.svg"
+      - title: Lost in Translation
+        genre: Language experiment
+        summary: "Type a sentence, watch it travel through 20 languages and back, and see what survives the journey. Customize the chain or unleash chaos mode."
+        tags: ["browser", "AI", "language"]
+        link:
+          label: Try Lost in Translation
+          url: "/games/lost_in_translation/"
+        image: "/games/game_placeholder.svg"
+      - title: The Turing Shuffle
+        genre: AI vs Human quiz
+        summary: "10 passages. Some written by humans, some by AI. Read each one and decide — can you tell the difference?"
+        tags: ["browser", "AI", "quiz"]
+        link:
+          label: Play The Turing Shuffle
+          url: "/games/turing_shuffle/"
+        image: "/games/game_placeholder.svg"
+      - title: The Scale of Autonomy
+        genre: Interactive explainer
+        summary: "Journey through the levels of autonomous systems — from a thermostat to a self-driving car — with animated vignettes at every stage."
+        tags: ["browser", "educational", "interactive"]
+        link:
+          label: Explore The Scale of Autonomy
+          url: "/games/scale_of_autonomy/"
+        image: "/games/game_placeholder.svg"
+      - title: One Trillion Parameters
+        genre: 3D interactive explainer
+        summary: "A cosmic zoom into neural networks. Scroll from a single neuron out to a trillion-parameter model and feel the scale of modern AI."
+        tags: ["browser", "3D", "educational"]
+        link:
+          label: Explore One Trillion Parameters
+          url: "/games/trillion_parameters/"
+        image: "/games/game_placeholder.svg"
+      - title: Junkbot
+        genre: Physics sandbox
+        summary: "Drag parts from a junkyard palette, snap them together, tweak motors and thrusters, then launch your creation and watch it stumble across an obstacle course."
+        tags: ["browser", "3D", "sandbox"]
+        link:
+          label: Play Junkbot
+          url: "/games/junkbot/"
+        image: "/games/game_placeholder.svg"
       - title: Neon Breach
         genre: Cyberpunk arena FPS
         summary: "Wall-running, grapple hook, and bullet time in a cyberpunk arena. Five weapons, boss waves, and style kills."
