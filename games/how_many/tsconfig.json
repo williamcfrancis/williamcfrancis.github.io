@@ -1,0 +1,10 @@
+{
+  "extends": "../_shared/tsconfig.base.json",
+  "include": ["src"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../games/_shared/src/*"]
+    }
+  }
+}

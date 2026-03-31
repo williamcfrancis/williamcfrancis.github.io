@@ -1,769 +1,949 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Music, Globe, Trophy, RefreshCw, Volume2, CheckCircle, XCircle, Lightbulb, Zap, Timer, Shuffle, ArrowRight } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lyrically Lost</title>
+<meta name="description" content="Guess the song from translated lyrics read aloud by a robot voice!">
+<meta property="og:title" content="Lyrically Lost">
+<meta property="og:description" content="Name the song from translated lyrics">
+<meta property="og:image" content="/games/lyrically_lost/lyrically_lost.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-1:#1a1a2e;--bg-2:#16213e;
+  --accent:#6c63ff;--accent-glow:rgba(108,99,255,.35);
+  --green:#22c55e;--red:#ef4444;--yellow:#eab308;--pink:#ec4899;
+  --text:#f1f5f9;--text-dim:#94a3b8;--text-muted:#475569;
+  --glass:rgba(255,255,255,.06);--glass-border:rgba(255,255,255,.08);
+  --radius:1rem;--radius-lg:1.5rem;--radius-xl:2rem;
+}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:linear-gradient(135deg,var(--bg-1),var(--bg-2));
+  color:var(--text);min-height:100dvh;display:flex;flex-direction:column;
+  overflow-x:hidden;position:relative;
+}
+body::before,body::after{
+  content:'';position:fixed;border-radius:50%;pointer-events:none;
+  filter:blur(120px);opacity:.5;z-index:0;
+}
+body::before{width:50vw;height:50vw;top:-15%;left:-10%;background:var(--blob-1,rgba(108,99,255,.2))}
+body::after{width:45vw;height:45vw;bottom:-15%;right:-10%;background:var(--blob-2,rgba(236,72,153,.15))}
 
-const GAME_DATA = {
+body.theme-hindi{--bg-1:#064e3b;--bg-2:#065f46;--blob-1:rgba(16,185,129,.25);--blob-2:rgba(6,95,70,.2)}
+body.theme-english{--bg-1:#1e3a5f;--bg-2:#1e40af;--blob-1:rgba(59,130,246,.25);--blob-2:rgba(99,102,241,.2)}
+body.theme-mixed{--bg-1:#4c1d95;--bg-2:#6d28d9;--blob-1:rgba(167,139,250,.25);--blob-2:rgba(236,72,153,.2)}
+
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+.container{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:1.5rem;position:relative;z-index:1;width:100%;max-width:900px;margin:0 auto;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.5);opacity:0}}
+@keyframes bounce-slow{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes music-bar{0%,100%{height:6px;opacity:.4}50%{height:28px;opacity:1}}
+@keyframes spin-slow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes confetti-fall{
+  0%{transform:translate(0,0) rotate(0) scale(1);opacity:1}
+  100%{transform:translate(var(--tx),var(--ty)) rotate(var(--rot)) scale(.4);opacity:0}
+}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes pop{0%{transform:scale(0)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+.fade-in{animation:fadeIn .5s ease-out both}
+.slide-up{animation:slideUp .6s cubic-bezier(.16,1,.3,1) both}
+.bounce-slow{animation:bounce-slow 3s infinite ease-in-out}
+.pop{animation:pop .35s ease-out both}
+
+/* ===== GLASS CARD ===== */
+.glass{
+  background:var(--glass);border:1px solid var(--glass-border);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:var(--radius-lg);
+}
+
+/* ===== MENU ===== */
+#menu{text-align:center;width:100%}
+.menu-icon{
+  width:100px;height:100px;border-radius:50%;
+  background:rgba(255,255,255,.08);border:3px solid rgba(255,255,255,.15);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;
+  box-shadow:0 0 40px var(--accent-glow);
+  animation:bounce-slow 3s infinite ease-in-out;
+}
+.menu-icon svg{width:48px;height:48px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.menu-title{font-size:clamp(2.5rem,6vw,3.5rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.5rem}
+.menu-sub{font-size:1.1rem;color:var(--text-dim);max-width:520px;margin:0 auto 1rem;line-height:1.6}
+.menu-chips{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:center;margin-bottom:1.5rem}
+.chip{
+  display:flex;align-items:center;gap:.35rem;
+  font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;
+  color:rgba(255,255,255,.5);font-weight:600;
+}
+.chip svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.high-score-badge{
+  display:inline-block;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.25);
+  color:#fde68a;font-weight:700;font-size:.85rem;padding:.45rem 1.25rem;border-radius:999px;margin-bottom:1.5rem;
+}
+
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;width:100%;margin-top:.5rem}
+.cat-card{
+  position:relative;overflow:hidden;border-radius:var(--radius-xl);padding:1.75rem;
+  text-align:left;border:2px solid rgba(255,255,255,.08);
+  transition:all .3s ease;cursor:pointer;
+}
+.cat-card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.25);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.cat-card .bg-icon{position:absolute;top:.5rem;right:.5rem;opacity:.1;font-size:4.5rem;pointer-events:none}
+.cat-card .emoji{font-size:2.8rem;margin-bottom:.5rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.cat-card .name{font-size:1.35rem;font-weight:800;margin-bottom:.25rem}
+.cat-card .desc{font-size:.8rem;color:rgba(255,255,255,.6);line-height:1.5;font-weight:500}
+.cat-card .count{font-size:.7rem;color:rgba(255,255,255,.35);margin-top:.5rem;font-weight:600}
+.cat-hindi{background:linear-gradient(135deg,rgba(16,185,129,.7),rgba(6,78,59,.8))}
+.cat-english{background:linear-gradient(135deg,rgba(59,130,246,.7),rgba(30,64,175,.8))}
+.cat-mixed{background:linear-gradient(135deg,rgba(139,92,246,.7),rgba(109,40,217,.8))}
+
+/* ===== GAME SCREEN ===== */
+#game{width:100%;display:none}
+.game-header{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;width:100%;margin-bottom:.75rem;
+  padding:1rem 1.25rem;border-radius:var(--radius-lg);
+  background:rgba(0,0,0,.2);border:1px solid var(--glass-border);
+}
+.stat{display:flex;align-items:center;gap:.6rem}
+.stat-center{justify-content:center}
+.stat-right{justify-content:flex-end}
+.stat svg{width:20px;height:20px;flex-shrink:0}
+.stat-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);font-weight:600}
+.stat-value{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* Timer */
+.timer-track{width:100%;height:6px;background:rgba(0,0,0,.2);border-radius:999px;overflow:hidden;margin-bottom:1.25rem}
+.timer-bar{height:100%;border-radius:999px;transition:width 1s linear,background-color .5s}
+.timer-bar.green{background:var(--green)}
+.timer-bar.yellow{background:var(--yellow)}
+.timer-bar.red{background:var(--red)}
+
+/* Player */
+.player-area{display:flex;flex-direction:column;align-items:center;margin-bottom:1.5rem;width:100%}
+.play-btn{
+  position:relative;width:140px;height:140px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.15);border:3px solid rgba(255,255,255,.12);
+  transition:all .4s ease;cursor:pointer;
+}
+.play-btn:hover{background:rgba(255,255,255,.08);transform:scale(1.05)}
+.play-btn.active{
+  background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);
+  box-shadow:0 0 50px rgba(255,255,255,.2);
+}
+.play-btn svg{width:56px;height:56px;fill:#fff;stroke:none;transition:transform .2s}
+.play-btn .ring{
+  position:absolute;inset:0;border-radius:50%;border:3px solid rgba(255,255,255,.25);
+  animation:pulse-ring 1.5s infinite;pointer-events:none;
+}
+.play-btn .ring:nth-child(2){animation-delay:.3s}
+
+.bars{display:flex;align-items:center;gap:3px;height:32px;margin-top:1.25rem}
+.bar{width:4px;background:#fff;border-radius:999px;animation:music-bar .6s ease-in-out infinite alternate}
+.player-label{margin-top:.5rem;font-size:.9rem;font-weight:500;color:rgba(255,255,255,.75)}
+.player-sublabel{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.15rem}
+
+/* Info row */
+.info-row{display:flex;align-items:stretch;gap:.6rem;width:100%;margin-bottom:.6rem}
+.info-text{
+  flex:1;display:flex;align-items:center;padding:.75rem 1rem;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06);
+  border-radius:var(--radius);font-size:.85rem;color:rgba(255,255,255,.7);
+}
+.hint-btn{
+  display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;
+  border-radius:var(--radius);font-size:.85rem;font-weight:700;
+  background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.2);
+  color:#fde68a;transition:all .25s;flex-shrink:0;
+}
+.hint-btn:hover:not(:disabled){background:rgba(234,179,8,.2);border-color:rgba(234,179,8,.4)}
+.hint-btn:disabled{opacity:.3;cursor:not-allowed}
+.hint-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hint-reveal{
+  width:100%;padding:.65rem 1rem;margin-bottom:.6rem;
+  background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.15);
+  border-radius:var(--radius);font-size:.85rem;color:#fef3c7;
+}
+
+/* Options */
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;width:100%}
+@media(min-width:640px){.options-grid{grid-template-columns:1fr 1fr 1fr}}
+.option-btn{
+  position:relative;padding:1rem 1.1rem;border-radius:var(--radius-lg);
+  border:2px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);
+  text-align:left;font-weight:700;font-size:.95rem;
+  transition:all .25s;display:flex;justify-content:space-between;align-items:center;
+}
+.option-btn:hover:not(:disabled){background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2);transform:translateY(-2px)}
+.option-btn:disabled{cursor:default}
+.option-btn.correct{
+  background:rgba(34,197,94,.9);border-color:rgba(34,197,94,.8);
+  box-shadow:0 4px 20px rgba(34,197,94,.3);transform:scale(1.03);z-index:2;
+}
+.option-btn.wrong{background:rgba(239,68,68,.7);border-color:rgba(239,68,68,.6);opacity:.85}
+.option-btn.dimmed{background:rgba(0,0,0,.15);border-color:transparent;color:rgba(255,255,255,.2)}
+.option-btn .icon{flex-shrink:0;margin-left:.5rem;opacity:0;transition:opacity .2s}
+.option-btn.correct .icon,.option-btn.wrong .icon{opacity:1}
+
+.timeout-msg{
+  width:100%;margin-top:.75rem;padding:.75rem 1rem;text-align:center;
+  background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.2);
+  border-radius:var(--radius);font-size:.85rem;color:#fca5a5;
+}
+
+/* ===== END SCREEN ===== */
+#end{display:none;width:100%;max-width:520px}
+.end-card{padding:2rem;border-radius:var(--radius-xl);text-align:center}
+.end-trophy{margin:0 auto 1rem}
+.end-trophy svg{width:72px;height:72px;stroke:#fde68a;fill:none;stroke-width:1.5}
+.new-best{
+  display:inline-block;padding:.4rem 1rem;margin-bottom:1rem;
+  background:rgba(234,179,8,.2);border:1px solid rgba(234,179,8,.3);
+  border-radius:999px;font-size:.8rem;font-weight:700;color:#fde68a;
+}
+.end-rank{font-size:2rem;font-weight:900;margin-bottom:.15rem}
+.end-msg{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:1.5rem}
+.final-score-box{
+  background:rgba(0,0,0,.2);border-radius:var(--radius-lg);padding:1.25rem;
+  margin-bottom:1.25rem;border:1px solid rgba(255,255,255,.05);
+}
+.final-score-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);font-weight:700;margin-bottom:.25rem}
+.final-score-num{font-size:3rem;font-weight:900;font-variant-numeric:tabular-nums}
+
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1.25rem}
+.stat-card{background:rgba(255,255,255,.04);border-radius:var(--radius);padding:.75rem}
+.stat-card .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);font-weight:600;margin-bottom:.2rem}
+.stat-card .val{font-size:1.4rem;font-weight:800}
+.stat-card .val.c-green{color:#86efac}
+.stat-card .val.c-pink{color:#f9a8d4}
+.stat-card .val.c-yellow{color:#fde68a}
+.stat-card .val.c-blue{color:#93c5fd}
+
+.breakdown-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:.6rem}
+.breakdown-list{display:flex;flex-direction:column;gap:.4rem;max-height:200px;overflow-y:auto;margin-bottom:1.25rem;padding-right:.25rem}
+.breakdown-list::-webkit-scrollbar{width:4px}
+.breakdown-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+.round-row{
+  display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;
+  border-radius:.75rem;font-size:.8rem;
+}
+.round-row.row-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.12)}
+.round-row.row-fail{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.12)}
+.round-num{
+  width:1.4rem;height:1.4rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:800;background:rgba(255,255,255,.08);flex-shrink:0;
+}
+.round-icon{flex-shrink:0;width:16px;height:16px}
+.round-song{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)}
+.round-artist{flex-shrink:0;font-size:.7rem;color:rgba(255,255,255,.3)}
+
+.end-btns{display:flex;gap:.6rem;width:100%}
+.btn-primary{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:.5rem;
+  padding:1rem;border-radius:var(--radius-lg);font-size:1.05rem;font-weight:800;
+  background:#fff;color:#1e1b4b;transition:all .25s;
+}
+.btn-primary:hover{background:#e0e7ff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.btn-primary svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .4s}
+.btn-primary:hover svg{transform:rotate(180deg)}
+.btn-secondary{
+  display:flex;align-items:center;justify-content:center;gap:.5rem;
+  padding:1rem 1.25rem;border-radius:var(--radius-lg);font-size:1.05rem;font-weight:800;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);transition:all .25s;
+}
+.btn-secondary:hover{background:rgba(255,255,255,.14);transform:translateY(-2px)}
+
+/* Confetti */
+.confetti-container{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+.confetti-piece{
+  position:absolute;width:10px;height:10px;border-radius:2px;
+  animation:confetti-fall 1.4s cubic-bezier(.25,.46,.45,.94) forwards;
+}
+
+/* Footer */
+.site-footer{
+  padding:1rem;text-align:center;font-size:.65rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.15);
+  position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:.4rem;
+}
+.site-footer svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- MENU SCREEN -->
+  <div id="menu" class="fade-in">
+    <div class="menu-icon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    </div>
+    <h1 class="menu-title">Lyrically Lost</h1>
+    <p class="menu-sub">We took famous songs, translated their lyrics, and asked a robot to read them.<br>Can you guess the original song from 6 options?</p>
+    <div class="menu-chips">
+      <span class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Timed rounds</span>
+      <span class="chip"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Streak &amp; speed bonuses</span>
+      <span class="chip"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Hint system</span>
+      <span class="chip"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>80 songs</span>
+    </div>
+    <div id="highScoreBadge" class="high-score-badge hidden"></div>
+    <div class="cat-grid">
+      <div class="cat-card cat-hindi fade-in" onclick="startGame('hi')" style="animation-delay:.1s">
+        <div class="bg-icon">&#9835;</div>
+        <div class="emoji">&#127470;&#127475;</div>
+        <div class="name">Hindi Songs</div>
+        <div class="desc">Hear <strong>English</strong> translations<br>Guess the <strong>Hindi</strong> song</div>
+        <div class="count">40 songs</div>
+      </div>
+      <div class="cat-card cat-english fade-in" onclick="startGame('en')" style="animation-delay:.2s">
+        <div class="bg-icon">&#9835;</div>
+        <div class="emoji">&#127482;&#127480;</div>
+        <div class="name">English Songs</div>
+        <div class="desc">Hear <strong>Hindi</strong> translations<br>Guess the <strong>English</strong> song</div>
+        <div class="count">40 songs</div>
+      </div>
+      <div class="cat-card cat-mixed fade-in" onclick="startGame('mix')" style="animation-delay:.3s">
+        <div class="bg-icon">&#9835;</div>
+        <div class="emoji">&#127757;</div>
+        <div class="name">Mixed Mode</div>
+        <div class="desc">Hear <strong>various</strong> translations<br>Guess songs from <strong>both</strong> languages</div>
+        <div class="count">80 songs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game" class="fade-in">
+    <div class="game-header">
+      <div class="stat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        <div><div class="stat-label">Score</div><div class="stat-value" id="scoreVal">0</div></div>
+      </div>
+      <div class="stat stat-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <div style="text-align:center"><div class="stat-label">Streak</div><div class="stat-value" id="streakVal">0</div></div>
+      </div>
+      <div class="stat stat-right">
+        <div style="text-align:right"><div class="stat-label">Round</div><div class="stat-value"><span id="roundVal">1</span><span style="font-size:.75rem;color:rgba(255,255,255,.35)"> / <span id="totalRounds">10</span></span></div></div>
+      </div>
+    </div>
+
+    <div class="timer-track"><div class="timer-bar green" id="timerBar" style="width:100%"></div></div>
+
+    <div class="player-area">
+      <div class="play-btn" id="playBtn" onclick="toggleSpeak()">
+        <svg id="playIcon" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
+        <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+      </div>
+      <div class="bars" id="bars" style="display:none">
+        <div class="bar" style="animation-delay:0s"></div>
+        <div class="bar" style="animation-delay:.08s"></div>
+        <div class="bar" style="animation-delay:.16s"></div>
+        <div class="bar" style="animation-delay:.24s"></div>
+        <div class="bar" style="animation-delay:.32s"></div>
+        <div class="bar" style="animation-delay:.4s"></div>
+        <div class="bar" style="animation-delay:.48s"></div>
+      </div>
+      <div class="player-label" id="playerLabel">Tap to Listen</div>
+      <div class="player-sublabel" id="playerSublabel">Each replay has slight voice variation</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-text" id="infoText">Answer quickly and keep your streak alive for bonus points.</div>
+      <button class="hint-btn" id="hintBtn" onclick="useHint()">
+        <svg viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+        Hint
+      </button>
+    </div>
+    <div class="hint-reveal hidden" id="hintReveal"></div>
+
+    <div class="options-grid" id="optionsGrid"></div>
+    <div class="timeout-msg hidden" id="timeoutMsg"></div>
+  </div>
+
+  <!-- END SCREEN -->
+  <div id="end" class="slide-up">
+    <div class="end-card glass">
+      <div class="end-trophy bounce-slow">
+        <svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+      </div>
+      <div id="newBestBadge" class="new-best hidden">New Personal Best!</div>
+      <div class="end-rank" id="endRank"></div>
+      <div class="end-msg" id="endMsg"></div>
+      <div class="final-score-box">
+        <div class="final-score-label">Final Score</div>
+        <div class="final-score-num" id="endScore">0</div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="label">Correct</div><div class="val c-green" id="endCorrect">0</div></div>
+        <div class="stat-card"><div class="label">Best Streak</div><div class="val c-pink" id="endStreak">0</div></div>
+        <div class="stat-card"><div class="label">Fast Answers</div><div class="val c-yellow" id="endFast">0</div></div>
+        <div class="stat-card"><div class="label">Hints Used</div><div class="val c-blue" id="endHints">0</div></div>
+      </div>
+      <div class="breakdown-label">Round Breakdown</div>
+      <div class="breakdown-list" id="breakdownList"></div>
+      <div class="end-btns">
+        <button class="btn-primary" id="playAgainBtn">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Play Again
+        </button>
+        <button class="btn-secondary" onclick="showMenu()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          Menu
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="confetti-container hidden" id="confettiContainer"></div>
+
+<footer class="site-footer">
+  <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+  Powered by Web Speech API
+</footer>
+
+<script>
+/* ===== SONG DATA ===== */
+const SONGS = {
   hi: [
-    { id:'h1', title:"Tum Hi Ho", artist:"Arijit Singh", lyrics:"Because you are the one, now you are only the one. You are the life, you are the peace, and you are also my pain.", ttsLang:'en-US' },
-    { id:'h2', title:"Kal Ho Naa Ho", artist:"Sonu Nigam", lyrics:"Every moment is a new season, why assume that moment will stay? Whether there is a tomorrow or not.", ttsLang:'en-US' },
-    { id:'h3', title:"Chaiyya Chaiyya", artist:"Sukhwinder Singh", lyrics:"Those who walk in the shade of love create heaven. Let's walk in the shade, walk in the shade.", ttsLang:'en-US' },
-    { id:'h4', title:"Jai Ho", artist:"A.R. Rahman", lyrics:"May there be victory, may there be victory. Let your destiny open up. Defeat the enemies completely.", ttsLang:'en-US' },
-    { id:'h5', title:"Tujhe Dekha Toh", artist:"Kumar Sanu", lyrics:"When I saw you, I realized this. Love implies craziness, doesn't it?", ttsLang:'en-US' },
-    { id:'h6', title:"Apna Time Aayega", artist:"Ranveer Singh", lyrics:"My time will come. I have risen from the streets, I will reach the volcano.", ttsLang:'en-US' },
-    { id:'h7', title:"Sheila Ki Jawani", artist:"Sunidhi Chauhan", lyrics:"My name is Sheila, Sheila's youth. I am too sexy for you, I am too sexy for you.", ttsLang:'en-US' },
-    { id:'h8', title:"Chamak Challo", artist:"Akon", lyrics:"Girl, you are my shiny one. Don't be shy, show me some moves. You are my shiny one.", ttsLang:'en-US' },
-    { id:'h9', title:"Kabira", artist:"Arijit Singh", lyrics:"Oh Kabira calling you, look the mystics differ. The ashes of the river water flow with the water.", ttsLang:'en-US' },
-    { id:'h10', title:"Gerua", artist:"Arijit Singh", lyrics:"The sun has melted and fallen. Evening has happened. Just because of you, I have been painted in saffron color.", ttsLang:'en-US' },
-    { id:'h11', title:"Kesariya", artist:"Arijit Singh", lyrics:"The color of saffron is now in my heart. Wherever I look, I see only your light.", ttsLang:'en-US' },
-    { id:'h12', title:"Badtameez Dil", artist:"Benny Dayal", lyrics:"This mischievous heart still does not agree. It dances without rules and laughs at every warning.", ttsLang:'en-US' },
-    { id:'h13', title:"Dil Diyan Gallan", artist:"Atif Aslam", lyrics:"Let's speak through our hearts. Let me tell you softly how deeply I belong to you.", ttsLang:'en-US' },
-    { id:'h14', title:"Ghungroo", artist:"Arijit Singh", lyrics:"I tied bells to my feet and forgot the world. Tonight even the sky wants to dance.", ttsLang:'en-US' },
-    { id:'h15', title:"Malang", artist:"Ved Sharma", lyrics:"I have become wild in your love. I walk like a traveler who found his destination in your eyes.", ttsLang:'en-US' },
-    { id:'h16', title:"Raabta", artist:"Arijit Singh", lyrics:"There is some connection from before, as if we have known each other for lifetimes.", ttsLang:'en-US' },
-    { id:'h17', title:"Zinda", artist:"Siddharth Mahadevan", lyrics:"I am alive because I keep fighting. Every wound reminds me I still have fire within.", ttsLang:'en-US' },
-    { id:'h18', title:"Naatu Naatu", artist:"Rahul Sipligunj", lyrics:"Stamp your feet and dance like thunder. The earth itself starts shaking with our rhythm.", ttsLang:'en-US' },
-    { id:'h19', title:"Rang De Basanti", artist:"Daler Mehndi", lyrics:"Color me in the shade of spring. My veins carry the color of freedom and youth.", ttsLang:'en-US' },
-    { id:'h20', title:"Channa Mereya", artist:"Arijit Singh", lyrics:"My beloved, you set fire and left me burning. Still I smile through the ashes of my heart.", ttsLang:'en-US' },
-    { id:'h21', title:"Kun Faya Kun", artist:"A.R. Rahman", lyrics:"Let it be, and it was. In the shrine of the divine, I found what I was looking for.", ttsLang:'en-US' },
-    { id:'h22', title:"Ae Dil Hai Mushkil", artist:"Arijit Singh", lyrics:"This heart finds it difficult. Living without you is the hardest thing I have ever done.", ttsLang:'en-US' },
-    { id:'h23', title:"Maa Tujhe Salaam", artist:"A.R. Rahman", lyrics:"Mother, I salute you. The rivers, the mountains, and every grain of dust bows to you.", ttsLang:'en-US' },
-    { id:'h24', title:"Tere Bina", artist:"A.R. Rahman", lyrics:"Without you the days feel longer and the nights colder. Everything beautiful reminds me of you.", ttsLang:'en-US' },
-    { id:'h25', title:"Bekhayali", artist:"Sachet Tandon", lyrics:"I have lost myself completely in thoughts of you. Neither sleep comes nor peace stays.", ttsLang:'en-US' },
-    { id:'h26', title:"Tera Ban Jaunga", artist:"Akhil Sachdeva", lyrics:"I will become yours. Just say the word and I will leave everything behind for you.", ttsLang:'en-US' },
-    { id:'h27', title:"Dilwale Dulhania Le Jayenge", artist:"Lata Mangeshkar", lyrics:"Come fall in love. The one who loves bravely will take the bride away.", ttsLang:'en-US' },
-    { id:'h28', title:"Gallan Goodiyan", artist:"Shankar Mahadevan", lyrics:"Sweet conversations have started happening between us. What magic have you done that I keep smiling?", ttsLang:'en-US' },
-    { id:'h29', title:"Kala Chashma", artist:"Badshah", lyrics:"You look so stylish with those black sunglasses. The whole town goes crazy when you walk by.", ttsLang:'en-US' },
-    { id:'h30', title:"London Thumakda", artist:"Labh Janjua", lyrics:"London is dancing and swaying. The wedding has started and everyone is celebrating tonight.", ttsLang:'en-US' },
-    { id:'h31', title:"Dil Se Re", artist:"A.R. Rahman", lyrics:"From the heart, I offer my breath, my life. There is no bigger truth than this love.", ttsLang:'en-US' },
-    { id:'h32', title:"Senorita", artist:"Sukhbir", lyrics:"Oh beautiful girl, you have stolen my heart away. Wherever you go, my eyes follow you.", ttsLang:'en-US' },
-    { id:'h33', title:"Chak De India", artist:"Sukhwinder Singh", lyrics:"Come on India, show the world your spirit. Let the strength of our team shake the ground.", ttsLang:'en-US' },
-    { id:'h34', title:"Mere Dholna", artist:"M.S. Subbulakshmi", lyrics:"My beloved has arrived. The entire world is celebrating. Even the stars are dancing tonight.", ttsLang:'en-US' },
-    { id:'h35', title:"Aankhon Mein Teri", artist:"K.K.", lyrics:"In your eyes I see a thousand dreams. I have found a home that I never want to leave.", ttsLang:'en-US' },
-    { id:'h36', title:"Swag Se Swagat", artist:"Vishal Dadlani", lyrics:"Welcome you with style and swagger. This celebration is grand and nothing compares to our spirit.", ttsLang:'en-US' },
-    { id:'h37', title:"Balam Pichkari", artist:"Vishal Dadlani", lyrics:"Throw the colors of spring at me. Today the festival has begun and the streets are alive.", ttsLang:'en-US' },
-    { id:'h38', title:"Masakali", artist:"Mohit Chauhan", lyrics:"Like a free pigeon flying across the sky. I have no destination, but the wind is my guide.", ttsLang:'en-US' },
-    { id:'h39', title:"Kar Har Maidaan Fateh", artist:"Sukhwinder Singh", lyrics:"Conquer every battlefield. Let no defeat define you, rise again and again.", ttsLang:'en-US' },
-    { id:'h40', title:"Roobaroo", artist:"A.R. Rahman", lyrics:"Face to face with life, I am finally awake. The journey has just begun and I am ready.", ttsLang:'en-US' }
+    {id:"h1",title:"Tum Hi Ho",artist:"Arijit Singh",lyrics:"Because you are the one, now you are only the one. You are the life, you are the peace, and you are also my pain.",ttsLang:"en-US"},
+    {id:"h2",title:"Kal Ho Naa Ho",artist:"Sonu Nigam",lyrics:"Every moment is a new season, why assume that moment will stay? Whether there is a tomorrow or not.",ttsLang:"en-US"},
+    {id:"h3",title:"Chaiyya Chaiyya",artist:"Sukhwinder Singh",lyrics:"Those who walk in the shade of love create heaven. Let's walk in the shade, walk in the shade.",ttsLang:"en-US"},
+    {id:"h4",title:"Jai Ho",artist:"A.R. Rahman",lyrics:"May there be victory, may there be victory. Let your destiny open up. Defeat the enemies completely.",ttsLang:"en-US"},
+    {id:"h5",title:"Tujhe Dekha Toh",artist:"Kumar Sanu",lyrics:"When I saw you, I realized this. Love implies craziness, doesn't it?",ttsLang:"en-US"},
+    {id:"h6",title:"Apna Time Aayega",artist:"Ranveer Singh",lyrics:"My time will come. I have risen from the streets, I will reach the volcano.",ttsLang:"en-US"},
+    {id:"h7",title:"Sheila Ki Jawani",artist:"Sunidhi Chauhan",lyrics:"My name is Sheila, Sheila's youth. I am too sexy for you, I am too sexy for you.",ttsLang:"en-US"},
+    {id:"h8",title:"Chamak Challo",artist:"Akon",lyrics:"Girl, you are my shiny one. Don't be shy, show me some moves. You are my shiny one.",ttsLang:"en-US"},
+    {id:"h9",title:"Kabira",artist:"Arijit Singh",lyrics:"Oh Kabira calling you, look the mystics differ. The ashes of the river water flow with the water.",ttsLang:"en-US"},
+    {id:"h10",title:"Gerua",artist:"Arijit Singh",lyrics:"The sun has melted and fallen. Evening has happened. Just because of you, I have been painted in saffron color.",ttsLang:"en-US"},
+    {id:"h11",title:"Kesariya",artist:"Arijit Singh",lyrics:"The color of saffron is now in my heart. Wherever I look, I see only your light.",ttsLang:"en-US"},
+    {id:"h12",title:"Badtameez Dil",artist:"Benny Dayal",lyrics:"This mischievous heart still does not agree. It dances without rules and laughs at every warning.",ttsLang:"en-US"},
+    {id:"h13",title:"Dil Diyan Gallan",artist:"Atif Aslam",lyrics:"Let's speak through our hearts. Let me tell you softly how deeply I belong to you.",ttsLang:"en-US"},
+    {id:"h14",title:"Ghungroo",artist:"Arijit Singh",lyrics:"I tied bells to my feet and forgot the world. Tonight even the sky wants to dance.",ttsLang:"en-US"},
+    {id:"h15",title:"Malang",artist:"Ved Sharma",lyrics:"I have become wild in your love. I walk like a traveler who found his destination in your eyes.",ttsLang:"en-US"},
+    {id:"h16",title:"Raabta",artist:"Arijit Singh",lyrics:"There is some connection from before, as if we have known each other for lifetimes.",ttsLang:"en-US"},
+    {id:"h17",title:"Zinda",artist:"Siddharth Mahadevan",lyrics:"I am alive because I keep fighting. Every wound reminds me I still have fire within.",ttsLang:"en-US"},
+    {id:"h18",title:"Naatu Naatu",artist:"Rahul Sipligunj",lyrics:"Stamp your feet and dance like thunder. The earth itself starts shaking with our rhythm.",ttsLang:"en-US"},
+    {id:"h19",title:"Rang De Basanti",artist:"Daler Mehndi",lyrics:"Color me in the shade of spring. My veins carry the color of freedom and youth.",ttsLang:"en-US"},
+    {id:"h20",title:"Channa Mereya",artist:"Arijit Singh",lyrics:"My beloved, you set fire and left me burning. Still I smile through the ashes of my heart.",ttsLang:"en-US"},
+    {id:"h21",title:"Kun Faya Kun",artist:"A.R. Rahman",lyrics:"Let it be, and it was. In the shrine of the divine, I found what I was looking for.",ttsLang:"en-US"},
+    {id:"h22",title:"Ae Dil Hai Mushkil",artist:"Arijit Singh",lyrics:"This heart finds it difficult. Living without you is the hardest thing I have ever done.",ttsLang:"en-US"},
+    {id:"h23",title:"Maa Tujhe Salaam",artist:"A.R. Rahman",lyrics:"Mother, I salute you. The rivers, the mountains, and every grain of dust bows to you.",ttsLang:"en-US"},
+    {id:"h24",title:"Tere Bina",artist:"A.R. Rahman",lyrics:"Without you the days feel longer and the nights colder. Everything beautiful reminds me of you.",ttsLang:"en-US"},
+    {id:"h25",title:"Bekhayali",artist:"Sachet Tandon",lyrics:"I have lost myself completely in thoughts of you. Neither sleep comes nor peace stays.",ttsLang:"en-US"},
+    {id:"h26",title:"Tera Ban Jaunga",artist:"Akhil Sachdeva",lyrics:"I will become yours. Just say the word and I will leave everything behind for you.",ttsLang:"en-US"},
+    {id:"h27",title:"Dilwale Dulhania Le Jayenge",artist:"Lata Mangeshkar",lyrics:"Come fall in love. The one who loves bravely will take the bride away.",ttsLang:"en-US"},
+    {id:"h28",title:"Gallan Goodiyan",artist:"Shankar Mahadevan",lyrics:"Sweet conversations have started happening between us. What magic have you done that I keep smiling?",ttsLang:"en-US"},
+    {id:"h29",title:"Kala Chashma",artist:"Badshah",lyrics:"You look so stylish with those black sunglasses. The whole town goes crazy when you walk by.",ttsLang:"en-US"},
+    {id:"h30",title:"London Thumakda",artist:"Labh Janjua",lyrics:"London is dancing and swaying. The wedding has started and everyone is celebrating tonight.",ttsLang:"en-US"},
+    {id:"h31",title:"Dil Se Re",artist:"A.R. Rahman",lyrics:"From the heart, I offer my breath, my life. There is no bigger truth than this love.",ttsLang:"en-US"},
+    {id:"h32",title:"Senorita",artist:"Sukhbir",lyrics:"Oh beautiful girl, you have stolen my heart away. Wherever you go, my eyes follow you.",ttsLang:"en-US"},
+    {id:"h33",title:"Chak De India",artist:"Sukhwinder Singh",lyrics:"Come on India, show the world your spirit. Let the strength of our team shake the ground.",ttsLang:"en-US"},
+    {id:"h34",title:"Mere Dholna",artist:"M.S. Subbulakshmi",lyrics:"My beloved has arrived. The entire world is celebrating. Even the stars are dancing tonight.",ttsLang:"en-US"},
+    {id:"h35",title:"Aankhon Mein Teri",artist:"K.K.",lyrics:"In your eyes I see a thousand dreams. I have found a home that I never want to leave.",ttsLang:"en-US"},
+    {id:"h36",title:"Swag Se Swagat",artist:"Vishal Dadlani",lyrics:"Welcome you with style and swagger. This celebration is grand and nothing compares to our spirit.",ttsLang:"en-US"},
+    {id:"h37",title:"Balam Pichkari",artist:"Vishal Dadlani",lyrics:"Throw the colors of spring at me. Today the festival has begun and the streets are alive.",ttsLang:"en-US"},
+    {id:"h38",title:"Masakali",artist:"Mohit Chauhan",lyrics:"Like a free pigeon flying across the sky. I have no destination, but the wind is my guide.",ttsLang:"en-US"},
+    {id:"h39",title:"Kar Har Maidaan Fateh",artist:"Sukhwinder Singh",lyrics:"Conquer every battlefield. Let no defeat define you, rise again and again.",ttsLang:"en-US"},
+    {id:"h40",title:"Roobaroo",artist:"A.R. Rahman",lyrics:"Face to face with life, I am finally awake. The journey has just begun and I am ready.",ttsLang:"en-US"}
   ],
-
-  es: [
-    { id:'s1', title:"Despacito", artist:"Luis Fonsi", lyrics:"Slowly. I want to breathe in your neck slowly. Let me tell you things in your ears.", ttsLang:'en-US' },
-    { id:'s2', title:"La Bamba", artist:"Ritchie Valens", lyrics:"To dance the Bamba, you need a little bit of grace. A little bit of grace for me and for you.", ttsLang:'en-US' },
-    { id:'s3', title:"Gasolina", artist:"Daddy Yankee", lyrics:"She likes gasoline. Give me more gasoline. How she loves the gasoline.", ttsLang:'en-US' },
-    { id:'s4', title:"Bailando", artist:"Enrique Iglesias", lyrics:"I look at you and my breath stops. When you look at me, my heart goes up. Dancing, dancing, dancing.", ttsLang:'en-US' },
-    { id:'s5', title:"Feliz Navidad", artist:"José Feliciano", lyrics:"Merry Christmas, Merry Christmas. I want to wish you a merry Christmas from the bottom of my heart.", ttsLang:'en-US' },
-    { id:'s6', title:"Macarena", artist:"Los Del Rio", lyrics:"Give your body joy, Macarena. Because your body is meant to be given joy and good things.", ttsLang:'en-US' },
-    { id:'s7', title:"Livin' La Vida Loca", artist:"Ricky Martin", lyrics:"She's into superstitions, black cats and voodoo dolls. She's living the crazy life.", ttsLang:'en-US' },
-    { id:'s8', title:"Hips Don't Lie", artist:"Shakira", lyrics:"I never really knew that she could dance like this. She makes a man want to speak Spanish.", ttsLang:'en-US' },
-    { id:'s9', title:"Suavemente", artist:"Elvis Crespo", lyrics:"Softly, kiss me. I want to feel your lips kissing me again. Softly, kiss me.", ttsLang:'en-US' },
-    { id:'s10', title:"Danza Kuduro", artist:"Don Omar", lyrics:"The hand up, waist alone. Give a half turn, dance kuduro. Do not get tired now.", ttsLang:'en-US' },
-    { id:'s11', title:"Mi Gente", artist:"J Balvin", lyrics:"My people never stop dancing. The party belongs to everyone and the rhythm belongs to the world.", ttsLang:'en-US' },
-    { id:'s12', title:"Waka Waka", artist:"Shakira", lyrics:"This is your moment, do not stop now. Raise your spirit because today is the day.", ttsLang:'en-US' },
-    { id:'s13', title:"Vivir Mi Vida", artist:"Marc Anthony", lyrics:"I will laugh, I will dance, I will live my life. Sorrows go away when I sing.", ttsLang:'en-US' },
-    { id:'s14', title:"La Camisa Negra", artist:"Juanes", lyrics:"Today I wear a black shirt, because my soul is mourning and my heart is in pain.", ttsLang:'en-US' },
-    { id:'s15', title:"Tusa", artist:"Karol G", lyrics:"She no longer cries for him, she turns up the music and heals while dancing with friends.", ttsLang:'en-US' },
-    { id:'s16', title:"Corazon Espinado", artist:"Santana", lyrics:"A wounded heart still beats for you. Even pain sounds like music when love stays.", ttsLang:'en-US' },
-    { id:'s17', title:"La Tortura", artist:"Shakira", lyrics:"Do not ask me to forgive everything. Loving you felt like sweet torture.", ttsLang:'en-US' },
-    { id:'s18', title:"Rayando el Sol", artist:"Mana", lyrics:"Searching for the sun, desperate for your love. Living in shadows because you are gone.", ttsLang:'en-US' },
-    { id:'s19', title:"Clandestino", artist:"Shakira & Maluma", lyrics:"We run through the night like fugitives. Our love is secret, it has no borders or rules.", ttsLang:'en-US' },
-    { id:'s20', title:"Loco Contigo", artist:"DJ Snake & J Balvin", lyrics:"I am crazy for you. The rhythm takes over my body and I lose myself in you.", ttsLang:'en-US' },
-    { id:'s21', title:"Chantaje", artist:"Shakira & Maluma", lyrics:"This is blackmail, your love is blackmail. You know I am not going anywhere without you.", ttsLang:'en-US' },
-    { id:'s22', title:"Duele El Corazon", artist:"Enrique Iglesias", lyrics:"My heart hurts when I am without you. Heal me with your kisses, I need you tonight.", ttsLang:'en-US' },
-    { id:'s23', title:"Me Gustas Tu", artist:"Manu Chao", lyrics:"I like you. The sunrises, the wind, and dreaming with no destination. I like you.", ttsLang:'en-US' },
-    { id:'s24', title:"Ella Baila Sola", artist:"Eslabon Armado & Peso Pluma", lyrics:"She dances alone in the dark. No one can reach her heart because it is already broken.", ttsLang:'en-US' },
-    { id:'s25', title:"Obsesion", artist:"Aventura", lyrics:"It is not love, it is an obsession. A fantasy of my heart that refuses to let go.", ttsLang:'en-US' },
-    { id:'s26', title:"La Bicicleta", artist:"Carlos Vives & Shakira", lyrics:"Remember those days on the bicycle by the coast? That summer breeze still carries your name.", ttsLang:'en-US' },
-    { id:'s27', title:"Bamboleo", artist:"Gipsy Kings", lyrics:"My life goes on and on. I feel the wind and the rhythm, and nothing can stop me from dancing.", ttsLang:'en-US' },
-    { id:'s28', title:"Aserejé", artist:"Las Ketchup", lyrics:"A strange melody that nobody understands. But everyone dances when the music begins to play.", ttsLang:'en-US' },
-    { id:'s29', title:"Reggaeton Lento", artist:"CNCO", lyrics:"Dance slowly with me, feel the rhythm in your body. Tonight the world belongs to us.", ttsLang:'en-US' },
-    { id:'s30', title:"Si No Te Hubieras Ido", artist:"Marco Antonio Solís", lyrics:"If you had not left, my heart would still be whole. Your absence is the cruelest thing.", ttsLang:'en-US' },
-    { id:'s31', title:"Amor Prohibido", artist:"Selena", lyrics:"Forbidden love, they whisper about us. But my heart does not care what anyone says.", ttsLang:'en-US' },
-    { id:'s32', title:"Bonita", artist:"J Balvin & Jowell & Randy", lyrics:"Beautiful, you are the most beautiful I have ever seen. Even the moon hides when you appear.", ttsLang:'en-US' },
-    { id:'s33', title:"Te Felicito", artist:"Shakira & Rauw Alejandro", lyrics:"I congratulate you for your acting. You pretended so well that I almost believed your lies.", ttsLang:'en-US' },
-    { id:'s34', title:"Pepas", artist:"Farruko", lyrics:"The party does not stop. We live for the night and forget tomorrow. Just keep dancing.", ttsLang:'en-US' },
-    { id:'s35', title:"Baila Conmigo", artist:"Selena Gomez & Rauw Alejandro", lyrics:"Dance with me under the moonlight. Let the night take us wherever it wants to go.", ttsLang:'en-US' },
-    { id:'s36', title:"Hawái", artist:"Maluma", lyrics:"You pretend you are happy in your photos from Hawaii. But I know you still think of me.", ttsLang:'en-US' },
-    { id:'s37', title:"Ojitos Lindos", artist:"Bad Bunny & Bomba Estéreo", lyrics:"Those pretty little eyes are the ocean I want to drown in. Please look at me once more.", ttsLang:'en-US' },
-    { id:'s38', title:"Calma", artist:"Pedro Capó", lyrics:"Calm, calm. Let the waves bring us peace. There is no rush when you are in my arms.", ttsLang:'en-US' },
-    { id:'s39', title:"La Flaca", artist:"Jarabe de Palo", lyrics:"She was thin and beautiful. She left one morning and took my heart across the sea.", ttsLang:'en-US' },
-    { id:'s40', title:"Taboo", artist:"Don Omar", lyrics:"This love is forbidden. They say we should not be together, but the heart knows no laws.", ttsLang:'en-US' }
-  ],
-
   en: [
-    { id:'e1', title:"Shape of You", artist:"Ed Sheeran", lyrics:"क्लब प्रेमी ढूंढने के लिए सबसे अच्छी जगह नहीं है, इसलिए मैं बार जाता हूँ।", ttsLang:'hi-IN' },
-    { id:'e2', title:"Baby", artist:"Justin Bieber", lyrics:"और मैं ऐसी थी जैसे बेबी, बेबी, बेबी ओह। जैसे बेबी, बेबी, बेबी नहीं।", ttsLang:'hi-IN' },
-    { id:'e3', title:"Hello", artist:"Adele", lyrics:"नमस्ते, यह मैं हूँ। मैं सोच रही थी कि इन सब सालों के बाद क्या तुम मिलना चाहोगे।", ttsLang:'hi-IN' },
-    { id:'e4', title:"Old Town Road", artist:"Lil Nas X", lyrics:"मैं अपना घोड़ा पुराने शहर की सड़क पर ले जाऊंगा। मैं तब तक सवारी करूँगा जब तक और नहीं कर सकता।", ttsLang:'hi-IN' },
-    { id:'e5', title:"Bad Guy", artist:"Billie Eilish", lyrics:"मैं वो बुरी किस्म का हूँ। तुम्हारी माँ को दुखी करने वाला। तुम्हारी गर्लफ्रेंड को पागल करने वाला।", ttsLang:'hi-IN' },
-    { id:'e6', title:"Let It Go", artist:"Idina Menzel", lyrics:"जाने दो, जाने दो। अब इसे और नहीं रोक सकती। जाने दो, जाने दो।", ttsLang:'hi-IN' },
-    { id:'e7', title:"Rolling in the Deep", artist:"Adele", lyrics:"मेरे दिल में एक आग लग रही है। बुखार की हद तक पहुँच रही है और मुझे अंधेरे से बाहर ला रही है।", ttsLang:'hi-IN' },
-    { id:'e8', title:"Shake It Off", artist:"Taylor Swift", lyrics:"क्योंकि खिलाड़ी तो खेलेंगे, खेलेंगे, खेलेंगे। और नफरत करने वाले नफरत करेंगे, नफरत करेंगे। मैं बस इसे झाड़ दूंगी।", ttsLang:'hi-IN' },
-    { id:'e9', title:"Roar", artist:"Katy Perry", lyrics:"मेरे पास बाघ की आंख है, एक लड़ाकू। आग के बीच नाच रही हूँ। क्योंकि मैं एक चैंपियन हूँ।", ttsLang:'hi-IN' },
-    { id:'e10', title:"Happy", artist:"Pharrell Williams", lyrics:"क्योंकि मैं खुश हूँ। अगर तुम्हें लगता है कि तुम्हारे बिना छत वाला कमरा है तो ताली बजाओ।", ttsLang:'hi-IN' },
-    { id:'e11', title:"Believer", artist:"Imagine Dragons", lyrics:"दर्द ने मुझे बनाया, तोड़ा और फिर से खड़ा किया। अब मैं विश्वास करने वाला हूँ।", ttsLang:'hi-IN' },
-    { id:'e12', title:"Blinding Lights", artist:"The Weeknd", lyrics:"मैं शहर की रोशनी में खो गया हूँ। तुम्हारे स्पर्श के बिना रात काटना मुश्किल है।", ttsLang:'hi-IN' },
-    { id:'e13', title:"Uptown Funk", artist:"Mark Ronson ft. Bruno Mars", lyrics:"आज रात हम चमकने वाले हैं। कदम, स्टाइल और आत्मविश्वास सब साथ लेकर चलो।", ttsLang:'hi-IN' },
-    { id:'e14', title:"Someone Like You", artist:"Adele", lyrics:"मैं तुम्हारे लिए कोई तुम्हारे जैसा ढूंढने की कामना करती हूँ, और कभी-कभी पिछली बातें याद आती हैं।", ttsLang:'hi-IN' },
-    { id:'e15', title:"Senorita", artist:"Shawn Mendes & Camila Cabello", lyrics:"तुम्हारे होंठों की गर्मी और वो गर्मी भरी रातें, दिल कहता है और पास आओ।", ttsLang:'hi-IN' },
-    { id:'e16', title:"Dance Monkey", artist:"Tones and I", lyrics:"वे कहते हैं फिर से नाचो, जैसे पहले कभी नहीं देखा। मैं उनकी ताल पर चलती रहती हूँ।", ttsLang:'hi-IN' },
-    { id:'e17', title:"Thunder", artist:"Imagine Dragons", lyrics:"बचपन में सब हंसते थे, अब मेरी आवाज़ गड़गड़ाहट जैसी गूंजती है।", ttsLang:'hi-IN' },
-    { id:'e18', title:"Counting Stars", artist:"OneRepublic", lyrics:"हम अब पैसे नहीं, सितारे गिनेंगे। सपनों में निवेश करना ज्यादा सही लगता है।", ttsLang:'hi-IN' },
-    { id:'e19', title:"Bohemian Rhapsody", artist:"Queen", lyrics:"क्या यह असली ज़िन्दगी है? या बस एक कल्पना? पहाड़ी से गिरते हुए, हकीकत से भागते हुए।", ttsLang:'hi-IN' },
-    { id:'e20', title:"Yesterday", artist:"The Beatles", lyrics:"कल, सारी मुसीबतें बहुत दूर लग रही थीं। अब लगता है जैसे वे यहीं ठहरने वाली हैं।", ttsLang:'hi-IN' },
-    { id:'e21', title:"Hotel California", artist:"Eagles", lyrics:"अंधेरी रेगिस्तानी सड़क पर, हवा मेरे बालों में बह रही थी। दूर से एक चमचमाती रोशनी दिखी।", ttsLang:'hi-IN' },
-    { id:'e22', title:"Thriller", artist:"Michael Jackson", lyrics:"रात का अंधेरा तुम्हें घेर लेता है। कोई बुराई की नज़र तुम्हें लकवाग्रस्त कर देती है।", ttsLang:'hi-IN' },
-    { id:'e23', title:"Imagine", artist:"John Lennon", lyrics:"कल्पना करो कि कोई स्वर्ग नहीं है। कोशिश करो, यह आसान है। हमारे नीचे कोई नरक नहीं।", ttsLang:'hi-IN' },
-    { id:'e24', title:"Shallow", artist:"Lady Gaga & Bradley Cooper", lyrics:"मुझे बताओ, क्या तुम खुश हो इस आधुनिक दुनिया में? या तुम्हें और कुछ चाहिए? क्या तुम गहराई में जा सकते हो?", ttsLang:'hi-IN' },
-    { id:'e25', title:"Perfect", artist:"Ed Sheeran", lyrics:"मैंने एक लड़की पाई, जो मेरे सपनों से भी ज़्यादा ख़ूबसूरत है। मैं इसके लायक नहीं।", ttsLang:'hi-IN' },
-    { id:'e26', title:"All of Me", artist:"John Legend", lyrics:"मेरा सारा प्यार तुम्हारे सारे प्यार के लिए। तुम्हारी हर कमज़ोरी मुझे और दीवाना बनाती है।", ttsLang:'hi-IN' },
-    { id:'e27', title:"Levitating", artist:"Dua Lipa", lyrics:"अगर तुम्हें लगता है कि मैं सुंदर हूँ, तो रुको जब तक मैं तारों में नाचूँ। मैं हवा में तैर रही हूँ।", ttsLang:'hi-IN' },
-    { id:'e28', title:"Watermelon Sugar", artist:"Harry Styles", lyrics:"तरबूज़ की मिठास ऊँची। गर्मियों की शाम तुम्हारे साथ, यही सब कुछ है।", ttsLang:'hi-IN' },
-    { id:'e29', title:"Stay", artist:"The Kid LAROI & Justin Bieber", lyrics:"मुझे पता है कि मैंने गलती की। कृपया मत जाओ, मैं चाहता हूँ कि तुम रहो।", ttsLang:'hi-IN' },
-    { id:'e30', title:"As It Was", artist:"Harry Styles", lyrics:"चीज़ें पहले जैसी नहीं रहीं। सब बदल गया है, लेकिन मैं अभी भी तुम्हें ढूंढ रहा हूँ।", ttsLang:'hi-IN' },
-    { id:'e31', title:"Anti-Hero", artist:"Taylor Swift", lyrics:"यह मैं हूँ, नमस्ते। मैं समस्या हूँ। मैं खुद का दुश्मन हूँ।", ttsLang:'hi-IN' },
-    { id:'e32', title:"Drivers License", artist:"Olivia Rodrigo", lyrics:"मैंने गाड़ी चलाने का लाइसेंस ले लिया। तुम्हारी गली से गुज़री और रोती रही।", ttsLang:'hi-IN' },
-    { id:'e33', title:"Dynamite", artist:"BTS", lyrics:"क्योंकि मैं रात में चमकता हूँ। डायनामाइट जैसा। दिन या रात, आसमान चमक रहा है।", ttsLang:'hi-IN' },
-    { id:'e34', title:"Heat Waves", artist:"Glass Animals", lyrics:"कभी-कभी मुझे गर्मी की लहरें महसूस होती हैं जो बीच की रात में भी मेरा पीछा करती हैं।", ttsLang:'hi-IN' },
-    { id:'e35', title:"Flowers", artist:"Miley Cyrus", lyrics:"मैं खुद के लिए फूल खरीद सकती हूँ। अपना नाम बर्फ में लिख सकती हूँ। अकेले नाच सकती हूँ।", ttsLang:'hi-IN' },
-    { id:'e36', title:"Peaches", artist:"Justin Bieber", lyrics:"मुझे जॉर्जिया से आड़ू चाहिए। मुझे कैलिफ़ोर्निया से प्यार चाहिए। तुम मेरी धूप हो।", ttsLang:'hi-IN' },
-    { id:'e37', title:"Cruel Summer", artist:"Taylor Swift", lyrics:"यह एक क्रूर गर्मी थी। हम दोनों जानते थे कि यह खत्म होगा, फिर भी हमने नाटक जारी रखा।", ttsLang:'hi-IN' },
-    { id:'e38', title:"Starboy", artist:"The Weeknd", lyrics:"मैं एक सितारा लड़का हूँ। नज़र लगने से बचो, इस चमक से अंधे हो जाओगे।", ttsLang:'hi-IN' },
-    { id:'e39', title:"Closer", artist:"The Chainsmokers", lyrics:"हम कार की पिछली सीट पर हैं। तुम्हारे करीब आना चाहता हूँ, चार साल बाद भी।", ttsLang:'hi-IN' },
-    { id:'e40', title:"God's Plan", artist:"Drake", lyrics:"यह भगवान की योजना है। बुरी चीज़ें अच्छी चीज़ों में बदल जाती हैं। उसने मुझे बचा लिया।", ttsLang:'hi-IN' }
+    {id:"e1",title:"Shape of You",artist:"Ed Sheeran",lyrics:"\u0915\u094d\u0932\u092c \u092a\u094d\u0930\u0947\u092e\u0940 \u0922\u0942\u0901\u0922\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u0938\u092c\u0938\u0947 \u0905\u091a\u094d\u091b\u0940 \u091c\u0917\u0939 \u0928\u0939\u0940\u0902 \u0939\u0948, \u0907\u0938\u0932\u093f\u090f \u092e\u0948\u0902 \u092c\u093e\u0930 \u091c\u093e\u0924\u093e \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e2",title:"Baby",artist:"Justin Bieber",lyrics:"\u0914\u0930 \u092e\u0948\u0902 \u0910\u0938\u0940 \u0925\u0940 \u091c\u0948\u0938\u0947 \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940 \u0913\u0939\u0964 \u091c\u0948\u0938\u0947 \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940 \u0928\u0939\u0940\u0902\u0964",ttsLang:"hi-IN"},
+    {id:"e3",title:"Hello",artist:"Adele",lyrics:"\u0928\u092e\u0938\u094d\u0924\u0947, \u092f\u0939 \u092e\u0948\u0902 \u0939\u0942\u0901\u0964 \u092e\u0948\u0902 \u0938\u094b\u091a \u0930\u0939\u0940 \u0925\u0940 \u0915\u093f \u0907\u0928 \u0938\u092c \u0938\u093e\u0932\u094b\u0902 \u0915\u0947 \u092c\u093e\u0926 \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u092e\u093f\u0932\u0928\u093e \u091a\u093e\u0939\u094b\u0917\u0947\u0964",ttsLang:"hi-IN"},
+    {id:"e4",title:"Old Town Road",artist:"Lil Nas X",lyrics:"\u092e\u0948\u0902 \u0905\u092a\u0928\u093e \u0918\u094b\u0921\u093c\u093e \u092a\u0941\u0930\u093e\u0928\u0947 \u0936\u0939\u0930 \u0915\u0940 \u0938\u0921\u093c\u0915 \u092a\u0930 \u0932\u0947 \u091c\u093e\u090a\u0902\u0917\u093e\u0964 \u092e\u0948\u0902 \u0924\u092c \u0924\u0915 \u0938\u0935\u093e\u0930\u0940 \u0915\u0930\u0942\u0901\u0917\u093e \u091c\u092c \u0924\u0915 \u0914\u0930 \u0928\u0939\u0940\u0902 \u0915\u0930 \u0938\u0915\u0924\u093e\u0964",ttsLang:"hi-IN"},
+    {id:"e5",title:"Bad Guy",artist:"Billie Eilish",lyrics:"\u092e\u0948\u0902 \u0935\u094b \u092c\u0941\u0930\u0940 \u0915\u093f\u0938\u094d\u092e \u0915\u093e \u0939\u0942\u0901\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u092e\u093e\u0901 \u0915\u094b \u0926\u0941\u0916\u0940 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0917\u0930\u094d\u0932\u092b\u094d\u0930\u0947\u0902\u0921 \u0915\u094b \u092a\u093e\u0917\u0932 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e\u0964",ttsLang:"hi-IN"},
+    {id:"e6",title:"Let It Go",artist:"Idina Menzel",lyrics:"\u091c\u093e\u0928\u0947 \u0926\u094b, \u091c\u093e\u0928\u0947 \u0926\u094b\u0964 \u0905\u092c \u0907\u0938\u0947 \u0914\u0930 \u0928\u0939\u0940\u0902 \u0930\u094b\u0915 \u0938\u0915\u0924\u0940\u0964 \u091c\u093e\u0928\u0947 \u0926\u094b, \u091c\u093e\u0928\u0947 \u0926\u094b\u0964",ttsLang:"hi-IN"},
+    {id:"e7",title:"Rolling in the Deep",artist:"Adele",lyrics:"\u092e\u0947\u0930\u0947 \u0926\u093f\u0932 \u092e\u0947\u0902 \u090f\u0915 \u0906\u0917 \u0932\u0917 \u0930\u0939\u0940 \u0939\u0948\u0964 \u092c\u0941\u0916\u093e\u0930 \u0915\u0940 \u0939\u0926 \u0924\u0915 \u092a\u0939\u0941\u0901\u091a \u0930\u0939\u0940 \u0939\u0948 \u0914\u0930 \u092e\u0941\u091d\u0947 \u0905\u0902\u0927\u0947\u0930\u0947 \u0938\u0947 \u092c\u093e\u0939\u0930 \u0932\u093e \u0930\u0939\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e8",title:"Shake It Off",artist:"Taylor Swift",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u0916\u093f\u0932\u093e\u0921\u093c\u0940 \u0924\u094b \u0916\u0947\u0932\u0947\u0902\u0917\u0947, \u0916\u0947\u0932\u0947\u0902\u0917\u0947, \u0916\u0947\u0932\u0947\u0902\u0917\u0947\u0964 \u0914\u0930 \u0928\u092b\u0930\u0924 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u0947 \u0928\u092b\u0930\u0924 \u0915\u0930\u0947\u0902\u0917\u0947, \u0928\u092b\u0930\u0924 \u0915\u0930\u0947\u0902\u0917\u0947\u0964 \u092e\u0948\u0902 \u092c\u0938 \u0907\u0938\u0947 \u091d\u093e\u0921\u093c \u0926\u0942\u0902\u0917\u0940\u0964",ttsLang:"hi-IN"},
+    {id:"e9",title:"Roar",artist:"Katy Perry",lyrics:"\u092e\u0947\u0930\u0947 \u092a\u093e\u0938 \u092c\u093e\u0918 \u0915\u0940 \u0906\u0901\u0916\u0947\u0902 \u0939\u0948\u0902, \u090f\u0915 \u0932\u0921\u093c\u093e\u0915\u0942\u0964 \u0906\u0917 \u0915\u0947 \u092c\u0940\u091a \u0928\u093e\u091a \u0930\u0939\u0940 \u0939\u0942\u0901\u0964 \u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u090f\u0915 \u091a\u0948\u0902\u092a\u093f\u092f\u0928 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e10",title:"Happy",artist:"Pharrell Williams",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u0916\u0941\u0936 \u0939\u0942\u0901\u0964 \u0905\u0917\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0917\u0924\u093e \u0939\u0948 \u0915\u093f \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u092c\u093f\u0928\u093e \u091b\u0924 \u0935\u093e\u0932\u093e \u0915\u092e\u0930\u093e \u0939\u0948 \u0924\u094b \u0924\u093e\u0932\u0940 \u092c\u091c\u093e\u0913\u0964",ttsLang:"hi-IN"},
+    {id:"e11",title:"Believer",artist:"Imagine Dragons",lyrics:"\u0926\u0930\u094d\u0926 \u0928\u0947 \u092e\u0941\u091d\u0947 \u092c\u0928\u093e\u092f\u093e, \u0924\u094b\u0921\u093c\u093e \u0914\u0930 \u092b\u093f\u0930 \u0938\u0947 \u0916\u0921\u093c\u093e \u0915\u093f\u092f\u093e\u0964 \u0905\u092c \u092e\u0948\u0902 \u0935\u093f\u0936\u094d\u0935\u093e\u0938 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e12",title:"Blinding Lights",artist:"The Weeknd",lyrics:"\u092e\u0948\u0902 \u0936\u0939\u0930 \u0915\u0940 \u0930\u094b\u0936\u0928\u0940 \u092e\u0947\u0902 \u0916\u094b \u0917\u092f\u093e \u0939\u0942\u0901\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u094d\u092a\u0930\u094d\u0936 \u0915\u0947 \u092c\u093f\u0928\u093e \u0930\u093e\u0924 \u0915\u093e\u091f\u0928\u093e \u092e\u0941\u0936\u094d\u0915\u093f\u0932 \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e13",title:"Uptown Funk",artist:"Mark Ronson ft. Bruno Mars",lyrics:"\u0906\u091c \u0930\u093e\u0924 \u0939\u092e \u091a\u092e\u0915\u0928\u0947 \u0935\u093e\u0932\u0947 \u0939\u0948\u0902\u0964 \u0915\u0926\u092e, \u0938\u094d\u091f\u093e\u0907\u0932 \u0914\u0930 \u0906\u0924\u094d\u092e\u0935\u093f\u0936\u094d\u0935\u093e\u0938 \u0938\u092c \u0938\u093e\u0925 \u0932\u0947\u0915\u0930 \u091a\u0932\u094b\u0964",ttsLang:"hi-IN"},
+    {id:"e14",title:"Someone Like You",artist:"Adele",lyrics:"\u092e\u0948\u0902 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0932\u093f\u090f \u0915\u094b\u0908 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u091c\u0948\u0938\u093e \u0922\u0942\u0901\u0922\u0928\u0947 \u0915\u0940 \u0915\u093e\u092e\u0928\u093e \u0915\u0930\u0924\u0940 \u0939\u0942\u0901, \u0914\u0930 \u0915\u092d\u0940-\u0915\u092d\u0940 \u092a\u093f\u091b\u0932\u0940 \u092c\u093e\u0924\u0947\u0902 \u092f\u093e\u0926 \u0906\u0924\u0940 \u0939\u0948\u0902\u0964",ttsLang:"hi-IN"},
+    {id:"e15",title:"Senorita",artist:"Shawn Mendes & Camila Cabello",lyrics:"\u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0939\u094b\u0902\u0920\u094b\u0902 \u0915\u0940 \u0917\u0930\u094d\u092e\u0940 \u0914\u0930 \u0935\u094b \u0917\u0930\u094d\u092e\u0940 \u092d\u0930\u0940 \u0930\u093e\u0924\u0947\u0902, \u0926\u093f\u0932 \u0915\u0939\u0924\u093e \u0939\u0948 \u0914\u0930 \u092a\u093e\u0938 \u0906\u0913\u0964",ttsLang:"hi-IN"},
+    {id:"e16",title:"Dance Monkey",artist:"Tones and I",lyrics:"\u0935\u0947 \u0915\u0939\u0924\u0947 \u0939\u0948\u0902 \u092b\u093f\u0930 \u0938\u0947 \u0928\u093e\u091a\u094b, \u091c\u0948\u0938\u0947 \u092a\u0939\u0932\u0947 \u0915\u092d\u0940 \u0928\u0939\u0940\u0902 \u0926\u0947\u0916\u093e\u0964 \u092e\u0948\u0902 \u0909\u0928\u0915\u0940 \u0924\u093e\u0932 \u092a\u0930 \u091a\u0932\u0924\u0940 \u0930\u0939\u0924\u0940 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e17",title:"Thunder",artist:"Imagine Dragons",lyrics:"\u092c\u091a\u092a\u0928 \u092e\u0947\u0902 \u0938\u092c \u0939\u0902\u0938\u0924\u0947 \u0925\u0947, \u0905\u092c \u092e\u0947\u0930\u0940 \u0906\u0935\u093e\u091c\u093c \u0917\u0921\u093c\u0917\u0921\u093c\u093e\u0939\u091f \u091c\u0948\u0938\u0940 \u0917\u0942\u0902\u091c\u0924\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e18",title:"Counting Stars",artist:"OneRepublic",lyrics:"\u0939\u092e \u0905\u092c \u092a\u0948\u0938\u0947 \u0928\u0939\u0940\u0902, \u0938\u093f\u0924\u093e\u0930\u0947 \u0917\u093f\u0928\u0947\u0902\u0917\u0947\u0964 \u0938\u092a\u0928\u094b\u0902 \u092e\u0947\u0902 \u0928\u093f\u0935\u0947\u0936 \u0915\u0930\u0928\u093e \u091c\u094d\u092f\u093e\u0926\u093e \u0938\u0939\u0940 \u0932\u0917\u0924\u093e \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e19",title:"Bohemian Rhapsody",artist:"Queen",lyrics:"\u0915\u094d\u092f\u093e \u092f\u0939 \u0905\u0938\u0932\u0940 \u091c\u093c\u093f\u0928\u094d\u0926\u0917\u0940 \u0939\u0948? \u092f\u093e \u092c\u0938 \u090f\u0915 \u0915\u0932\u094d\u092a\u0928\u093e? \u092a\u0939\u093e\u0921\u093c\u0940 \u0938\u0947 \u0917\u093f\u0930\u0924\u0947 \u0939\u0941\u090f, \u0939\u0915\u0940\u0915\u0924 \u0938\u0947 \u092d\u093e\u0917\u0924\u0947 \u0939\u0941\u090f\u0964",ttsLang:"hi-IN"},
+    {id:"e20",title:"Yesterday",artist:"The Beatles",lyrics:"\u0915\u0932, \u0938\u093e\u0930\u0940 \u092e\u0941\u0938\u0940\u092c\u0924\u0947\u0902 \u092c\u0939\u0941\u0924 \u0926\u0942\u0930 \u0932\u0917 \u0930\u0939\u0940 \u0925\u0940\u0902\u0964 \u0905\u092c \u0932\u0917\u0924\u093e \u0939\u0948 \u091c\u0948\u0938\u0947 \u0935\u0947 \u092f\u0939\u0940\u0902 \u0920\u0939\u0930\u0928\u0947 \u0935\u093e\u0932\u0940 \u0939\u0948\u0902\u0964",ttsLang:"hi-IN"},
+    {id:"e21",title:"Hotel California",artist:"Eagles",lyrics:"\u0905\u0902\u0927\u0947\u0930\u0940 \u0930\u0947\u0917\u093f\u0938\u094d\u0924\u093e\u0928\u0940 \u0938\u0921\u093c\u0915 \u092a\u0930, \u0939\u0935\u093e \u092e\u0947\u0930\u0947 \u092c\u093e\u0932\u094b\u0902 \u092e\u0947\u0902 \u092c\u0939 \u0930\u0939\u0940 \u0925\u0940\u0964 \u0926\u0942\u0930 \u0938\u0947 \u090f\u0915 \u091a\u092e\u091a\u092e\u093e\u0924\u0940 \u0930\u094b\u0936\u0928\u0940 \u0926\u093f\u0916\u0940\u0964",ttsLang:"hi-IN"},
+    {id:"e22",title:"Thriller",artist:"Michael Jackson",lyrics:"\u0930\u093e\u0924 \u0915\u093e \u0905\u0902\u0927\u0947\u0930\u093e \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0918\u0947\u0930 \u0932\u0947\u0924\u093e \u0939\u0948\u0964 \u0915\u094b\u0908 \u092c\u0941\u0930\u093e\u0908 \u0915\u0940 \u0928\u091c\u093c\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0915\u0935\u093e\u0917\u094d\u0930\u0938\u094d\u0924 \u0915\u0930 \u0926\u0947\u0924\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e23",title:"Imagine",artist:"John Lennon",lyrics:"\u0915\u0932\u094d\u092a\u0928\u093e \u0915\u0930\u094b \u0915\u093f \u0915\u094b\u0908 \u0938\u094d\u0935\u0930\u094d\u0917 \u0928\u0939\u0940\u0902 \u0939\u0948\u0964 \u0915\u094b\u0936\u093f\u0936 \u0915\u0930\u094b, \u092f\u0939 \u0906\u0938\u093e\u0928 \u0939\u0948\u0964 \u0939\u092e\u093e\u0930\u0947 \u0928\u0940\u091a\u0947 \u0915\u094b\u0908 \u0928\u0930\u0915 \u0928\u0939\u0940\u0902\u0964",ttsLang:"hi-IN"},
+    {id:"e24",title:"Shallow",artist:"Lady Gaga & Bradley Cooper",lyrics:"\u092e\u0941\u091d\u0947 \u092c\u0924\u093e\u0913, \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u0916\u0941\u0936 \u0939\u094b \u0907\u0938 \u0906\u0927\u0941\u0928\u093f\u0915 \u0926\u0941\u0928\u093f\u092f\u093e \u092e\u0947\u0902? \u092f\u093e \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0914\u0930 \u0915\u0941\u091b \u091a\u093e\u0939\u093f\u090f? \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u0917\u0939\u0930\u093e\u0908 \u092e\u0947\u0902 \u091c\u093e \u0938\u0915\u0924\u0947 \u0939\u094b?",ttsLang:"hi-IN"},
+    {id:"e25",title:"Perfect",artist:"Ed Sheeran",lyrics:"\u092e\u0948\u0902\u0928\u0947 \u090f\u0915 \u0932\u0921\u093c\u0915\u0940 \u092a\u093e\u0908, \u091c\u094b \u092e\u0947\u0930\u0947 \u0938\u092a\u0928\u094b\u0902 \u0938\u0947 \u092d\u0940 \u091c\u093c\u094d\u092f\u093e\u0926\u093e \u0916\u093c\u0942\u092c\u0938\u0942\u0930\u0924 \u0939\u0948\u0964 \u092e\u0948\u0902 \u0907\u0938\u0915\u0947 \u0932\u093e\u092f\u0915 \u0928\u0939\u0940\u0902\u0964",ttsLang:"hi-IN"},
+    {id:"e26",title:"All of Me",artist:"John Legend",lyrics:"\u092e\u0947\u0930\u093e \u0938\u093e\u0930\u093e \u092a\u094d\u092f\u093e\u0930 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u093e\u0930\u0947 \u092a\u094d\u092f\u093e\u0930 \u0915\u0947 \u0932\u093f\u090f\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0939\u0930 \u0915\u092e\u091c\u093c\u094b\u0930\u0940 \u092e\u0941\u091d\u0947 \u0914\u0930 \u0926\u0940\u0935\u093e\u0928\u093e \u092c\u0928\u093e\u0924\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e27",title:"Levitating",artist:"Dua Lipa",lyrics:"\u0905\u0917\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0917\u0924\u093e \u0939\u0948 \u0915\u093f \u092e\u0948\u0902 \u0938\u0941\u0902\u0926\u0930 \u0939\u0942\u0901, \u0924\u094b \u0930\u0941\u0915\u094b \u091c\u092c \u0924\u0915 \u092e\u0948\u0902 \u0924\u093e\u0930\u094b\u0902 \u092e\u0947\u0902 \u0928\u093e\u091a\u0942\u0901\u0964 \u092e\u0948\u0902 \u0939\u0935\u093e \u092e\u0947\u0902 \u0924\u0948\u0930 \u0930\u0939\u0940 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e28",title:"Watermelon Sugar",artist:"Harry Styles",lyrics:"\u0924\u0930\u092c\u0942\u091c\u093c \u0915\u0940 \u092e\u093f\u0920\u093e\u0938 \u090a\u0901\u091a\u0940\u0964 \u0917\u0930\u094d\u092e\u093f\u092f\u094b\u0902 \u0915\u0940 \u0936\u093e\u092e \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u093e\u0925, \u092f\u0939\u0940 \u0938\u092c \u0915\u0941\u091b \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e29",title:"Stay",artist:"The Kid LAROI & Justin Bieber",lyrics:"\u092e\u0941\u091d\u0947 \u092a\u0924\u093e \u0939\u0948 \u0915\u093f \u092e\u0948\u0902\u0928\u0947 \u0917\u0932\u0924\u0940 \u0915\u0940\u0964 \u0915\u0943\u092a\u092f\u093e \u092e\u0924 \u091c\u093e\u0913, \u092e\u0948\u0902 \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901 \u0915\u093f \u0924\u0941\u092e \u0930\u0939\u094b\u0964",ttsLang:"hi-IN"},
+    {id:"e30",title:"As It Was",artist:"Harry Styles",lyrics:"\u091a\u0940\u091c\u093c\u0947\u0902 \u092a\u0939\u0932\u0947 \u091c\u0948\u0938\u0940 \u0928\u0939\u0940\u0902 \u0930\u0939\u0940\u0902\u0964 \u0938\u092c \u092c\u0926\u0932 \u0917\u092f\u093e \u0939\u0948, \u0932\u0947\u0915\u093f\u0928 \u092e\u0948\u0902 \u0905\u092d\u0940 \u092d\u0940 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0922\u0942\u0901\u0922 \u0930\u0939\u093e \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e31",title:"Anti-Hero",artist:"Taylor Swift",lyrics:"\u092f\u0939 \u092e\u0948\u0902 \u0939\u0942\u0901, \u0928\u092e\u0938\u094d\u0924\u0947\u0964 \u092e\u0948\u0902 \u0938\u092e\u0938\u094d\u092f\u093e \u0939\u0942\u0901\u0964 \u092e\u0948\u0902 \u0916\u0941\u0926 \u0915\u093e \u0926\u0941\u0936\u094d\u092e\u0928 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e32",title:"Drivers License",artist:"Olivia Rodrigo",lyrics:"\u092e\u0948\u0902\u0928\u0947 \u0917\u093e\u0921\u093c\u0940 \u091a\u0932\u093e\u0928\u0947 \u0915\u093e \u0932\u093e\u0907\u0938\u0947\u0902\u0938 \u0932\u0947 \u0932\u093f\u092f\u093e\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0917\u0932\u0940 \u0938\u0947 \u0917\u0941\u091c\u093c\u0930\u0940 \u0914\u0930 \u0930\u094b\u0924\u0940 \u0930\u0939\u0940\u0964",ttsLang:"hi-IN"},
+    {id:"e33",title:"Dynamite",artist:"BTS",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u0930\u093e\u0924 \u092e\u0947\u0902 \u091a\u092e\u0915\u0924\u093e \u0939\u0942\u0901\u0964 \u0921\u093e\u092f\u0928\u093e\u092e\u093e\u0907\u091f \u091c\u0948\u0938\u093e\u0964 \u0926\u093f\u0928 \u092f\u093e \u0930\u093e\u0924, \u0906\u0938\u092e\u093e\u0928 \u091a\u092e\u0915 \u0930\u0939\u093e \u0939\u0948\u0964",ttsLang:"hi-IN"},
+    {id:"e34",title:"Heat Waves",artist:"Glass Animals",lyrics:"\u0915\u092d\u0940-\u0915\u092d\u0940 \u092e\u0941\u091d\u0947 \u0917\u0930\u094d\u092e\u0940 \u0915\u0940 \u0932\u0939\u0930\u0947\u0902 \u092e\u0939\u0938\u0942\u0938 \u0939\u094b\u0924\u0940 \u0939\u0948\u0902 \u091c\u094b \u092c\u0940\u091a \u0915\u0940 \u0930\u093e\u0924 \u092e\u0947\u0902 \u092d\u0940 \u092e\u0947\u0930\u093e \u092a\u0940\u091b\u093e \u0915\u0930\u0924\u0940 \u0939\u0948\u0902\u0964",ttsLang:"hi-IN"},
+    {id:"e35",title:"Flowers",artist:"Miley Cyrus",lyrics:"\u092e\u0948\u0902 \u0916\u0941\u0926 \u0915\u0947 \u0932\u093f\u090f \u092b\u0942\u0932 \u0916\u0930\u0940\u0926 \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964 \u0905\u092a\u0928\u093e \u0928\u093e\u092e \u092c\u0930\u094d\u092b \u092e\u0947\u0902 \u0932\u093f\u0916 \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964 \u0905\u0915\u0947\u0932\u0947 \u0928\u093e\u091a \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
+    {id:"e36",title:"Peaches",artist:"Justin Bieber",lyrics:"\u092e\u0941\u091d\u0947 \u091c\u0949\u0930\u094d\u091c\u093f\u092f\u093e \u0938\u0947 \u0906\u0921\u093c\u0942 \u091a\u093e\u0939\u093f\u090f\u0964 \u092e\u0941\u091d\u0947 \u0915\u0948\u0932\u093f\u092b\u093c\u094b\u0930\u094d\u0928\u093f\u092f\u093e \u0938\u0947 \u092a\u094d\u092f\u093e\u0930 \u091a\u093e\u0939\u093f\u090f\u0964 \u0924\u0941\u092e \u092e\u0947\u0930\u0940 \u0927\u0942\u092a \u0939\u094b\u0964",ttsLang:"hi-IN"},
+    {id:"e37",title:"Cruel Summer",artist:"Taylor Swift",lyrics:"\u092f\u0939 \u090f\u0915 \u0915\u094d\u0930\u0942\u0930 \u0917\u0930\u094d\u092e\u0940 \u0925\u0940\u0964 \u0939\u092e \u0926\u094b\u0928\u094b\u0902 \u091c\u093e\u0928\u0924\u0947 \u0925\u0947 \u0915\u093f \u092f\u0939 \u0916\u0924\u094d\u092e \u0939\u094b\u0917\u093e, \u092b\u093f\u0930 \u092d\u0940 \u0939\u092e\u0928\u0947 \u0928\u093e\u091f\u0915 \u091c\u093e\u0930\u0940 \u0930\u0916\u093e\u0964",ttsLang:"hi-IN"},
+    {id:"e38",title:"Starboy",artist:"The Weeknd",lyrics:"\u092e\u0948\u0902 \u090f\u0915 \u0938\u093f\u0924\u093e\u0930\u093e \u0932\u0921\u093c\u0915\u093e \u0939\u0942\u0901\u0964 \u0928\u091c\u093c\u0930 \u0932\u0917\u0928\u0947 \u0938\u0947 \u092c\u091a\u094b, \u0907\u0938 \u091a\u092e\u0915 \u0938\u0947 \u0905\u0902\u0927\u0947 \u0939\u094b \u091c\u093e\u0913\u0917\u0947\u0964",ttsLang:"hi-IN"},
+    {id:"e39",title:"Closer",artist:"The Chainsmokers",lyrics:"\u0939\u092e \u0915\u093e\u0930 \u0915\u0940 \u092a\u093f\u091b\u0932\u0940 \u0938\u0940\u091f \u092a\u0930 \u0939\u0948\u0902\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0915\u0930\u0940\u092c \u0906\u0928\u093e \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901, \u091a\u093e\u0930 \u0938\u093e\u0932 \u092c\u093e\u0926 \u092d\u0940\u0964",ttsLang:"hi-IN"},
+    {id:"e40",title:"God's Plan",artist:"Drake",lyrics:"\u092f\u0939 \u092d\u0917\u0935\u093e\u0928 \u0915\u0940 \u092f\u094b\u091c\u0928\u093e \u0939\u0948\u0964 \u092c\u0941\u0930\u0940 \u091a\u0940\u091c\u093c\u0947\u0902 \u0905\u091a\u094d\u091b\u0940 \u091a\u0940\u091c\u093c\u094b\u0902 \u092e\u0947\u0902 \u092c\u0926\u0932 \u091c\u093e\u0924\u0940 \u0939\u0948\u0902\u0964 \u0909\u0938\u0928\u0947 \u092e\u0941\u091d\u0947 \u092c\u091a\u093e \u0932\u093f\u092f\u093e\u0964",ttsLang:"hi-IN"}
   ]
 };
 
-const shuffle = (array) => {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+/* ===== GAME CONFIG ===== */
+const ROUNDS_PER_GAME = 10;
+const OPTIONS_PER_ROUND = 6;
+const TIMER_SECONDS = 18;
+const RECENT_MEMORY = 20;
+
+/* ===== STATE ===== */
+let state = {
+  screen: "menu",
+  category: "hi",
+  questions: [],
+  qIndex: 0,
+  score: 0,
+  streak: 0,
+  bestStreak: 0,
+  lastPts: 0,
+  qStart: 0,
+  selected: null,
+  hintUsed: false,
+  timerLeft: TIMER_SECONDS,
+  correctCount: 0,
+  hintCount: 0,
+  fastCount: 0,
+  results: [],
+  isSpeaking: false,
+  highScore: 0,
+  recentIds: []
 };
 
-const OPTIONS_PER_ROUND = 6;
-const ROUNDS_PER_GAME = 10;
-const RECENT_MEMORY_SIZE = 20;
-const TIMER_SECONDS = 18;
+let timerInterval = null;
+let voices = [];
 
-const getLyricSnippet = (lyrics) => {
-  const chunks = lyrics
-    .split(/[.!?।]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+/* ===== INIT ===== */
+function init() {
+  try { state.highScore = parseInt(localStorage.getItem("ll_highscore") || "0"); } catch(e) { state.highScore = 0; }
+  updateHighScoreBadge();
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
 
+function loadVoices() {
+  voices = window.speechSynthesis.getVoices();
+}
+
+/* ===== UTILS ===== */
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getLyricSnippet(lyrics) {
+  const chunks = lyrics.split(/[.!?\u0964]+/).map(s => s.trim()).filter(Boolean);
   if (chunks.length <= 2) return lyrics;
-
   const start = Math.floor(Math.random() * (chunks.length - 1));
   const size = Math.random() > 0.5 ? 2 : 1;
-  return chunks.slice(start, start + size).join('. ') + '.';
-};
+  return chunks.slice(start, start + size).join(". ") + ".";
+}
 
-const THEMES = {
-  hi: "from-emerald-600 to-teal-800",
-  es: "from-orange-500 to-red-700",
-  en: "from-blue-600 to-indigo-800",
-  mix: "from-purple-600 to-pink-800"
-};
+function getSongsForCategory(cat) {
+  if (cat === "mix") return [...SONGS.hi, ...SONGS.en];
+  return SONGS[cat];
+}
 
-const CATEGORY_LABELS = {
-  hi: "Hindi", es: "Spanish", en: "English", mix: "Mixed"
-};
+function $(id) { return document.getElementById(id); }
 
-export default function App() {
-  const [gameState, setGameState] = useState('menu');
-  const [category, setCategory] = useState('hi');
-  const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [bestStreak, setBestStreak] = useState(0);
-  const [lastPointsEarned, setLastPointsEarned] = useState(0);
-  const [questionStartTime, setQuestionStartTime] = useState(0);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [questions, setQuestions] = useState([]);
-  const [voices, setVoices] = useState([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [hintUsed, setHintUsed] = useState(false);
-  const [showHint, setShowHint] = useState(false);
-  const [timerLeft, setTimerLeft] = useState(TIMER_SECONDS);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [hintCount, setHintCount] = useState(0);
-  const [fastAnswers, setFastAnswers] = useState(0);
-  const [roundResults, setRoundResults] = useState([]);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [highScore, setHighScore] = useState(() => {
-    try { return parseInt(localStorage.getItem('ll_highscore') || '0'); } catch { return 0; }
+/* ===== HIGH SCORE ===== */
+function updateHighScoreBadge() {
+  const badge = $("highScoreBadge");
+  if (state.highScore > 0) {
+    badge.textContent = "Personal Best: " + state.highScore + " pts";
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+/* ===== SCREENS ===== */
+function showMenu() {
+  window.speechSynthesis.cancel();
+  state.isSpeaking = false;
+  clearInterval(timerInterval);
+  state.screen = "menu";
+  $("menu").style.display = "";
+  $("game").style.display = "none";
+  $("end").style.display = "none";
+  document.body.className = "";
+  updateHighScoreBadge();
+}
+
+function showGame() {
+  state.screen = "playing";
+  $("menu").style.display = "none";
+  $("game").style.display = "";
+  $("end").style.display = "none";
+  const themeMap = { hi: "theme-hindi", en: "theme-english", mix: "theme-mixed" };
+  document.body.className = themeMap[state.category] || "";
+}
+
+function showEnd() {
+  state.screen = "end";
+  $("menu").style.display = "none";
+  $("game").style.display = "none";
+  $("end").style.display = "";
+  renderEndScreen();
+}
+
+/* ===== START GAME ===== */
+function startGame(cat) {
+  state.category = cat;
+  const pool = getSongsForCategory(cat);
+  const fresh = shuffle(pool.filter(s => !state.recentIds.includes(s.id)));
+  const old = shuffle(pool.filter(s => state.recentIds.includes(s.id)));
+  const combined = [...fresh, ...old];
+  const selected = combined.slice(0, Math.min(ROUNDS_PER_GAME, combined.length));
+
+  state.questions = selected.map(song => {
+    const sameCat = pool.filter(s => s.id !== song.id);
+    const wrongOptions = shuffle(sameCat).slice(0, OPTIONS_PER_ROUND - 1).map(s => s.title);
+    return {
+      song,
+      options: shuffle([song.title, ...wrongOptions]),
+      prompt: getLyricSnippet(song.lyrics)
+    };
   });
 
-  const recentSongIdsRef = useRef([]);
-  const timerRef = useRef(null);
-  const confettiColors = useRef([]);
+  state.recentIds = [...state.recentIds, ...selected.map(s => s.id)].slice(-RECENT_MEMORY);
+  state.qIndex = 0;
+  state.score = 0;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.lastPts = 0;
+  state.selected = null;
+  state.hintUsed = false;
+  state.timerLeft = TIMER_SECONDS;
+  state.correctCount = 0;
+  state.hintCount = 0;
+  state.fastCount = 0;
+  state.results = [];
+  state.isSpeaking = false;
+  state.qStart = Date.now();
 
-  useEffect(() => {
-    const loadVoices = () => setVoices(window.speechSynthesis.getVoices());
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => window.speechSynthesis.cancel();
-  }, []);
-
-  useEffect(() => {
-    if (gameState !== 'playing' || selectedOption) {
-      clearInterval(timerRef.current);
-      return;
-    }
-    setTimerLeft(TIMER_SECONDS);
-    timerRef.current = setInterval(() => {
-      setTimerLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [gameState, currentQuestionIndex, selectedOption]);
-
-  useEffect(() => {
-    if (timerLeft === 0 && gameState === 'playing' && !selectedOption) {
-      handleTimerExpired();
-    }
-  }, [timerLeft]);
-
-  const handleTimerExpired = () => {
-    const currentQ = questions[currentQuestionIndex];
-    if (!currentQ || selectedOption) return;
-    setSelectedOption('__timeout__');
-    stopSpeaking();
-    setStreak(0);
-    setLastPointsEarned(0);
-    setRoundResults(prev => [...prev, { song: currentQ.song.title, artist: currentQ.song.artist, correct: false, timeout: true }]);
-    setTimeout(() => advanceRound(), 2000);
-  };
-
-  const getSongsForCategory = (cat) => {
-    if (cat === 'mix') {
-      return [...GAME_DATA.hi, ...GAME_DATA.es, ...GAME_DATA.en];
-    }
-    return GAME_DATA[cat];
-  };
-
-  const startGame = (selectedCategory) => {
-    setCategory(selectedCategory);
-    const categorySongs = getSongsForCategory(selectedCategory);
-    const recentSongIds = recentSongIdsRef.current;
-    const freshSongs = shuffle(categorySongs.filter(song => !recentSongIds.includes(song.id)));
-    const recentSongs = shuffle(categorySongs.filter(song => recentSongIds.includes(song.id)));
-    const pool = [...freshSongs, ...recentSongs];
-    const selectedSongs = pool.slice(0, Math.min(ROUNDS_PER_GAME, pool.length));
-
-    const gameQuestions = selectedSongs.map(song => {
-      const sameCatSongs = categorySongs.filter(s => s.id !== song.id);
-      const wrongOptions = shuffle(sameCatSongs).slice(0, OPTIONS_PER_ROUND - 1).map(s => s.title);
-      const options = shuffle([song.title, ...wrongOptions]);
-      return { song, options, promptText: getLyricSnippet(song.lyrics) };
-    });
-
-    recentSongIdsRef.current = [...recentSongIds, ...selectedSongs.map(s => s.id)].slice(-RECENT_MEMORY_SIZE);
-    setQuestions(gameQuestions);
-    setScore(0);
-    setStreak(0);
-    setBestStreak(0);
-    setLastPointsEarned(0);
-    setQuestionStartTime(Date.now());
-    setCurrentQuestionIndex(0);
-    setSelectedOption(null);
-    setHintUsed(false);
-    setShowHint(false);
-    setCorrectCount(0);
-    setHintCount(0);
-    setFastAnswers(0);
-    setRoundResults([]);
-    setGameState('playing');
-    setIsPlaying(false);
-  };
-
-  const getVoiceForCode = (langCode) => {
-    const exactMatches = voices.filter(v => v.lang === langCode);
-    if (exactMatches.length > 0) return exactMatches[0];
-    const softMatches = voices.filter(v => v.lang.startsWith(langCode.split('-')[0]));
-    return softMatches[0] || null;
-  };
-
-  const speakLyrics = () => {
-    window.speechSynthesis.cancel();
-    const currentQ = questions[currentQuestionIndex];
-    if (!currentQ) return;
-
-    const utterance = new SpeechSynthesisUtterance(currentQ.promptText);
-    const voice = getVoiceForCode(currentQ.song.ttsLang);
-    if (voice) utterance.voice = voice;
-    else utterance.lang = currentQ.song.ttsLang;
-
-    utterance.rate = 0.82 + Math.random() * 0.2;
-    utterance.pitch = 0.95 + Math.random() * 0.25;
-    utterance.onstart = () => setIsPlaying(true);
-    utterance.onend = () => setIsPlaying(false);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const stopSpeaking = () => {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-  };
-
-  const useHint = () => {
-    if (hintUsed || selectedOption) return;
-    setHintUsed(true);
-    setShowHint(true);
-    setHintCount(prev => prev + 1);
-  };
-
-  const advanceRound = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      setSelectedOption(null);
-      setHintUsed(false);
-      setShowHint(false);
-      setQuestionStartTime(Date.now());
-    } else {
-      const finalScore = score;
-      if (finalScore > highScore) {
-        setHighScore(finalScore);
-        try { localStorage.setItem('ll_highscore', String(finalScore)); } catch {}
-      }
-      setGameState('end');
-    }
-  };
-
-  const handleGuess = (guess) => {
-    const currentQ = questions[currentQuestionIndex];
-    if (!currentQ || selectedOption) return;
-
-    setSelectedOption(guess);
-    stopSpeaking();
-    clearInterval(timerRef.current);
-
-    const isCorrect = guess === currentQ.song.title;
-    if (isCorrect) {
-      const elapsed = Date.now() - questionStartTime;
-      const nextStreak = streak + 1;
-      const streakBonus = Math.min((nextStreak - 1) * 3, 15);
-      const speedBonus = Math.max(0, 8 - Math.floor(elapsed / 2000));
-      const hintPenalty = hintUsed ? 5 : 0;
-      const timerBonus = timerLeft >= 12 ? 3 : 0;
-      const pointsEarned = Math.max(5, 10 + streakBonus + speedBonus + timerBonus - hintPenalty);
-
-      setScore(s => s + pointsEarned);
-      setLastPointsEarned(pointsEarned);
-      setStreak(nextStreak);
-      setBestStreak(prev => Math.max(prev, nextStreak));
-      setCorrectCount(prev => prev + 1);
-      if (elapsed < 5000) setFastAnswers(prev => prev + 1);
-
-      confettiColors.current = Array.from({ length: 40 }, () =>
-        ['#FCD34D','#F87171','#60A5FA','#34D399','#A78BFA','#FB923C'][Math.floor(Math.random() * 6)]
-      );
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2000);
-      setRoundResults(prev => [...prev, { song: currentQ.song.title, artist: currentQ.song.artist, correct: true, timeout: false }]);
-    } else {
-      setStreak(0);
-      setLastPointsEarned(0);
-      setRoundResults(prev => [...prev, { song: currentQ.song.title, artist: currentQ.song.artist, correct: false, timeout: false }]);
-    }
-
-    setTimeout(() => advanceRound(), 1800);
-  };
-
-  // --- SCREENS ---
-
-  const MenuScreen = () => (
-    <div className="flex flex-col items-center justify-center space-y-8 animate-fade-in text-center p-6 w-full max-w-5xl">
-      <div className="bg-white/10 p-6 rounded-full mb-2 ring-4 ring-white/20 shadow-xl backdrop-blur-sm animate-bounce-slow">
-        <Globe size={64} className="text-white" />
-      </div>
-
-      <div className="space-y-4">
-        <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight drop-shadow-md">
-          Lyrically Lost
-        </h1>
-        <p className="text-xl text-blue-100 font-medium opacity-90 max-w-2xl mx-auto leading-relaxed">
-          We took famous songs, translated their lyrics, and asked a robot to read them.
-          <br/>Can you guess the original song from 6 options?
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-white/70 tracking-wide uppercase">
-          <span className="flex items-center gap-1"><Timer size={14} /> Timed rounds</span>
-          <span className="flex items-center gap-1"><Zap size={14} /> Streak & speed bonuses</span>
-          <span className="flex items-center gap-1"><Lightbulb size={14} /> Hint system</span>
-          <span className="flex items-center gap-1"><Music size={14} /> 120+ songs</span>
-        </div>
-      </div>
-
-      {highScore > 0 && (
-        <div className="bg-yellow-400/20 border border-yellow-400/30 rounded-xl px-6 py-2 text-yellow-200 font-bold text-sm">
-          Personal Best: {highScore} pts
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 w-full mt-8">
-        {[
-          { cat: 'hi', emoji: '🇮🇳', label: 'Hindi Songs', hear: 'English', guess: 'Hindi', gradient: 'from-emerald-500/80 to-teal-700/80 hover:from-emerald-400 hover:to-teal-600' },
-          { cat: 'es', emoji: '🇪🇸', label: 'Spanish Songs', hear: 'English', guess: 'Spanish', gradient: 'from-orange-500/80 to-red-700/80 hover:from-orange-400 hover:to-red-600' },
-          { cat: 'en', emoji: '🇺🇸', label: 'English Songs', hear: 'Hindi', guess: 'English', gradient: 'from-blue-500/80 to-indigo-700/80 hover:from-blue-400 hover:to-indigo-600' },
-          { cat: 'mix', emoji: '🌍', label: 'Mixed Mode', hear: 'Various', guess: 'Any Language', gradient: 'from-purple-500/80 to-pink-700/80 hover:from-purple-400 hover:to-pink-600' },
-        ].map(({ cat, emoji, label, hear, guess, gradient }) => (
-          <button
-            key={cat}
-            onClick={() => startGame(cat)}
-            className={`group relative overflow-hidden bg-gradient-to-br ${gradient} transition-all duration-300 rounded-3xl p-7 border-2 border-white/10 hover:border-white/40 shadow-xl hover:shadow-2xl hover:-translate-y-2`}
-          >
-            <div className="absolute top-0 right-0 p-3 opacity-15">
-              {cat === 'mix' ? <Shuffle size={80} /> : <Music size={80} />}
-            </div>
-            <div className="flex flex-col items-start text-left relative z-10">
-              <span className="text-5xl mb-3 filter drop-shadow-md">{emoji}</span>
-              <span className="text-2xl font-bold text-white mb-1">{label}</span>
-              <p className="text-xs text-white/75 font-medium">
-                Hear <strong>{hear}</strong> lyrics<br/>
-                Guess the <strong>{guess}</strong> song
-              </p>
-              <span className="text-xs text-white/50 mt-2">{getSongsForCategory(cat).length} songs</span>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const PlayingScreen = () => {
-    const currentQ = questions[currentQuestionIndex];
-    if (!currentQ) return null;
-
-    const timerFraction = timerLeft / TIMER_SECONDS;
-    const timerColor = timerLeft > 10 ? 'bg-green-400' : timerLeft > 5 ? 'bg-yellow-400' : 'bg-red-400';
-    const isTimeout = selectedOption === '__timeout__';
-
-    return (
-      <div className="flex flex-col items-center w-full max-w-3xl mx-auto p-4 animate-fade-in">
-        {/* Header */}
-        <div className="grid grid-cols-3 gap-3 w-full mb-4 bg-black/20 p-4 rounded-2xl backdrop-blur-sm border border-white/10">
-          <div className="flex items-center gap-3 text-white/90">
-            <Trophy size={22} className="text-yellow-400" />
-            <div className="flex flex-col">
-              <span className="text-xs uppercase tracking-wider opacity-70">Score</span>
-              <span className="font-bold font-mono text-xl leading-none">{score}</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-center gap-3 text-white/90">
-            <Zap size={22} className="text-pink-300" />
-            <div className="flex flex-col items-center">
-              <span className="text-xs uppercase tracking-wider opacity-70">Streak</span>
-              <span className="font-bold font-mono text-xl leading-none">{streak}</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-3 text-white/90">
-            <div className="flex flex-col items-end">
-              <span className="text-xs uppercase tracking-wider opacity-70">Round</span>
-              <span className="font-bold font-mono text-xl leading-none">{currentQuestionIndex + 1}<span className="text-white/50 text-sm"> / {questions.length}</span></span>
-            </div>
-          </div>
-        </div>
-
-        {/* Timer Bar */}
-        <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden mb-6">
-          <div
-            className={`h-full ${timerColor} rounded-full transition-all duration-1000 ease-linear`}
-            style={{ width: `${timerFraction * 100}%` }}
-          />
-        </div>
-
-        {/* Player */}
-        <div className="relative mb-8 w-full flex flex-col items-center">
-          <div
-            className={`
-              relative w-44 h-44 rounded-full flex items-center justify-center
-              transition-all duration-500 shadow-2xl cursor-pointer
-              ${isPlaying ? 'scale-105 bg-white/20 shadow-[0_0_60px_rgba(255,255,255,0.4)]' : 'bg-black/20 hover:bg-black/30 hover:scale-105'}
-            `}
-            onClick={isPlaying ? stopSpeaking : speakLyrics}
-          >
-            {isPlaying && (
-              <>
-                <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping opacity-75"></div>
-                <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-ping delay-75 opacity-50"></div>
-              </>
-            )}
-            <div className="z-10 flex flex-col items-center justify-center">
-              {isPlaying ? (
-                <Pause size={64} className="text-white drop-shadow-lg" fill="white" />
-              ) : (
-                <Play size={64} className="text-white drop-shadow-lg ml-2" fill="white" />
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 text-center h-14 flex items-center justify-center">
-            {isPlaying ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-1 h-8">
-                  {[...Array(7)].map((_, i) => (
-                    <div key={i} className="w-2 bg-white rounded-full animate-music-bar" style={{ animationDelay: `${i * 0.1}s` }}></div>
-                  ))}
-                </div>
-                <span className="text-white font-medium animate-pulse tracking-wide text-sm">Speaking Translated Lyrics...</span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <span className="text-white/90 text-lg font-medium">Tap to Listen</span>
-                <span className="text-white/50 text-xs">Each replay has slight voice variation</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Info Row */}
-        <div className="w-full mb-4 flex items-center gap-3">
-          <div className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white/85 text-sm">
-            {isTimeout ? (
-              <span className="text-red-300 font-semibold">Time's up!</span>
-            ) : lastPointsEarned > 0 ? (
-              <span>+{lastPointsEarned} points{streak > 1 ? ` (${streak}x streak!)` : ''}</span>
-            ) : (
-              <span>Answer quickly and keep your streak alive for bonus points.</span>
-            )}
-          </div>
-          <button
-            onClick={useHint}
-            disabled={hintUsed || !!selectedOption}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition-all shrink-0 ${
-              hintUsed || selectedOption
-                ? 'bg-white/5 border-white/5 text-white/30 cursor-not-allowed'
-                : 'bg-yellow-500/20 border-yellow-400/30 text-yellow-200 hover:bg-yellow-500/30 hover:border-yellow-400/50'
-            }`}
-            title="Reveal artist (-5 pts)"
-          >
-            <Lightbulb size={18} />
-            Hint
-          </button>
-        </div>
-
-        {/* Hint Display */}
-        {showHint && (
-          <div className="w-full mb-4 bg-yellow-500/15 border border-yellow-400/20 rounded-xl px-4 py-3 text-yellow-100 text-sm animate-fade-in">
-            Artist: <strong>{currentQ.song.artist}</strong> <span className="text-yellow-200/60 ml-2">(-5 pts if correct)</span>
-          </div>
-        )}
-
-        {/* Options Grid - 3x2 */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full">
-          {currentQ.options.map((option, idx) => {
-            let btnClass = "bg-white/10 hover:bg-white/20 border-white/10 text-white";
-            const isSelected = selectedOption === option;
-            const isCorrect = option === currentQ.song.title;
-
-            if (selectedOption) {
-              if (isCorrect) {
-                btnClass = "bg-green-500 border-green-400 text-white shadow-lg shadow-green-500/30 transform scale-[1.03] z-10";
-              } else if (isSelected && !isCorrect) {
-                btnClass = "bg-red-500 border-red-400 text-white opacity-80";
-              } else {
-                btnClass = "bg-black/20 border-transparent text-white/20";
-              }
-            }
-
-            return (
-              <button
-                key={idx}
-                disabled={!!selectedOption}
-                onClick={() => handleGuess(option)}
-                className={`
-                  relative p-4 rounded-2xl border-2 font-bold text-base text-left transition-all duration-300
-                  flex justify-between items-center shadow-lg
-                  ${btnClass}
-                `}
-              >
-                <span className="pr-2 leading-snug">{option}</span>
-                {selectedOption && isCorrect && <CheckCircle size={22} className="shrink-0" />}
-                {selectedOption && isSelected && !isCorrect && <XCircle size={22} className="shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Timeout overlay reveal */}
-        {isTimeout && (
-          <div className="w-full mt-4 bg-red-500/20 border border-red-400/30 rounded-xl px-4 py-3 text-red-200 text-sm text-center animate-fade-in">
-            The answer was <strong>{currentQ.song.title}</strong> by {currentQ.song.artist}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const EndScreen = () => {
-    const maxScore = questions.length * 36;
-    const percentage = (score / maxScore) * 100;
-    const isNewHigh = score > 0 && score >= highScore;
-
-    let rank, message;
-    if (percentage >= 90) { rank = "Translation Master"; message = "Your ears are universal!"; }
-    else if (percentage >= 70) { rank = "Lyric Legend"; message = "Truly impressive!"; }
-    else if (percentage >= 50) { rank = "Melody Detective"; message = "Solid performance!"; }
-    else if (percentage >= 30) { rank = "Casual Crooner"; message = "Not bad, keep at it!"; }
-    else { rank = "Novice Listener"; message = "Practice makes perfect!"; }
-
-    return (
-      <div className="flex flex-col items-center justify-center text-center animate-slide-up p-8 bg-white/10 rounded-[2rem] backdrop-blur-md border border-white/20 shadow-2xl max-w-xl mx-auto w-full">
-        <div className="mb-6 relative">
-          <Trophy size={80} className="text-yellow-300 drop-shadow-xl animate-bounce-slow" />
-        </div>
-
-        {isNewHigh && (
-          <div className="bg-yellow-400/30 text-yellow-100 font-bold text-sm px-4 py-2 rounded-full mb-4 animate-pulse border border-yellow-400/40">
-            New Personal Best!
-          </div>
-        )}
-
-        <h2 className="text-4xl font-extrabold text-white mb-1 tracking-tight">{rank}</h2>
-        <p className="text-blue-100 mb-8 text-lg italic font-serif">"{message}"</p>
-
-        <div className="bg-black/20 p-6 rounded-3xl w-full mb-6 border border-white/5">
-          <div className="text-sm text-blue-200 uppercase tracking-widest mb-1 font-semibold">Final Score</div>
-          <div className="text-5xl font-mono font-bold text-white">{score}</div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 w-full mb-8 text-sm">
-          <div className="bg-white/5 p-4 rounded-2xl">
-            <div className="text-white/50 uppercase text-xs tracking-wider mb-1">Correct</div>
-            <div className="text-2xl font-bold text-green-300">{correctCount}<span className="text-white/30 text-sm"> / {questions.length}</span></div>
-          </div>
-          <div className="bg-white/5 p-4 rounded-2xl">
-            <div className="text-white/50 uppercase text-xs tracking-wider mb-1">Best Streak</div>
-            <div className="text-2xl font-bold text-pink-300">{bestStreak}</div>
-          </div>
-          <div className="bg-white/5 p-4 rounded-2xl">
-            <div className="text-white/50 uppercase text-xs tracking-wider mb-1">Fast Answers</div>
-            <div className="text-2xl font-bold text-yellow-300">{fastAnswers}</div>
-          </div>
-          <div className="bg-white/5 p-4 rounded-2xl">
-            <div className="text-white/50 uppercase text-xs tracking-wider mb-1">Hints Used</div>
-            <div className="text-2xl font-bold text-blue-300">{hintCount}</div>
-          </div>
-        </div>
-
-        {/* Round-by-round results */}
-        <div className="w-full mb-8">
-          <div className="text-xs text-white/50 uppercase tracking-widest mb-3 font-semibold">Round Breakdown</div>
-          <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-            {roundResults.map((r, i) => (
-              <div key={i} className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm ${r.correct ? 'bg-green-500/15 border border-green-400/20' : 'bg-red-500/15 border border-red-400/20'}`}>
-                <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-white/10">{i + 1}</span>
-                {r.correct ? <CheckCircle size={16} className="text-green-400 shrink-0" /> : <XCircle size={16} className="text-red-400 shrink-0" />}
-                <span className="text-white/90 truncate flex-1 text-left">{r.song}</span>
-                <span className="text-white/40 text-xs shrink-0">{r.artist}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-3 w-full">
-          <button
-            onClick={() => startGame(category)}
-            className="group flex-1 flex items-center justify-center gap-2 bg-white text-indigo-900 py-4 rounded-2xl font-bold text-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
-          >
-            <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
-            Play Again
-          </button>
-          <button
-            onClick={() => setGameState('menu')}
-            className="flex items-center justify-center gap-2 bg-white/10 text-white py-4 px-6 rounded-2xl font-bold text-lg hover:bg-white/20 transition-all border border-white/10"
-          >
-            <ArrowRight size={20} />
-            Menu
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className={`min-h-screen w-full bg-gradient-to-br ${THEMES[category]} font-sans flex flex-col transition-colors duration-1000`}>
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-white/10 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-black/20 rounded-full blur-[120px]"></div>
-      </div>
-
-      {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center overflow-hidden">
-          {confettiColors.current.map((color, i) => (
-            <div key={i} className="absolute w-3 h-3 rounded-sm animate-confetti-item" style={{
-              left: `${50 + (Math.random() * 50 - 25)}%`,
-              top: '45%',
-              backgroundColor: color,
-              animationDelay: `${Math.random() * 0.3}s`,
-              '--tx': `${Math.random() * 500 - 250}px`,
-              '--ty': `${Math.random() * -400 - 100}px`,
-              '--rot': `${Math.random() * 1080 - 540}deg`,
-            }}></div>
-          ))}
-        </div>
-      )}
-
-      <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10 w-full">
-        {gameState === 'menu' && <MenuScreen />}
-        {gameState === 'playing' && <PlayingScreen />}
-        {gameState === 'end' && <EndScreen />}
-      </main>
-
-      <footer className="p-4 text-center text-white/25 text-xs font-medium uppercase tracking-widest relative z-10">
-        <div className="flex items-center justify-center gap-2">
-          <Volume2 size={12} />
-          <span>Powered by Web Speech API</span>
-        </div>
-      </footer>
-
-      <style>{`
-        @keyframes music-bar {
-          0%, 100% { height: 8px; opacity: 0.5; }
-          50% { height: 32px; opacity: 1; }
-        }
-        .animate-music-bar {
-          animation: music-bar 0.6s ease-in-out infinite alternate;
-        }
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.5s ease-out forwards;
-        }
-        @keyframes slide-up {
-          from { opacity: 0; transform: translateY(40px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-        .animate-bounce-slow {
-          animation: bounce-slow 3s infinite ease-in-out;
-        }
-        @keyframes confetti-item {
-          0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
-          100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.5); opacity: 0; }
-        }
-        .animate-confetti-item {
-          animation: confetti-item 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-      `}</style>
-    </div>
-  );
+  showGame();
+  renderQuestion();
+  startTimer();
 }
+
+/* ===== TIMER ===== */
+function startTimer() {
+  clearInterval(timerInterval);
+  state.timerLeft = TIMER_SECONDS;
+  updateTimerBar();
+  timerInterval = setInterval(() => {
+    state.timerLeft--;
+    updateTimerBar();
+    if (state.timerLeft <= 0) {
+      clearInterval(timerInterval);
+      handleTimeout();
+    }
+  }, 1000);
+}
+
+function updateTimerBar() {
+  const bar = $("timerBar");
+  const frac = state.timerLeft / TIMER_SECONDS;
+  bar.style.width = (frac * 100) + "%";
+  bar.className = "timer-bar " + (state.timerLeft > 10 ? "green" : state.timerLeft > 5 ? "yellow" : "red");
+}
+
+/* ===== RENDER QUESTION ===== */
+function renderQuestion() {
+  const q = state.questions[state.qIndex];
+  if (!q) return;
+
+  $("scoreVal").textContent = state.score;
+  $("streakVal").textContent = state.streak;
+  $("roundVal").textContent = state.qIndex + 1;
+  $("totalRounds").textContent = state.questions.length;
+
+  $("hintReveal").classList.add("hidden");
+  $("timeoutMsg").classList.add("hidden");
+  $("hintBtn").disabled = false;
+  $("infoText").innerHTML = state.lastPts > 0
+    ? "<span style='color:#86efac;font-weight:700'>+" + state.lastPts + " points" + (state.streak > 1 ? " (" + state.streak + "x streak!)" : "") + "</span>"
+    : "Answer quickly and keep your streak alive for bonus points.";
+
+  updateSpeakUI(false);
+
+  const grid = $("optionsGrid");
+  grid.innerHTML = "";
+  q.options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    btn.innerHTML = '<span class="opt-text">' + escHTML(opt) + '</span><span class="icon"></span>';
+    btn.onclick = () => handleGuess(opt);
+    grid.appendChild(btn);
+  });
+}
+
+function escHTML(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ===== SPEAK ===== */
+function toggleSpeak() {
+  if (state.isSpeaking) {
+    stopSpeaking();
+  } else {
+    speakLyrics();
+  }
+}
+
+function speakLyrics() {
+  window.speechSynthesis.cancel();
+  const q = state.questions[state.qIndex];
+  if (!q) return;
+
+  const utt = new SpeechSynthesisUtterance(q.prompt);
+  const v = findVoice(q.song.ttsLang);
+  if (v) utt.voice = v;
+  else utt.lang = q.song.ttsLang;
+  utt.rate = 0.82 + Math.random() * 0.2;
+  utt.pitch = 0.95 + Math.random() * 0.25;
+  utt.onstart = () => updateSpeakUI(true);
+  utt.onend = () => updateSpeakUI(false);
+  utt.onerror = () => updateSpeakUI(false);
+  window.speechSynthesis.speak(utt);
+}
+
+function stopSpeaking() {
+  window.speechSynthesis.cancel();
+  updateSpeakUI(false);
+}
+
+function findVoice(langCode) {
+  let v = voices.find(v => v.lang === langCode);
+  if (v) return v;
+  const prefix = langCode.split("-")[0];
+  return voices.find(v => v.lang.startsWith(prefix)) || null;
+}
+
+function updateSpeakUI(speaking) {
+  state.isSpeaking = speaking;
+  const btn = $("playBtn");
+  $("playIcon").style.display = speaking ? "none" : "";
+  $("pauseIcon").style.display = speaking ? "" : "none";
+  $("bars").style.display = speaking ? "flex" : "none";
+  btn.classList.toggle("active", speaking);
+  $("playerLabel").textContent = speaking ? "Speaking Translated Lyrics..." : "Tap to Listen";
+  $("playerSublabel").textContent = speaking ? "" : "Each replay has slight voice variation";
+  if (speaking) $("playerLabel").style.opacity = "1";
+}
+
+/* ===== HINT ===== */
+function useHint() {
+  if (state.hintUsed || state.selected) return;
+  state.hintUsed = true;
+  state.hintCount++;
+  $("hintBtn").disabled = true;
+  const q = state.questions[state.qIndex];
+  $("hintReveal").innerHTML = "Artist: <strong>" + escHTML(q.song.artist) + "</strong> <span style='color:rgba(253,230,138,.5);margin-left:.5rem'>(-5 pts if correct)</span>";
+  $("hintReveal").classList.remove("hidden");
+}
+
+/* ===== GUESS ===== */
+function handleGuess(guess) {
+  const q = state.questions[state.qIndex];
+  if (!q || state.selected) return;
+
+  state.selected = guess;
+  stopSpeaking();
+  clearInterval(timerInterval);
+  $("hintBtn").disabled = true;
+
+  const isCorrect = guess === q.song.title;
+  const btns = $("optionsGrid").children;
+  for (let b of btns) {
+    const text = b.querySelector(".opt-text").textContent;
+    b.disabled = true;
+    if (text === q.song.title) {
+      b.classList.add("correct");
+      b.querySelector(".icon").innerHTML = svgCheck();
+    } else if (text === guess && !isCorrect) {
+      b.classList.add("wrong");
+      b.querySelector(".icon").innerHTML = svgX();
+    } else {
+      b.classList.add("dimmed");
+    }
+  }
+
+  if (isCorrect) {
+    const elapsed = Date.now() - state.qStart;
+    const ns = state.streak + 1;
+    const streakBonus = Math.min((ns - 1) * 3, 15);
+    const speedBonus = Math.max(0, 8 - Math.floor(elapsed / 2000));
+    const hintPen = state.hintUsed ? 5 : 0;
+    const timerBonus = state.timerLeft >= 12 ? 3 : 0;
+    const pts = Math.max(5, 10 + streakBonus + speedBonus + timerBonus - hintPen);
+
+    state.score += pts;
+    state.lastPts = pts;
+    state.streak = ns;
+    state.bestStreak = Math.max(state.bestStreak, ns);
+    state.correctCount++;
+    if (elapsed < 5000) state.fastCount++;
+    state.results.push({ song: q.song.title, artist: q.song.artist, correct: true });
+    fireConfetti();
+  } else {
+    state.streak = 0;
+    state.lastPts = 0;
+    state.results.push({ song: q.song.title, artist: q.song.artist, correct: false, timeout: false });
+  }
+
+  setTimeout(() => advanceRound(), 1800);
+}
+
+function handleTimeout() {
+  const q = state.questions[state.qIndex];
+  if (!q || state.selected) return;
+
+  state.selected = "__timeout__";
+  stopSpeaking();
+  state.streak = 0;
+  state.lastPts = 0;
+  state.results.push({ song: q.song.title, artist: q.song.artist, correct: false, timeout: true });
+
+  const btns = $("optionsGrid").children;
+  for (let b of btns) {
+    const text = b.querySelector(".opt-text").textContent;
+    b.disabled = true;
+    if (text === q.song.title) {
+      b.classList.add("correct");
+      b.querySelector(".icon").innerHTML = svgCheck();
+    } else {
+      b.classList.add("dimmed");
+    }
+  }
+  $("hintBtn").disabled = true;
+  $("timeoutMsg").innerHTML = "The answer was <strong>" + escHTML(q.song.title) + "</strong> by " + escHTML(q.song.artist);
+  $("timeoutMsg").classList.remove("hidden");
+
+  setTimeout(() => advanceRound(), 2000);
+}
+
+/* ===== ADVANCE ===== */
+function advanceRound() {
+  if (state.qIndex < state.questions.length - 1) {
+    state.qIndex++;
+    state.selected = null;
+    state.hintUsed = false;
+    state.qStart = Date.now();
+    renderQuestion();
+    startTimer();
+  } else {
+    if (state.score > state.highScore) {
+      state.highScore = state.score;
+      try { localStorage.setItem("ll_highscore", String(state.score)); } catch(e) {}
+    }
+    showEnd();
+  }
+}
+
+/* ===== END SCREEN ===== */
+function renderEndScreen() {
+  const maxScore = state.questions.length * 36;
+  const pct = maxScore > 0 ? (state.score / maxScore) * 100 : 0;
+  const isNewHigh = state.score > 0 && state.score >= state.highScore;
+
+  let rank, msg;
+  if (pct >= 90) { rank = "Translation Master"; msg = "Your ears are universal!"; }
+  else if (pct >= 70) { rank = "Lyric Legend"; msg = "Truly impressive!"; }
+  else if (pct >= 50) { rank = "Melody Detective"; msg = "Solid performance!"; }
+  else if (pct >= 30) { rank = "Casual Crooner"; msg = "Not bad, keep at it!"; }
+  else { rank = "Novice Listener"; msg = "Practice makes perfect!"; }
+
+  $("newBestBadge").classList.toggle("hidden", !isNewHigh);
+  $("endRank").textContent = rank;
+  $("endMsg").textContent = '"' + msg + '"';
+  $("endScore").textContent = state.score;
+  $("endCorrect").innerHTML = state.correctCount + '<span style="font-size:.75rem;color:rgba(255,255,255,.3)"> / ' + state.questions.length + '</span>';
+  $("endStreak").textContent = state.bestStreak;
+  $("endFast").textContent = state.fastCount;
+  $("endHints").textContent = state.hintCount;
+
+  const list = $("breakdownList");
+  list.innerHTML = "";
+  state.results.forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "round-row " + (r.correct ? "row-ok" : "row-fail");
+    row.innerHTML =
+      '<span class="round-num">' + (i + 1) + '</span>' +
+      (r.correct
+        ? '<svg class="round-icon" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+        : '<svg class="round-icon" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      ) +
+      '<span class="round-song">' + escHTML(r.song) + '</span>' +
+      '<span class="round-artist">' + escHTML(r.artist) + '</span>';
+    list.appendChild(row);
+  });
+
+  $("playAgainBtn").onclick = () => startGame(state.category);
+}
+
+/* ===== CONFETTI ===== */
+function fireConfetti() {
+  const container = $("confettiContainer");
+  container.classList.remove("hidden");
+  container.innerHTML = "";
+  const colors = ["#FCD34D","#F87171","#60A5FA","#34D399","#A78BFA","#FB923C"];
+  for (let i = 0; i < 45; i++) {
+    const p = document.createElement("div");
+    p.className = "confetti-piece";
+    p.style.left = (50 + (Math.random() * 50 - 25)) + "%";
+    p.style.top = "45%";
+    p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDelay = (Math.random() * 0.3) + "s";
+    p.style.setProperty("--tx", (Math.random() * 500 - 250) + "px");
+    p.style.setProperty("--ty", (Math.random() * -400 - 100) + "px");
+    p.style.setProperty("--rot", (Math.random() * 1080 - 540) + "deg");
+    container.appendChild(p);
+  }
+  setTimeout(() => { container.classList.add("hidden"); container.innerHTML = ""; }, 2000);
+}
+
+/* ===== SVG HELPERS ===== */
+function svgCheck() {
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+}
+function svgX() {
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+}
+
+/* ===== GO ===== */
+init();
+</script>
+</body>
+</html>

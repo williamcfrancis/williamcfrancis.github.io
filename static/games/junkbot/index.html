@@ -1,0 +1,2186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Junkbot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1816;color:#e8dcc8;font-family:'Inter',sans-serif;user-select:none}
+canvas{display:block}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#1a1816}
+::-webkit-scrollbar-thumb{background:#4a4038;border-radius:3px}
+
+/* ===== LOADING ===== */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:#1a1816;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity 0.5s}
+#loading-screen.hidden{opacity:0;pointer-events:none}
+.loader{width:48px;height:48px;border:4px solid #4a4038;border-top-color:#e8a849;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-screen p{color:#e8a849;font-size:14px;letter-spacing:2px;text-transform:uppercase}
+
+/* ===== LANDING ===== */
+#landing-screen{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 80%,#2e2318 0%,#1a1816 70%);transition:opacity 0.6s}
+#landing-screen.hidden{opacity:0;pointer-events:none}
+.workshop-bg{position:absolute;inset:0;overflow:hidden}
+.workshop-bg::before{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:700px;height:300px;background:linear-gradient(0deg,#3d2f1f 0%,#2e2318 60%,transparent 100%);border-radius:8px 8px 0 0;opacity:0.7}
+.workshop-bg::after{content:'⚙️ 🔧 🔩 ⚡ 🛠️';position:absolute;bottom:40px;left:50%;transform:translateX(-50%);font-size:40px;letter-spacing:30px;opacity:0.15;filter:grayscale(1)}
+.landing-content{position:relative;z-index:2;text-align:center;padding:40px}
+.landing-title{font-family:'Lilita One',cursive;font-size:clamp(48px,10vw,96px);color:#e8a849;text-shadow:0 4px 0 #8b5e1a,0 8px 20px rgba(0,0,0,0.5);letter-spacing:2px;margin-bottom:8px}
+.landing-subtitle{font-size:clamp(14px,2vw,18px);color:#a89880;margin-bottom:40px;font-style:italic}
+.btn{display:inline-block;padding:16px 40px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:18px;font-weight:700;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:1px}
+.btn-primary{background:linear-gradient(135deg,#e8a849,#d4943a);color:#1a1816;box-shadow:0 4px 15px rgba(232,168,73,0.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(232,168,73,0.5)}
+.btn-launch{background:linear-gradient(135deg,#4CAF50,#388E3C);color:#fff;box-shadow:0 4px 15px rgba(76,175,80,0.3)}
+.btn-launch:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(76,175,80,0.5)}
+.btn-secondary{background:#2e2318;color:#e8dcc8;border:2px solid #4a4038}
+.btn-secondary:hover{border-color:#e8a849;color:#e8a849}
+.btn-small{padding:8px 16px;font-size:13px}
+.presets-section{margin-top:50px}
+.presets-section h3{color:#a89880;font-size:14px;text-transform:uppercase;letter-spacing:3px;margin-bottom:16px}
+.presets-row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.preset-card{background:#242120;border:2px solid #3a3530;border-radius:10px;padding:16px 24px;cursor:pointer;transition:all 0.2s;min-width:160px}
+.preset-card:hover{border-color:#e8a849;transform:translateY(-2px)}
+.preset-card h4{color:#e8a849;font-size:15px;margin-bottom:4px}
+.preset-card p{color:#8a7e6e;font-size:12px}
+
+/* ===== BUILD SCREEN ===== */
+#build-screen{position:fixed;inset:0;z-index:50;display:none;flex-direction:column}
+#build-screen.active{display:flex}
+.build-toolbar{height:48px;background:#1e1c1a;border-bottom:1px solid #3a3530;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:10}
+.build-toolbar .title-text{font-family:'Lilita One',cursive;color:#e8a849;font-size:20px;margin-right:auto}
+.part-counter{color:#a89880;font-size:13px;font-weight:600;background:#2a2624;padding:4px 12px;border-radius:4px}
+.toolbar-btn{background:#2a2624;border:1px solid #3a3530;color:#a89880;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;transition:all 0.15s}
+.toolbar-btn:hover{color:#e8dcc8;border-color:#5a5040}
+.toolbar-btn.active{color:#e8a849;border-color:#e8a849}
+.build-main{flex:1;display:flex;overflow:hidden}
+
+/* Parts Palette */
+#parts-palette{width:220px;background:#1e1c1a;border-right:1px solid #3a3530;overflow-y:auto;padding:8px;flex-shrink:0}
+.palette-category{margin-bottom:12px}
+.palette-category h3{color:#8a7e6e;font-size:11px;text-transform:uppercase;letter-spacing:2px;padding:4px 8px;margin-bottom:4px}
+.palette-item{display:flex;align-items:center;gap:10px;padding:8px;border-radius:6px;cursor:grab;transition:background 0.15s;border:1px solid transparent}
+.palette-item:hover{background:#2a2624;border-color:#3a3530}
+.palette-item:active{cursor:grabbing}
+.palette-swatch{width:36px;height:36px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+.palette-item-info{flex:1;min-width:0}
+.palette-item-name{font-size:13px;font-weight:600;color:#e8dcc8}
+.palette-item-desc{font-size:10px;color:#6a6050;margin-top:1px}
+
+/* Inspector */
+#inspector{width:240px;background:#1e1c1a;border-left:1px solid #3a3530;padding:12px;flex-shrink:0;overflow-y:auto}
+#inspector h3{color:#8a7e6e;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px}
+.inspector-empty{color:#5a5040;font-size:13px;text-align:center;padding:40px 16px;line-height:1.6}
+.inspector-field{margin-bottom:12px}
+.inspector-field label{display:block;color:#8a7e6e;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.inspector-field .value{color:#e8dcc8;font-size:14px;font-weight:600}
+.inspector-field input[type=range]{width:100%;accent-color:#e8a849}
+.inspector-field input[type=checkbox]{accent-color:#e8a849}
+.inspector-field .range-value{color:#e8a849;font-size:12px;float:right}
+.inspector-field select{background:#2a2624;color:#e8dcc8;border:1px solid #3a3530;padding:4px 8px;border-radius:4px;font-size:13px;width:100%}
+
+/* Viewport */
+#viewport-container{flex:1;position:relative;overflow:hidden}
+#viewport-container canvas{width:100%!important;height:100%!important}
+.viewport-hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(30,28,26,0.85);color:#8a7e6e;font-size:12px;padding:6px 16px;border-radius:20px;pointer-events:none;white-space:nowrap;transition:opacity 0.3s}
+
+/* ===== TEST SCREEN ===== */
+#test-screen{position:fixed;inset:0;z-index:50;display:none}
+#test-screen.active{display:block}
+#test-canvas-container{width:100%;height:100%}
+#score-panel{position:absolute;top:16px;left:16px;background:rgba(30,28,26,0.9);border:1px solid #3a3530;border-radius:10px;padding:16px;min-width:200px;z-index:10}
+#score-panel h3{font-family:'Lilita One',cursive;color:#e8a849;font-size:16px;margin-bottom:10px}
+.score-row{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
+.score-label{color:#8a7e6e}
+.score-value{color:#e8dcc8;font-weight:600}
+#test-controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:10}
+#test-status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Lilita One',cursive;font-size:48px;color:#e8a849;text-shadow:0 2px 10px rgba(0,0,0,0.8);pointer-events:none;opacity:0;transition:opacity 0.5s;z-index:10}
+#test-status.show{opacity:1}
+
+/* ===== SHARE MODAL ===== */
+#share-modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.7)}
+#share-modal.active{display:flex}
+.share-content{background:#242120;border:2px solid #3a3530;border-radius:12px;padding:32px;max-width:420px;width:90%;text-align:center}
+.share-content h2{font-family:'Lilita One',cursive;color:#e8a849;margin-bottom:8px}
+.share-content p{color:#8a7e6e;font-size:13px;margin-bottom:16px}
+.share-link{width:100%;background:#1a1816;border:1px solid #3a3530;color:#e8dcc8;padding:10px;border-radius:6px;font-size:12px;font-family:monospace;margin-bottom:16px}
+.share-scores{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.share-score-item{background:#1a1816;padding:8px;border-radius:6px}
+.share-score-item .label{color:#8a7e6e;font-size:11px}
+.share-score-item .val{color:#e8a849;font-size:18px;font-weight:700;font-family:'Lilita One',cursive}
+.share-btns{display:flex;gap:10px;justify-content:center}
+
+/* ===== CONTEXT MENU ===== */
+#context-menu{position:fixed;z-index:300;background:#242120;border:1px solid #3a3530;border-radius:6px;padding:4px;display:none;min-width:140px}
+#context-menu.active{display:block}
+.ctx-item{padding:8px 12px;color:#e8dcc8;font-size:13px;cursor:pointer;border-radius:4px;transition:background 0.1s}
+.ctx-item:hover{background:#3a3530}
+.ctx-item.danger{color:#e74c3c}
+.ctx-item.danger:hover{background:#3a1515}
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+    <div class="loader"></div>
+    <p>Loading Physics Engine...</p>
+</div>
+
+<!-- Landing Screen -->
+<div id="landing-screen" class="hidden">
+    <div class="workshop-bg"></div>
+    <div class="landing-content">
+        <h1 class="landing-title">Junkbot</h1>
+        <p class="landing-subtitle">Build something. Break something. That's engineering.</p>
+        <button class="btn btn-primary" id="btn-start">Start Building</button>
+        <div class="presets-section">
+            <h3>Or try a preset</h3>
+            <div class="presets-row">
+                <div class="preset-card" data-preset="tricar">
+                    <h4>The Tricar</h4>
+                    <p>Three wheels. Surprisingly stable.</p>
+                </div>
+                <div class="preset-card" data-preset="ostrich">
+                    <h4>The Ostrich</h4>
+                    <p>Two legs. Zero balance.</p>
+                </div>
+                <div class="preset-card" data-preset="overachiever">
+                    <h4>The Overachiever</h4>
+                    <p>All thrust. No direction.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Build Screen -->
+<div id="build-screen">
+    <div class="build-toolbar">
+        <span class="title-text">Junkbot</span>
+        <button class="toolbar-btn" id="btn-undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button class="toolbar-btn" id="btn-redo" title="Redo (Ctrl+Y)">Redo</button>
+        <span class="part-counter" id="part-counter">Parts: 0/20</span>
+        <button class="toolbar-btn" id="btn-clear">Clear All</button>
+        <button class="toolbar-btn" id="btn-back-landing">Menu</button>
+        <button class="btn btn-launch btn-small" id="btn-launch">Launch!</button>
+    </div>
+    <div class="build-main">
+        <div id="parts-palette"></div>
+        <div id="viewport-container">
+            <div class="viewport-hint" id="build-hint">Drag parts from the palette. Hold Shift for hinge joints.</div>
+        </div>
+        <div id="inspector">
+            <h3>Inspector</h3>
+            <div class="inspector-empty" id="inspector-content">Select a part or joint to view properties.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Screen -->
+<div id="test-screen">
+    <div id="test-canvas-container"></div>
+    <div id="score-panel">
+        <h3>Performance</h3>
+        <div class="score-row"><span class="score-label">Distance</span><span class="score-value" id="sc-dist">0.0 m</span></div>
+        <div class="score-row"><span class="score-label">Time</span><span class="score-value" id="sc-time">0.0 s</span></div>
+        <div class="score-row"><span class="score-label">Max Speed</span><span class="score-value" id="sc-speed">0.0 m/s</span></div>
+        <div class="score-row"><span class="score-label">Style</span><span class="score-value" id="sc-style">0</span></div>
+    </div>
+    <div id="test-status"></div>
+    <div id="test-controls">
+        <button class="btn btn-secondary btn-small" id="btn-back-workshop">Back to Workshop</button>
+        <button class="btn btn-secondary btn-small" id="btn-replay">Replay</button>
+        <button class="btn btn-primary btn-small" id="btn-share">Share Build</button>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div id="share-modal">
+    <div class="share-content">
+        <h2>Share Your Junkbot!</h2>
+        <p>Copy this link to share your creation</p>
+        <div class="share-scores" id="share-scores"></div>
+        <input type="text" class="share-link" id="share-link" readonly>
+        <div class="share-btns">
+            <button class="btn btn-primary btn-small" id="btn-copy-link">Copy Link</button>
+            <button class="btn btn-secondary btn-small" id="btn-close-share">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div id="context-menu">
+    <div class="ctx-item danger" id="ctx-delete">Delete Part</div>
+</div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+let RAPIER;
+{
+    const urls = [
+        'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.13.1/rapier.es.js',
+        'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.13.1/+esm',
+        'https://esm.sh/@dimforge/rapier3d-compat@0.13.1'
+    ];
+    let loaded = false;
+    for (const url of urls) {
+        try {
+            const mod = await import(url);
+            RAPIER = mod.default || mod;
+            if (typeof RAPIER.init === 'function') await RAPIER.init();
+            else if (typeof RAPIER.default?.init === 'function') { await RAPIER.default.init(); RAPIER = RAPIER.default; }
+            if (RAPIER.World && RAPIER.ColliderDesc) { loaded = true; break; }
+        } catch(e) { console.warn('Rapier load attempt failed:', url, e); }
+    }
+    if (!loaded) {
+        document.getElementById('loading-screen').innerHTML = '<p style="color:#e74c3c;text-align:center;padding:40px">Failed to load physics engine.<br>Please refresh or try a different browser.</p>';
+        throw new Error('Rapier load failed');
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════
+const GRID_SNAP = 0.25;
+const MAX_PARTS = 20;
+const SNAP_DIST = 0.6;
+const GRAVITY = { x: 0, y: -9.81, z: 0 };
+const PHYSICS_DT = 1 / 60;
+
+const COLORS = {
+    chassis: 0x8a8a8a,
+    wheel: 0x2a2a2a,
+    wheelHub: 0xbbbbbb,
+    leg: 0x6b7c4a,
+    thruster: 0xe87830,
+    accessory: 0xe8c849,
+    sensor: 0x49b8e8,
+    snap: 0x00e5cc,
+    snapHover: 0x00ffdd,
+    ghost: 0x00e5cc,
+    grid: 0x3a2e20,
+    ground: 0x5a6a4a,
+    obstacle: 0xe87830,
+    sky1: 0x0a1628,
+    sky2: 0x2a4a6a
+};
+
+// ══════════════════════════════════════════════════════════
+// PART DEFINITIONS
+// ══════════════════════════════════════════════════════════
+const PART_DEFS = {
+    // --- Chassis ---
+    box_chassis: {
+        name: 'Box', category: 'Chassis', icon: '◼', color: COLORS.chassis,
+        mass: 2, dims: [1, 0.5, 1],
+        desc: '1×1×0.5 block',
+        geom: () => new THREE.BoxGeometry(1, 0.5, 1),
+        collider: () => RAPIER.ColliderDesc.cuboid(0.5, 0.25, 0.5),
+        snaps: () => [
+            { off: [0.5, 0, 0], norm: [1,0,0], hAxis: [0,0,1] },
+            { off: [-0.5, 0, 0], norm: [-1,0,0], hAxis: [0,0,1] },
+            { off: [0, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [0, 0, 0.5], norm: [0,0,1], hAxis: [1,0,0] },
+            { off: [0, 0, -0.5], norm: [0,0,-1], hAxis: [1,0,0] }
+        ]
+    },
+    long_plank: {
+        name: 'Long Plank', category: 'Chassis', icon: '▬', color: COLORS.chassis,
+        mass: 3, dims: [3, 0.5, 0.5],
+        desc: '3×0.5×0.5 beam',
+        geom: () => new THREE.BoxGeometry(3, 0.5, 0.5),
+        collider: () => RAPIER.ColliderDesc.cuboid(1.5, 0.25, 0.25),
+        snaps: () => [
+            { off: [1.5, 0, 0], norm: [1,0,0], hAxis: [0,0,1] },
+            { off: [-1.5, 0, 0], norm: [-1,0,0], hAxis: [0,0,1] },
+            { off: [0, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [0, 0, 0.25], norm: [0,0,1], hAxis: [1,0,0] },
+            { off: [0, 0, -0.25], norm: [0,0,-1], hAxis: [1,0,0] },
+            { off: [0.75, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [-0.75, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0.75, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [-0.75, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    },
+    l_shape: {
+        name: 'L-Shape', category: 'Chassis', icon: '⌐', color: COLORS.chassis,
+        mass: 2.5, dims: [1.5, 0.5, 1],
+        desc: 'L-shaped bracket',
+        geom: () => {
+            const g = new THREE.BufferGeometry();
+            const a = new THREE.BoxGeometry(1.5, 0.5, 0.5);
+            const b = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            b.translate(-0.5, 0, 0.5);
+            const merged = mergeGeometries([a, b]);
+            return merged || a;
+        },
+        collider: () => {
+            const c1 = RAPIER.ColliderDesc.cuboid(0.75, 0.25, 0.25);
+            return c1;
+        },
+        snaps: () => [
+            { off: [0.75, 0, 0], norm: [1,0,0], hAxis: [0,0,1] },
+            { off: [-0.75, 0, 0], norm: [-1,0,0], hAxis: [0,0,1] },
+            { off: [0, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [-0.5, 0, 0.75], norm: [0,0,1], hAxis: [1,0,0] }
+        ]
+    },
+    t_shape: {
+        name: 'T-Shape', category: 'Chassis', icon: '⊤', color: COLORS.chassis,
+        mass: 3, dims: [2, 0.5, 1],
+        desc: 'T-shaped frame',
+        geom: () => {
+            const a = new THREE.BoxGeometry(2, 0.5, 0.5);
+            const b = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            b.translate(0, 0, 0.5);
+            return mergeGeometries([a, b]) || a;
+        },
+        collider: () => RAPIER.ColliderDesc.cuboid(1, 0.25, 0.25),
+        snaps: () => [
+            { off: [1, 0, 0], norm: [1,0,0], hAxis: [0,0,1] },
+            { off: [-1, 0, 0], norm: [-1,0,0], hAxis: [0,0,1] },
+            { off: [0, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [0, 0, 0.75], norm: [0,0,1], hAxis: [1,0,0] },
+            { off: [0.5, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [-0.5, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] }
+        ]
+    },
+    platform: {
+        name: 'Platform', category: 'Chassis', icon: '▣', color: COLORS.chassis,
+        mass: 4, dims: [2, 0.3, 2],
+        desc: '2×2×0.3 base',
+        geom: () => new THREE.BoxGeometry(2, 0.3, 2),
+        collider: () => RAPIER.ColliderDesc.cuboid(1, 0.15, 1),
+        snaps: () => [
+            { off: [1, 0, 0], norm: [1,0,0], hAxis: [0,0,1] },
+            { off: [-1, 0, 0], norm: [-1,0,0], hAxis: [0,0,1] },
+            { off: [0, 0.15, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0, -0.15, 0], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [0, 0, 1], norm: [0,0,1], hAxis: [1,0,0] },
+            { off: [0, 0, -1], norm: [0,0,-1], hAxis: [1,0,0] },
+            { off: [0.5, 0.15, 0.5], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [-0.5, 0.15, 0.5], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0.5, 0.15, -0.5], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [-0.5, 0.15, -0.5], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0.5, -0.15, 0.5], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [-0.5, -0.15, 0.5], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [0.5, -0.15, -0.5], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [-0.5, -0.15, -0.5], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    },
+
+    // --- Wheels ---
+    small_wheel: {
+        name: 'Small Wheel', category: 'Wheels', icon: '◎', color: COLORS.wheel,
+        mass: 0.5, dims: [0.15, 0.3, 0.3], isWheel: true, radius: 0.3,
+        desc: 'Radius 0.3',
+        geom: () => {
+            const g = new THREE.CylinderGeometry(0.3, 0.3, 0.15, 24);
+            g.rotateZ(Math.PI / 2);
+            return g;
+        },
+        collider: () => {
+            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), Math.PI/2);
+            return RAPIER.ColliderDesc.cylinder(0.075, 0.3).setRotation(q).setFriction(1.5);
+        },
+        snaps: () => [
+            { off: [-0.075, 0, 0], norm: [-1,0,0], hAxis: [1,0,0] },
+            { off: [0.075, 0, 0], norm: [1,0,0], hAxis: [1,0,0] }
+        ]
+    },
+    big_wheel: {
+        name: 'Big Wheel', category: 'Wheels', icon: '⊚', color: COLORS.wheel,
+        mass: 1, dims: [0.2, 0.6, 0.6], isWheel: true, radius: 0.6,
+        desc: 'Radius 0.6',
+        geom: () => {
+            const g = new THREE.CylinderGeometry(0.6, 0.6, 0.2, 24);
+            g.rotateZ(Math.PI / 2);
+            return g;
+        },
+        collider: () => {
+            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), Math.PI/2);
+            return RAPIER.ColliderDesc.cylinder(0.1, 0.6).setRotation(q).setFriction(1.5);
+        },
+        snaps: () => [
+            { off: [-0.1, 0, 0], norm: [-1,0,0], hAxis: [1,0,0] },
+            { off: [0.1, 0, 0], norm: [1,0,0], hAxis: [1,0,0] }
+        ]
+    },
+    ball_wheel: {
+        name: 'Ball Wheel', category: 'Wheels', icon: '●', color: COLORS.wheel,
+        mass: 0.5, dims: [0.25, 0.25, 0.25], isWheel: true, radius: 0.25,
+        desc: 'Omnidirectional',
+        geom: () => new THREE.SphereGeometry(0.25, 16, 12),
+        collider: () => RAPIER.ColliderDesc.ball(0.25).setFriction(0.8),
+        snaps: () => [
+            { off: [0, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] }
+        ]
+    },
+
+    // --- Legs ---
+    leg_2seg: {
+        name: '2-Seg Leg', category: 'Legs', icon: '⌇', color: COLORS.leg,
+        mass: 1, dims: [0.2, 0.8, 0.2], isLeg: true,
+        desc: 'Oscillating walk leg',
+        geom: () => {
+            const g = new THREE.BoxGeometry(0.2, 0.8, 0.2);
+            const knee = new THREE.BoxGeometry(0.2, 0.6, 0.2);
+            knee.translate(0.1, -0.7, 0);
+            return mergeGeometries([g, knee]) || g;
+        },
+        collider: () => RAPIER.ColliderDesc.cuboid(0.1, 0.4, 0.1),
+        snaps: () => [
+            { off: [0, 0.4, 0], norm: [0,1,0], hAxis: [0,0,1] }
+        ]
+    },
+
+    // --- Thrusters ---
+    upward_thruster: {
+        name: 'Up Thruster', category: 'Thrusters', icon: '▲', color: COLORS.thruster,
+        mass: 0.3, dims: [0.3, 0.4, 0.3], isThruster: true, thrustDir: [0, 1, 0], thrustForce: 15,
+        desc: 'Pushes upward',
+        geom: () => {
+            const g = new THREE.ConeGeometry(0.15, 0.4, 8);
+            return g;
+        },
+        collider: () => RAPIER.ColliderDesc.cone(0.2, 0.15),
+        snaps: () => [
+            { off: [0, -0.2, 0], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    },
+    forward_thruster: {
+        name: 'Fwd Thruster', category: 'Thrusters', icon: '▶', color: COLORS.thruster,
+        mass: 0.3, dims: [0.4, 0.3, 0.3], isThruster: true, thrustDir: [0, 0, 1], thrustForce: 12,
+        desc: 'Pushes forward',
+        geom: () => {
+            const g = new THREE.ConeGeometry(0.15, 0.4, 8);
+            g.rotateX(Math.PI / 2);
+            return g;
+        },
+        collider: () => {
+            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2);
+            return RAPIER.ColliderDesc.cone(0.2, 0.15).setRotation(q);
+        },
+        snaps: () => [
+            { off: [0, 0, -0.2], norm: [0,0,-1], hAxis: [1,0,0] }
+        ]
+    },
+
+    // --- Accessories ---
+    weight_block: {
+        name: 'Weight Block', category: 'Accessories', icon: '⬛', color: 0x5a5a6a,
+        mass: 4, dims: [0.4, 0.4, 0.4],
+        desc: 'Heavy! Mass ×2',
+        geom: () => new THREE.BoxGeometry(0.4, 0.4, 0.4),
+        collider: () => RAPIER.ColliderDesc.cuboid(0.2, 0.2, 0.2),
+        snaps: () => [
+            { off: [0, 0.2, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0, -0.2, 0], norm: [0,-1,0], hAxis: [1,0,0] },
+            { off: [0.2, 0, 0], norm: [1,0,0], hAxis: [0,0,1] },
+            { off: [-0.2, 0, 0], norm: [-1,0,0], hAxis: [0,0,1] }
+        ]
+    },
+    spring: {
+        name: 'Spring', category: 'Accessories', icon: '⌁', color: COLORS.accessory,
+        mass: 0.2, dims: [0.2, 0.5, 0.2], isSpring: true,
+        desc: 'Bouncy connector',
+        geom: () => {
+            const g = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 8);
+            return g;
+        },
+        collider: () => RAPIER.ColliderDesc.cylinder(0.25, 0.1).setRestitution(0.9),
+        snaps: () => [
+            { off: [0, 0.25, 0], norm: [0,1,0], hAxis: [1,0,0] },
+            { off: [0, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    },
+    propeller: {
+        name: 'Propeller', category: 'Accessories', icon: '✱', color: COLORS.accessory,
+        mass: 0.3, dims: [1, 0.05, 0.2], isPropeller: true,
+        desc: 'Upward force + spin',
+        geom: () => {
+            const a = new THREE.BoxGeometry(1, 0.05, 0.15);
+            const b = new THREE.BoxGeometry(0.15, 0.05, 1);
+            return mergeGeometries([a, b]) || a;
+        },
+        collider: () => RAPIER.ColliderDesc.cuboid(0.5, 0.025, 0.075),
+        snaps: () => [
+            { off: [0, -0.025, 0], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    },
+
+    // --- Sensors (decorative) ---
+    googly_eyes: {
+        name: 'Googly Eyes', category: 'Sensors', icon: '👀', color: 0xffffff,
+        mass: 0.1, dims: [0.3, 0.2, 0.15], isSensor: true,
+        desc: 'Personality!',
+        geom: () => {
+            const a = new THREE.SphereGeometry(0.1, 12, 8);
+            a.translate(-0.08, 0, 0);
+            const b = new THREE.SphereGeometry(0.1, 12, 8);
+            b.translate(0.08, 0, 0);
+            return mergeGeometries([a, b]) || a;
+        },
+        collider: () => RAPIER.ColliderDesc.ball(0.1).setMass(0.1),
+        snaps: () => [
+            { off: [0, 0, -0.1], norm: [0,0,-1], hAxis: [1,0,0] }
+        ]
+    },
+    antenna: {
+        name: 'Antenna', category: 'Sensors', icon: '📡', color: COLORS.sensor,
+        mass: 0.1, dims: [0.05, 0.5, 0.05], isSensor: true,
+        desc: 'Receives nothing',
+        geom: () => {
+            const rod = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 6);
+            rod.translate(0, 0.2, 0);
+            const tip = new THREE.SphereGeometry(0.06, 8, 6);
+            tip.translate(0, 0.44, 0);
+            return mergeGeometries([rod, tip]) || rod;
+        },
+        collider: () => RAPIER.ColliderDesc.capsule(0.2, 0.03).setMass(0.1),
+        snaps: () => [
+            { off: [0, -0.02, 0], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    }
+};
+
+function mergeGeometries(geos) {
+    const positions = [];
+    const normals = [];
+    const indices = [];
+    let indexOffset = 0;
+
+    for (const g of geos) {
+        const pos = g.getAttribute('position');
+        const norm = g.getAttribute('normal');
+        const idx = g.getIndex();
+
+        for (let i = 0; i < pos.count; i++) {
+            positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+            if (norm) normals.push(norm.getX(i), norm.getY(i), norm.getZ(i));
+        }
+
+        if (idx) {
+            for (let i = 0; i < idx.count; i++) {
+                indices.push(idx.getX(i) + indexOffset);
+            }
+        } else {
+            for (let i = 0; i < pos.count; i++) {
+                indices.push(i + indexOffset);
+            }
+        }
+        indexOffset += pos.count;
+    }
+
+    const merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    if (normals.length) merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    merged.setIndex(indices);
+    merged.computeVertexNormals();
+    return merged;
+}
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let gamePhase = 'landing';
+
+const buildState = {
+    parts: [],
+    joints: [],
+    nextPartId: 1,
+    nextJointId: 1
+};
+
+let undoStack = [];
+let redoStack = [];
+
+let selectedPartId = null;
+let selectedJointId = null;
+let hoveredPartId = null;
+let draggingType = null;
+let ghostMesh = null;
+let snapIndicators = [];
+let activeSnap = null;
+let isShiftHeld = false;
+
+let buildScene, buildCamera, buildRenderer, buildControls;
+let testScene, testCamera, testRenderer;
+let physicsWorld = null;
+let physicsBodies = new Map();
+let physicsJoints = new Map();
+let testRunning = false;
+let testStartPos = new THREE.Vector3();
+let testStartTime = 0;
+let invertedTimer = 0;
+let score = { distance: 0, time: 0, maxSpeed: 0, style: 0 };
+let testAnimId = null;
+let buildAnimId = null;
+let thrusterParticles = [];
+let crashParticles = [];
+
+// ══════════════════════════════════════════════════════════
+// THREE.JS SETUP — BUILD MODE
+// ══════════════════════════════════════════════════════════
+function initBuildScene() {
+    const container = document.getElementById('viewport-container');
+    buildScene = new THREE.Scene();
+    buildScene.background = new THREE.Color(0x1a1816);
+
+    buildCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    buildCamera.position.set(4, 4, 4);
+
+    buildRenderer = new THREE.WebGLRenderer({ antialias: true });
+    buildRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    buildRenderer.shadowMap.enabled = true;
+    buildRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(buildRenderer.domElement);
+
+    buildControls = new OrbitControls(buildCamera, buildRenderer.domElement);
+    buildControls.enableDamping = true;
+    buildControls.dampingFactor = 0.08;
+    buildControls.target.set(0, 0.5, 0);
+    buildControls.maxDistance = 20;
+    buildControls.minDistance = 1;
+
+    const ambient = new THREE.AmbientLight(0xfff0e0, 0.5);
+    buildScene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffe8c8, 1.0);
+    dirLight.position.set(5, 8, 3);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(1024, 1024);
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 30;
+    dirLight.shadow.camera.left = -10;
+    dirLight.shadow.camera.right = 10;
+    dirLight.shadow.camera.top = 10;
+    dirLight.shadow.camera.bottom = -10;
+    buildScene.add(dirLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xfff0d0, 0x303020, 0.3);
+    buildScene.add(hemiLight);
+
+    createBuildGrid();
+    resizeBuildRenderer();
+}
+
+function createBuildGrid() {
+    const gridSize = 10;
+    const divisions = 40;
+    const grid = new THREE.GridHelper(gridSize, divisions, COLORS.grid, COLORS.grid);
+    grid.material.opacity = 0.3;
+    grid.material.transparent = true;
+    buildScene.add(grid);
+
+    const planeGeo = new THREE.PlaneGeometry(gridSize, gridSize);
+    const planeMat = new THREE.MeshStandardMaterial({
+        color: 0x1e1a16,
+        roughness: 1,
+        metalness: 0
+    });
+    const plane = new THREE.Mesh(planeGeo, planeMat);
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.y = -0.005;
+    plane.receiveShadow = true;
+    plane.name = 'groundPlane';
+    buildScene.add(plane);
+}
+
+function resizeBuildRenderer() {
+    const container = document.getElementById('viewport-container');
+    if (!container || !buildRenderer) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w === 0 || h === 0) return;
+    buildRenderer.setSize(w, h);
+    buildCamera.aspect = w / h;
+    buildCamera.updateProjectionMatrix();
+}
+
+// ══════════════════════════════════════════════════════════
+// THREE.JS SETUP — TEST MODE
+// ══════════════════════════════════════════════════════════
+function initTestScene() {
+    const container = document.getElementById('test-canvas-container');
+    testScene = new THREE.Scene();
+
+    const canvas = document.createElement('canvas');
+    testRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    testRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    testRenderer.shadowMap.enabled = true;
+    testRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(testRenderer.domElement);
+
+    testCamera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
+    testCamera.position.set(0, 3, -6);
+
+    const vertexShader = `
+        varying vec3 vWorldPosition;
+        void main() {
+            vec4 worldPos = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPos.xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `;
+    const fragmentShader = `
+        uniform vec3 topColor;
+        uniform vec3 bottomColor;
+        varying vec3 vWorldPosition;
+        void main() {
+            float h = normalize(vWorldPosition).y;
+            gl_FragColor = vec4(mix(bottomColor, topColor, max(h, 0.0)), 1.0);
+        }
+    `;
+    const skyGeo = new THREE.SphereGeometry(200, 16, 12);
+    const skyMat = new THREE.ShaderMaterial({
+        vertexShader, fragmentShader,
+        uniforms: {
+            topColor: { value: new THREE.Color(COLORS.sky1) },
+            bottomColor: { value: new THREE.Color(COLORS.sky2) }
+        },
+        side: THREE.BackSide
+    });
+    testScene.add(new THREE.Mesh(skyGeo, skyMat));
+
+    const ambient = new THREE.AmbientLight(0xc0d8f0, 0.4);
+    testScene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xfff0d0, 1.2);
+    sun.position.set(20, 30, 10);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 80;
+    sun.shadow.camera.left = -30;
+    sun.shadow.camera.right = 30;
+    sun.shadow.camera.top = 30;
+    sun.shadow.camera.bottom = -30;
+    testScene.add(sun);
+
+    const hemi = new THREE.HemisphereLight(0x8888ff, 0x445522, 0.3);
+    testScene.add(hemi);
+
+    resizeTestRenderer();
+}
+
+function createTestArena() {
+    const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.ground, roughness: 0.9 });
+    const obstacleMat = new THREE.MeshStandardMaterial({ color: COLORS.obstacle, roughness: 0.7 });
+
+    const flatGround = new THREE.Mesh(new THREE.BoxGeometry(100, 0.5, 20), groundMat);
+    flatGround.position.set(40, -0.25, 0);
+    flatGround.receiveShadow = true;
+    testArenaGroup.add(flatGround);
+
+    const startPad = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 10), groundMat.clone());
+    startPad.material.color.set(0x4a5a3a);
+    startPad.position.set(0, -0.25, 0);
+    startPad.receiveShadow = true;
+    testArenaGroup.add(startPad);
+
+    const slopeLen = 8;
+    const slopeGeo = new THREE.BoxGeometry(slopeLen, 0.5, 10);
+    const slope = new THREE.Mesh(slopeGeo, groundMat);
+    slope.position.set(14, -0.7, 0);
+    slope.rotation.z = -0.08;
+    slope.receiveShadow = true;
+    testArenaGroup.add(slope);
+
+    const rampGeo = new THREE.BoxGeometry(4, 0.3, 6);
+    const ramp = new THREE.Mesh(rampGeo, obstacleMat);
+    ramp.position.set(25, 0.1, 0);
+    ramp.rotation.z = -0.25;
+    ramp.receiveShadow = true;
+    testArenaGroup.add(ramp);
+
+    const wallL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 6), obstacleMat);
+    wallL.position.set(35, 0.5, 3);
+    testArenaGroup.add(wallL);
+    const wallR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 6), obstacleMat);
+    wallR.position.set(35, 0.5, -3);
+    testArenaGroup.add(wallR);
+}
+
+function createPhysicsArena() {
+    const ground = RAPIER.ColliderDesc.cuboid(50, 0.25, 10)
+        .setTranslation(40, -0.25, 0)
+        .setFriction(0.7);
+    physicsWorld.createCollider(ground);
+
+    const startPad = RAPIER.ColliderDesc.cuboid(4, 0.25, 5)
+        .setTranslation(0, -0.25, 0)
+        .setFriction(0.7);
+    physicsWorld.createCollider(startPad);
+
+    const slopeBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed()
+        .setTranslation(14, -0.7, 0)
+        .setRotation(quatFromEuler(0, 0, -0.08)));
+    physicsWorld.createCollider(
+        RAPIER.ColliderDesc.cuboid(4, 0.25, 5).setFriction(0.7),
+        slopeBody
+    );
+
+    const rampBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed()
+        .setTranslation(25, 0.1, 0)
+        .setRotation(quatFromEuler(0, 0, -0.25)));
+    physicsWorld.createCollider(
+        RAPIER.ColliderDesc.cuboid(2, 0.15, 3).setFriction(0.5),
+        rampBody
+    );
+
+    const wl = RAPIER.ColliderDesc.cuboid(0.15, 0.5, 3).setTranslation(35, 0.5, 3);
+    physicsWorld.createCollider(wl);
+    const wr = RAPIER.ColliderDesc.cuboid(0.15, 0.5, 3).setTranslation(35, 0.5, -3);
+    physicsWorld.createCollider(wr);
+
+    const pit = RAPIER.ColliderDesc.cuboid(2, 0.05, 5)
+        .setTranslation(42, -2, 0)
+        .setSensor(true);
+    physicsWorld.createCollider(pit);
+}
+
+function quatFromEuler(x, y, z) {
+    const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), x);
+    const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), y);
+    const qz = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), z);
+    return qx.multiply(qy).multiply(qz);
+}
+
+function resizeTestRenderer() {
+    const container = document.getElementById('test-canvas-container');
+    if (!container || !testRenderer) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w === 0 || h === 0) return;
+    testRenderer.setSize(w, h);
+    testCamera.aspect = w / h;
+    testCamera.updateProjectionMatrix();
+}
+
+// ══════════════════════════════════════════════════════════
+// UI — PALETTE
+// ══════════════════════════════════════════════════════════
+function populatePalette() {
+    const palette = document.getElementById('parts-palette');
+    palette.innerHTML = '';
+    const categories = {};
+    for (const [id, def] of Object.entries(PART_DEFS)) {
+        if (!categories[def.category]) categories[def.category] = [];
+        categories[def.category].push({ id, ...def });
+    }
+    for (const [cat, parts] of Object.entries(categories)) {
+        const sec = document.createElement('div');
+        sec.className = 'palette-category';
+        sec.innerHTML = `<h3>${cat}</h3>`;
+        for (const p of parts) {
+            const item = document.createElement('div');
+            item.className = 'palette-item';
+            item.dataset.partType = p.id;
+            item.innerHTML = `
+                <div class="palette-swatch" style="background:${hexStr(p.color)}">${p.icon}</div>
+                <div class="palette-item-info">
+                    <div class="palette-item-name">${p.name}</div>
+                    <div class="palette-item-desc">${p.desc}</div>
+                </div>`;
+            item.addEventListener('mousedown', (e) => startDragFromPalette(e, p.id));
+            item.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startDragFromPalette(e, p.id);
+            }, { passive: false });
+            sec.appendChild(item);
+        }
+        palette.appendChild(sec);
+    }
+}
+
+function hexStr(c) {
+    return '#' + c.toString(16).padStart(6, '0');
+}
+
+// ══════════════════════════════════════════════════════════
+// UI — INSPECTOR
+// ══════════════════════════════════════════════════════════
+function updateInspector() {
+    const el = document.getElementById('inspector-content');
+    if (selectedJointId !== null) {
+        const j = buildState.joints.find(j => j.id === selectedJointId);
+        if (!j) { el.innerHTML = '<div class="inspector-empty">Select a part or joint.</div>'; return; }
+        const partA = buildState.parts.find(p => p.id === j.partAId);
+        const partB = buildState.parts.find(p => p.id === j.partBId);
+        const nameA = partA ? PART_DEFS[partA.type].name : '?';
+        const nameB = partB ? PART_DEFS[partB.type].name : '?';
+        el.innerHTML = `
+            <div class="inspector-field"><label>Joint</label><div class="value">${j.type === 'hinge' ? 'Hinge' : 'Fixed'} Joint</div></div>
+            <div class="inspector-field"><label>Between</label><div class="value">${nameA} ↔ ${nameB}</div></div>
+            ${j.type === 'hinge' ? `
+                <div class="inspector-field">
+                    <label>Motor <input type="checkbox" id="insp-motor" ${j.motorEnabled ? 'checked' : ''}></label>
+                </div>
+                <div class="inspector-field">
+                    <label>Speed <span class="range-value" id="insp-speed-val">${j.motorSpeed}</span></label>
+                    <input type="range" id="insp-speed" min="-10" max="10" step="0.5" value="${j.motorSpeed}" ${!j.motorEnabled ? 'disabled' : ''}>
+                </div>
+                <div class="inspector-field">
+                    <label>Force <span class="range-value" id="insp-force-val">${j.motorForce}</span></label>
+                    <input type="range" id="insp-force" min="0" max="100" step="1" value="${j.motorForce}" ${!j.motorEnabled ? 'disabled' : ''}>
+                </div>
+            ` : ''}
+        `;
+        if (j.type === 'hinge') {
+            const motorCb = document.getElementById('insp-motor');
+            const speedSlider = document.getElementById('insp-speed');
+            const forceSlider = document.getElementById('insp-force');
+            motorCb?.addEventListener('change', () => {
+                j.motorEnabled = motorCb.checked;
+                speedSlider.disabled = !j.motorEnabled;
+                forceSlider.disabled = !j.motorEnabled;
+            });
+            speedSlider?.addEventListener('input', () => {
+                j.motorSpeed = parseFloat(speedSlider.value);
+                document.getElementById('insp-speed-val').textContent = j.motorSpeed;
+            });
+            forceSlider?.addEventListener('input', () => {
+                j.motorForce = parseFloat(forceSlider.value);
+                document.getElementById('insp-force-val').textContent = j.motorForce;
+            });
+        }
+        return;
+    }
+
+    if (selectedPartId !== null) {
+        const p = buildState.parts.find(p => p.id === selectedPartId);
+        if (!p) { el.innerHTML = '<div class="inspector-empty">Select a part or joint.</div>'; return; }
+        const def = PART_DEFS[p.type];
+        const connectedJoints = buildState.joints.filter(j => j.partAId === p.id || j.partBId === p.id);
+        el.innerHTML = `
+            <div class="inspector-field"><label>Part</label><div class="value">${def.name}</div></div>
+            <div class="inspector-field"><label>Mass</label><div class="value">${def.mass} kg</div></div>
+            <div class="inspector-field"><label>Position</label><div class="value">(${p.position.x.toFixed(2)}, ${p.position.y.toFixed(2)}, ${p.position.z.toFixed(2)})</div></div>
+            <div class="inspector-field"><label>Connections</label><div class="value">${connectedJoints.length} joint(s)</div></div>
+            ${def.isThruster ? `
+                <div class="inspector-field">
+                    <label>Auto-fire <input type="checkbox" id="insp-autofire" ${p.autoFire !== false ? 'checked' : ''}></label>
+                </div>
+                <div class="inspector-field">
+                    <label>Thrust Force <span class="range-value" id="insp-thrust-val">${p.thrustMult || 1}</span>x</label>
+                    <input type="range" id="insp-thrust" min="0.1" max="3" step="0.1" value="${p.thrustMult || 1}">
+                </div>
+            ` : ''}
+            ${connectedJoints.length > 0 ? `<hr style="border-color:#3a3530;margin:12px 0"><p style="color:#6a6050;font-size:11px">Click a connection line to inspect the joint.</p>` : ''}
+        `;
+        if (def.isThruster) {
+            document.getElementById('insp-autofire')?.addEventListener('change', (e) => {
+                p.autoFire = e.target.checked;
+            });
+            document.getElementById('insp-thrust')?.addEventListener('input', (e) => {
+                p.thrustMult = parseFloat(e.target.value);
+                document.getElementById('insp-thrust-val').textContent = p.thrustMult;
+            });
+        }
+        return;
+    }
+
+    el.innerHTML = '<div class="inspector-empty">Select a part or joint to view properties.<br><br>Tip: Click a part to select it. Click a connection line to inspect joints.</div>';
+}
+
+// ══════════════════════════════════════════════════════════
+// BUILD MECHANICS
+// ══════════════════════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const gridPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+function getMouseNDC(e, renderer) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+}
+
+function snapToGrid(v) {
+    v.x = Math.round(v.x / GRID_SNAP) * GRID_SNAP;
+    v.y = Math.round(v.y / GRID_SNAP) * GRID_SNAP;
+    v.z = Math.round(v.z / GRID_SNAP) * GRID_SNAP;
+    return v;
+}
+
+function startDragFromPalette(e, type) {
+    if (buildState.parts.length >= MAX_PARTS) return;
+    e.preventDefault();
+    draggingType = type;
+    buildControls.enabled = false;
+
+    const def = PART_DEFS[type];
+    const geom = def.geom();
+    const mat = new THREE.MeshStandardMaterial({
+        color: def.color,
+        transparent: true,
+        opacity: 0.6,
+        roughness: 0.7,
+        metalness: 0.1
+    });
+    ghostMesh = new THREE.Mesh(geom, mat);
+    ghostMesh.castShadow = true;
+    ghostMesh.position.set(0, 10, 0);
+    buildScene.add(ghostMesh);
+
+    showSnapIndicators();
+}
+
+function showSnapIndicators() {
+    clearSnapIndicators();
+    const dotGeo = new THREE.SphereGeometry(0.06, 8, 6);
+    const dotMat = new THREE.MeshBasicMaterial({ color: COLORS.snap, transparent: true, opacity: 0.7 });
+
+    for (const part of buildState.parts) {
+        const def = PART_DEFS[part.type];
+        const snaps = def.snaps();
+        for (const snap of snaps) {
+            const worldPos = new THREE.Vector3(
+                part.position.x + snap.off[0],
+                part.position.y + snap.off[1],
+                part.position.z + snap.off[2]
+            );
+            const dot = new THREE.Mesh(dotGeo, dotMat.clone());
+            dot.position.copy(worldPos);
+            dot.userData = { partId: part.id, snap, worldPos };
+            buildScene.add(dot);
+            snapIndicators.push(dot);
+        }
+    }
+}
+
+function clearSnapIndicators() {
+    for (const dot of snapIndicators) {
+        buildScene.remove(dot);
+        dot.geometry.dispose();
+        dot.material.dispose();
+    }
+    snapIndicators = [];
+    activeSnap = null;
+}
+
+function updateDrag(e) {
+    if (!draggingType || !ghostMesh) return;
+    const ndc = getMouseNDC(e, buildRenderer);
+    raycaster.setFromCamera(ndc, buildCamera);
+
+    let bestSnap = null;
+    let bestDist = SNAP_DIST;
+
+    for (const dot of snapIndicators) {
+        const d = raycaster.ray.distanceToPoint(dot.userData.worldPos);
+        if (d < bestDist) {
+            bestDist = d;
+            bestSnap = dot;
+        }
+    }
+
+    for (const dot of snapIndicators) {
+        dot.material.color.setHex(COLORS.snap);
+        dot.material.opacity = 0.7;
+        dot.scale.setScalar(1);
+    }
+
+    if (bestSnap) {
+        bestSnap.material.color.setHex(COLORS.snapHover);
+        bestSnap.material.opacity = 1;
+        bestSnap.scale.setScalar(1.8);
+        activeSnap = bestSnap.userData;
+
+        const def = PART_DEFS[draggingType];
+        const norm = new THREE.Vector3(...activeSnap.snap.norm);
+        const halfExtent = getPartHalfExtentAlongAxis(def, norm);
+        const pos = activeSnap.worldPos.clone().add(norm.clone().multiplyScalar(halfExtent));
+        snapToGrid(pos);
+        ghostMesh.position.copy(pos);
+
+        orientPartToSnap(ghostMesh, def, norm);
+    } else {
+        activeSnap = null;
+        const hitPoint = new THREE.Vector3();
+        if (raycaster.ray.intersectPlane(gridPlane, hitPoint)) {
+            hitPoint.y = Math.max(hitPoint.y, getPartDefaultY(PART_DEFS[draggingType]));
+            snapToGrid(hitPoint);
+            ghostMesh.position.copy(hitPoint);
+            ghostMesh.rotation.set(0, 0, 0);
+            ghostMesh.quaternion.identity();
+        }
+    }
+}
+
+function getPartHalfExtentAlongAxis(def, axis) {
+    const ax = Math.abs(axis.x);
+    const ay = Math.abs(axis.y);
+    const az = Math.abs(axis.z);
+    if (ax > ay && ax > az) return def.dims[0] / 2;
+    if (ay > ax && ay > az) return def.dims[1] / 2;
+    return def.dims[2] / 2;
+}
+
+function getPartDefaultY(def) {
+    return def.dims[1] / 2;
+}
+
+function orientPartToSnap(mesh, def, normal) {
+    if (def.isWheel && !def.radius) return;
+    if (def.isWheel) {
+        const up = new THREE.Vector3(1, 0, 0);
+        const q = new THREE.Quaternion().setFromUnitVectors(up, normal);
+        mesh.quaternion.copy(q);
+    }
+}
+
+function endDrag(e) {
+    if (!draggingType || !ghostMesh) return;
+
+    const pos = ghostMesh.position.clone();
+    const rot = ghostMesh.quaternion.clone();
+    const type = draggingType;
+
+    buildScene.remove(ghostMesh);
+    ghostMesh.geometry.dispose();
+    ghostMesh.material.dispose();
+    ghostMesh = null;
+
+    clearSnapIndicators();
+    buildControls.enabled = true;
+
+    if (pos.y < -5) {
+        draggingType = null;
+        return;
+    }
+
+    pushUndo();
+    const partId = buildState.nextPartId++;
+    const def = PART_DEFS[type];
+    const mesh = createPartMesh(type, def);
+    mesh.position.copy(pos);
+    mesh.quaternion.copy(rot);
+    mesh.userData.partId = partId;
+    buildScene.add(mesh);
+
+    const part = {
+        id: partId,
+        type,
+        position: pos.clone(),
+        rotation: rot.clone(),
+        mesh,
+        autoFire: def.isThruster ? true : undefined,
+        thrustMult: def.isThruster ? 1 : undefined
+    };
+    buildState.parts.push(part);
+
+    if (activeSnap) {
+        const jointType = isShiftHeld ? 'hinge' : 'fixed';
+        const jointId = buildState.nextJointId++;
+        const snap = activeSnap.snap;
+        const anchorWorld = activeSnap.worldPos.clone();
+
+        const parentPart = buildState.parts.find(p => p.id === activeSnap.partId);
+        const anchorA = anchorWorld.clone().sub(parentPart.position);
+        const anchorB = anchorWorld.clone().sub(pos);
+
+        const joint = {
+            id: jointId,
+            partAId: activeSnap.partId,
+            partBId: partId,
+            type: jointType,
+            anchorA: { x: anchorA.x, y: anchorA.y, z: anchorA.z },
+            anchorB: { x: anchorB.x, y: anchorB.y, z: anchorB.z },
+            axis: snap.hAxis ? { x: snap.hAxis[0], y: snap.hAxis[1], z: snap.hAxis[2] } : { x: 0, y: 0, z: 1 },
+            motorEnabled: def.isWheel || def.isLeg,
+            motorSpeed: def.isWheel ? 5 : (def.isLeg ? 3 : 0),
+            motorForce: def.isWheel ? 50 : (def.isLeg ? 30 : 0),
+            line: null
+        };
+        buildState.joints.push(joint);
+
+        createJointLine(joint);
+
+        if (def.isLeg) {
+            joint.motorEnabled = true;
+            joint.oscillate = true;
+        }
+    }
+
+    draggingType = null;
+    activeSnap = null;
+    updatePartCounter();
+    selectPart(partId);
+}
+
+function createPartMesh(type, def) {
+    const geom = def.geom();
+    const mat = new THREE.MeshStandardMaterial({
+        color: def.color,
+        roughness: 0.65,
+        metalness: 0.15
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    if (def.isWheel) {
+        const hubGeo = new THREE.CylinderGeometry(def.radius * 0.3, def.radius * 0.3, def.dims[0] + 0.02, 12);
+        hubGeo.rotateZ(Math.PI / 2);
+        const hubMat = new THREE.MeshStandardMaterial({ color: COLORS.wheelHub, roughness: 0.3, metalness: 0.5 });
+        const hub = new THREE.Mesh(hubGeo, hubMat);
+        mesh.add(hub);
+    }
+
+    if (type === 'googly_eyes') {
+        const pupilGeo = new THREE.SphereGeometry(0.05, 8, 6);
+        const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const p1 = new THREE.Mesh(pupilGeo, pupilMat);
+        p1.position.set(-0.08, 0, 0.06);
+        mesh.add(p1);
+        const p2 = new THREE.Mesh(pupilGeo, pupilMat);
+        p2.position.set(0.08, 0, 0.06);
+        mesh.add(p2);
+    }
+
+    if (type === 'spring') {
+        mat.color.setHex(0xcccc44);
+        mat.wireframe = true;
+    }
+
+    return mesh;
+}
+
+function createJointLine(joint) {
+    const partA = buildState.parts.find(p => p.id === joint.partAId);
+    const partB = buildState.parts.find(p => p.id === joint.partBId);
+    if (!partA || !partB) return;
+
+    const points = [partA.position.clone(), partB.position.clone()];
+    const geom = new THREE.BufferGeometry().setFromPoints(points);
+    const color = joint.type === 'hinge' ? 0xe8a849 : 0x888888;
+    const mat = new THREE.LineBasicMaterial({ color, linewidth: 2 });
+    const line = new THREE.Line(geom, mat);
+    line.userData.jointId = joint.id;
+    buildScene.add(line);
+    joint.line = line;
+}
+
+function deletePart(partId) {
+    pushUndo();
+    const idx = buildState.parts.findIndex(p => p.id === partId);
+    if (idx === -1) return;
+    const part = buildState.parts[idx];
+
+    const jointsToRemove = buildState.joints.filter(j => j.partAId === partId || j.partBId === partId);
+    for (const j of jointsToRemove) {
+        if (j.line) { buildScene.remove(j.line); j.line.geometry.dispose(); j.line.material.dispose(); }
+        buildState.joints.splice(buildState.joints.indexOf(j), 1);
+    }
+
+    buildScene.remove(part.mesh);
+    part.mesh.geometry.dispose();
+    if (part.mesh.material.dispose) part.mesh.material.dispose();
+    buildState.parts.splice(idx, 1);
+
+    if (selectedPartId === partId) { selectedPartId = null; updateInspector(); }
+    updatePartCounter();
+}
+
+function clearBuild() {
+    pushUndo();
+    for (const j of buildState.joints) {
+        if (j.line) { buildScene.remove(j.line); j.line.geometry.dispose(); j.line.material.dispose(); }
+    }
+    for (const p of buildState.parts) {
+        buildScene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        if (p.mesh.material.dispose) p.mesh.material.dispose();
+    }
+    buildState.parts = [];
+    buildState.joints = [];
+    selectedPartId = null;
+    selectedJointId = null;
+    updatePartCounter();
+    updateInspector();
+}
+
+function selectPart(partId) {
+    deselectAll();
+    selectedPartId = partId;
+    const part = buildState.parts.find(p => p.id === partId);
+    if (part && part.mesh && part.mesh.material && part.mesh.material.emissive) {
+        part.mesh.material.emissive.setHex(0x333320);
+    }
+    updateInspector();
+}
+
+function selectJoint(jointId) {
+    deselectAll();
+    selectedJointId = jointId;
+    const joint = buildState.joints.find(j => j.id === jointId);
+    if (joint && joint.line) {
+        joint.line.material.color.setHex(0x00ffdd);
+    }
+    updateInspector();
+}
+
+function deselectAll() {
+    if (selectedPartId !== null) {
+        const part = buildState.parts.find(p => p.id === selectedPartId);
+        if (part && part.mesh && part.mesh.material && part.mesh.material.emissive) {
+            part.mesh.material.emissive.setHex(0x000000);
+        }
+    }
+    if (selectedJointId !== null) {
+        const joint = buildState.joints.find(j => j.id === selectedJointId);
+        if (joint && joint.line) {
+            joint.line.material.color.setHex(joint.type === 'hinge' ? 0xe8a849 : 0x888888);
+        }
+    }
+    selectedPartId = null;
+    selectedJointId = null;
+}
+
+function updatePartCounter() {
+    document.getElementById('part-counter').textContent = `Parts: ${buildState.parts.length}/${MAX_PARTS}`;
+}
+
+// ══════════════════════════════════════════════════════════
+// UNDO / REDO
+// ══════════════════════════════════════════════════════════
+function pushUndo() {
+    undoStack.push(serializeBuild());
+    if (undoStack.length > 40) undoStack.shift();
+    redoStack = [];
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    redoStack.push(serializeBuild());
+    const state = undoStack.pop();
+    restoreBuild(state);
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    undoStack.push(serializeBuild());
+    const state = redoStack.pop();
+    restoreBuild(state);
+}
+
+function restoreBuild(data) {
+    for (const j of buildState.joints) {
+        if (j.line) { buildScene.remove(j.line); j.line.geometry.dispose(); j.line.material.dispose(); }
+    }
+    for (const p of buildState.parts) {
+        buildScene.remove(p.mesh);
+        p.mesh.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material && c.material.dispose) c.material.dispose(); });
+    }
+    buildState.parts = [];
+    buildState.joints = [];
+    selectedPartId = null;
+    selectedJointId = null;
+
+    deserializeBuildInto(data);
+    updatePartCounter();
+    updateInspector();
+}
+
+// ══════════════════════════════════════════════════════════
+// PHYSICS SIMULATION
+// ══════════════════════════════════════════════════════════
+let testArenaGroup = null;
+let testRobotGroup = null;
+
+function startSimulation() {
+    if (buildState.parts.length === 0) return;
+
+    gamePhase = 'testing';
+    document.getElementById('build-screen').classList.remove('active');
+    document.getElementById('test-screen').classList.add('active');
+    if (buildAnimId) cancelAnimationFrame(buildAnimId);
+
+    if (testArenaGroup) { testScene.remove(testArenaGroup); }
+    if (testRobotGroup) { testScene.remove(testRobotGroup); }
+    testArenaGroup = new THREE.Group();
+    testRobotGroup = new THREE.Group();
+    testScene.add(testArenaGroup);
+    testScene.add(testRobotGroup);
+
+    for (const p of thrusterParticles) { testScene.remove(p.mesh); }
+    for (const p of crashParticles) { testScene.remove(p.mesh); }
+
+    if (physicsWorld) { physicsWorld.free(); physicsWorld = null; }
+    physicsWorld = new RAPIER.World(GRAVITY);
+
+    createTestArena();
+    createPhysicsArena();
+
+    physicsBodies.clear();
+    physicsJoints.clear();
+    thrusterParticles = [];
+    crashParticles = [];
+
+    const centerOfBuild = new THREE.Vector3();
+    for (const p of buildState.parts) centerOfBuild.add(p.position);
+    if (buildState.parts.length > 0) centerOfBuild.divideScalar(buildState.parts.length);
+
+    for (const part of buildState.parts) {
+        const def = PART_DEFS[part.type];
+        const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(
+                part.position.x - centerOfBuild.x,
+                part.position.y - centerOfBuild.y + 1.5,
+                part.position.z - centerOfBuild.z
+            )
+            .setRotation({
+                x: part.rotation.x,
+                y: part.rotation.y,
+                z: part.rotation.z,
+                w: part.rotation.w
+            });
+        const body = physicsWorld.createRigidBody(bodyDesc);
+
+        const colliderDesc = def.collider();
+        colliderDesc.setMass(def.mass);
+        if (!def.isWheel) colliderDesc.setFriction(0.5);
+        colliderDesc.setRestitution(def.isSpring ? 0.9 : 0.2);
+        physicsWorld.createCollider(colliderDesc, body);
+
+        const mesh = createPartMesh(part.type, def);
+        mesh.userData.partMesh = true;
+        mesh.userData.partId = part.id;
+        mesh.userData.partType = part.type;
+        testRobotGroup.add(mesh);
+
+        physicsBodies.set(part.id, { body, mesh, def, part });
+    }
+
+    for (const joint of buildState.joints) {
+        const entA = physicsBodies.get(joint.partAId);
+        const entB = physicsBodies.get(joint.partBId);
+        if (!entA || !entB) continue;
+
+        try {
+            let jointData;
+            if (joint.type === 'fixed') {
+                jointData = RAPIER.JointData.fixed(
+                    joint.anchorA, { x: 0, y: 0, z: 0, w: 1 },
+                    joint.anchorB, { x: 0, y: 0, z: 0, w: 1 }
+                );
+            } else {
+                jointData = RAPIER.JointData.revolute(
+                    joint.anchorA,
+                    joint.anchorB,
+                    joint.axis
+                );
+            }
+            const impulseJoint = physicsWorld.createImpulseJoint(jointData, entA.body, entB.body, true);
+
+            if (joint.type === 'hinge' && joint.motorEnabled) {
+                impulseJoint.configureMotorVelocity(joint.motorSpeed, joint.motorForce);
+            }
+
+            physicsJoints.set(joint.id, { joint: impulseJoint, data: joint });
+        } catch (e) {
+            console.warn('Joint creation failed:', e);
+        }
+    }
+
+    testStartPos.set(0, 1.5, 0);
+    testStartTime = performance.now();
+    invertedTimer = 0;
+    score = { distance: 0, time: 0, maxSpeed: 0, style: 0 };
+    testRunning = true;
+
+    showTestStatus('3...', 500);
+    setTimeout(() => showTestStatus('2...', 500), 500);
+    setTimeout(() => showTestStatus('1...', 500), 1000);
+    setTimeout(() => showTestStatus('GO!', 600), 1500);
+
+    resizeTestRenderer();
+    testLoop();
+}
+
+function showTestStatus(text, duration) {
+    const el = document.getElementById('test-status');
+    el.textContent = text;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), duration || 1000);
+}
+
+let lastPhysicsTime = 0;
+let physicsAccum = 0;
+
+function testLoop() {
+    if (!testRunning) return;
+    testAnimId = requestAnimationFrame(testLoop);
+
+    const now = performance.now();
+    const dt = Math.min((now - (lastPhysicsTime || now)) / 1000, 0.05);
+    lastPhysicsTime = now;
+    physicsAccum += dt;
+
+    let stepped = false;
+    while (physicsAccum >= PHYSICS_DT) {
+        physicsWorld.step();
+        physicsAccum -= PHYSICS_DT;
+        stepped = true;
+
+        applyThrusters();
+        applyLegOscillation(now / 1000);
+        applyPropellers(now / 1000);
+    }
+
+    syncTestMeshes();
+    updateScore(now);
+    updateTestCamera();
+    updateParticles(dt);
+
+    testRenderer.render(testScene, testCamera);
+}
+
+function applyThrusters() {
+    for (const [id, ent] of physicsBodies) {
+        if (!ent.def.isThruster) continue;
+        const part = ent.part;
+        if (part.autoFire === false) continue;
+        const mult = part.thrustMult || 1;
+        const dir = new THREE.Vector3(...ent.def.thrustDir);
+        dir.applyQuaternion(new THREE.Quaternion(
+            ent.body.rotation().x, ent.body.rotation().y,
+            ent.body.rotation().z, ent.body.rotation().w
+        ));
+        dir.multiplyScalar(ent.def.thrustForce * mult);
+        ent.body.addForce({ x: dir.x, y: dir.y, z: dir.z }, true);
+
+        spawnThrusterParticle(ent.body.translation(), dir.clone().negate().normalize());
+    }
+}
+
+function applyLegOscillation(time) {
+    for (const [id, jEnt] of physicsJoints) {
+        if (!jEnt.data.oscillate) continue;
+        const speed = jEnt.data.motorSpeed * Math.sin(time * 4);
+        try {
+            jEnt.joint.configureMotorVelocity(speed, jEnt.data.motorForce);
+        } catch(e) {}
+    }
+}
+
+function applyPropellers(time) {
+    for (const [id, ent] of physicsBodies) {
+        if (!ent.def.isPropeller) continue;
+        ent.body.addForce({ x: 0, y: 6, z: 0 }, true);
+        ent.body.addTorque({ x: 0, y: 8, z: 0 }, true);
+    }
+}
+
+function syncTestMeshes() {
+    for (const [id, ent] of physicsBodies) {
+        const pos = ent.body.translation();
+        const rot = ent.body.rotation();
+        ent.mesh.position.set(pos.x, pos.y, pos.z);
+        ent.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+    }
+}
+
+function updateScore(now) {
+    const elapsed = (now - testStartTime) / 1000;
+    score.time = elapsed;
+
+    let avgPos = new THREE.Vector3();
+    let avgVel = new THREE.Vector3();
+    let totalAngVel = 0;
+    let count = 0;
+    let anyAboveGround = false;
+
+    for (const [id, ent] of physicsBodies) {
+        const p = ent.body.translation();
+        const v = ent.body.linvel();
+        const av = ent.body.angvel();
+        avgPos.add(new THREE.Vector3(p.x, p.y, p.z));
+        avgVel.add(new THREE.Vector3(v.x, v.y, v.z));
+        totalAngVel += Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+        if (p.y > -1) anyAboveGround = true;
+        count++;
+    }
+
+    if (count > 0) {
+        avgPos.divideScalar(count);
+        avgVel.divideScalar(count);
+
+        score.distance = Math.max(score.distance, avgPos.x);
+        const speed = avgVel.length();
+        score.maxSpeed = Math.max(score.maxSpeed, speed);
+
+        if (avgPos.y > 1) score.style += 0.02;
+        if (totalAngVel / count > 5) score.style += 0.03;
+
+        const upVec = new THREE.Vector3(0, 1, 0);
+        const firstBody = physicsBodies.values().next().value;
+        if (firstBody) {
+            const q = firstBody.body.rotation();
+            const bodyUp = upVec.clone().applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));
+            if (bodyUp.y < -0.3) {
+                invertedTimer += PHYSICS_DT;
+            } else {
+                invertedTimer = Math.max(0, invertedTimer - PHYSICS_DT * 2);
+            }
+        }
+
+        if (!anyAboveGround || invertedTimer > 3 || avgPos.y < -5) {
+            endSimulation('Wipeout!');
+            return;
+        }
+    }
+
+    document.getElementById('sc-dist').textContent = score.distance.toFixed(1) + ' m';
+    document.getElementById('sc-time').textContent = score.time.toFixed(1) + ' s';
+    document.getElementById('sc-speed').textContent = score.maxSpeed.toFixed(1) + ' m/s';
+    document.getElementById('sc-style').textContent = Math.floor(score.style);
+}
+
+function endSimulation(reason) {
+    testRunning = false;
+    showTestStatus(reason || 'Run Complete!', 2000);
+}
+
+function updateTestCamera() {
+    let target = new THREE.Vector3();
+    let count = 0;
+    for (const [id, ent] of physicsBodies) {
+        const p = ent.body.translation();
+        target.add(new THREE.Vector3(p.x, p.y, p.z));
+        count++;
+    }
+    if (count === 0) return;
+    target.divideScalar(count);
+
+    const camOffset = new THREE.Vector3(-5, 3, 4);
+    const desiredPos = target.clone().add(camOffset);
+    testCamera.position.lerp(desiredPos, 0.04);
+    const lookTarget = target.clone();
+    lookTarget.y += 0.5;
+
+    const currentLook = new THREE.Vector3();
+    testCamera.getWorldDirection(currentLook);
+    testCamera.lookAt(lookTarget);
+}
+
+function stopSimulation() {
+    testRunning = false;
+    if (testAnimId) cancelAnimationFrame(testAnimId);
+    if (physicsWorld) {
+        physicsWorld.free();
+        physicsWorld = null;
+    }
+    physicsBodies.clear();
+    physicsJoints.clear();
+    for (const p of thrusterParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
+    for (const p of crashParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
+    thrusterParticles = [];
+    crashParticles = [];
+}
+
+function backToWorkshop() {
+    stopSimulation();
+    gamePhase = 'building';
+    document.getElementById('test-screen').classList.remove('active');
+    document.getElementById('build-screen').classList.add('active');
+    resizeBuildRenderer();
+    startBuildLoop();
+}
+
+function replay() {
+    stopSimulation();
+    startSimulation();
+}
+
+// ══════════════════════════════════════════════════════════
+// PARTICLES
+// ══════════════════════════════════════════════════════════
+const particleGeo = new THREE.SphereGeometry(0.04, 4, 3);
+
+function spawnThrusterParticle(pos, dir) {
+    if (thrusterParticles.length > 200) return;
+    const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color().lerpColors(
+            new THREE.Color(0xff6600),
+            new THREE.Color(0xffcc00),
+            Math.random()
+        ),
+        transparent: true,
+        opacity: 0.8
+    });
+    const mesh = new THREE.Mesh(particleGeo, mat);
+    mesh.position.set(pos.x, pos.y, pos.z);
+    const vel = new THREE.Vector3(
+        dir.x * 3 + (Math.random() - 0.5) * 2,
+        dir.y * 3 + (Math.random() - 0.5) * 2,
+        dir.z * 3 + (Math.random() - 0.5) * 2
+    );
+    testScene.add(mesh);
+    thrusterParticles.push({ mesh, vel, life: 0.3 + Math.random() * 0.3 });
+}
+
+function spawnCrashParticles(pos) {
+    for (let i = 0; i < 15; i++) {
+        const mat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color().lerpColors(
+                new THREE.Color(0xffaa00),
+                new THREE.Color(0xffffff),
+                Math.random()
+            ),
+            transparent: true,
+            opacity: 1
+        });
+        const mesh = new THREE.Mesh(particleGeo, mat);
+        mesh.position.set(pos.x, pos.y, pos.z);
+        const vel = new THREE.Vector3(
+            (Math.random() - 0.5) * 6,
+            Math.random() * 4 + 1,
+            (Math.random() - 0.5) * 6
+        );
+        testScene.add(mesh);
+        crashParticles.push({ mesh, vel, life: 0.5 + Math.random() * 0.5 });
+    }
+}
+
+function updateParticles(dt) {
+    const update = (arr) => {
+        for (let i = arr.length - 1; i >= 0; i--) {
+            const p = arr[i];
+            p.life -= dt;
+            if (p.life <= 0) {
+                testScene.remove(p.mesh);
+                p.mesh.material.dispose();
+                arr.splice(i, 1);
+                continue;
+            }
+            p.vel.y -= 5 * dt;
+            p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
+            p.mesh.material.opacity = Math.max(0, p.life * 2);
+            p.mesh.scale.setScalar(p.life * 2);
+        }
+    };
+    update(thrusterParticles);
+    update(crashParticles);
+}
+
+// ══════════════════════════════════════════════════════════
+// SERIALIZATION / SHARING
+// ══════════════════════════════════════════════════════════
+function serializeBuild() {
+    return JSON.stringify({
+        parts: buildState.parts.map(p => ({
+            id: p.id, type: p.type,
+            pos: [round3(p.position.x), round3(p.position.y), round3(p.position.z)],
+            rot: [round3(p.rotation.x), round3(p.rotation.y), round3(p.rotation.z), round3(p.rotation.w)],
+            autoFire: p.autoFire,
+            thrustMult: p.thrustMult
+        })),
+        joints: buildState.joints.map(j => ({
+            id: j.id, a: j.partAId, b: j.partBId, type: j.type,
+            ancA: [round3(j.anchorA.x), round3(j.anchorA.y), round3(j.anchorA.z)],
+            ancB: [round3(j.anchorB.x), round3(j.anchorB.y), round3(j.anchorB.z)],
+            axis: [j.axis.x, j.axis.y, j.axis.z],
+            me: j.motorEnabled, ms: j.motorSpeed, mf: j.motorForce,
+            osc: j.oscillate || false
+        })),
+        npi: buildState.nextPartId,
+        nji: buildState.nextJointId
+    });
+}
+
+function round3(n) { return Math.round(n * 1000) / 1000; }
+
+function deserializeBuildInto(json) {
+    let data;
+    try { data = typeof json === 'string' ? JSON.parse(json) : json; } catch { return false; }
+    if (!data || !data.parts) return false;
+
+    for (const pd of data.parts) {
+        const def = PART_DEFS[pd.type];
+        if (!def) continue;
+        const mesh = createPartMesh(pd.type, def);
+        mesh.position.set(pd.pos[0], pd.pos[1], pd.pos[2]);
+        mesh.quaternion.set(pd.rot[0], pd.rot[1], pd.rot[2], pd.rot[3]);
+        mesh.userData.partId = pd.id;
+        buildScene.add(mesh);
+
+        buildState.parts.push({
+            id: pd.id,
+            type: pd.type,
+            position: new THREE.Vector3(pd.pos[0], pd.pos[1], pd.pos[2]),
+            rotation: new THREE.Quaternion(pd.rot[0], pd.rot[1], pd.rot[2], pd.rot[3]),
+            mesh,
+            autoFire: pd.autoFire,
+            thrustMult: pd.thrustMult
+        });
+    }
+
+    for (const jd of data.joints) {
+        const joint = {
+            id: jd.id,
+            partAId: jd.a,
+            partBId: jd.b,
+            type: jd.type,
+            anchorA: { x: jd.ancA[0], y: jd.ancA[1], z: jd.ancA[2] },
+            anchorB: { x: jd.ancB[0], y: jd.ancB[1], z: jd.ancB[2] },
+            axis: { x: jd.axis[0], y: jd.axis[1], z: jd.axis[2] },
+            motorEnabled: jd.me,
+            motorSpeed: jd.ms,
+            motorForce: jd.mf,
+            oscillate: jd.osc,
+            line: null
+        };
+        buildState.joints.push(joint);
+        createJointLine(joint);
+    }
+
+    buildState.nextPartId = data.npi || (data.parts.length ? Math.max(...data.parts.map(p => p.id)) + 1 : 1);
+    buildState.nextJointId = data.nji || (data.joints.length ? Math.max(...data.joints.map(j => j.id)) + 1 : 1);
+    return true;
+}
+
+function shareLink() {
+    const data = serializeBuild();
+    const encoded = btoa(unescape(encodeURIComponent(data)));
+    const url = window.location.origin + window.location.pathname + '?build=' + encoded;
+
+    document.getElementById('share-link').value = url;
+    document.getElementById('share-scores').innerHTML = `
+        <div class="share-score-item"><div class="label">Distance</div><div class="val">${score.distance.toFixed(1)}m</div></div>
+        <div class="share-score-item"><div class="label">Time</div><div class="val">${score.time.toFixed(1)}s</div></div>
+        <div class="share-score-item"><div class="label">Top Speed</div><div class="val">${score.maxSpeed.toFixed(1)}</div></div>
+        <div class="share-score-item"><div class="label">Style</div><div class="val">${Math.floor(score.style)}</div></div>
+    `;
+    document.getElementById('share-modal').classList.add('active');
+}
+
+function loadFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const buildData = params.get('build');
+    if (!buildData) return false;
+    try {
+        const json = decodeURIComponent(escape(atob(buildData)));
+        deserializeBuildInto(json);
+        updatePartCounter();
+        return true;
+    } catch (e) {
+        console.warn('Failed to load build from URL:', e);
+        return false;
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// PRESET BUILDS
+// ══════════════════════════════════════════════════════════
+const PRESETS = {
+    tricar: {
+        parts: [
+            { id: 1, type: 'long_plank', pos: [0, 0.5, 0], rot: [0, 0, 0, 1] },
+            { id: 2, type: 'small_wheel', pos: [-1.575, 0.5, 0.325], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'small_wheel', pos: [-1.575, 0.5, -0.325], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'big_wheel', pos: [1.6, 0.5, 0], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'googly_eyes', pos: [1.5, 0.85, 0], rot: [0, 0, 0, 1] }
+        ],
+        joints: [
+            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [-1.5, 0, 0.25], ancB: [0.075, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 60, osc: false },
+            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [-1.5, 0, -0.25], ancB: [0.075, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 60, osc: false },
+            { id: 3, a: 1, b: 4, type: 'hinge', ancA: [1.5, 0, 0], ancB: [-0.1, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 80, osc: false },
+            { id: 4, a: 1, b: 5, type: 'fixed', ancA: [1.5, 0.25, 0], ancB: [0, -0.1, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
+        ],
+        npi: 6, nji: 5
+    },
+    ostrich: {
+        parts: [
+            { id: 1, type: 'box_chassis', pos: [0, 1.5, 0], rot: [0, 0, 0, 1] },
+            { id: 2, type: 'leg_2seg', pos: [-0.25, 0.5, 0.4], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'leg_2seg', pos: [-0.25, 0.5, -0.4], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'googly_eyes', pos: [0.5, 1.85, 0], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'antenna', pos: [0, 2.0, 0], rot: [0, 0, 0, 1] }
+        ],
+        joints: [
+            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [0, -0.25, 0.4], ancB: [0, 0.4, 0], axis: [0, 0, 1], me: true, ms: 3, mf: 40, osc: true },
+            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [0, -0.25, -0.4], ancB: [0, 0.4, 0], axis: [0, 0, 1], me: true, ms: 3, mf: 40, osc: true },
+            { id: 3, a: 1, b: 4, type: 'fixed', ancA: [0.5, 0.25, 0], ancB: [0, -0.1, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 4, a: 1, b: 5, type: 'fixed', ancA: [0, 0.25, 0], ancB: [0, -0.02, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
+        ],
+        npi: 6, nji: 5
+    },
+    overachiever: {
+        parts: [
+            { id: 1, type: 'platform', pos: [0, 0.5, 0], rot: [0, 0, 0, 1] },
+            { id: 2, type: 'upward_thruster', pos: [0.5, 0.85, 0.5], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'upward_thruster', pos: [-0.5, 0.85, -0.5], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'forward_thruster', pos: [0.5, 0.65, -1], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'forward_thruster', pos: [-0.5, 0.65, -1], rot: [0, 0, 0, 1] },
+            { id: 6, type: 'propeller', pos: [0, 0.9, 0], rot: [0, 0, 0, 1] },
+            { id: 7, type: 'googly_eyes', pos: [0, 0.75, 1], rot: [0, 0, 0, 1] }
+        ],
+        joints: [
+            { id: 1, a: 1, b: 2, type: 'fixed', ancA: [0.5, 0.15, 0.5], ancB: [0, -0.2, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 2, a: 1, b: 3, type: 'fixed', ancA: [-0.5, 0.15, -0.5], ancB: [0, -0.2, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 3, a: 1, b: 4, type: 'fixed', ancA: [0.5, 0, -1], ancB: [0, 0, 0.2], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 4, a: 1, b: 5, type: 'fixed', ancA: [-0.5, 0, -1], ancB: [0, 0, 0.2], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 5, a: 1, b: 6, type: 'hinge', ancA: [0, 0.15, 0], ancB: [0, -0.025, 0], axis: [0, 1, 0], me: true, ms: 10, mf: 5, osc: false },
+            { id: 6, a: 1, b: 7, type: 'fixed', ancA: [0, 0, 1], ancB: [0, 0, -0.1], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
+        ],
+        npi: 8, nji: 7
+    }
+};
+
+function loadPreset(name) {
+    const preset = PRESETS[name];
+    if (!preset) return;
+    clearBuild();
+    undoStack = [];
+    redoStack = [];
+    deserializeBuildInto(preset);
+    updatePartCounter();
+}
+
+// ══════════════════════════════════════════════════════════
+// BUILD LOOP
+// ══════════════════════════════════════════════════════════
+function startBuildLoop() {
+    if (buildAnimId) cancelAnimationFrame(buildAnimId);
+    function loop() {
+        if (gamePhase !== 'building') return;
+        buildAnimId = requestAnimationFrame(loop);
+        buildControls.update();
+
+        for (const dot of snapIndicators) {
+            dot.rotation.y += 0.02;
+        }
+
+        buildRenderer.render(buildScene, buildCamera);
+    }
+    loop();
+}
+
+// ══════════════════════════════════════════════════════════
+// EVENT HANDLERS
+// ══════════════════════════════════════════════════════════
+function initEvents() {
+    document.getElementById('btn-start').addEventListener('click', () => {
+        gamePhase = 'building';
+        document.getElementById('landing-screen').classList.add('hidden');
+        document.getElementById('build-screen').classList.add('active');
+        resizeBuildRenderer();
+        startBuildLoop();
+    });
+
+    document.querySelectorAll('.preset-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const preset = card.dataset.preset;
+            gamePhase = 'building';
+            document.getElementById('landing-screen').classList.add('hidden');
+            document.getElementById('build-screen').classList.add('active');
+            setTimeout(() => {
+                resizeBuildRenderer();
+                loadPreset(preset);
+                startBuildLoop();
+            }, 100);
+        });
+    });
+
+    document.getElementById('btn-launch').addEventListener('click', startSimulation);
+    document.getElementById('btn-back-workshop').addEventListener('click', backToWorkshop);
+    document.getElementById('btn-replay').addEventListener('click', replay);
+    document.getElementById('btn-share').addEventListener('click', shareLink);
+    document.getElementById('btn-undo').addEventListener('click', undo);
+    document.getElementById('btn-redo').addEventListener('click', redo);
+    document.getElementById('btn-clear').addEventListener('click', clearBuild);
+
+    document.getElementById('btn-back-landing').addEventListener('click', () => {
+        gamePhase = 'landing';
+        document.getElementById('build-screen').classList.remove('active');
+        document.getElementById('landing-screen').classList.remove('hidden');
+        if (buildAnimId) cancelAnimationFrame(buildAnimId);
+    });
+
+    document.getElementById('btn-copy-link').addEventListener('click', () => {
+        const link = document.getElementById('share-link');
+        link.select();
+        navigator.clipboard.writeText(link.value).then(() => {
+            document.getElementById('btn-copy-link').textContent = 'Copied!';
+            setTimeout(() => { document.getElementById('btn-copy-link').textContent = 'Copy Link'; }, 1500);
+        });
+    });
+
+    document.getElementById('btn-close-share').addEventListener('click', () => {
+        document.getElementById('share-modal').classList.remove('active');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (gamePhase === 'building' && draggingType) {
+            updateDrag(e);
+        }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+        if (gamePhase === 'building' && draggingType) {
+            endDrag(e);
+        }
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if (gamePhase === 'building' && draggingType) {
+            updateDrag(e);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+        if (gamePhase === 'building' && draggingType) {
+            endDrag(e);
+        }
+    });
+
+    window.addEventListener('keydown', (e) => {
+        isShiftHeld = e.shiftKey;
+        if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+        if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+            if (gamePhase === 'building' && hoveredPartId !== null) {
+                deletePart(hoveredPartId);
+            } else if (gamePhase === 'building' && selectedPartId !== null) {
+                deletePart(selectedPartId);
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        isShiftHeld = e.shiftKey;
+    });
+
+    const viewport = document.getElementById('viewport-container');
+    viewport.addEventListener('click', (e) => {
+        if (gamePhase !== 'building' || draggingType) return;
+        const ndc = getMouseNDC(e, buildRenderer);
+        raycaster.setFromCamera(ndc, buildCamera);
+
+        const jointLines = buildState.joints.map(j => j.line).filter(Boolean);
+        const lineIntersects = raycaster.intersectObjects(jointLines);
+        if (lineIntersects.length > 0) {
+            const jId = lineIntersects[0].object.userData.jointId;
+            if (jId !== undefined) { selectJoint(jId); return; }
+        }
+
+        const partMeshes = buildState.parts.map(p => p.mesh);
+        const intersects = raycaster.intersectObjects(partMeshes, true);
+        if (intersects.length > 0) {
+            let obj = intersects[0].object;
+            while (obj.parent && !obj.userData.partId) obj = obj.parent;
+            if (obj.userData.partId) {
+                selectPart(obj.userData.partId);
+                return;
+            }
+        }
+
+        deselectAll();
+        updateInspector();
+    });
+
+    viewport.addEventListener('mousemove', (e) => {
+        if (gamePhase !== 'building' || draggingType) return;
+        const ndc = getMouseNDC(e, buildRenderer);
+        raycaster.setFromCamera(ndc, buildCamera);
+        const partMeshes = buildState.parts.map(p => p.mesh);
+        const intersects = raycaster.intersectObjects(partMeshes, true);
+        if (intersects.length > 0) {
+            let obj = intersects[0].object;
+            while (obj.parent && !obj.userData.partId) obj = obj.parent;
+            hoveredPartId = obj.userData.partId || null;
+            viewport.style.cursor = 'pointer';
+        } else {
+            hoveredPartId = null;
+            viewport.style.cursor = 'default';
+        }
+    });
+
+    viewport.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (gamePhase !== 'building') return;
+        const ndc = getMouseNDC(e, buildRenderer);
+        raycaster.setFromCamera(ndc, buildCamera);
+        const partMeshes = buildState.parts.map(p => p.mesh);
+        const intersects = raycaster.intersectObjects(partMeshes, true);
+        if (intersects.length > 0) {
+            let obj = intersects[0].object;
+            while (obj.parent && !obj.userData.partId) obj = obj.parent;
+            const pid = obj.userData.partId;
+            if (pid) {
+                const menu = document.getElementById('context-menu');
+                menu.style.left = e.clientX + 'px';
+                menu.style.top = e.clientY + 'px';
+                menu.classList.add('active');
+                document.getElementById('ctx-delete').onclick = () => {
+                    deletePart(pid);
+                    menu.classList.remove('active');
+                };
+            }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('context-menu');
+        if (!menu.contains(e.target)) {
+            menu.classList.remove('active');
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (gamePhase === 'building') resizeBuildRenderer();
+        if (gamePhase === 'testing') resizeTestRenderer();
+    });
+}
+
+// ══════════════════════════════════════════════════════════
+// MAIN ENTRY
+// ══════════════════════════════════════════════════════════
+async function main() {
+    initBuildScene();
+    initTestScene();
+    populatePalette();
+    initEvents();
+
+    const loaded = loadFromURL();
+    document.getElementById('loading-screen').classList.add('hidden');
+
+    if (loaded) {
+        gamePhase = 'building';
+        document.getElementById('build-screen').classList.add('active');
+        resizeBuildRenderer();
+        updatePartCounter();
+        startBuildLoop();
+    } else {
+        document.getElementById('landing-screen').classList.remove('hidden');
+    }
+}
+
+main().catch(err => console.error('Game init failed:', err));
+
+</script>
+</body>
+</html>

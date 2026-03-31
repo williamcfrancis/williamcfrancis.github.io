@@ -130,6 +130,14 @@ sections:
           label: Explore Lexicon Atlas
           url: "/games/lexicon_atlas/"
         image: "/games/game_placeholder.svg"
+      - title: Machine Gaze
+        genre: Interactive AI experience
+        summary: "Upload a photo and watch a robot decompose it — layer by layer — into edges, depth, objects, and segments. Toggle between human and machine vision."
+        tags: ["browser", "AI", "educational"]
+        link:
+          label: Try Machine Gaze
+          url: "/games/machine_gaze/"
+        image: "/games/game_placeholder.svg"
       - title: Neon Breach
         genre: Cyberpunk arena FPS
         summary: "Wall-running, grapple hook, and bullet time in a cyberpunk arena. Five weapons, boss waves, and style kills."

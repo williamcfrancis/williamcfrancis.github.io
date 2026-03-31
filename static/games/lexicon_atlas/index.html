@@ -231,6 +231,134 @@ nav{display:flex;gap:6px;align-items:center}
 .stat-item{display:flex;align-items:center;gap:6px}
 .stat-item .stat-val{color:var(--teal);font-weight:600}
 
+/* ─── Favorites Overlay ─── */
+#favorites-overlay{position:fixed;inset:0;z-index:300;background:rgba(6,6,14,.92);
+  backdrop-filter:blur(12px);display:none;flex-direction:column;align-items:center;
+  padding:80px 24px 24px;overflow-y:auto}
+#favorites-overlay.open{display:flex}
+.fav-header{text-align:center;margin-bottom:24px;max-width:500px}
+.fav-header h2{font-family:var(--heading);font-size:1.6rem;margin-bottom:8px}
+.fav-header p{color:var(--text2);font-size:.88rem;line-height:1.5}
+.fav-close{position:fixed;top:20px;right:24px;background:none;border:none;color:var(--text2);
+  font-size:1.5rem;cursor:pointer;z-index:301}
+.fav-list{width:100%;max-width:560px}
+.fav-empty{color:var(--muted);text-align:center;padding:60px 20px;font-size:.95rem;line-height:1.8}
+
+/* ─── Achievements Overlay ─── */
+#achievements-overlay{position:fixed;inset:0;z-index:300;background:rgba(6,6,14,.92);
+  backdrop-filter:blur(12px);display:none;flex-direction:column;align-items:center;
+  padding:80px 24px 24px;overflow-y:auto}
+#achievements-overlay.open{display:flex}
+.ach-header{text-align:center;margin-bottom:24px;max-width:500px}
+.ach-header h2{font-family:var(--heading);font-size:1.6rem;margin-bottom:8px}
+.ach-header p{color:var(--text2);font-size:.88rem;line-height:1.5}
+.ach-close{position:fixed;top:20px;right:24px;background:none;border:none;color:var(--text2);
+  font-size:1.5rem;cursor:pointer;z-index:301}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;
+  width:100%;max-width:700px}
+.ach-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;display:flex;align-items:flex-start;gap:12px;transition:all .3s}
+.ach-card.unlocked{border-color:rgba(244,197,66,.3);background:rgba(244,197,66,.06)}
+.ach-card.locked{opacity:.45;filter:grayscale(.8)}
+.ach-icon{font-size:1.8rem;flex-shrink:0}
+.ach-info{flex:1}
+.ach-name{font-weight:700;font-size:.9rem;margin-bottom:2px}
+.ach-desc{color:var(--text2);font-size:.78rem;line-height:1.5}
+.ach-date{color:var(--gold);font-size:.68rem;margin-top:4px}
+
+/* ─── Quiz Mode Selector ─── */
+.quiz-setup{text-align:center;max-width:480px;width:90%}
+.quiz-setup h2{font-family:var(--heading);font-size:1.6rem;margin-bottom:20px}
+.quiz-mode-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px}
+.quiz-mode-btn{padding:14px 10px;background:var(--card);border:2px solid var(--border);
+  border-radius:var(--radius);cursor:pointer;transition:all .25s;text-align:center;
+  font-family:var(--font);color:var(--text)}
+.quiz-mode-btn:hover{border-color:rgba(78,205,196,.3);background:var(--card-hover)}
+.quiz-mode-btn.selected{border-color:var(--teal);background:rgba(78,205,196,.12)}
+.quiz-mode-btn .qm-icon{font-size:1.5rem;display:block;margin-bottom:6px}
+.quiz-mode-btn .qm-label{font-size:.78rem;font-weight:600}
+.quiz-diff-row{display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:wrap}
+.quiz-diff-btn{padding:6px 16px;border-radius:16px;border:1px solid var(--border);
+  background:transparent;color:var(--text2);font-size:.78rem;cursor:pointer;
+  transition:all .2s;font-family:var(--font)}
+.quiz-diff-btn.selected{background:rgba(78,205,196,.12);color:var(--teal);border-color:var(--teal)}
+.quiz-diff-btn:hover:not(.selected){color:var(--text)}
+.quiz-opts-row{display:flex;gap:12px;justify-content:center;align-items:center;
+  margin-bottom:20px;flex-wrap:wrap}
+.quiz-toggle{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--text2);cursor:pointer}
+.quiz-toggle input{accent-color:var(--teal)}
+.quiz-start-btn{padding:14px 40px;background:linear-gradient(135deg,var(--teal),#3db8b0);
+  color:#0b0d17;border:none;border-radius:24px;font-size:1rem;font-weight:700;cursor:pointer;
+  font-family:var(--font);transition:transform .2s,box-shadow .2s;letter-spacing:.5px}
+.quiz-start-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(78,205,196,.3)}
+.quiz-streak{color:var(--gold);font-size:.85rem;font-weight:600;margin-top:8px}
+.quiz-timer{font-size:1.6rem;font-weight:700;color:var(--coral);margin-bottom:12px;
+  font-variant-numeric:tabular-nums;min-height:2rem}
+.quiz-timer.warning{animation:timerPulse .5s ease-in-out infinite}
+@keyframes timerPulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ─── Daily Word ─── */
+.daily-word-card{background:var(--card);border:1px solid rgba(244,197,66,.2);
+  border-radius:var(--radius);padding:16px;margin-bottom:20px;text-align:left;
+  max-width:420px;width:100%}
+.daily-word-badge{display:inline-block;font-size:.68rem;font-weight:600;color:var(--gold);
+  background:rgba(244,197,66,.1);padding:3px 10px;border-radius:12px;margin-bottom:8px}
+.daily-word-name{font-family:var(--heading);font-size:1.3rem;font-weight:700;color:var(--gold);
+  margin-bottom:4px}
+.daily-word-region{font-size:.78rem;color:var(--teal);font-weight:600;margin-bottom:6px}
+.daily-word-meaning{font-size:.88rem;line-height:1.5;color:var(--text)}
+.daily-word-phonetic{font-size:.78rem;color:var(--text2);font-style:italic;margin-top:4px}
+
+/* ─── Tag / Category Filter ─── */
+.tag-filter{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;padding-bottom:8px;
+  border-bottom:1px solid var(--border)}
+.tag-chip{padding:4px 10px;border-radius:12px;font-size:.68rem;font-weight:600;cursor:pointer;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text2);
+  transition:all .2s;white-space:nowrap}
+.tag-chip:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.tag-chip.active{background:rgba(78,205,196,.12);color:var(--teal);border-color:rgba(78,205,196,.3)}
+
+/* ─── Loanword Badge ─── */
+.loanword-badge{display:inline-block;font-size:.62rem;font-weight:600;
+  color:var(--blue);background:rgba(100,181,246,.1);padding:2px 8px;border-radius:8px;
+  margin-left:6px;text-transform:uppercase;vertical-align:middle}
+
+/* ─── Phonetic ─── */
+.word-phonetic{color:var(--text2);font-size:.78rem;font-style:italic;margin-bottom:4px}
+
+/* ─── Connections Game Mode ─── */
+.conn-mode-toggle{display:flex;gap:8px;justify-content:center;margin-bottom:24px}
+.conn-mode-btn{padding:8px 20px;border-radius:16px;border:1px solid var(--border);
+  background:transparent;color:var(--text2);font-size:.82rem;cursor:pointer;
+  transition:all .2s;font-family:var(--font);font-weight:600}
+.conn-mode-btn.active{background:rgba(78,205,196,.12);color:var(--teal);border-color:var(--teal)}
+.conn-game-area{width:100%;max-width:600px}
+.conn-game-words{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:20px}
+.conn-game-word{padding:10px 16px;background:var(--card);border:2px solid var(--border);
+  border-radius:var(--radius);cursor:pointer;transition:all .2s;font-size:.88rem;
+  font-weight:600;color:var(--text)}
+.conn-game-word:hover{border-color:rgba(78,205,196,.3)}
+.conn-game-word.selected{border-color:var(--teal);background:rgba(78,205,196,.12);color:var(--teal)}
+.conn-game-word.correct{border-color:var(--teal);background:rgba(78,205,196,.2);pointer-events:none}
+.conn-game-word.wrong{animation:shake .4s ease}
+.conn-game-actions{display:flex;gap:10px;justify-content:center;margin-bottom:16px}
+.conn-game-hint{color:var(--text2);font-size:.85rem;text-align:center;margin-bottom:12px}
+.conn-solved-group{background:rgba(78,205,196,.08);border:1px solid rgba(78,205,196,.2);
+  border-radius:var(--radius);padding:12px 16px;margin-bottom:8px;text-align:center}
+.conn-solved-group .csg-concept{font-weight:700;color:var(--teal);margin-bottom:4px}
+.conn-solved-group .csg-words{color:var(--text2);font-size:.85rem}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* ─── Swipe Handle (Mobile Panel) ─── */
+.panel-swipe-handle{display:none;width:40px;height:4px;background:var(--muted);
+  border-radius:2px;margin:10px auto 0;flex-shrink:0}
+
+/* ─── Skip link for accessibility ─── */
+.skip-link{position:absolute;top:-100px;left:16px;z-index:9999;padding:8px 16px;
+  background:var(--teal);color:#0b0d17;font-weight:600;border-radius:8px;
+  text-decoration:none;transition:top .2s}
+.skip-link:focus{top:16px}
+
 @media(max-width:640px){
   header{padding:10px 14px}
   .logo span{font-size:1rem}
@@ -238,29 +366,37 @@ nav{display:flex;gap:6px;align-items:center}
   .nav-btn{padding:6px 10px;font-size:.72rem}
   .nav-btn span.label{display:none}
   #country-panel{width:100%;max-width:100%;border-left:none;border-top:1px solid var(--border)}
+  .panel-swipe-handle{display:block}
   .panel-title{font-size:1.3rem}
   .quiz-word{font-size:1.8rem}
   .quiz-options{grid-template-columns:1fr}
+  .quiz-option{padding:18px;font-size:.95rem;min-height:56px}
+  .quiz-mode-grid{grid-template-columns:1fr}
   .welcome-inner h1{font-size:2.2rem}
   #stats-bar{bottom:8px;left:8px;right:8px;justify-content:center;font-size:.7rem;gap:10px}
+  .tag-filter{justify-content:center}
+  .ach-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
+<a href="#globe-container" class="skip-link">Skip to globe</a>
 
-<div id="globe-container"></div>
+<div id="globe-container" role="application" aria-label="Interactive 3D globe showing English word regions"></div>
 
-<header>
-  <a href="/personal/#games" class="back-link">&#8592; Games</a>
-  <a href="#" class="logo" onclick="return false">
+<header role="banner">
+  <a href="/personal/#games" class="back-link" aria-label="Back to games">&#8592; Games</a>
+  <a href="#" class="logo" onclick="return false" aria-label="Lexicon Atlas home">
     <span>Lexicon Atlas</span>
     <small>English Around the World</small>
   </a>
-  <nav>
-    <button class="nav-btn" onclick="openSearch()" title="Search words"><span class="ico">&#128270;</span><span class="label">Search</span></button>
-    <button class="nav-btn" onclick="openQuiz()" title="Quiz mode"><span class="ico">&#9889;</span><span class="label">Quiz</span></button>
-    <button class="nav-btn" onclick="showRandom()" title="Random word"><span class="ico">&#127922;</span><span class="label">Random</span></button>
-    <button class="nav-btn" onclick="openConnections()" title="Word connections"><span class="ico">&#128279;</span><span class="label">Connections</span></button>
+  <nav role="navigation" aria-label="Main navigation">
+    <button class="nav-btn" onclick="openSearch()" title="Search words" aria-label="Search words"><span class="ico">&#128270;</span><span class="label">Search</span></button>
+    <button class="nav-btn" onclick="openFavorites()" title="Favorites" aria-label="View saved words"><span class="ico">&#9829;</span><span class="label">Favorites</span></button>
+    <button class="nav-btn" onclick="openQuiz()" title="Quiz mode" aria-label="Start quiz"><span class="ico">&#9889;</span><span class="label">Quiz</span></button>
+    <button class="nav-btn" onclick="showRandom()" title="Random word" aria-label="Random word"><span class="ico">&#127922;</span><span class="label">Random</span></button>
+    <button class="nav-btn" onclick="openConnections()" title="Word connections" aria-label="Word connections"><span class="ico">&#128279;</span><span class="label">Connections</span></button>
+    <button class="nav-btn" onclick="openAchievements()" title="Achievements" aria-label="View achievements"><span class="ico">&#127942;</span><span class="label">Achievements</span></button>
   </nav>
 </header>
 
@@ -269,14 +405,16 @@ nav{display:flex;gap:6px;align-items:center}
   <div class="hl-count"></div>
 </div>
 
-<aside id="country-panel">
+<aside id="country-panel" role="complementary" aria-label="Region detail panel">
+  <div class="panel-swipe-handle" id="panel-swipe-handle"></div>
   <div class="panel-header">
-    <button class="panel-close" onclick="closePanel()">&times;</button>
+    <button class="panel-close" onclick="closePanel()" aria-label="Close panel">&times;</button>
     <div class="panel-flag" id="p-flag"></div>
     <div class="panel-title" id="p-title"></div>
-    <div class="panel-dialect" id="p-dialect"></div>
+    <div class="panel-dialect" id="p-dialect"><span id="p-dialect-text"></span><span id="p-loanword-badge"></span></div>
     <div class="panel-desc" id="p-desc"></div>
     <div class="panel-tabs" id="p-tabs"></div>
+    <div class="tag-filter" id="tag-filter" role="group" aria-label="Filter by category"></div>
   </div>
   <div class="panel-words" id="p-words"></div>
 </aside>
@@ -290,42 +428,90 @@ nav{display:flex;gap:6px;align-items:center}
   <div class="search-results" id="search-results"></div>
 </div>
 
-<div id="quiz-overlay">
+<div id="quiz-overlay" role="dialog" aria-label="Quiz">
   <div class="quiz-container" id="quiz-container">
-    <div class="quiz-header">
-      <span class="quiz-score" id="q-score">0 / 0</span>
-      <span class="quiz-progress" id="q-progress">Question 1 of 10</span>
-      <button class="quiz-close" onclick="closeQuiz()">&times;</button>
-    </div>
-    <div id="quiz-body">
-      <p style="color:var(--text2);margin-bottom:12px;font-size:.85rem">Where is this word primarily used?</p>
-      <div class="quiz-word" id="q-word"></div>
-      <div class="quiz-meaning" id="q-meaning" style="display:none"></div>
-      <div class="quiz-options" id="q-options"></div>
-      <div class="quiz-etym" id="q-etym">
-        <div class="quiz-etym-label">Etymology</div>
-        <div class="quiz-etym-text" id="q-etym-text"></div>
+    <!-- Quiz Setup Screen -->
+    <div id="quiz-setup" class="quiz-setup">
+      <h2>&#9889; Quiz Mode</h2>
+      <div class="quiz-mode-grid" role="radiogroup" aria-label="Quiz mode">
+        <button class="quiz-mode-btn selected" data-mode="region" aria-pressed="true">
+          <span class="qm-icon">&#127758;</span>
+          <span class="qm-label">Region Quiz</span>
+        </button>
+        <button class="quiz-mode-btn" data-mode="meaning" aria-pressed="false">
+          <span class="qm-icon">&#128218;</span>
+          <span class="qm-label">Meaning Match</span>
+        </button>
+        <button class="quiz-mode-btn" data-mode="reverse" aria-pressed="false">
+          <span class="qm-icon">&#128260;</span>
+          <span class="qm-label">Word Guess</span>
+        </button>
       </div>
-      <button class="quiz-next" id="q-next" onclick="nextQuestion()">Next Question</button>
+      <div class="quiz-diff-row" role="radiogroup" aria-label="Difficulty">
+        <button class="quiz-diff-btn selected" data-diff="easy">Easy</button>
+        <button class="quiz-diff-btn" data-diff="medium">Medium</button>
+        <button class="quiz-diff-btn" data-diff="hard">Hard</button>
+      </div>
+      <div class="quiz-opts-row">
+        <label class="quiz-toggle"><input type="checkbox" id="quiz-timed"> Timed (15s)</label>
+      </div>
+      <div class="quiz-streak" id="quiz-streak-display"></div>
+      <button class="quiz-start-btn" onclick="startQuiz()">Start Quiz</button>
+      <button class="nav-btn btn-small" style="margin:12px auto 0;display:inline-flex" onclick="closeQuiz()">Cancel</button>
     </div>
-    <div class="quiz-end" id="quiz-end">
-      <h2>Quiz Complete!</h2>
-      <div class="score-big" id="qe-score"></div>
-      <div class="score-label">correct answers</div>
-      <div class="rating" id="qe-rating"></div>
-      <button class="quiz-next show" onclick="openQuiz()">Play Again</button>
-      <button class="nav-btn" style="margin:12px auto 0;display:inline-flex" onclick="closeQuiz()">Close</button>
+    <!-- Quiz Game Screen -->
+    <div id="quiz-game" style="display:none">
+      <div class="quiz-header">
+        <span class="quiz-score" id="q-score">0 / 0</span>
+        <span class="quiz-progress" id="q-progress">Question 1 of 10</span>
+        <button class="quiz-close" onclick="closeQuiz()" aria-label="Close quiz">&times;</button>
+      </div>
+      <div id="quiz-body">
+        <p style="color:var(--text2);margin-bottom:12px;font-size:.85rem" id="q-prompt">Where is this word primarily used?</p>
+        <div class="quiz-timer" id="q-timer"></div>
+        <div class="quiz-word" id="q-word"></div>
+        <div class="quiz-meaning" id="q-meaning" style="display:none"></div>
+        <div class="quiz-options" id="q-options" role="group" aria-label="Answer options"></div>
+        <div class="quiz-etym" id="q-etym">
+          <div class="quiz-etym-label">Etymology</div>
+          <div class="quiz-etym-text" id="q-etym-text"></div>
+        </div>
+        <button class="quiz-next" id="q-next" onclick="nextQuestion()">Next Question</button>
+      </div>
+      <div class="quiz-end" id="quiz-end">
+        <h2>Quiz Complete!</h2>
+        <div class="score-big" id="qe-score"></div>
+        <div class="score-label">correct answers</div>
+        <div class="rating" id="qe-rating"></div>
+        <div class="quiz-streak" id="qe-streak"></div>
+        <button class="quiz-next show" onclick="openQuiz()">Play Again</button>
+        <button class="nav-btn" style="margin:12px auto 0;display:inline-flex" onclick="closeQuiz()">Close</button>
+      </div>
     </div>
   </div>
 </div>
 
-<div id="connections-overlay">
-  <button class="conn-close" onclick="closeConnections()">&times;</button>
+<div id="connections-overlay" role="dialog" aria-label="Word connections">
+  <button class="conn-close" onclick="closeConnections()" aria-label="Close connections">&times;</button>
   <div class="connections-header">
     <h2>Same Concept, Different Words</h2>
-    <p>English speakers around the world invented entirely different words for the same everyday things. Explore the connections.</p>
+    <p>English speakers around the world invented entirely different words for the same everyday things.</p>
+    <div class="conn-mode-toggle">
+      <button class="conn-mode-btn active" onclick="setConnMode('browse')">Browse</button>
+      <button class="conn-mode-btn" onclick="setConnMode('game')">Play Game</button>
+    </div>
   </div>
   <div class="conn-grid" id="conn-grid"></div>
+  <div class="conn-game-area" id="conn-game-area" style="display:none">
+    <div class="conn-game-hint" id="conn-game-hint"></div>
+    <div id="conn-solved"></div>
+    <div class="conn-game-words" id="conn-game-words"></div>
+    <div class="conn-game-actions">
+      <button class="nav-btn btn-small" onclick="connGameSubmit()">Submit Group</button>
+      <button class="nav-btn btn-small" onclick="connGameDeselect()">Deselect All</button>
+    </div>
+    <div id="conn-game-status" style="color:var(--text2);text-align:center;font-size:.85rem"></div>
+  </div>
 </div>
 
 <div id="random-backdrop" onclick="closeRandom()"></div>
@@ -336,19 +522,38 @@ nav{display:flex;gap:6px;align-items:center}
   <div class="stat-item"><span>&#128218;</span> <span class="stat-val" id="s-words">0</span>/<span id="s-total-words">0</span> words</div>
 </div>
 
-<div id="welcome">
+<div id="favorites-overlay" role="dialog" aria-label="Favorites">
+  <button class="fav-close" onclick="closeFavorites()" aria-label="Close favorites">&times;</button>
+  <div class="fav-header">
+    <h2>&#9829; Saved Words</h2>
+    <p>Your favorite words from around the world.</p>
+  </div>
+  <div class="fav-list" id="fav-list"></div>
+</div>
+
+<div id="achievements-overlay" role="dialog" aria-label="Achievements">
+  <button class="ach-close" onclick="closeAchievements()" aria-label="Close achievements">&times;</button>
+  <div class="ach-header">
+    <h2>&#127942; Achievements</h2>
+    <p>Track your Lexicon Atlas journey.</p>
+  </div>
+  <div class="ach-grid" id="ach-grid"></div>
+</div>
+
+<div id="welcome" role="dialog" aria-label="Welcome">
   <div class="welcome-inner">
     <div class="welcome-badge">&#127758; Interactive Language Atlas</div>
     <h1>Lexicon Atlas</h1>
     <p class="welcome-subtitle">
       From <em>brinjal</em> in India to <em>robot</em> meaning traffic light in South Africa &mdash;
-      English speaks differently everywhere. Spin the globe and discover 392+ words unique to their homeland.
+      English speaks differently everywhere. Spin the globe and discover words unique to their homeland.
     </p>
     <div class="welcome-stats">
-      <div class="welcome-stat"><span class="num">46</span><span class="label">Regions</span></div>
-      <div class="welcome-stat"><span class="num">392</span><span class="label">Words</span></div>
+      <div class="welcome-stat"><span class="num" id="w-regions"></span><span class="label">Regions</span></div>
+      <div class="welcome-stat"><span class="num" id="w-words"></span><span class="label">Words</span></div>
       <div class="welcome-stat"><span class="num">&infin;</span><span class="label">Stories</span></div>
     </div>
+    <div id="daily-word-container"></div>
     <button id="start-btn" onclick="startExploring()">Start Exploring</button>
   </div>
 </div>
@@ -1859,21 +2064,46 @@ chad:{
 };
 
 const COUNTRY_MAP={
-  'India':['india'],'Australia':['australia'],'United Kingdom':['united_kingdom','scotland','wales'],
-  'South Africa':['south_africa'],'Canada':['canada'],'New Zealand':['new_zealand'],
-  'Ireland':['ireland'],'Nigeria':['nigeria'],'Philippines':['philippines'],
-  'Jamaica':['jamaica'],'Singapore':['singapore'],'Ghana':['ghana'],
-  'Kenya':['kenya'],'United Republic of Tanzania':['tanzania'],'Tanzania':['tanzania'],
-  'Malaysia':['malaysia'],'Pakistan':['pakistan'],'Hong Kong':['hong_kong'],
-  'Trinidad and Tobago':['trinidad'],'Barbados':['barbados'],
-  'Zimbabwe':['zimbabwe'],'Fiji':['fiji'],'Bermuda':['bermuda'],
-  'Bangladesh':['bangladesh'],'Sri Lanka':['sri_lanka'],'Uganda':['uganda'],
-  'Zambia':['zambia'],'Namibia':['namibia'],
-  'Russia':['russia'],'United States of America':['united_states'],'China':['china'],
-  'Brazil':['brazil'],'Argentina':['argentina'],'Kazakhstan':['kazakhstan'],'Algeria':['algeria'],
-  'Democratic Republic of the Congo':['dr_congo'],'Saudi Arabia':['saudi_arabia'],'Mexico':['mexico'],
-  'Indonesia':['indonesia'],'Sudan':['sudan'],'Libya':['libya'],'Iran':['iran'],'Mongolia':['mongolia'],
-  'Peru':['peru'],'Chad':['chad']
+  'India':['india'],'Republic of India':['india'],
+  'Australia':['australia'],
+  'United Kingdom':['united_kingdom','scotland','wales'],'Great Britain':['united_kingdom','scotland','wales'],
+  'South Africa':['south_africa'],'Republic of South Africa':['south_africa'],
+  'Canada':['canada'],'New Zealand':['new_zealand'],
+  'Ireland':['ireland'],'Republic of Ireland':['ireland'],
+  'Nigeria':['nigeria'],'Federal Republic of Nigeria':['nigeria'],
+  'Philippines':['philippines'],'Republic of the Philippines':['philippines'],
+  'Jamaica':['jamaica'],'Singapore':['singapore'],'Republic of Singapore':['singapore'],
+  'Ghana':['ghana'],'Republic of Ghana':['ghana'],
+  'Kenya':['kenya'],'Republic of Kenya':['kenya'],
+  'United Republic of Tanzania':['tanzania'],'Tanzania':['tanzania'],
+  'Malaysia':['malaysia'],'Pakistan':['pakistan'],'Islamic Republic of Pakistan':['pakistan'],
+  'Hong Kong':['hong_kong'],'Hong Kong S.A.R.':['hong_kong'],
+  'Trinidad and Tobago':['trinidad'],'Republic of Trinidad and Tobago':['trinidad'],
+  'Barbados':['barbados'],'Zimbabwe':['zimbabwe'],'Republic of Zimbabwe':['zimbabwe'],
+  'Fiji':['fiji'],'Republic of Fiji':['fiji'],
+  'Bermuda':['bermuda'],
+  'Bangladesh':['bangladesh'],"People's Republic of Bangladesh":['bangladesh'],
+  'Sri Lanka':['sri_lanka'],'Democratic Socialist Republic of Sri Lanka':['sri_lanka'],
+  'Uganda':['uganda'],'Republic of Uganda':['uganda'],
+  'Zambia':['zambia'],'Republic of Zambia':['zambia'],
+  'Namibia':['namibia'],'Republic of Namibia':['namibia'],
+  'Russia':['russia'],'Russian Federation':['russia'],
+  'United States of America':['united_states'],'United States':['united_states'],'USA':['united_states'],
+  'China':['china'],"People's Republic of China":['china'],
+  'Brazil':['brazil'],'Federative Republic of Brazil':['brazil'],
+  'Argentina':['argentina'],'Argentine Republic':['argentina'],
+  'Kazakhstan':['kazakhstan'],'Republic of Kazakhstan':['kazakhstan'],
+  'Algeria':['algeria'],"People's Democratic Republic of Algeria":['algeria'],
+  'Democratic Republic of the Congo':['dr_congo'],'Dem. Rep. Congo':['dr_congo'],'DRC':['dr_congo'],'Congo (Kinshasa)':['dr_congo'],
+  'Saudi Arabia':['saudi_arabia'],'Kingdom of Saudi Arabia':['saudi_arabia'],
+  'Mexico':['mexico'],'United Mexican States':['mexico'],
+  'Indonesia':['indonesia'],'Republic of Indonesia':['indonesia'],
+  'Sudan':['sudan'],'Republic of the Sudan':['sudan'],
+  'Libya':['libya'],'State of Libya':['libya'],
+  'Iran':['iran'],'Islamic Republic of Iran':['iran'],'Iran (Islamic Republic of)':['iran'],
+  'Mongolia':['mongolia'],'Peru':['peru'],'Republic of Peru':['peru'],
+  'Chad':['chad'],'Republic of Chad':['chad'],
+  'Wales':['wales'],'Scotland':['scotland']
 };
 
 const COMPARISONS=[
@@ -1918,22 +2148,130 @@ const COMPARISONS=[
     {region:"barbados",word:"Cunumunu"}]}
 ];
 
+/* ─── Phonetic Transcriptions ─── */
+const PHONETICS={
+  "Dreich":"/driːx/","Eish":"/eɪʃ/","Chope":"/tʃoʊp/","Kiasu":"/kiˈɑːsuː/",
+  "Braai":"/braɪ/","Bakkie":"/ˈbʌki/","Ubuntu":"/ʊˈbʊntuː/","Shebeen":"/ʃəˈbiːn/",
+  "Biltong":"/ˈbɪltɒŋ/","Boerewors":"/ˈbuːrəvɔːrs/","Cwtch":"/kʊtʃ/",
+  "Craic":"/kræk/","Banjaxed":"/bænˈdʒækst/","Gobshite":"/ˈɡɒbʃaɪt/",
+  "Gobsmacked":"/ˈɡɒbsmækt/","Shiok":"/ʃiˈɒk/","Kopitiam":"/ˈkoʊpiˌtiːam/",
+  "Bairn":"/bɛːrn/","Ken":"/kɛn/","Blether":"/ˈblɛðər/","Hogmanay":"/ˌhɒɡməˈneɪ/",
+  "Jandal":"/ˈdʒændəl/","Kumara":"/ˈkuːmərə/","Chur":"/tʃɜːr/",
+  "Nyam":"/njæm/","Duppy":"/ˈdʌpi/","Okada":"/oʊˈkɑːdə/","Wahala":"/wɑːˈhɑːlɑː/",
+  "Obroni":"/oʊˈbroʊni/","Matatu":"/məˈtɑːtuː/","Bula":"/ˈmbuːlɑː/",
+  "Vinaka":"/viˈnɑːkɑː/","Lovo":"/ˈloʊvoʊ/","Kava":"/ˈkɑːvɑː/",
+  "Asado":"/ɑːˈsɑːdoʊ/","Chimichurri":"/ˌtʃimiˈtʃʊri/","Guanxi":"/ɡwɑːnˈʃiː/",
+  "Beshbarmak":"/bɛʃbɑrˈmɑk/","Kumis":"/kuːˈmɪs/","Nauryz":"/naʊˈruːz/",
+  "Casbah":"/ˈkæzbɑː/","Tagine":"/tɑːˈʒiːn/","Nowruz":"/noʊˈruːz/",
+  "Ger":"/ɡɛr/","Naadam":"/ˈnɑːdəm/","Airag":"/ˈaɪrɑːɡ/","Buuz":"/buːz/",
+  "Quinoa":"/ˈkiːnwɑː/","Ceviche":"/sɛˈviːtʃeɪ/","Guacamole":"/ˌɡwɑːkəˈmoʊleɪ/",
+  "Sapeur":"/sɑːˈpɜːr/","Ndombolo":"/ndɒmˈboʊloʊ/","Babushka":"/bəˈbʊʃkə/",
+  "Toque":"/tuːk/","Tamping":"/ˈtæmpɪŋ/","Tabanca":"/təˈbæŋkə/",
+  "Nshima":"/ˈnʃiːmɑː/","Sadza":"/ˈsɑːdzɑː/","Ugali":"/uːˈɡɑːli/",
+  "Ful":"/fuːl/","Khalas":"/xɑːˈlɑːs/","Thobe":"/θoʊb/","Abaya":"/əˈbaɪə/"
+};
+
+/* ─── Word Category Tags ─── */
+const WORD_TAGS={};
+(function(){
+  const tagMap={
+    food:["Brinjal","Braai","Biltong","Boerewors","Nyam","Makan","Tapau","Chop","Waakye","Shito",
+      "Nyama Choma","Chapati","Ugali","Cou-cou","Dim sum","Wok","Tofu","Ketchup","Churrasco",
+      "Caipirinha","Açaí","Asado","Dulce de leche","Empanada","Chimichurri","Taco","Guacamole",
+      "Mole","Satay","Beshbarmak","Kumis","Shubat","Baursak","Couscous","Tagine","Ful","Kisra",
+      "Bazeen","Kebab","Caviar","Pistachio","Saffron","Quinoa","Ceviche","Pattis","Shorteats",
+      "Biryani","Nshima","Mealie meal","Sadza","Posho","Rolex","Merienda","Lovo","Kava",
+      "Char Siu","Milk Tea","Buuz","Karkanji","Merissa","Mate","Cachaça","Grog",
+      "Dark 'n' Stormy","Greeze","Double-double","Teh Tarik","Kapana","Boule","Coca"],
+    transport:["Bakkie","Ute","Servo","Bottle-o","Okada","Tro-tro","Matatu","Dala Dala","Kombi",
+      "Piki Piki","Boda Boda","Boda boda","Jeepney","Tricycle","Rickshaw","Petrol Bunk",
+      "Petrol Shed","Gostan","Sidewalk","Jaywalking","Loonie","Toonie","Parkade","Special Hire"],
+    slang:["Arvo","Drongo","Bludger","Chunder","Gobsmacked","Skint","Dodgy","Chuffed","Gutted",
+      "Knackered","Naff","Eejit","Feck","Gobshite","Kiasu","Blur","Sabo","Lah","Irie","Likkle",
+      "Braata","Steups","Wopnin","Chingas","Mug","Hoezit","Is it?","Sharp-sharp","Tamping",
+      "Lush","Tidy","Chopsy","Chale","Sema","Jom","Wahala","Japa","Y'all","Khalas",
+      "Catcha","Just now","Now now","Bounce","Shape!","Dinnae","Wee","Braw","Ken","Chur",
+      "Choice","Munted","Add Oil"],
+    cultural:["Ubuntu","Craic","Jugaad","Dabbawala","Harambee","Kerekere","Talanoa","Fiji Time",
+      "Lime","Bacchanal","Tabanca","Bashment","Fete","Crop Over","Cup Match","Hogmanay",
+      "Naadam","Gerewol","Tsam","Nowruz","Nauryz","Hajj","Guanxi","Feng shui","Capoeira",
+      "Bossa nova","Samba","Tango","Milonga","Lucha libre","Quinceañera","Piñata","Mariachi",
+      "Adda","Hartal","Ragging","Glasnost","Intelligentsia","Sapeur","Libanga",
+      "Zar","Dukhan","Henna","Loanword"],
+    greetings:["Howzit","Bula","Vinaka","Mambo","Sema","Chale","Hoezit","Wopnin","Add Oil",
+      "Irie","Khalas"],
+    clothing:["Dupatta","Sulu","Deel","Jallabiya","Toub","Abaya","Thobe","Burnous","Abacost",
+      "Panjabi","Batik","Sarong","Poncho","Toque","Tekkies","Budgie Smugglers","Togs","Jandal"],
+    nature:["Wadi","Erg","Guelta","Cenote","Chinook","Ghibli","Safari","Condor","Orangutan",
+      "Llama","Alpaca","Typhoon","Bamboo","Steppe","Ovoo"],
+    people:["Bairn","Wean","Pickney","Obroni","Ang Moh","Murungu","Gaucho","Toubou","Zaghawa",
+      "Bajie","Dougla","Bredren","Tsotsi","Apparatchik","Boffin","Battler","Keener",
+      "Pindi Boy","Save-dee","Mwana","Cunumunu","Lick-mouth"],
+    music:["Gamelan","Morin khuur","Dombra","Raï","Chaâbi","Ndombolo","Kwassa kwassa",
+      "Wining","Wuk-up","Videoke"],
+    housing:["Godown","Bach","Dacha","Ger","Aul","Cwtch","Divan","Favela","Komboni","Compound",
+      "Shamba","Garden"]
+  };
+  for(const[tag,words]of Object.entries(tagMap)){
+    for(const w of words) WORD_TAGS[w]=(WORD_TAGS[w]||[]).concat(tag);
+  }
+})();
+
+/* ─── Loanword Regions ─── */
+const LOANWORD_REGIONS=new Set([
+  'russia','china','brazil','argentina','kazakhstan','algeria','dr_congo',
+  'saudi_arabia','mexico','indonesia','sudan','libya','iran','mongolia','peru','chad'
+]);
+
+/* ─── Difficulty Region Pools ─── */
+const DIFFICULTY_POOLS={
+  easy:['united_states','united_kingdom','australia','canada','ireland','scotland','new_zealand','jamaica','south_africa','india'],
+  medium:['nigeria','singapore','malaysia','philippines','hong_kong','kenya','ghana','trinidad','barbados','wales','pakistan','fiji','bermuda','zimbabwe','bangladesh','sri_lanka','uganda','zambia','namibia','tanzania'],
+  hard:['russia','china','brazil','argentina','kazakhstan','algeria','dr_congo','saudi_arabia','mexico','indonesia','sudan','libya','iran','mongolia','peru','chad']
+};
+
+/* ─── Achievements ─── */
+const ACHIEVEMENT_DEFS=[
+  {id:'first_region',icon:'🌍',name:'First Steps',desc:'Visit your first region',check:s=>s.visited>=1},
+  {id:'ten_regions',icon:'🗺️',name:'Wayfarer',desc:'Visit 10 regions',check:s=>s.visited>=10},
+  {id:'all_regions',icon:'🏆',name:'World Traveler',desc:'Visit all regions',check:s=>s.visited>=s.totalRegions},
+  {id:'ten_words',icon:'📖',name:'Bookworm',desc:'View 10 words',check:s=>s.words>=10},
+  {id:'fifty_words',icon:'📚',name:'Word Collector',desc:'View 50 words',check:s=>s.words>=50},
+  {id:'hundred_words',icon:'🎓',name:'Lexicon Scholar',desc:'View 100 words',check:s=>s.words>=100},
+  {id:'all_words',icon:'👑',name:'Atlas Complete',desc:'View every word',check:s=>s.words>=s.totalWords},
+  {id:'perfect_quiz',icon:'💯',name:'Perfect Score',desc:'Score 10/10 on a quiz',check:s=>s.perfectQuiz},
+  {id:'five_favs',icon:'💝',name:'Curating',desc:'Save 5 favorites',check:s=>s.favs>=5},
+  {id:'twenty_favs',icon:'💖',name:'Word Hoarder',desc:'Save 20 favorites',check:s=>s.favs>=20},
+  {id:'streak_five',icon:'🔥',name:'On Fire',desc:'Get a 5-question streak in quiz',check:s=>s.bestStreak>=5},
+  {id:'streak_ten',icon:'⚡',name:'Unstoppable',desc:'Get a 10-question streak',check:s=>s.bestStreak>=10},
+  {id:'daily_three',icon:'📅',name:'Regular',desc:'View the daily word 3 days',check:s=>s.dailyDays>=3},
+  {id:'daily_seven',icon:'🌟',name:'Dedicated',desc:'View the daily word 7 days',check:s=>s.dailyDays>=7}
+];
+
 /* ─── State ─── */
-let globe,selectedRegion=null;
+let globe,selectedRegion=null,currentPanelKeys=null,activeTagFilter=null;
 const visited=new Set(JSON.parse(localStorage.getItem('la_visited')||'[]'));
 const viewedWords=new Set(JSON.parse(localStorage.getItem('la_viewed')||'[]'));
 const favorites=new Set(JSON.parse(localStorage.getItem('la_favs')||'[]'));
+const achievements=new Set(JSON.parse(localStorage.getItem('la_achievements')||'[]'));
+let quizBestStreak=parseInt(localStorage.getItem('la_quiz_streak')||'0',10);
+let dailyDays=JSON.parse(localStorage.getItem('la_daily_days')||'[]');
 
 function persist(){
   localStorage.setItem('la_visited',JSON.stringify([...visited]));
   localStorage.setItem('la_viewed',JSON.stringify([...viewedWords]));
   localStorage.setItem('la_favs',JSON.stringify([...favorites]));
+  localStorage.setItem('la_achievements',JSON.stringify([...achievements]));
+  localStorage.setItem('la_quiz_streak',String(quizBestStreak));
+  localStorage.setItem('la_daily_days',JSON.stringify(dailyDays));
 }
 
 function allWords(){
   const out=[];
   for(const[k,r]of Object.entries(REGIONS)){
-    r.words.forEach(w=>out.push({...w,regionKey:k,regionName:r.name,flag:r.flag,dialect:r.dialect}));
+    r.words.forEach(w=>out.push({...w,regionKey:k,regionName:r.name,flag:r.flag,dialect:r.dialect,
+      isLoanword:LOANWORD_REGIONS.has(k),phonetic:PHONETICS[w.word]||'',
+      tags:WORD_TAGS[w.word]||[]}));
   }
   return out;
 }
@@ -1941,7 +2279,12 @@ const ALL_WORDS=allWords();
 
 function getRegionKeys(feat){
   const n=feat.properties.ADMIN||feat.properties.name||feat.properties.NAME||'';
-  return COUNTRY_MAP[n]||null;
+  if(COUNTRY_MAP[n])return COUNTRY_MAP[n];
+  const norm=n.replace(/^the\s+/i,'').trim();
+  for(const[key,val]of Object.entries(COUNTRY_MAP)){
+    if(key.toLowerCase()===norm.toLowerCase())return val;
+  }
+  return null;
 }
 
 function updateStats(){
@@ -1949,6 +2292,26 @@ function updateStats(){
   document.getElementById('s-words').textContent=viewedWords.size;
   document.getElementById('s-total-words').textContent=ALL_WORDS.length;
   document.getElementById('s-total-countries').textContent=Object.keys(REGIONS).length;
+  checkAchievements();
+}
+
+/* ─── URL Params ─── */
+function handleUrlParams(){
+  const params=new URLSearchParams(window.location.search);
+  const word=params.get('word');
+  const region=params.get('region');
+  if(region&&REGIONS[region]){
+    startExploring();
+    selectedRegion=region;
+    visited.add(region);persist();
+    const r=REGIONS[region];
+    setTimeout(()=>{
+      globe.pointOfView({lat:r.lat,lng:r.lng,altitude:1.8},800);
+      const allKeys=Object.entries(COUNTRY_MAP).find(([_,v])=>v.includes(region));
+      openPanel(allKeys?allKeys[1]:[region]);
+      globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
+    },1500);
+  }
 }
 
 /* ─── Globe ─── */
@@ -1976,7 +2339,10 @@ function initGlobe(){
     .polygonCapColor(d=>{
       const keys=cachedRegionKeys(d);
       if(keys&&keys.includes(selectedRegion))return 'rgba(78,205,196,0.55)';
-      if(keys)return 'rgba(78,205,196,0.10)';
+      if(keys){
+        const isLoanword=keys.some(k=>LOANWORD_REGIONS.has(k));
+        return isLoanword?'rgba(100,181,246,0.12)':'rgba(78,205,196,0.10)';
+      }
       return 'rgba(200,200,220,0.02)';
     })
     .polygonSideColor(()=>'rgba(0,0,0,0)')
@@ -2012,7 +2378,8 @@ function hoverPoly(p){
     hl.querySelector('.hl-name').textContent=nm;
     if(keys){
       const total=keys.reduce((s,k)=>s+(REGIONS[k]?REGIONS[k].words.length:0),0);
-      hl.querySelector('.hl-count').textContent=total+' regional words \u2014 click to explore';
+      const isLoan=keys.some(k=>LOANWORD_REGIONS.has(k));
+      hl.querySelector('.hl-count').textContent=total+(isLoan?' loanwords':' regional words')+' \u2014 click to explore';
     }else{
       hl.querySelector('.hl-count').textContent='';
     }
@@ -2065,11 +2432,15 @@ function loadCountryData(){
 
 /* ─── Country Panel ─── */
 function openPanel(keys){
+  currentPanelKeys=keys;
+  activeTagFilter=null;
   const panel=document.getElementById('country-panel');
   const first=REGIONS[keys[0]];
   document.getElementById('p-flag').textContent=first.flag;
   document.getElementById('p-title').textContent=first.name;
-  document.getElementById('p-dialect').textContent=first.dialect;
+  document.getElementById('p-dialect-text').textContent=first.dialect;
+  const loanBadge=document.getElementById('p-loanword-badge');
+  loanBadge.innerHTML=LOANWORD_REGIONS.has(keys[0])?'<span class="loanword-badge">Loanwords</span>':'';
   document.getElementById('p-desc').textContent=first.description;
 
   const tabs=document.getElementById('p-tabs');
@@ -2079,12 +2450,16 @@ function openPanel(keys){
       const t=document.createElement('button');
       t.className='panel-tab'+(i===0?' active':'');
       t.textContent=REGIONS[k].dialect;
+      t.setAttribute('role','tab');
+      t.setAttribute('aria-selected',i===0?'true':'false');
       t.onclick=()=>{
-        tabs.querySelectorAll('.panel-tab').forEach(b=>b.classList.remove('active'));
-        t.classList.add('active');
+        tabs.querySelectorAll('.panel-tab').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
+        t.classList.add('active');t.setAttribute('aria-selected','true');
+        activeTagFilter=null;
         renderWords(k);
         document.getElementById('p-flag').textContent=REGIONS[k].flag;
-        document.getElementById('p-dialect').textContent=REGIONS[k].dialect;
+        document.getElementById('p-dialect-text').textContent=REGIONS[k].dialect;
+        loanBadge.innerHTML=LOANWORD_REGIONS.has(k)?'<span class="loanword-badge">Loanwords</span>':'';
         document.getElementById('p-desc').textContent=REGIONS[k].description;
       };
       tabs.appendChild(t);
@@ -2096,37 +2471,72 @@ function openPanel(keys){
   globe.controls().autoRotate=false;
 }
 
+function buildTagFilter(regionKey){
+  const tf=document.getElementById('tag-filter');
+  tf.innerHTML='';
+  const region=REGIONS[regionKey];
+  if(!region)return;
+  const tags=new Set();
+  region.words.forEach(w=>{
+    (WORD_TAGS[w.word]||[]).forEach(t=>tags.add(t));
+  });
+  if(tags.size<2)return;
+  const allBtn=document.createElement('button');
+  allBtn.className='tag-chip'+(activeTagFilter===null?' active':'');
+  allBtn.textContent='All';
+  allBtn.onclick=()=>{activeTagFilter=null;renderWords(regionKey);};
+  tf.appendChild(allBtn);
+  [...tags].sort().forEach(tag=>{
+    const btn=document.createElement('button');
+    btn.className='tag-chip'+(activeTagFilter===tag?' active':'');
+    btn.textContent=tag;
+    btn.onclick=()=>{activeTagFilter=tag;renderWords(regionKey);};
+    tf.appendChild(btn);
+  });
+}
+
 function renderWords(regionKey){
   const container=document.getElementById('p-words');
   container.innerHTML='';
   const region=REGIONS[regionKey];
   if(!region)return;
-  region.words.forEach((w,i)=>{
+  buildTagFilter(regionKey);
+  let words=region.words;
+  if(activeTagFilter){
+    words=words.filter(w=>(WORD_TAGS[w.word]||[]).includes(activeTagFilter));
+  }
+  words.forEach((w,i)=>{
     const id=regionKey+'::'+w.word;
     viewedWords.add(id);
     const card=document.createElement('div');
     card.className='word-card';
     card.style.animationDelay=(i*0.06)+'s';
+    card.setAttribute('role','button');
+    card.setAttribute('aria-expanded','false');
+    card.setAttribute('tabindex','0');
     const isFav=favorites.has(id);
+    const phonetic=PHONETICS[w.word]?`<div class="word-phonetic">${PHONETICS[w.word]}</div>`:'';
+    const wordTags=(WORD_TAGS[w.word]||[]).map(t=>'<span class="tag-chip" style="pointer-events:none;font-size:.6rem;padding:2px 6px">'+t+'</span>').join(' ');
     card.innerHTML=`
       <div class="word-top">
         <span class="word-name">${w.word}</span>
         <span class="word-pos">${w.pos}</span>
       </div>
+      ${phonetic}
       <div class="word-meaning">${w.meaning}</div>
       <div class="word-example">${w.example}</div>
       <div class="word-etymology">
         <div class="etym-label">Etymology</div>
         <div class="etym-text">${w.etymology}</div>
+        ${wordTags?'<div style="margin-top:8px">'+wordTags+'</div>':''}
       </div>
       <div class="word-actions">
-        <button class="word-action-btn ${isFav?'faved':''}" data-fav="${id}">\u2665 ${isFav?'Saved':'Save'}</button>
-        <button class="word-action-btn" data-share="${w.word}|${w.meaning}|${region.name}">\u2197 Share</button>
+        <button class="word-action-btn ${isFav?'faved':''}" data-fav="${id}" aria-label="${isFav?'Remove from':'Add to'} favorites">\u2665 ${isFav?'Saved':'Save'}</button>
+        <button class="word-action-btn" data-share="${w.word}|${w.meaning}|${region.name}" aria-label="Share word">\u2197 Share</button>
       </div>`;
-    card.addEventListener('click',e=>{
-      if(e.target.closest('.word-action-btn'))return;
-      card.classList.toggle('expanded');
-    });
+    function toggleCard(){card.classList.toggle('expanded');card.setAttribute('aria-expanded',card.classList.contains('expanded'));}
+    card.addEventListener('click',e=>{if(!e.target.closest('.word-action-btn'))toggleCard();});
+    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleCard();}});
     card.querySelector('[data-fav]').addEventListener('click',e=>{
       e.stopPropagation();
       const btn=e.currentTarget;
@@ -2137,8 +2547,7 @@ function renderWords(regionKey){
     card.querySelector('[data-share]').addEventListener('click',e=>{
       e.stopPropagation();
       const[sw,sm,sr]=e.currentTarget.dataset.share.split('|');
-      const txt=`\u{1F30D} ${sw} (${sr}): ${sm}\nvia Lexicon Atlas`;
-      navigator.clipboard.writeText(txt).then(()=>toast('Copied to clipboard!')).catch(()=>toast('Could not copy'));
+      shareContent(sw,sm,sr,regionKey);
     });
     container.appendChild(card);
   });
@@ -2149,8 +2558,21 @@ function renderWords(regionKey){
 function closePanel(){
   document.getElementById('country-panel').classList.remove('open');
   selectedRegion=null;
+  currentPanelKeys=null;
+  activeTagFilter=null;
   globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
   globe.controls().autoRotate=true;
+}
+
+/* ─── Share Functionality ─── */
+function shareContent(word,meaning,regionName,regionKey){
+  const txt=`\u{1F30D} ${word} (${regionName}): ${meaning}\nvia Lexicon Atlas`;
+  const url=window.location.origin+window.location.pathname+`?word=${encodeURIComponent(word)}&region=${encodeURIComponent(regionKey||'')}`;
+  if(navigator.share){
+    navigator.share({title:`${word} — Lexicon Atlas`,text:txt,url}).catch(()=>{});
+  }else{
+    navigator.clipboard.writeText(txt+'\n'+url).then(()=>toast('Copied to clipboard!')).catch(()=>toast('Could not copy'));
+  }
 }
 
 /* ─── Search ─── */
@@ -2158,33 +2580,34 @@ function openSearch(){
   document.getElementById('search-overlay').classList.add('open');
   const inp=document.getElementById('search-input');
   inp.value='';inp.focus();
-  document.getElementById('search-results').innerHTML='<div class="search-empty">Start typing to search 200+ regional English words</div>';
+  document.getElementById('search-results').innerHTML=`<div class="search-empty">Start typing to search ${ALL_WORDS.length}+ regional English words</div>`;
 }
 function closeSearch(){document.getElementById('search-overlay').classList.remove('open');}
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeSearch();closeQuiz();closeConnections();closeRandom();}
+  if(e.key==='Escape'){closeSearch();closeQuiz();closeConnections();closeRandom();closeFavorites();closeAchievements();}
+  if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!document.querySelector('input:focus')){e.preventDefault();openSearch();}
 });
 document.getElementById('search-input').addEventListener('input',e=>{
   const q=e.target.value.toLowerCase().trim();
   const res=document.getElementById('search-results');
-  if(!q){res.innerHTML='<div class="search-empty">Start typing to search 120+ regional English words</div>';return;}
+  if(!q){res.innerHTML=`<div class="search-empty">Start typing to search ${ALL_WORDS.length}+ regional English words</div>`;return;}
   const matches=ALL_WORDS.filter(w=>
     w.word.toLowerCase().includes(q)||w.meaning.toLowerCase().includes(q)||
     w.regionName.toLowerCase().includes(q)||w.dialect.toLowerCase().includes(q)||
-    w.etymology.toLowerCase().includes(q)
+    w.etymology.toLowerCase().includes(q)||w.tags.some(t=>t.includes(q))
   );
   if(!matches.length){res.innerHTML='<div class="search-empty">No words found for \u201c'+q+'\u201d</div>';return;}
   res.innerHTML=matches.slice(0,20).map(w=>`
-    <div class="search-result" data-region="${w.regionKey}" data-word="${w.word}">
+    <div class="search-result" data-region="${w.regionKey}" data-word="${w.word}" tabindex="0" role="button">
       <span class="sr-flag">${w.flag}</span>
       <div>
-        <div class="sr-word">${highlight(w.word,q)}</div>
+        <div class="sr-word">${highlight(w.word,q)}${w.isLoanword?'<span class="loanword-badge" style="margin-left:6px">Loanword</span>':''}</div>
         <div class="sr-meaning">${highlight(w.meaning,q)}</div>
         <div class="sr-region">${w.regionName} \u2022 ${w.dialect}</div>
       </div>
     </div>`).join('');
   res.querySelectorAll('.search-result').forEach(el=>{
-    el.addEventListener('click',()=>{
+    function go(){
       closeSearch();
       const rk=el.dataset.region;
       const keys=Object.entries(COUNTRY_MAP).find(([_,v])=>v.includes(rk));
@@ -2197,7 +2620,9 @@ document.getElementById('search-input').addEventListener('input',e=>{
         globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
       },50);
       openPanel(allKeys);
-    });
+    }
+    el.addEventListener('click',go);
+    el.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
   });
 });
 function highlight(text,q){
@@ -2206,59 +2631,230 @@ function highlight(text,q){
   return text.slice(0,i)+'<mark style="background:rgba(244,197,66,.25);color:var(--gold);border-radius:2px">'+text.slice(i,i+q.length)+'</mark>'+text.slice(i+q.length);
 }
 
+/* ─── Favorites ─── */
+function openFavorites(){
+  document.getElementById('favorites-overlay').classList.add('open');
+  renderFavorites();
+}
+function closeFavorites(){document.getElementById('favorites-overlay').classList.remove('open');}
+function renderFavorites(){
+  const list=document.getElementById('fav-list');
+  if(!favorites.size){
+    list.innerHTML='<div class="fav-empty">No saved words yet.<br>Tap the \u2665 button on any word card to save it here.</div>';
+    return;
+  }
+  const items=[...favorites].map(id=>{
+    const[rk,word]=id.split('::');
+    const r=REGIONS[rk];
+    if(!r)return null;
+    const w=r.words.find(x=>x.word===word);
+    if(!w)return null;
+    return{id,rk,word:w,region:r};
+  }).filter(Boolean);
+  list.innerHTML=items.map(({id,rk,word:w,region:r})=>`
+    <div class="word-card" style="animation:cardIn .4s ease both">
+      <div class="word-top">
+        <span class="word-name">${r.flag} ${w.word}</span>
+        <span class="word-pos">${w.pos}</span>
+      </div>
+      <div class="word-meaning">${w.meaning}</div>
+      <div class="word-example">${w.example}</div>
+      <div style="color:var(--teal);font-size:.75rem;font-weight:600;margin-top:6px">${r.name} \u2022 ${r.dialect}${LOANWORD_REGIONS.has(rk)?'<span class="loanword-badge">Loanword</span>':''}</div>
+      <div class="word-actions" style="margin-top:8px">
+        <button class="word-action-btn faved" data-unfav="${id}">\u2665 Remove</button>
+        <button class="word-action-btn" data-goto="${rk}">&#127758; Go to region</button>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('[data-unfav]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      favorites.delete(btn.dataset.unfav);persist();renderFavorites();toast('Removed from favorites');
+    });
+  });
+  list.querySelectorAll('[data-goto]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      closeFavorites();
+      const rk=btn.dataset.goto;
+      visited.add(rk);persist();updateStats();
+      const r=REGIONS[rk];
+      selectedRegion=rk;
+      globe.pointOfView({lat:r.lat,lng:r.lng,altitude:1.8},800);
+      setTimeout(()=>{
+        globe.polygonAltitude(globe.polygonAltitude()).polygonCapColor(globe.polygonCapColor());
+      },50);
+      const keys=Object.entries(COUNTRY_MAP).find(([_,v])=>v.includes(rk));
+      openPanel(keys?keys[1]:[rk]);
+    });
+  });
+}
+
 /* ─── Quiz ─── */
-let quiz={questions:[],current:0,score:0};
+let quiz={questions:[],current:0,score:0,mode:'region',difficulty:'easy',timed:false,
+  streak:0,timer:null,timeLeft:0};
 function openQuiz(){
-  quiz={questions:generateQuiz(),current:0,score:0};
   document.getElementById('quiz-overlay').classList.add('open');
+  document.getElementById('quiz-setup').style.display='';
+  document.getElementById('quiz-game').style.display='none';
+  const streakEl=document.getElementById('quiz-streak-display');
+  streakEl.textContent=quizBestStreak>0?`\u{1F525} Best streak: ${quizBestStreak}`:'';
+  document.querySelectorAll('.quiz-mode-btn').forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll('.quiz-mode-btn').forEach(x=>{x.classList.remove('selected');x.setAttribute('aria-pressed','false');});
+      b.classList.add('selected');b.setAttribute('aria-pressed','true');
+    };
+  });
+  document.querySelectorAll('.quiz-diff-btn').forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll('.quiz-diff-btn').forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+    };
+  });
+}
+function closeQuiz(){
+  document.getElementById('quiz-overlay').classList.remove('open');
+  if(quiz.timer)clearInterval(quiz.timer);
+}
+function startQuiz(){
+  const mode=document.querySelector('.quiz-mode-btn.selected')?.dataset.mode||'region';
+  const diff=document.querySelector('.quiz-diff-btn.selected')?.dataset.diff||'easy';
+  const timed=document.getElementById('quiz-timed').checked;
+  quiz={questions:generateQuiz(mode,diff),current:0,score:0,mode,difficulty:diff,timed,
+    streak:0,timer:null,timeLeft:0};
+  document.getElementById('quiz-setup').style.display='none';
+  document.getElementById('quiz-game').style.display='';
   document.getElementById('quiz-end').classList.remove('show');
   document.getElementById('quiz-body').style.display='block';
   showQuestion();
 }
-function closeQuiz(){document.getElementById('quiz-overlay').classList.remove('open');}
-function generateQuiz(){
-  const shuffled=[...ALL_WORDS].sort(()=>Math.random()-.5);
-  const regionKeys=Object.keys(REGIONS);
+function generateQuiz(mode,diff){
+  const pool=DIFFICULTY_POOLS[diff]||Object.keys(REGIONS);
+  const poolWords=ALL_WORDS.filter(w=>pool.includes(w.regionKey));
+  const shuffled=[...poolWords].sort(()=>Math.random()-.5);
+  const regionKeys=pool;
   return shuffled.slice(0,10).map(w=>{
-    const wrong=regionKeys.filter(k=>k!==w.regionKey).sort(()=>Math.random()-.5).slice(0,3);
-    const options=[w.regionKey,...wrong].sort(()=>Math.random()-.5);
-    return{word:w,options,correct:w.regionKey};
+    if(mode==='region'){
+      const wrong=regionKeys.filter(k=>k!==w.regionKey).sort(()=>Math.random()-.5).slice(0,3);
+      const options=[w.regionKey,...wrong].sort(()=>Math.random()-.5);
+      return{word:w,options,correct:w.regionKey,type:'region'};
+    }else if(mode==='meaning'){
+      const wrongWords=poolWords.filter(x=>x.word!==w.word).sort(()=>Math.random()-.5).slice(0,3);
+      const options=[w,...wrongWords].sort(()=>Math.random()-.5);
+      return{word:w,options:options.map(o=>o.meaning),correctIdx:options.findIndex(o=>o.word===w.word),type:'meaning'};
+    }else{
+      const wrongWords=poolWords.filter(x=>x.word!==w.word).sort(()=>Math.random()-.5).slice(0,3);
+      const options=[w,...wrongWords].sort(()=>Math.random()-.5);
+      return{word:w,options:options.map(o=>o.word),correctIdx:options.findIndex(o=>o.word===w.word),type:'reverse'};
+    }
   });
 }
 function showQuestion(){
   const q=quiz.questions[quiz.current];
   document.getElementById('q-score').textContent=quiz.score+' / '+quiz.current;
   document.getElementById('q-progress').textContent='Question '+(quiz.current+1)+' of 10';
-  document.getElementById('q-word').textContent=q.word.word;
+  const timerEl=document.getElementById('q-timer');
+  timerEl.textContent='';timerEl.classList.remove('warning');
+  if(quiz.timer)clearInterval(quiz.timer);
+
+  const prompt=document.getElementById('q-prompt');
+  if(q.type==='region'){
+    prompt.textContent='Where is this word primarily used?';
+    document.getElementById('q-word').textContent=q.word.word;
+  }else if(q.type==='meaning'){
+    prompt.textContent='What does this word mean?';
+    document.getElementById('q-word').textContent=q.word.word;
+  }else{
+    prompt.textContent=`${q.word.flag} ${q.word.regionName}: "${q.word.meaning}"`;
+    document.getElementById('q-word').textContent='Which word?';
+  }
+
   const qm=document.getElementById('q-meaning');
-  qm.textContent='';
-  qm.style.display='none';
+  qm.textContent='';qm.style.display='none';
   document.getElementById('q-etym').classList.remove('show');
   document.getElementById('q-next').classList.remove('show');
+
   const opts=document.getElementById('q-options');
-  opts.innerHTML=q.options.map(k=>`
-    <button class="quiz-option" data-key="${k}">
-      <span class="qo-flag">${REGIONS[k].flag}</span>
-      <span>${REGIONS[k].name}</span>
-    </button>`).join('');
-  opts.querySelectorAll('.quiz-option').forEach(btn=>{
-    btn.addEventListener('click',()=>answerQuestion(btn,q));
-  });
+  if(q.type==='region'){
+    opts.innerHTML=q.options.map(k=>`
+      <button class="quiz-option" data-key="${k}" role="button" aria-label="${REGIONS[k].name}">
+        <span class="qo-flag">${REGIONS[k].flag}</span>
+        <span>${REGIONS[k].name}</span>
+      </button>`).join('');
+    opts.querySelectorAll('.quiz-option').forEach(btn=>{
+      btn.addEventListener('click',()=>answerQuestion(btn,q));
+    });
+  }else if(q.type==='meaning'){
+    opts.innerHTML=q.options.map((m,i)=>`
+      <button class="quiz-option" data-idx="${i}" role="button">
+        <span>${m}</span>
+      </button>`).join('');
+    opts.querySelectorAll('.quiz-option').forEach(btn=>{
+      btn.addEventListener('click',()=>answerMeaningQuestion(btn,q));
+    });
+  }else{
+    opts.innerHTML=q.options.map((w,i)=>`
+      <button class="quiz-option" data-idx="${i}" role="button">
+        <span style="font-weight:700;color:var(--gold)">${w}</span>
+      </button>`).join('');
+    opts.querySelectorAll('.quiz-option').forEach(btn=>{
+      btn.addEventListener('click',()=>answerMeaningQuestion(btn,q));
+    });
+  }
+
+  if(quiz.timed){
+    quiz.timeLeft=15;
+    timerEl.textContent=quiz.timeLeft;
+    quiz.timer=setInterval(()=>{
+      quiz.timeLeft--;
+      timerEl.textContent=quiz.timeLeft;
+      if(quiz.timeLeft<=5)timerEl.classList.add('warning');
+      if(quiz.timeLeft<=0){
+        clearInterval(quiz.timer);
+        timerEl.textContent='0';
+        const allOpts=document.querySelectorAll('.quiz-option');
+        allOpts.forEach(o=>o.classList.add('locked'));
+        if(q.type==='region'){
+          allOpts.forEach(o=>{if(o.dataset.key===q.correct)o.classList.add('correct');});
+        }else{
+          allOpts.forEach((o,i)=>{if(parseInt(o.dataset.idx)===q.correctIdx)o.classList.add('correct');});
+        }
+        quiz.streak=0;
+        showPostAnswer(q,false);
+      }
+    },1000);
+  }
 }
 function answerQuestion(btn,q){
-  const opts=document.querySelectorAll('.quiz-option');
   if(btn.classList.contains('locked'))return;
+  if(quiz.timer)clearInterval(quiz.timer);
+  document.getElementById('q-timer').classList.remove('warning');
+  const opts=document.querySelectorAll('.quiz-option');
   opts.forEach(o=>o.classList.add('locked'));
   const chosen=btn.dataset.key;
   const isCorrect=chosen===q.correct;
-  if(isCorrect){quiz.score++;btn.classList.add('correct');}
-  else{btn.classList.add('wrong');opts.forEach(o=>{if(o.dataset.key===q.correct)o.classList.add('correct');});}
+  if(isCorrect){quiz.score++;quiz.streak++;btn.classList.add('correct');}
+  else{quiz.streak=0;btn.classList.add('wrong');opts.forEach(o=>{if(o.dataset.key===q.correct)o.classList.add('correct');});}
+  showPostAnswer(q,isCorrect);
+}
+function answerMeaningQuestion(btn,q){
+  if(btn.classList.contains('locked'))return;
+  if(quiz.timer)clearInterval(quiz.timer);
+  document.getElementById('q-timer').classList.remove('warning');
+  const opts=document.querySelectorAll('.quiz-option');
+  opts.forEach(o=>o.classList.add('locked'));
+  const chosen=parseInt(btn.dataset.idx);
+  const isCorrect=chosen===q.correctIdx;
+  if(isCorrect){quiz.score++;quiz.streak++;btn.classList.add('correct');}
+  else{quiz.streak=0;btn.classList.add('wrong');opts.forEach((o,i)=>{if(parseInt(o.dataset.idx)===q.correctIdx)o.classList.add('correct');});}
+  showPostAnswer(q,isCorrect);
+}
+function showPostAnswer(q,isCorrect){
   document.getElementById('q-score').textContent=quiz.score+' / '+(quiz.current+1);
   const qm=document.getElementById('q-meaning');
-  qm.textContent=q.word.meaning;
-  qm.style.display='';
+  if(q.type==='region'){qm.textContent=q.word.meaning;qm.style.display='';}
+  else if(q.type==='reverse'){qm.textContent=q.word.word+' — '+q.word.meaning;qm.style.display='';}
+  else{qm.textContent='From '+q.word.regionName;qm.style.display='';}
   document.getElementById('q-etym-text').textContent=q.word.etymology;
   document.getElementById('q-etym').classList.add('show');
+  if(quiz.streak>quizBestStreak){quizBestStreak=quiz.streak;persist();}
   if(quiz.current<9)document.getElementById('q-next').classList.add('show');
   else setTimeout(showQuizEnd,1200);
 }
@@ -2268,6 +2864,7 @@ function nextQuestion(){
   showQuestion();
 }
 function showQuizEnd(){
+  if(quiz.timer)clearInterval(quiz.timer);
   document.getElementById('quiz-body').style.display='none';
   const end=document.getElementById('quiz-end');
   end.classList.add('show');
@@ -2276,22 +2873,104 @@ function showQuizEnd(){
     'Curious Explorer','Curious Explorer','Word Wanderer','Word Wanderer',
     'Globe Trotter','Globe Trotter','Linguist Extraordinaire!'];
   document.getElementById('qe-rating').textContent=ratings[quiz.score];
+  document.getElementById('qe-streak').textContent=`\u{1F525} Best streak this session: ${quiz.streak} | All-time best: ${quizBestStreak}`;
+  if(quiz.score===10){
+    localStorage.setItem('la_perfect_quiz','true');
+    checkAchievements();
+  }
 }
 
 /* ─── Connections ─── */
+let connMode='browse';
+let connGame={groups:[],allWords:[],selected:new Set(),solved:[],mistakes:0};
 function openConnections(){
   document.getElementById('connections-overlay').classList.add('open');
-  const grid=document.getElementById('conn-grid');
-  if(grid.children.length)return;
-  grid.innerHTML=COMPARISONS.map(c=>`
-    <div class="conn-card">
-      <div class="conn-concept"><span>${c.icon}</span><span>${c.concept}</span></div>
-      <div class="conn-words">
-        ${c.words.map(w=>`<span class="conn-word"><span class="cw-flag">${REGIONS[w.region].flag}</span><span class="cw-text">${w.word}</span></span>`).join('')}
-      </div>
-    </div>`).join('');
+  setConnMode('browse');
 }
 function closeConnections(){document.getElementById('connections-overlay').classList.remove('open');}
+function setConnMode(mode){
+  connMode=mode;
+  document.querySelectorAll('.conn-mode-btn').forEach(b=>{
+    b.classList.toggle('active',b.textContent.toLowerCase().includes(mode==='browse'?'browse':'game'));
+  });
+  const grid=document.getElementById('conn-grid');
+  const game=document.getElementById('conn-game-area');
+  if(mode==='browse'){
+    grid.style.display='';game.style.display='none';
+    grid.innerHTML=COMPARISONS.map(c=>`
+      <div class="conn-card">
+        <div class="conn-concept"><span>${c.icon}</span><span>${c.concept}</span></div>
+        <div class="conn-words">
+          ${c.words.map(w=>`<span class="conn-word"><span class="cw-flag">${REGIONS[w.region].flag}</span><span class="cw-text">${w.word}</span></span>`).join('')}
+        </div>
+      </div>`).join('');
+  }else{
+    grid.style.display='none';game.style.display='';
+    initConnGame();
+  }
+}
+function initConnGame(){
+  const shuffled=[...COMPARISONS].sort(()=>Math.random()-.5);
+  const groups=shuffled.slice(0,4);
+  connGame={groups,allWords:[],selected:new Set(),solved:[],mistakes:0};
+  groups.forEach(g=>{
+    g.words.forEach(w=>{
+      connGame.allWords.push({word:w.word,region:w.region,concept:g.concept,icon:g.icon});
+    });
+  });
+  connGame.allWords.sort(()=>Math.random()-.5);
+  renderConnGame();
+}
+function renderConnGame(){
+  const solved=document.getElementById('conn-solved');
+  solved.innerHTML=connGame.solved.map(g=>`
+    <div class="conn-solved-group">
+      <div class="csg-concept">${g.icon} ${g.concept}</div>
+      <div class="csg-words">${g.words.join(' \u2022 ')}</div>
+    </div>`).join('');
+  const container=document.getElementById('conn-game-words');
+  const remaining=connGame.allWords.filter(w=>!connGame.solved.some(s=>s.concept===w.concept));
+  container.innerHTML=remaining.map((w,i)=>`
+    <button class="conn-game-word${connGame.selected.has(i)?' selected':''}" data-ci="${i}"
+      aria-pressed="${connGame.selected.has(i)}">${REGIONS[w.region].flag} ${w.word}</button>`).join('');
+  container.querySelectorAll('.conn-game-word').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const ci=parseInt(btn.dataset.ci);
+      if(connGame.selected.has(ci))connGame.selected.delete(ci);
+      else connGame.selected.add(ci);
+      renderConnGame();
+    });
+  });
+  document.getElementById('conn-game-hint').textContent=
+    `Select all words that share a concept. ${4-connGame.solved.length} groups remaining. ${connGame.mistakes} mistakes.`;
+  if(connGame.solved.length===4){
+    document.getElementById('conn-game-status').innerHTML=`<strong style="color:var(--gold)">\u{1F389} You solved all 4 groups! ${connGame.mistakes===0?'Perfect!':connGame.mistakes+' mistakes.'}</strong>`;
+  }
+}
+function connGameSubmit(){
+  const remaining=connGame.allWords.filter(w=>!connGame.solved.some(s=>s.concept===w.concept));
+  const selectedItems=[...connGame.selected].map(i=>remaining[i]).filter(Boolean);
+  if(selectedItems.length<2){toast('Select at least 2 words');return;}
+  const concept=selectedItems[0].concept;
+  const allMatch=selectedItems.every(w=>w.concept===concept);
+  const groupWords=remaining.filter(w=>w.concept===concept);
+  if(allMatch&&selectedItems.length===groupWords.length){
+    connGame.solved.push({concept,icon:selectedItems[0].icon,words:groupWords.map(w=>w.word)});
+    connGame.selected.clear();
+    renderConnGame();
+    toast('Correct!');
+  }else{
+    connGame.mistakes++;
+    document.querySelectorAll('.conn-game-word.selected').forEach(el=>{
+      el.classList.add('wrong');
+      setTimeout(()=>el.classList.remove('wrong'),400);
+    });
+    connGame.selected.clear();
+    renderConnGame();
+    toast('Not quite — try again');
+  }
+}
+function connGameDeselect(){connGame.selected.clear();renderConnGame();}
 
 /* ─── Random Word ─── */
 function showRandom(){
@@ -2300,19 +2979,21 @@ function showRandom(){
   viewedWords.add(id);persist();updateStats();
   const card=document.getElementById('random-card');
   const isFav=favorites.has(id);
+  const phonetic=w.phonetic?`<div class="word-phonetic">${w.phonetic}</div>`:'';
   card.innerHTML=`
     <div class="rc-flag">${w.flag}</div>
-    <div class="rc-region">${w.regionName} \u2022 ${w.dialect}</div>
+    <div class="rc-region">${w.regionName} \u2022 ${w.dialect}${w.isLoanword?'<span class="loanword-badge">Loanword</span>':''}</div>
     <div class="rc-word">${w.word}</div>
+    ${phonetic}
     <div class="rc-pos">${w.pos}</div>
     <div class="rc-meaning">${w.meaning}</div>
     <div class="rc-example">${w.example}</div>
     <div class="rc-etym-label">Etymology</div>
     <div class="rc-etym">${w.etymology}</div>
     <div class="rc-actions">
-      <button class="word-action-btn ${isFav?'faved':''}" id="rc-fav">\u2665 ${isFav?'Saved':'Save'}</button>
-      <button class="word-action-btn" id="rc-share">\u2197 Share</button>
-      <button class="word-action-btn" onclick="closeRandom();showRandom()">\u{1F3B2} Another</button>
+      <button class="word-action-btn ${isFav?'faved':''}" id="rc-fav" aria-label="${isFav?'Remove from':'Add to'} favorites">\u2665 ${isFav?'Saved':'Save'}</button>
+      <button class="word-action-btn" id="rc-share" aria-label="Share word">\u2197 Share</button>
+      <button class="word-action-btn" onclick="closeRandom();showRandom()" aria-label="Show another random word">\u{1F3B2} Another</button>
     </div>`;
   document.getElementById('rc-fav').addEventListener('click',()=>{
     const btn=document.getElementById('rc-fav');
@@ -2321,8 +3002,7 @@ function showRandom(){
     persist();
   });
   document.getElementById('rc-share').addEventListener('click',()=>{
-    const txt=`\u{1F30D} ${w.word} (${w.regionName}): ${w.meaning}\nvia Lexicon Atlas`;
-    navigator.clipboard.writeText(txt).then(()=>toast('Copied to clipboard!')).catch(()=>toast('Could not copy'));
+    shareContent(w.word,w.meaning,w.regionName,w.regionKey);
   });
   card.classList.add('open');
   document.getElementById('random-backdrop').classList.add('open');
@@ -2339,14 +3019,102 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'),2000);
 }
 
+/* ─── Daily Word ─── */
+function getDailyWord(){
+  const now=new Date();
+  const daysSinceEpoch=Math.floor(now.getTime()/(1000*60*60*24));
+  return ALL_WORDS[daysSinceEpoch%ALL_WORDS.length];
+}
+function renderDailyWord(){
+  const w=getDailyWord();
+  const container=document.getElementById('daily-word-container');
+  const phonetic=w.phonetic?` <span style="font-weight:400;font-style:italic;color:var(--text2)">${w.phonetic}</span>`:'';
+  container.innerHTML=`
+    <div class="daily-word-card">
+      <div class="daily-word-badge">\u{1F4C5} Word of the Day</div>
+      <div class="daily-word-name">${w.flag} ${w.word}${phonetic}</div>
+      <div class="daily-word-region">${w.regionName} \u2022 ${w.dialect}${w.isLoanword?'<span class="loanword-badge">Loanword</span>':''}</div>
+      <div class="daily-word-meaning">${w.meaning}</div>
+    </div>`;
+  const today=new Date().toISOString().slice(0,10);
+  if(!dailyDays.includes(today)){
+    dailyDays.push(today);
+    persist();
+  }
+}
+
+/* ─── Achievements ─── */
+function getAchievementStats(){
+  return{
+    visited:visited.size,
+    words:viewedWords.size,
+    favs:favorites.size,
+    totalRegions:Object.keys(REGIONS).length,
+    totalWords:ALL_WORDS.length,
+    perfectQuiz:localStorage.getItem('la_perfect_quiz')==='true',
+    bestStreak:quizBestStreak,
+    dailyDays:dailyDays.length
+  };
+}
+function checkAchievements(){
+  const stats=getAchievementStats();
+  let newUnlock=false;
+  ACHIEVEMENT_DEFS.forEach(a=>{
+    if(!achievements.has(a.id)&&a.check(stats)){
+      achievements.add(a.id);
+      newUnlock=true;
+      toast(`\u{1F3C6} Achievement: ${a.name}`);
+    }
+  });
+  if(newUnlock)persist();
+}
+function openAchievements(){
+  document.getElementById('achievements-overlay').classList.add('open');
+  renderAchievements();
+}
+function closeAchievements(){document.getElementById('achievements-overlay').classList.remove('open');}
+function renderAchievements(){
+  const grid=document.getElementById('ach-grid');
+  grid.innerHTML=ACHIEVEMENT_DEFS.map(a=>{
+    const unlocked=achievements.has(a.id);
+    return`<div class="ach-card ${unlocked?'unlocked':'locked'}">
+      <div class="ach-icon">${a.icon}</div>
+      <div class="ach-info">
+        <div class="ach-name">${a.name}</div>
+        <div class="ach-desc">${a.desc}</div>
+        ${unlocked?'<div class="ach-date">\u2713 Unlocked</div>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 /* ─── Welcome ─── */
 function startExploring(){
   document.getElementById('welcome').classList.add('hidden');
 }
 
+/* ─── Mobile: Swipe to Close Panel ─── */
+(function(){
+  let touchStartX=0,touchStartY=0;
+  const panel=document.getElementById('country-panel');
+  panel.addEventListener('touchstart',e=>{
+    touchStartX=e.touches[0].clientX;
+    touchStartY=e.touches[0].clientY;
+  },{passive:true});
+  panel.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-touchStartX;
+    const dy=Math.abs(e.changedTouches[0].clientY-touchStartY);
+    if(dx>80&&dy<50)closePanel();
+  },{passive:true});
+})();
+
 /* ─── Init ─── */
 initGlobe();
+renderDailyWord();
+document.getElementById('w-regions').textContent=Object.keys(REGIONS).length;
+document.getElementById('w-words').textContent=ALL_WORDS.length;
 updateStats();
+handleUrlParams();
 </script>
 </body>
 </html>

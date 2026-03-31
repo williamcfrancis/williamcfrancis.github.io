@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>One Trillion Parameters</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #040812;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    #app {
+      width: 100%; height: 100%; position: relative;
+    }
+    canvas#three-canvas {
+      display: block; width: 100%; height: 100%;
+      position: absolute; top: 0; left: 0; z-index: 0;
+    }
+    canvas#overlay-canvas {
+      display: block; width: 100%; height: 100%;
+      position: absolute; top: 0; left: 0; z-index: 1;
+      pointer-events: none;
+    }
+    #ui-layer {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 2; pointer-events: none;
+    }
+    #ui-layer * { pointer-events: auto; }
+
+    .back-btn {
+      position: fixed; top: 12px; left: 16px; z-index: 200;
+      color: #fff; text-decoration: none;
+      font: 600 13px 'Inter', sans-serif;
+      background: rgba(0,0,0,0.6); padding: 6px 14px;
+      border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);
+      pointer-events: auto;
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.15); }
+
+    #annotation-box {
+      position: absolute; bottom: 40px; left: 50%;
+      transform: translateX(-50%);
+      max-width: 640px; width: 90%;
+      background: rgba(4, 8, 18, 0.85);
+      border: 1px solid rgba(78, 205, 196, 0.2);
+      border-radius: 12px;
+      padding: 20px 28px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px; line-height: 1.7;
+      color: rgba(255,255,255,0.8);
+      opacity: 0;
+      transition: opacity 0.8s ease;
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+    }
+    #annotation-box.visible { opacity: 1; }
+
+    #level-label {
+      position: absolute; top: 20px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 1px;
+      opacity: 0; transition: opacity 0.6s ease;
+      text-align: center; white-space: nowrap;
+      text-shadow: 0 0 30px rgba(78,205,196,0.3);
+    }
+    #level-label.visible { opacity: 1; }
+
+    #sub-label {
+      position: absolute; top: 52px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px; font-weight: 400;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.5px;
+      opacity: 0; transition: opacity 0.6s ease;
+      text-align: center; white-space: nowrap;
+    }
+    #sub-label.visible { opacity: 1; }
+
+    #param-counter {
+      position: absolute; top: 80px; right: 30px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px; font-weight: 500;
+      color: #4ecdc4;
+      opacity: 0; transition: opacity 0.5s ease;
+      text-shadow: 0 0 15px rgba(78,205,196,0.4);
+    }
+    #param-counter.visible { opacity: 1; }
+    #param-counter .counter-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px; font-weight: 500;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 2px; text-transform: uppercase;
+      display: block; margin-bottom: 4px;
+    }
+
+    #zoom-indicator {
+      position: absolute; right: 20px; top: 50%;
+      transform: translateY(-50%);
+      width: 4px; height: 200px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 2px;
+      pointer-events: none;
+    }
+    #zoom-thumb {
+      width: 4px; height: 20px;
+      background: rgba(78,205,196,0.5);
+      border-radius: 2px;
+      position: absolute; top: 0;
+      transition: top 0.15s ease;
+    }
+
+    #activation-toggle {
+      position: absolute; bottom: 140px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 6px;
+      opacity: 0; transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+    #activation-toggle.visible { opacity: 1; pointer-events: auto; }
+    #activation-toggle button {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; padding: 5px 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.6);
+      border-radius: 6px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    #activation-toggle button.active {
+      background: rgba(78,205,196,0.15);
+      border-color: rgba(78,205,196,0.5);
+      color: #4ecdc4;
+    }
+    #activation-toggle button:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    #equation-display {
+      position: absolute; bottom: 105px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; color: rgba(255,255,255,0.6);
+      opacity: 0; transition: opacity 0.5s ease;
+      white-space: nowrap;
+    }
+    #equation-display.visible { opacity: 1; }
+
+    #comparison-cards {
+      position: absolute; left: 30px; top: 50%;
+      transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 16px;
+      opacity: 0; transition: opacity 1s ease;
+      pointer-events: none; max-width: 320px;
+    }
+    #comparison-cards.visible { opacity: 1; }
+    .comparison-card {
+      background: rgba(4,8,18,0.8);
+      border: 1px solid rgba(78,205,196,0.15);
+      border-radius: 10px; padding: 16px 20px;
+      font-size: 13px; line-height: 1.6;
+      color: rgba(255,255,255,0.7);
+      backdrop-filter: blur(8px);
+    }
+    .comparison-card .card-icon {
+      font-size: 20px; margin-bottom: 6px; display: block;
+    }
+
+    #scroll-hint {
+      position: absolute; bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px; color: rgba(255,255,255,0.3);
+      letter-spacing: 1px;
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; transform: translateX(-50%) translateY(0); }
+      50% { opacity: 0.6; transform: translateX(-50%) translateY(-5px); }
+    }
+
+    #loading-screen {
+      position: fixed; inset: 0; z-index: 1000;
+      background: #040812;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity 0.8s ease;
+    }
+    #loading-screen.hidden { opacity: 0; pointer-events: none; }
+    #loading-screen h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 42px; font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #4ecdc4, #a8e6cf);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    #loading-screen .loading-sub {
+      font-size: 14px; color: rgba(255,255,255,0.35);
+      letter-spacing: 3px; text-transform: uppercase;
+      margin-bottom: 40px;
+    }
+    #loading-screen .loading-bar {
+      width: 200px; height: 2px;
+      background: rgba(255,255,255,0.08); border-radius: 1px;
+      overflow: hidden;
+    }
+    #loading-screen .loading-fill {
+      width: 0%; height: 100%;
+      background: #4ecdc4; border-radius: 1px;
+      transition: width 0.3s ease;
+    }
+  </style>
+  <script type="module" crossorigin src="/games/trillion_parameters/assets/index-DPcnzO5H.js"></script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="three-canvas"></canvas>
+    <canvas id="overlay-canvas"></canvas>
+    <div id="ui-layer">
+      <a href="/personal/#games" class="back-btn">← Back</a>
+      <div id="level-label"></div>
+      <div id="sub-label"></div>
+      <div id="param-counter">
+        <span class="counter-label">Parameters</span>
+        <span id="param-value"></span>
+      </div>
+      <div id="zoom-indicator"><div id="zoom-thumb"></div></div>
+      <div id="activation-toggle">
+        <button data-fn="relu" class="active">ReLU</button>
+        <button data-fn="sigmoid">Sigmoid</button>
+        <button data-fn="tanh">Tanh</button>
+      </div>
+      <div id="equation-display"></div>
+      <div id="annotation-box"></div>
+      <div id="comparison-cards"></div>
+      <div id="brain-compare" style="position:absolute; top:120px; right:30px; max-width:260px; background:rgba(4,8,18,0.8); border:1px solid rgba(78,205,196,0.15); border-radius:10px; padding:14px 18px; font-size:12px; line-height:1.6; color:rgba(255,255,255,0.6); opacity:0; transition:opacity 0.8s ease; pointer-events:none; backdrop-filter:blur(8px);">
+        <div style="font-size:16px; margin-bottom:6px;">🧠</div>
+        GPT-2 has <strong style="color:#4ecdc4">124M</strong> parameters.<br>
+        Your brain has <strong style="color:#a8e6cf">86 billion</strong> neurons and ~150 trillion synapses.<br>
+        <span style="color:rgba(255,255,255,0.35)">That's 0.00008% of your brain's synapses.</span>
+      </div>
+      <div id="scroll-hint">Scroll to zoom out ↓</div>
+    </div>
+  </div>
+
+  <div id="loading-screen">
+    <h1>One Trillion Parameters</h1>
+    <div class="loading-sub">A cosmic zoom into neural networks</div>
+    <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+  </div>
+
+</body>
+</html>
