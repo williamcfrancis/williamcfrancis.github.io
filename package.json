@@ -9,6 +9,9 @@
     "build:games": "node scripts/build-games.mjs",
     "new-game": "node scripts/new-game.mjs"
   },
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0"
+  },
   "devDependencies": {
     "typescript": "^5.7.0",
     "vite": "^6.1.0",
