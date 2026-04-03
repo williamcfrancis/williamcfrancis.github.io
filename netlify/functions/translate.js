@@ -68,6 +68,17 @@ export async function handler(event) {
     };
   }
 
+  if (sourceLang === targetLang) {
+    return {
+      statusCode: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        translatedText: text,
+        detectedSourceLanguage: sourceLang,
+      }),
+    };
+  }
+
   // Try Google Translate first
   const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
 

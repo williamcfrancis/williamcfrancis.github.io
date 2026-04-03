@@ -132,12 +132,17 @@ export function createJourneyScreen(
 
         stepBuffer.push(step);
 
-        translateText(currentText, tgt.code, 'en')
-          .then(back => {
-            step.backTranslation = back.translatedText;
-            step.driftScore = calculateDrift(sentence, back.translatedText);
-          })
-          .catch(() => {});
+        if (tgt.code === 'en') {
+          step.backTranslation = currentText;
+          step.driftScore = calculateDrift(sentence, currentText);
+        } else {
+          translateText(currentText, tgt.code, 'en')
+            .then(back => {
+              step.backTranslation = back.translatedText;
+              step.driftScore = calculateDrift(sentence, back.translatedText);
+            })
+            .catch(() => {});
+        }
       } catch (err) {
         console.error(`Step ${i} failed:`, err);
         stepBuffer.push({
