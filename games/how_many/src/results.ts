@@ -4,6 +4,8 @@ import { OdometerCounter } from './counter';
 import { Vis3D } from './vis3d';
 import { Vis2D } from './vis2d';
 import { VisCounter } from './visCounter';
+import { Confetti } from './confetti';
+import { sfx } from './sounds';
 
 export interface ResultsCallbacks {
   onBack: () => void;
@@ -17,7 +19,9 @@ export class ResultsScreen {
   private vis3d: Vis3D | null = null;
   private vis2d: Vis2D | null = null;
   private visCounter: VisCounter | null = null;
+  private confetti: Confetti | null = null;
   private pendingFrame = 0;
+  private celebrationTimer = 0;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -32,7 +36,7 @@ export class ResultsScreen {
     }
 
     const el = document.createElement('div');
-    el.className = 'results';
+    el.className = 'results screen-enter';
     this.el = el;
 
     const top = document.createElement('div');
@@ -75,21 +79,37 @@ export class ResultsScreen {
     const backBtn = document.createElement('button');
     backBtn.className = 'btn-secondary';
     backBtn.textContent = '\u2190 Try Another';
-    backBtn.addEventListener('click', callbacks.onBack);
+    backBtn.addEventListener('click', () => {
+      sfx.click();
+      callbacks.onBack();
+    });
     actions.appendChild(backBtn);
 
     const flipBtn = document.createElement('button');
     flipBtn.className = 'btn-secondary';
     flipBtn.textContent = '\uD83D\uDD04 Flip It!';
     flipBtn.addEventListener('click', () => {
+      sfx.click();
       callbacks.onFlip(result.large.id, result.small.id);
     });
     actions.appendChild(flipBtn);
 
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-secondary';
+    copyBtn.textContent = '\uD83D\uDD17 Copy Link';
+    copyBtn.addEventListener('click', () => {
+      sfx.click();
+      this.copyLink(result, copyBtn);
+    });
+    actions.appendChild(copyBtn);
+
     const shareBtn = document.createElement('button');
     shareBtn.className = 'btn-secondary';
     shareBtn.textContent = '\uD83D\uDCE4 Share';
-    shareBtn.addEventListener('click', () => this.shareResult(result));
+    shareBtn.addEventListener('click', () => {
+      sfx.click();
+      this.shareResult(result);
+    });
     actions.appendChild(shareBtn);
 
     bottom.appendChild(actions);
@@ -99,7 +119,6 @@ export class ResultsScreen {
     this.counter = new OdometerCounter(counterWrap, 2500);
     this.counter.animateTo(result.count);
 
-    // Defer visualization to ensure layout is computed
     this.pendingFrame = requestAnimationFrame(() => {
       if (result.count <= 5000) {
         this.vis3d = new Vis3D(vizArea);
@@ -112,11 +131,17 @@ export class ResultsScreen {
         this.visCounter.start(result);
       }
     });
+
+    this.celebrationTimer = window.setTimeout(() => {
+      sfx.celebrate();
+      this.confetti = new Confetti(el);
+      this.confetti.burst();
+    }, 2600);
   }
 
   private showTooSmall(result: CalculationResult, callbacks: ResultsCallbacks) {
     const el = document.createElement('div');
-    el.className = 'too-small';
+    el.className = 'too-small screen-enter';
     this.el = el;
 
     const emoji = document.createElement('div');
@@ -143,19 +168,37 @@ export class ResultsScreen {
     const backBtn = document.createElement('button');
     backBtn.className = 'btn-secondary';
     backBtn.textContent = '\u2190 Try Another';
-    backBtn.addEventListener('click', callbacks.onBack);
+    backBtn.addEventListener('click', () => {
+      sfx.click();
+      callbacks.onBack();
+    });
     actions.appendChild(backBtn);
 
     const flipBtn = document.createElement('button');
     flipBtn.className = 'btn-secondary';
     flipBtn.textContent = '\uD83D\uDD04 Flip It!';
     flipBtn.addEventListener('click', () => {
+      sfx.click();
       callbacks.onFlip(result.large.id, result.small.id);
     });
     actions.appendChild(flipBtn);
 
     el.appendChild(actions);
     this.container.appendChild(el);
+  }
+
+  private async copyLink(result: CalculationResult, btn: HTMLButtonElement) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('s', result.small.id);
+    url.searchParams.set('l', result.large.id);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      const original = btn.textContent;
+      btn.textContent = '\u2713 Copied!';
+      setTimeout(() => { btn.textContent = original; }, 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
   }
 
   private async shareResult(result: CalculationResult) {
@@ -167,39 +210,47 @@ export class ResultsScreen {
     ctx.fillStyle = '#0b0d17';
     ctx.fillRect(0, 0, 1200, 630);
 
-    const grad = ctx.createRadialGradient(600, 300, 0, 600, 300, 500);
-    grad.addColorStop(0, 'rgba(0, 229, 255, 0.08)');
+    const grad = ctx.createRadialGradient(600, 250, 0, 600, 250, 500);
+    grad.addColorStop(0, 'rgba(0, 229, 255, 0.06)');
+    grad.addColorStop(0.5, 'rgba(124, 77, 255, 0.03)');
     grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1200, 630);
 
-    ctx.font = 'bold 36px Inter, system-ui, sans-serif';
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(30, 30, 1140, 570);
+
+    ctx.font = 'bold 28px Inter, system-ui, sans-serif';
     ctx.fillStyle = '#00e5ff';
     ctx.textAlign = 'center';
-    ctx.fillText('How Many?', 600, 60);
+    ctx.fillText('How Many?', 600, 80);
 
-    ctx.font = 'bold 80px JetBrains Mono, monospace';
+    ctx.font = 'bold 90px JetBrains Mono, monospace';
     ctx.fillStyle = '#ffffff';
-    const countStr = formatNumber(result.count);
-    ctx.fillText(countStr, 600, 260);
+    ctx.fillText(formatNumber(result.count), 600, 260);
 
-    ctx.font = '36px sans-serif';
+    ctx.font = '32px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.fillText(
-      `${result.small.icon} ${result.small.name}s  in  ${result.large.icon} ${result.large.name}`,
+      `${result.small.icon} ${result.small.name}s  fit in  ${result.large.icon} ${result.large.name}`,
       600,
       340,
     );
 
     const comps = generateComparisons(result);
     if (comps.length > 0) {
-      ctx.font = '22px Inter, system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.font = '20px Inter, system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
       ctx.fillText(comps[0], 600, 430);
     }
+    if (comps.length > 1) {
+      ctx.fillText(comps[1], 600, 465);
+    }
 
-    ctx.font = '18px Inter, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.fillText('williamcfrancis.github.io/games/how_many', 600, 600);
+    ctx.font = '16px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillText('williamcfrancis.github.io/games/how_many', 600, 590);
 
     try {
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -223,20 +274,23 @@ export class ResultsScreen {
         URL.revokeObjectURL(url);
       }
     } catch {
-      // User cancelled share
+      /* user cancelled share */
     }
   }
 
   destroy() {
     cancelAnimationFrame(this.pendingFrame);
+    clearTimeout(this.celebrationTimer);
     this.counter?.destroy();
     this.vis3d?.destroy();
     this.vis2d?.destroy();
     this.visCounter?.destroy();
+    this.confetti?.destroy();
     this.counter = null;
     this.vis3d = null;
     this.vis2d = null;
     this.visCounter = null;
+    this.confetti = null;
     if (this.el?.parentElement) {
       this.el.parentElement.removeChild(this.el);
     }

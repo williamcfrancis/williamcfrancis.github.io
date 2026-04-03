@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Lyrically Lost</title>
 <meta name="description" content="Guess the song from translated lyrics read aloud by a robot voice!">
+<meta name="theme-color" content="#1a1a2e">
 <meta property="og:title" content="Lyrically Lost">
 <meta property="og:description" content="Name the song from translated lyrics">
 <meta property="og:image" content="/games/lyrically_lost/lyrically_lost.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -18,932 +20,992 @@
   --green:#22c55e;--red:#ef4444;--yellow:#eab308;--pink:#ec4899;
   --text:#f1f5f9;--text-dim:#94a3b8;--text-muted:#475569;
   --glass:rgba(255,255,255,.06);--glass-border:rgba(255,255,255,.08);
-  --radius:1rem;--radius-lg:1.5rem;--radius-xl:2rem;
+  --r:1rem;--r-lg:1.5rem;--r-xl:2rem;
 }
-html{font-size:16px;-webkit-text-size-adjust:100%}
+html{font-size:16px;-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 body{
   font-family:'Inter',system-ui,-apple-system,sans-serif;
   background:linear-gradient(135deg,var(--bg-1),var(--bg-2));
   color:var(--text);min-height:100dvh;display:flex;flex-direction:column;
   overflow-x:hidden;position:relative;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+  transition:background .8s ease;
 }
 body::before,body::after{
   content:'';position:fixed;border-radius:50%;pointer-events:none;
-  filter:blur(120px);opacity:.5;z-index:0;
+  filter:blur(120px);opacity:.45;z-index:0;transition:background .8s ease;
 }
 body::before{width:50vw;height:50vw;top:-15%;left:-10%;background:var(--blob-1,rgba(108,99,255,.2))}
 body::after{width:45vw;height:45vw;bottom:-15%;right:-10%;background:var(--blob-2,rgba(236,72,153,.15))}
 
-body.theme-hindi{--bg-1:#064e3b;--bg-2:#065f46;--blob-1:rgba(16,185,129,.25);--blob-2:rgba(6,95,70,.2)}
-body.theme-english{--bg-1:#1e3a5f;--bg-2:#1e40af;--blob-1:rgba(59,130,246,.25);--blob-2:rgba(99,102,241,.2)}
-body.theme-mixed{--bg-1:#4c1d95;--bg-2:#6d28d9;--blob-1:rgba(167,139,250,.25);--blob-2:rgba(236,72,153,.2)}
+body.theme-hi{--bg-1:#064e3b;--bg-2:#065f46;--blob-1:rgba(16,185,129,.3);--blob-2:rgba(6,95,70,.2)}
+body.theme-en{--bg-1:#1e3a5f;--bg-2:#1e40af;--blob-1:rgba(59,130,246,.3);--blob-2:rgba(99,102,241,.2)}
+body.theme-mix{--bg-1:#4c1d95;--bg-2:#6d28d9;--blob-1:rgba(167,139,250,.3);--blob-2:rgba(236,72,153,.2)}
 
 a{color:inherit;text-decoration:none}
-button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;-webkit-user-select:none;user-select:none}
+button:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px;border-radius:var(--r)}
 
-.container{
+.wrap{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:1.5rem;position:relative;z-index:1;width:100%;max-width:900px;margin:0 auto;
+  padding:1.25rem;position:relative;z-index:1;width:100%;max-width:860px;margin:0 auto;
 }
 
 /* ===== ANIMATIONS ===== */
-@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-10px)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.5);opacity:0}}
-@keyframes bounce-slow{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-@keyframes music-bar{0%,100%{height:6px;opacity:.4}50%{height:28px;opacity:1}}
-@keyframes spin-slow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-@keyframes confetti-fall{
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.6);opacity:0}}
+@keyframes bounce-soft{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes music-bar{0%,100%{height:5px;opacity:.35}50%{height:26px;opacity:1}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes confetti-pop{
   0%{transform:translate(0,0) rotate(0) scale(1);opacity:1}
-  100%{transform:translate(var(--tx),var(--ty)) rotate(var(--rot)) scale(.4);opacity:0}
+  100%{transform:translate(var(--tx),var(--ty)) rotate(var(--rot)) scale(.3);opacity:0}
 }
-@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-@keyframes pop{0%{transform:scale(0)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes float-up{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(1.2)}}
+@keyframes shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-4px)}60%{transform:translateX(4px)}75%{transform:translateX(-2px)}}
+@keyframes glow-pulse{0%,100%{box-shadow:0 0 20px rgba(234,179,8,.2)}50%{box-shadow:0 0 40px rgba(234,179,8,.5)}}
+@keyframes count-pop{0%{transform:scale(1)}50%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes vinyl-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes streak-fire{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes timer-pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 .fade-in{animation:fadeIn .5s ease-out both}
 .slide-up{animation:slideUp .6s cubic-bezier(.16,1,.3,1) both}
-.bounce-slow{animation:bounce-slow 3s infinite ease-in-out}
-.pop{animation:pop .35s ease-out both}
 
-/* ===== GLASS CARD ===== */
-.glass{
-  background:var(--glass);border:1px solid var(--glass-border);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:var(--radius-lg);
-}
+/* Screen management */
+.screen{display:none;width:100%}
+.screen.active{display:flex;flex-direction:column;align-items:center}
+
+/* ===== GLASS ===== */
+.glass{background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:var(--r-lg)}
 
 /* ===== MENU ===== */
-#menu{text-align:center;width:100%}
-.menu-icon{
-  width:100px;height:100px;border-radius:50%;
-  background:rgba(255,255,255,.08);border:3px solid rgba(255,255,255,.15);
-  display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;
-  box-shadow:0 0 40px var(--accent-glow);
-  animation:bounce-slow 3s infinite ease-in-out;
+#menu{text-align:center;justify-content:center}
+.logo-wrap{
+  position:relative;width:110px;height:110px;margin:0 auto 1.5rem;
 }
-.menu-icon svg{width:48px;height:48px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.menu-title{font-size:clamp(2.5rem,6vw,3.5rem);font-weight:900;letter-spacing:-.02em;margin-bottom:.5rem}
-.menu-sub{font-size:1.1rem;color:var(--text-dim);max-width:520px;margin:0 auto 1rem;line-height:1.6}
-.menu-chips{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:center;margin-bottom:1.5rem}
-.chip{
-  display:flex;align-items:center;gap:.35rem;
-  font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;
-  color:rgba(255,255,255,.5);font-weight:600;
+.logo-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:3px solid rgba(255,255,255,.12);
+  animation:spin 20s linear infinite;
 }
-.chip svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.high-score-badge{
-  display:inline-block;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.25);
-  color:#fde68a;font-weight:700;font-size:.85rem;padding:.45rem 1.25rem;border-radius:999px;margin-bottom:1.5rem;
+.logo-ring::before{
+  content:'';position:absolute;top:-4px;left:50%;width:8px;height:8px;
+  border-radius:50%;background:#fff;transform:translateX(-50%);
 }
+.logo-inner{
+  position:absolute;inset:6px;border-radius:50%;
+  background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 50px var(--accent-glow);
+}
+.logo-inner svg{width:44px;height:44px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.menu-title{font-size:clamp(2.4rem,7vw,3.5rem);font-weight:900;letter-spacing:-.03em;margin-bottom:.4rem;line-height:1.1}
+.menu-title span{
+  background:linear-gradient(135deg,#fff 30%,rgba(255,255,255,.6));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.menu-sub{font-size:1.05rem;color:var(--text-dim);max-width:500px;margin:0 auto 1.25rem;line-height:1.65}
+.feat-row{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center;margin-bottom:1.5rem}
+.feat{
+  display:flex;align-items:center;gap:.3rem;padding:.3rem .7rem;
+  font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;
+  color:rgba(255,255,255,.45);font-weight:600;
+  background:rgba(255,255,255,.04);border-radius:999px;border:1px solid rgba(255,255,255,.06);
+}
+.feat svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hs-badge{
+  display:inline-flex;align-items:center;gap:.4rem;
+  background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.2);
+  color:#fde68a;font-weight:700;font-size:.8rem;padding:.4rem 1.1rem;
+  border-radius:999px;margin-bottom:1.5rem;
+  animation:glow-pulse 3s ease-in-out infinite;
+}
+.hs-badge svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+.cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.85rem;width:100%}
+.cat{
+  position:relative;overflow:hidden;border-radius:var(--r-xl);padding:1.75rem;
+  text-align:left;border:2px solid rgba(255,255,255,.06);
+  transition:all .35s cubic-bezier(.4,0,.2,1);cursor:pointer;
+}
+.cat:hover{transform:translateY(-5px);border-color:rgba(255,255,255,.22);box-shadow:0 16px 48px rgba(0,0,0,.35)}
+.cat:active{transform:translateY(-2px) scale(.98)}
+.cat .bg-i{position:absolute;top:.5rem;right:.75rem;opacity:.07;font-size:5rem;pointer-events:none;line-height:1}
+.cat .em{font-size:2.6rem;margin-bottom:.5rem;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3))}
+.cat .nm{font-size:1.3rem;font-weight:800;margin-bottom:.2rem}
+.cat .ds{font-size:.78rem;color:rgba(255,255,255,.55);line-height:1.55;font-weight:500}
+.cat .ct{font-size:.68rem;color:rgba(255,255,255,.3);margin-top:.45rem;font-weight:600}
+.cat-hi{background:linear-gradient(135deg,rgba(16,185,129,.65),rgba(6,78,59,.8))}
+.cat-en{background:linear-gradient(135deg,rgba(59,130,246,.65),rgba(30,64,175,.8))}
+.cat-mix{background:linear-gradient(135deg,rgba(139,92,246,.65),rgba(109,40,217,.8))}
 
-.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;width:100%;margin-top:.5rem}
-.cat-card{
-  position:relative;overflow:hidden;border-radius:var(--radius-xl);padding:1.75rem;
-  text-align:left;border:2px solid rgba(255,255,255,.08);
-  transition:all .3s ease;cursor:pointer;
+/* ===== GAME ===== */
+.g-head{
+  display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;width:100%;margin-bottom:.6rem;
+  padding:.85rem 1.1rem;border-radius:var(--r-lg);
+  background:rgba(0,0,0,.22);border:1px solid var(--glass-border);
 }
-.cat-card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.25);box-shadow:0 12px 40px rgba(0,0,0,.3)}
-.cat-card .bg-icon{position:absolute;top:.5rem;right:.5rem;opacity:.1;font-size:4.5rem;pointer-events:none}
-.cat-card .emoji{font-size:2.8rem;margin-bottom:.5rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
-.cat-card .name{font-size:1.35rem;font-weight:800;margin-bottom:.25rem}
-.cat-card .desc{font-size:.8rem;color:rgba(255,255,255,.6);line-height:1.5;font-weight:500}
-.cat-card .count{font-size:.7rem;color:rgba(255,255,255,.35);margin-top:.5rem;font-weight:600}
-.cat-hindi{background:linear-gradient(135deg,rgba(16,185,129,.7),rgba(6,78,59,.8))}
-.cat-english{background:linear-gradient(135deg,rgba(59,130,246,.7),rgba(30,64,175,.8))}
-.cat-mixed{background:linear-gradient(135deg,rgba(139,92,246,.7),rgba(109,40,217,.8))}
-
-/* ===== GAME SCREEN ===== */
-#game{width:100%;display:none}
-.game-header{
-  display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;width:100%;margin-bottom:.75rem;
-  padding:1rem 1.25rem;border-radius:var(--radius-lg);
-  background:rgba(0,0,0,.2);border:1px solid var(--glass-border);
-}
-.stat{display:flex;align-items:center;gap:.6rem}
-.stat-center{justify-content:center}
-.stat-right{justify-content:flex-end}
-.stat svg{width:20px;height:20px;flex-shrink:0}
-.stat-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);font-weight:600}
-.stat-value{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.st{display:flex;align-items:center;gap:.5rem}
+.st svg{width:18px;height:18px;flex-shrink:0}
+.st-l{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);font-weight:600}
+.st-v{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums;transition:transform .2s}
+.st-v.pop{animation:count-pop .3s ease-out}
+.st-center{justify-content:center}
+.st-right{justify-content:flex-end;text-align:right}
+.streak-fire{display:inline;font-size:.85rem;vertical-align:middle;margin-left:.15rem;animation:streak-fire .6s ease-in-out infinite}
 
 /* Timer */
-.timer-track{width:100%;height:6px;background:rgba(0,0,0,.2);border-radius:999px;overflow:hidden;margin-bottom:1.25rem}
-.timer-bar{height:100%;border-radius:999px;transition:width 1s linear,background-color .5s}
-.timer-bar.green{background:var(--green)}
-.timer-bar.yellow{background:var(--yellow)}
-.timer-bar.red{background:var(--red)}
+.timer-wrap{display:flex;align-items:center;gap:.6rem;width:100%;margin-bottom:1rem}
+.timer-track{flex:1;height:5px;background:rgba(0,0,0,.2);border-radius:999px;overflow:hidden}
+.timer-fill{height:100%;border-radius:999px;transition:width 1s linear,background-color .4s}
+.timer-fill.g{background:var(--green)}.timer-fill.y{background:var(--yellow)}.timer-fill.r{background:var(--red)}
+.timer-num{
+  font-size:.75rem;font-weight:800;font-variant-numeric:tabular-nums;
+  min-width:1.8rem;text-align:center;color:rgba(255,255,255,.6);
+  padding:.2rem .4rem;background:rgba(0,0,0,.15);border-radius:.4rem;
+}
+.timer-num.urgent{color:#fca5a5;animation:timer-pulse .6s ease-in-out infinite}
 
 /* Player */
-.player-area{display:flex;flex-direction:column;align-items:center;margin-bottom:1.5rem;width:100%}
-.play-btn{
-  position:relative;width:140px;height:140px;border-radius:50%;
+.player{display:flex;flex-direction:column;align-items:center;margin-bottom:1.25rem;width:100%}
+.vinyl{
+  position:relative;width:130px;height:130px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  background:rgba(0,0,0,.15);border:3px solid rgba(255,255,255,.12);
-  transition:all .4s ease;cursor:pointer;
+  background:rgba(0,0,0,.12);border:3px solid rgba(255,255,255,.1);
+  transition:all .4s cubic-bezier(.4,0,.2,1);cursor:pointer;
+  overflow:hidden;
 }
-.play-btn:hover{background:rgba(255,255,255,.08);transform:scale(1.05)}
-.play-btn.active{
-  background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);
-  box-shadow:0 0 50px rgba(255,255,255,.2);
+.vinyl:hover{background:rgba(255,255,255,.06);transform:scale(1.04)}
+.vinyl:active{transform:scale(.97)}
+.vinyl.on{
+  border-color:rgba(255,255,255,.28);
+  box-shadow:0 0 60px rgba(255,255,255,.15);
 }
-.play-btn svg{width:56px;height:56px;fill:#fff;stroke:none;transition:transform .2s}
-.play-btn .ring{
-  position:absolute;inset:0;border-radius:50%;border:3px solid rgba(255,255,255,.25);
-  animation:pulse-ring 1.5s infinite;pointer-events:none;
+.vinyl-grooves{
+  position:absolute;inset:0;border-radius:50%;opacity:0;transition:opacity .4s;
+  background:repeating-radial-gradient(circle,transparent 0,transparent 3px,rgba(255,255,255,.03) 3.5px,transparent 4px);
 }
-.play-btn .ring:nth-child(2){animation-delay:.3s}
-
-.bars{display:flex;align-items:center;gap:3px;height:32px;margin-top:1.25rem}
-.bar{width:4px;background:#fff;border-radius:999px;animation:music-bar .6s ease-in-out infinite alternate}
-.player-label{margin-top:.5rem;font-size:.9rem;font-weight:500;color:rgba(255,255,255,.75)}
-.player-sublabel{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.15rem}
+.vinyl.on .vinyl-grooves{opacity:1;animation:vinyl-spin 4s linear infinite}
+.vinyl .rings{position:absolute;inset:0;pointer-events:none;display:none}
+.vinyl.on .rings{display:block}
+.ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.2);animation:pulse-ring 1.8s ease-out infinite}
+.ring:nth-child(2){animation-delay:.4s}
+.vinyl svg{width:50px;height:50px;fill:#fff;stroke:none;transition:transform .2s;position:relative;z-index:2}
+.bars{display:flex;align-items:center;gap:3px;height:28px;margin-top:1rem;opacity:0;transition:opacity .3s}
+.bars.on{opacity:1}
+.bar{width:3.5px;background:#fff;border-radius:999px;animation:music-bar .55s ease-in-out infinite alternate}
+.p-label{margin-top:.4rem;font-size:.85rem;font-weight:600;color:rgba(255,255,255,.7);transition:all .3s}
+.p-sub{font-size:.72rem;color:rgba(255,255,255,.35);margin-top:.1rem;transition:all .3s}
 
 /* Info row */
-.info-row{display:flex;align-items:stretch;gap:.6rem;width:100%;margin-bottom:.6rem}
-.info-text{
-  flex:1;display:flex;align-items:center;padding:.75rem 1rem;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06);
-  border-radius:var(--radius);font-size:.85rem;color:rgba(255,255,255,.7);
+.info-r{display:flex;align-items:stretch;gap:.5rem;width:100%;margin-bottom:.5rem}
+.info-t{
+  flex:1;display:flex;align-items:center;padding:.65rem .9rem;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.05);
+  border-radius:var(--r);font-size:.82rem;color:rgba(255,255,255,.65);min-height:2.6rem;
 }
-.hint-btn{
-  display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;
-  border-radius:var(--radius);font-size:.85rem;font-weight:700;
-  background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.2);
+.pts-pop{
+  position:fixed;pointer-events:none;z-index:200;
+  font-size:1.4rem;font-weight:900;color:#86efac;
+  text-shadow:0 2px 12px rgba(34,197,94,.5);
+  animation:float-up 1.2s ease-out forwards;
+}
+.hint-b{
+  display:flex;align-items:center;gap:.4rem;padding:.65rem .9rem;
+  border-radius:var(--r);font-size:.82rem;font-weight:700;
+  background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.18);
   color:#fde68a;transition:all .25s;flex-shrink:0;
 }
-.hint-btn:hover:not(:disabled){background:rgba(234,179,8,.2);border-color:rgba(234,179,8,.4)}
-.hint-btn:disabled{opacity:.3;cursor:not-allowed}
-.hint-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.hint-reveal{
-  width:100%;padding:.65rem 1rem;margin-bottom:.6rem;
-  background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.15);
-  border-radius:var(--radius);font-size:.85rem;color:#fef3c7;
+.hint-b:hover:not(:disabled){background:rgba(234,179,8,.18);border-color:rgba(234,179,8,.35)}
+.hint-b:disabled{opacity:.25;cursor:not-allowed}
+.hint-b svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hint-r{
+  width:100%;padding:.55rem .9rem;margin-bottom:.5rem;
+  background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.12);
+  border-radius:var(--r);font-size:.82rem;color:#fef3c7;
+  animation:fadeIn .3s ease-out;
 }
 
 /* Options */
-.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;width:100%}
-@media(min-width:640px){.options-grid{grid-template-columns:1fr 1fr 1fr}}
-.option-btn{
-  position:relative;padding:1rem 1.1rem;border-radius:var(--radius-lg);
-  border:2px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);
-  text-align:left;font-weight:700;font-size:.95rem;
-  transition:all .25s;display:flex;justify-content:space-between;align-items:center;
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;width:100%}
+@media(min-width:600px){.opts{grid-template-columns:1fr 1fr 1fr}}
+.opt{
+  position:relative;padding:.9rem 1rem;border-radius:var(--r-lg);
+  border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);
+  text-align:left;font-weight:700;font-size:.9rem;line-height:1.3;
+  transition:all .2s ease;display:flex;justify-content:space-between;align-items:center;
+  -webkit-user-select:none;user-select:none;
 }
-.option-btn:hover:not(:disabled){background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2);transform:translateY(-2px)}
-.option-btn:disabled{cursor:default}
-.option-btn.correct{
-  background:rgba(34,197,94,.9);border-color:rgba(34,197,94,.8);
-  box-shadow:0 4px 20px rgba(34,197,94,.3);transform:scale(1.03);z-index:2;
+.opt:hover:not(:disabled){background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.18);transform:translateY(-2px)}
+.opt:active:not(:disabled){transform:translateY(0) scale(.97)}
+.opt:disabled{cursor:default}
+.opt.ok{
+  background:rgba(34,197,94,.85);border-color:rgba(34,197,94,.7);
+  box-shadow:0 4px 24px rgba(34,197,94,.35);transform:scale(1.03);z-index:2;
 }
-.option-btn.wrong{background:rgba(239,68,68,.7);border-color:rgba(239,68,68,.6);opacity:.85}
-.option-btn.dimmed{background:rgba(0,0,0,.15);border-color:transparent;color:rgba(255,255,255,.2)}
-.option-btn .icon{flex-shrink:0;margin-left:.5rem;opacity:0;transition:opacity .2s}
-.option-btn.correct .icon,.option-btn.wrong .icon{opacity:1}
+.opt.no{background:rgba(239,68,68,.65);border-color:rgba(239,68,68,.5);animation:shake .5s ease-out}
+.opt.dim{background:rgba(0,0,0,.12);border-color:transparent;color:rgba(255,255,255,.15)}
+.opt .ic{flex-shrink:0;margin-left:.4rem;width:18px;height:18px;opacity:0;transition:opacity .15s}
+.opt.ok .ic,.opt.no .ic{opacity:1}
+.opt .kb{
+  position:absolute;top:.35rem;right:.5rem;font-size:.55rem;font-weight:700;
+  color:rgba(255,255,255,.2);letter-spacing:.04em;
+}
 
-.timeout-msg{
-  width:100%;margin-top:.75rem;padding:.75rem 1rem;text-align:center;
-  background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.2);
-  border-radius:var(--radius);font-size:.85rem;color:#fca5a5;
+.tout-msg{
+  width:100%;margin-top:.6rem;padding:.65rem .9rem;text-align:center;
+  background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.15);
+  border-radius:var(--r);font-size:.82rem;color:#fca5a5;animation:fadeIn .3s ease-out;
 }
 
-/* ===== END SCREEN ===== */
-#end{display:none;width:100%;max-width:520px}
-.end-card{padding:2rem;border-radius:var(--radius-xl);text-align:center}
-.end-trophy{margin:0 auto 1rem}
-.end-trophy svg{width:72px;height:72px;stroke:#fde68a;fill:none;stroke-width:1.5}
-.new-best{
-  display:inline-block;padding:.4rem 1rem;margin-bottom:1rem;
-  background:rgba(234,179,8,.2);border:1px solid rgba(234,179,8,.3);
-  border-radius:999px;font-size:.8rem;font-weight:700;color:#fde68a;
+.skip-b{
+  margin-top:.6rem;padding:.5rem 1.2rem;border-radius:var(--r);
+  font-size:.8rem;font-weight:700;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);
+  color:rgba(255,255,255,.6);transition:all .2s;
 }
-.end-rank{font-size:2rem;font-weight:900;margin-bottom:.15rem}
-.end-msg{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:1.5rem}
-.final-score-box{
-  background:rgba(0,0,0,.2);border-radius:var(--radius-lg);padding:1.25rem;
-  margin-bottom:1.25rem;border:1px solid rgba(255,255,255,.05);
-}
-.final-score-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);font-weight:700;margin-bottom:.25rem}
-.final-score-num{font-size:3rem;font-weight:900;font-variant-numeric:tabular-nums}
+.skip-b:hover{background:rgba(255,255,255,.14);color:#fff}
 
-.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1.25rem}
-.stat-card{background:rgba(255,255,255,.04);border-radius:var(--radius);padding:.75rem}
-.stat-card .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);font-weight:600;margin-bottom:.2rem}
-.stat-card .val{font-size:1.4rem;font-weight:800}
-.stat-card .val.c-green{color:#86efac}
-.stat-card .val.c-pink{color:#f9a8d4}
-.stat-card .val.c-yellow{color:#fde68a}
-.stat-card .val.c-blue{color:#93c5fd}
-
-.breakdown-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:.6rem}
-.breakdown-list{display:flex;flex-direction:column;gap:.4rem;max-height:200px;overflow-y:auto;margin-bottom:1.25rem;padding-right:.25rem}
-.breakdown-list::-webkit-scrollbar{width:4px}
-.breakdown-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
-.round-row{
-  display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;
-  border-radius:.75rem;font-size:.8rem;
+/* ===== END ===== */
+#end{max-width:520px;justify-content:center}
+.e-card{padding:1.75rem;border-radius:var(--r-xl);text-align:center}
+.e-trophy{margin:0 auto .75rem}
+.e-trophy svg{width:64px;height:64px;stroke:#fde68a;fill:none;stroke-width:1.5;animation:bounce-soft 2.5s infinite ease-in-out}
+.nb{
+  display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .9rem;margin-bottom:.75rem;
+  background:rgba(234,179,8,.18);border:1px solid rgba(234,179,8,.25);
+  border-radius:999px;font-size:.75rem;font-weight:700;color:#fde68a;
+  animation:glow-pulse 2s ease-in-out infinite;
 }
-.round-row.row-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.12)}
-.round-row.row-fail{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.12)}
-.round-num{
-  width:1.4rem;height:1.4rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:.65rem;font-weight:800;background:rgba(255,255,255,.08);flex-shrink:0;
+.nb svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+.e-rank{font-size:1.8rem;font-weight:900;margin-bottom:.1rem}
+.e-msg{font-size:1rem;color:var(--text-dim);font-style:italic;margin-bottom:1.25rem}
+.e-score-box{
+  background:rgba(0,0,0,.2);border-radius:var(--r-lg);padding:1.1rem;
+  margin-bottom:1rem;border:1px solid rgba(255,255,255,.04);
 }
-.round-icon{flex-shrink:0;width:16px;height:16px}
-.round-song{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.85)}
-.round-artist{flex-shrink:0;font-size:.7rem;color:rgba(255,255,255,.3)}
+.e-score-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);font-weight:700;margin-bottom:.2rem}
+.e-score-num{font-size:2.8rem;font-weight:900;font-variant-numeric:tabular-nums}
+.e-acc{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.15rem;font-weight:600}
 
-.end-btns{display:flex;gap:.6rem;width:100%}
-.btn-primary{
-  flex:1;display:flex;align-items:center;justify-content:center;gap:.5rem;
-  padding:1rem;border-radius:var(--radius-lg);font-size:1.05rem;font-weight:800;
+.s-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1rem}
+.s-card{background:rgba(255,255,255,.035);border-radius:var(--r);padding:.65rem}
+.s-card .lb{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);font-weight:600;margin-bottom:.15rem}
+.s-card .vl{font-size:1.3rem;font-weight:800}
+.c-grn{color:#86efac}.c-pnk{color:#f9a8d4}.c-yel{color:#fde68a}.c-blu{color:#93c5fd}
+
+.bd-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);font-weight:700;margin-bottom:.5rem}
+.bd-list{display:flex;flex-direction:column;gap:.35rem;max-height:180px;overflow-y:auto;margin-bottom:1rem;padding-right:.2rem}
+.bd-list::-webkit-scrollbar{width:3px}
+.bd-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+.rr{display:flex;align-items:center;gap:.5rem;padding:.4rem .65rem;border-radius:.65rem;font-size:.75rem}
+.rr.rr-ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.1)}
+.rr.rr-no{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.1)}
+.rr-n{width:1.3rem;height:1.3rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;background:rgba(255,255,255,.06);flex-shrink:0}
+.rr-i{flex-shrink:0;width:14px;height:14px}
+.rr-s{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.8)}
+.rr-a{flex-shrink:0;font-size:.65rem;color:rgba(255,255,255,.25)}
+
+.e-btns{display:flex;gap:.5rem;width:100%;margin-bottom:.5rem}
+.btn-p{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.9rem;border-radius:var(--r-lg);font-size:1rem;font-weight:800;
   background:#fff;color:#1e1b4b;transition:all .25s;
 }
-.btn-primary:hover{background:#e0e7ff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.btn-primary svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .4s}
-.btn-primary:hover svg{transform:rotate(180deg)}
-.btn-secondary{
-  display:flex;align-items:center;justify-content:center;gap:.5rem;
-  padding:1rem 1.25rem;border-radius:var(--radius-lg);font-size:1.05rem;font-weight:800;
-  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);transition:all .25s;
+.btn-p:hover{background:#e0e7ff;transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.btn-p:active{transform:translateY(0) scale(.97)}
+.btn-p svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .4s}
+.btn-p:hover svg{transform:rotate(180deg)}
+.btn-s{
+  display:flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.9rem 1.1rem;border-radius:var(--r-lg);font-size:1rem;font-weight:800;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);transition:all .25s;
 }
-.btn-secondary:hover{background:rgba(255,255,255,.14);transform:translateY(-2px)}
+.btn-s:hover{background:rgba(255,255,255,.13);transform:translateY(-2px)}
+.btn-s:active{transform:translateY(0) scale(.97)}
+.share-b{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:.4rem;
+  padding:.7rem;border-radius:var(--r);font-size:.82rem;font-weight:700;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);
+  color:rgba(255,255,255,.5);transition:all .25s;
+}
+.share-b:hover{background:rgba(255,255,255,.1);color:#fff}
+.share-b svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.share-toast{
+  position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);
+  padding:.6rem 1.2rem;border-radius:999px;font-size:.8rem;font-weight:700;
+  background:rgba(34,197,94,.9);color:#fff;z-index:300;
+  animation:fadeIn .3s ease-out;pointer-events:none;
+}
 
 /* Confetti */
-.confetti-container{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
-.confetti-piece{
-  position:absolute;width:10px;height:10px;border-radius:2px;
-  animation:confetti-fall 1.4s cubic-bezier(.25,.46,.45,.94) forwards;
-}
+.confetti-c{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+.conf{position:absolute;border-radius:1px;animation:confetti-pop 1.5s cubic-bezier(.25,.46,.45,.94) forwards}
 
 /* Footer */
-.site-footer{
-  padding:1rem;text-align:center;font-size:.65rem;font-weight:600;
-  text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.15);
-  position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:.4rem;
+.foot{
+  padding:.75rem;text-align:center;font-size:.6rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.12);
+  position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:.35rem;
 }
-.site-footer svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.foot svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .hidden{display:none!important}
+@media(max-width:400px){
+  .wrap{padding:1rem .75rem}
+  .g-head{padding:.7rem .85rem;gap:.3rem}
+  .opt{padding:.75rem .85rem;font-size:.82rem}
+  .vinyl{width:110px;height:110px}
+  .vinyl svg{width:42px;height:42px}
+  .cats{grid-template-columns:1fr}
+  .cat{padding:1.35rem}
+}
 </style>
 </head>
 <body>
 
-<div class="container">
-  <!-- MENU SCREEN -->
-  <div id="menu" class="fade-in">
-    <div class="menu-icon">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-    </div>
-    <h1 class="menu-title">Lyrically Lost</h1>
-    <p class="menu-sub">We took famous songs, translated their lyrics, and asked a robot to read them.<br>Can you guess the original song from 6 options?</p>
-    <div class="menu-chips">
-      <span class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Timed rounds</span>
-      <span class="chip"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Streak &amp; speed bonuses</span>
-      <span class="chip"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Hint system</span>
-      <span class="chip"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>80 songs</span>
-    </div>
-    <div id="highScoreBadge" class="high-score-badge hidden"></div>
-    <div class="cat-grid">
-      <div class="cat-card cat-hindi fade-in" onclick="startGame('hi')" style="animation-delay:.1s">
-        <div class="bg-icon">&#9835;</div>
-        <div class="emoji">&#127470;&#127475;</div>
-        <div class="name">Hindi Songs</div>
-        <div class="desc">Hear <strong>English</strong> translations<br>Guess the <strong>Hindi</strong> song</div>
-        <div class="count">40 songs</div>
-      </div>
-      <div class="cat-card cat-english fade-in" onclick="startGame('en')" style="animation-delay:.2s">
-        <div class="bg-icon">&#9835;</div>
-        <div class="emoji">&#127482;&#127480;</div>
-        <div class="name">English Songs</div>
-        <div class="desc">Hear <strong>Hindi</strong> translations<br>Guess the <strong>English</strong> song</div>
-        <div class="count">40 songs</div>
-      </div>
-      <div class="cat-card cat-mixed fade-in" onclick="startGame('mix')" style="animation-delay:.3s">
-        <div class="bg-icon">&#9835;</div>
-        <div class="emoji">&#127757;</div>
-        <div class="name">Mixed Mode</div>
-        <div class="desc">Hear <strong>various</strong> translations<br>Guess songs from <strong>both</strong> languages</div>
-        <div class="count">80 songs</div>
+<div class="wrap">
+  <!-- ===== MENU ===== -->
+  <div id="menu" class="screen active fade-in">
+    <div class="logo-wrap">
+      <div class="logo-ring"></div>
+      <div class="logo-inner">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       </div>
     </div>
-  </div>
-
-  <!-- GAME SCREEN -->
-  <div id="game" class="fade-in">
-    <div class="game-header">
-      <div class="stat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-        <div><div class="stat-label">Score</div><div class="stat-value" id="scoreVal">0</div></div>
-      </div>
-      <div class="stat stat-center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        <div style="text-align:center"><div class="stat-label">Streak</div><div class="stat-value" id="streakVal">0</div></div>
-      </div>
-      <div class="stat stat-right">
-        <div style="text-align:right"><div class="stat-label">Round</div><div class="stat-value"><span id="roundVal">1</span><span style="font-size:.75rem;color:rgba(255,255,255,.35)"> / <span id="totalRounds">10</span></span></div></div>
-      </div>
+    <h1 class="menu-title"><span>Lyrically Lost</span></h1>
+    <p class="menu-sub">Famous songs, translated lyrics, robot voice.<br>Can you name the song from 6 options?</p>
+    <div class="feat-row">
+      <span class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>18s timer</span>
+      <span class="feat"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Streak bonuses</span>
+      <span class="feat"><svg viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>Hints</span>
+      <span class="feat"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>80 songs</span>
+      <span class="feat"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Keyboard</span>
     </div>
-
-    <div class="timer-track"><div class="timer-bar green" id="timerBar" style="width:100%"></div></div>
-
-    <div class="player-area">
-      <div class="play-btn" id="playBtn" onclick="toggleSpeak()">
-        <svg id="playIcon" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
-        <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
-      </div>
-      <div class="bars" id="bars" style="display:none">
-        <div class="bar" style="animation-delay:0s"></div>
-        <div class="bar" style="animation-delay:.08s"></div>
-        <div class="bar" style="animation-delay:.16s"></div>
-        <div class="bar" style="animation-delay:.24s"></div>
-        <div class="bar" style="animation-delay:.32s"></div>
-        <div class="bar" style="animation-delay:.4s"></div>
-        <div class="bar" style="animation-delay:.48s"></div>
-      </div>
-      <div class="player-label" id="playerLabel">Tap to Listen</div>
-      <div class="player-sublabel" id="playerSublabel">Each replay has slight voice variation</div>
+    <div id="hsBadge" class="hs-badge hidden" aria-live="polite">
+      <svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+      <span id="hsBadgeText"></span>
     </div>
-
-    <div class="info-row">
-      <div class="info-text" id="infoText">Answer quickly and keep your streak alive for bonus points.</div>
-      <button class="hint-btn" id="hintBtn" onclick="useHint()">
-        <svg viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-        Hint
+    <div class="cats" role="group" aria-label="Choose category">
+      <button class="cat cat-hi fade-in" onclick="G.start('hi')" style="animation-delay:.1s" aria-label="Hindi Songs - Hear English, Guess Hindi">
+        <div class="bg-i">&#9835;</div>
+        <span class="em">&#127470;&#127475;</span>
+        <div class="nm">Hindi Songs</div>
+        <div class="ds">Hear <strong>English</strong> translations<br>Guess the <strong>Hindi</strong> song</div>
+        <div class="ct">40 songs</div>
+      </button>
+      <button class="cat cat-en fade-in" onclick="G.start('en')" style="animation-delay:.2s" aria-label="English Songs - Hear Hindi, Guess English">
+        <div class="bg-i">&#9835;</div>
+        <span class="em">&#127482;&#127480;</span>
+        <div class="nm">English Songs</div>
+        <div class="ds">Hear <strong>Hindi</strong> translations<br>Guess the <strong>English</strong> song</div>
+        <div class="ct">40 songs</div>
+      </button>
+      <button class="cat cat-mix fade-in" onclick="G.start('mix')" style="animation-delay:.3s" aria-label="Mixed Mode - All songs, both languages">
+        <div class="bg-i">&#9835;</div>
+        <span class="em">&#127757;</span>
+        <div class="nm">Mixed Mode</div>
+        <div class="ds">All songs, <strong>both</strong> languages<br>The ultimate challenge</div>
+        <div class="ct">80 songs</div>
       </button>
     </div>
-    <div class="hint-reveal hidden" id="hintReveal"></div>
-
-    <div class="options-grid" id="optionsGrid"></div>
-    <div class="timeout-msg hidden" id="timeoutMsg"></div>
   </div>
 
-  <!-- END SCREEN -->
-  <div id="end" class="slide-up">
-    <div class="end-card glass">
-      <div class="end-trophy bounce-slow">
+  <!-- ===== GAME ===== -->
+  <div id="game" class="screen">
+    <div class="g-head">
+      <div class="st">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        <div><div class="st-l">Score</div><div class="st-v" id="gScore">0</div></div>
+      </div>
+      <div class="st st-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <div style="text-align:center"><div class="st-l">Streak</div><div class="st-v" id="gStreak">0</div></div>
+      </div>
+      <div class="st st-right">
+        <div><div class="st-l">Round</div><div class="st-v"><span id="gRound">1</span><span style="font-size:.7rem;color:rgba(255,255,255,.3)"> / <span id="gTotal">10</span></span></div></div>
+      </div>
+    </div>
+
+    <div class="timer-wrap">
+      <div class="timer-track"><div class="timer-fill g" id="tBar" style="width:100%"></div></div>
+      <div class="timer-num" id="tNum">18</div>
+    </div>
+
+    <div class="player">
+      <div class="vinyl" id="vinyl" onclick="G.toggleSpeak()" role="button" aria-label="Play translated lyrics" tabindex="0">
+        <div class="vinyl-grooves"></div>
+        <div class="rings"><div class="ring"></div><div class="ring"></div></div>
+        <svg id="icPlay" viewBox="0 0 24 24"><polygon points="7,3 21,12 7,21"/></svg>
+        <svg id="icPause" viewBox="0 0 24 24" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+      </div>
+      <div class="bars" id="bars">
+        <div class="bar" style="animation-delay:0s"></div><div class="bar" style="animation-delay:.07s"></div>
+        <div class="bar" style="animation-delay:.14s"></div><div class="bar" style="animation-delay:.21s"></div>
+        <div class="bar" style="animation-delay:.28s"></div><div class="bar" style="animation-delay:.35s"></div>
+        <div class="bar" style="animation-delay:.42s"></div>
+      </div>
+      <div class="p-label" id="pLbl">Tap to Listen</div>
+      <div class="p-sub" id="pSub">Press Space or tap the circle</div>
+    </div>
+
+    <div class="info-r">
+      <div class="info-t" id="infoT" aria-live="polite">Answer quickly for bonus points.</div>
+      <button class="hint-b" id="hintB" onclick="G.hint()" aria-label="Use hint, reveals artist for minus 5 points">
+        <svg viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+        <span>Hint</span> <span style="font-size:.65rem;color:rgba(253,230,138,.4);font-weight:500">(H)</span>
+      </button>
+    </div>
+    <div class="hint-r hidden" id="hintR"></div>
+
+    <div class="opts" id="optsG" role="group" aria-label="Song options"></div>
+    <div class="tout-msg hidden" id="toutM"></div>
+    <button class="skip-b hidden" id="skipB" onclick="G.skip()">Next Round &rarr;</button>
+  </div>
+
+  <!-- ===== END ===== -->
+  <div id="end" class="screen">
+    <div class="e-card glass slide-up">
+      <div class="e-trophy">
         <svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
       </div>
-      <div id="newBestBadge" class="new-best hidden">New Personal Best!</div>
-      <div class="end-rank" id="endRank"></div>
-      <div class="end-msg" id="endMsg"></div>
-      <div class="final-score-box">
-        <div class="final-score-label">Final Score</div>
-        <div class="final-score-num" id="endScore">0</div>
+      <div id="eBadge" class="nb hidden"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> New Personal Best!</div>
+      <div class="e-rank" id="eRank"></div>
+      <div class="e-msg" id="eMsg"></div>
+      <div class="e-score-box">
+        <div class="e-score-lbl">Final Score</div>
+        <div class="e-score-num" id="eScore">0</div>
+        <div class="e-acc" id="eAcc"></div>
       </div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="label">Correct</div><div class="val c-green" id="endCorrect">0</div></div>
-        <div class="stat-card"><div class="label">Best Streak</div><div class="val c-pink" id="endStreak">0</div></div>
-        <div class="stat-card"><div class="label">Fast Answers</div><div class="val c-yellow" id="endFast">0</div></div>
-        <div class="stat-card"><div class="label">Hints Used</div><div class="val c-blue" id="endHints">0</div></div>
+      <div class="s-grid">
+        <div class="s-card"><div class="lb">Correct</div><div class="vl c-grn" id="eCorr">0</div></div>
+        <div class="s-card"><div class="lb">Best Streak</div><div class="vl c-pnk" id="eBStr">0</div></div>
+        <div class="s-card"><div class="lb">Fast Answers</div><div class="vl c-yel" id="eFast">0</div></div>
+        <div class="s-card"><div class="lb">Hints Used</div><div class="vl c-blu" id="eHint">0</div></div>
       </div>
-      <div class="breakdown-label">Round Breakdown</div>
-      <div class="breakdown-list" id="breakdownList"></div>
-      <div class="end-btns">
-        <button class="btn-primary" id="playAgainBtn">
+      <div class="bd-lbl">Round Breakdown</div>
+      <div class="bd-list" id="bdList"></div>
+      <div class="e-btns">
+        <button class="btn-p" id="eAgain" aria-label="Play again">
           <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           Play Again
         </button>
-        <button class="btn-secondary" onclick="showMenu()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <button class="btn-s" onclick="G.toMenu()" aria-label="Back to menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
           Menu
         </button>
       </div>
+      <button class="share-b" id="shareB" onclick="G.share()">
+        <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share Results
+      </button>
     </div>
   </div>
 </div>
 
-<div class="confetti-container hidden" id="confettiContainer"></div>
+<div class="confetti-c hidden" id="confC"></div>
+<div id="toast" class="share-toast hidden"></div>
 
-<footer class="site-footer">
-  <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-  Powered by Web Speech API
+<footer class="foot">
+  <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+  Powered by Web Speech API &middot; Press ? for shortcuts
 </footer>
 
 <script>
-/* ===== SONG DATA ===== */
+/* ================================================================
+   LYRICALLY LOST — Production Build
+   ================================================================ */
+
 const SONGS = {
   hi: [
-    {id:"h1",title:"Tum Hi Ho",artist:"Arijit Singh",lyrics:"Because you are the one, now you are only the one. You are the life, you are the peace, and you are also my pain.",ttsLang:"en-US"},
-    {id:"h2",title:"Kal Ho Naa Ho",artist:"Sonu Nigam",lyrics:"Every moment is a new season, why assume that moment will stay? Whether there is a tomorrow or not.",ttsLang:"en-US"},
-    {id:"h3",title:"Chaiyya Chaiyya",artist:"Sukhwinder Singh",lyrics:"Those who walk in the shade of love create heaven. Let's walk in the shade, walk in the shade.",ttsLang:"en-US"},
-    {id:"h4",title:"Jai Ho",artist:"A.R. Rahman",lyrics:"May there be victory, may there be victory. Let your destiny open up. Defeat the enemies completely.",ttsLang:"en-US"},
-    {id:"h5",title:"Tujhe Dekha Toh",artist:"Kumar Sanu",lyrics:"When I saw you, I realized this. Love implies craziness, doesn't it?",ttsLang:"en-US"},
-    {id:"h6",title:"Apna Time Aayega",artist:"Ranveer Singh",lyrics:"My time will come. I have risen from the streets, I will reach the volcano.",ttsLang:"en-US"},
-    {id:"h7",title:"Sheila Ki Jawani",artist:"Sunidhi Chauhan",lyrics:"My name is Sheila, Sheila's youth. I am too sexy for you, I am too sexy for you.",ttsLang:"en-US"},
-    {id:"h8",title:"Chamak Challo",artist:"Akon",lyrics:"Girl, you are my shiny one. Don't be shy, show me some moves. You are my shiny one.",ttsLang:"en-US"},
-    {id:"h9",title:"Kabira",artist:"Arijit Singh",lyrics:"Oh Kabira calling you, look the mystics differ. The ashes of the river water flow with the water.",ttsLang:"en-US"},
-    {id:"h10",title:"Gerua",artist:"Arijit Singh",lyrics:"The sun has melted and fallen. Evening has happened. Just because of you, I have been painted in saffron color.",ttsLang:"en-US"},
-    {id:"h11",title:"Kesariya",artist:"Arijit Singh",lyrics:"The color of saffron is now in my heart. Wherever I look, I see only your light.",ttsLang:"en-US"},
-    {id:"h12",title:"Badtameez Dil",artist:"Benny Dayal",lyrics:"This mischievous heart still does not agree. It dances without rules and laughs at every warning.",ttsLang:"en-US"},
-    {id:"h13",title:"Dil Diyan Gallan",artist:"Atif Aslam",lyrics:"Let's speak through our hearts. Let me tell you softly how deeply I belong to you.",ttsLang:"en-US"},
-    {id:"h14",title:"Ghungroo",artist:"Arijit Singh",lyrics:"I tied bells to my feet and forgot the world. Tonight even the sky wants to dance.",ttsLang:"en-US"},
-    {id:"h15",title:"Malang",artist:"Ved Sharma",lyrics:"I have become wild in your love. I walk like a traveler who found his destination in your eyes.",ttsLang:"en-US"},
-    {id:"h16",title:"Raabta",artist:"Arijit Singh",lyrics:"There is some connection from before, as if we have known each other for lifetimes.",ttsLang:"en-US"},
-    {id:"h17",title:"Zinda",artist:"Siddharth Mahadevan",lyrics:"I am alive because I keep fighting. Every wound reminds me I still have fire within.",ttsLang:"en-US"},
-    {id:"h18",title:"Naatu Naatu",artist:"Rahul Sipligunj",lyrics:"Stamp your feet and dance like thunder. The earth itself starts shaking with our rhythm.",ttsLang:"en-US"},
-    {id:"h19",title:"Rang De Basanti",artist:"Daler Mehndi",lyrics:"Color me in the shade of spring. My veins carry the color of freedom and youth.",ttsLang:"en-US"},
-    {id:"h20",title:"Channa Mereya",artist:"Arijit Singh",lyrics:"My beloved, you set fire and left me burning. Still I smile through the ashes of my heart.",ttsLang:"en-US"},
-    {id:"h21",title:"Kun Faya Kun",artist:"A.R. Rahman",lyrics:"Let it be, and it was. In the shrine of the divine, I found what I was looking for.",ttsLang:"en-US"},
-    {id:"h22",title:"Ae Dil Hai Mushkil",artist:"Arijit Singh",lyrics:"This heart finds it difficult. Living without you is the hardest thing I have ever done.",ttsLang:"en-US"},
-    {id:"h23",title:"Maa Tujhe Salaam",artist:"A.R. Rahman",lyrics:"Mother, I salute you. The rivers, the mountains, and every grain of dust bows to you.",ttsLang:"en-US"},
-    {id:"h24",title:"Tere Bina",artist:"A.R. Rahman",lyrics:"Without you the days feel longer and the nights colder. Everything beautiful reminds me of you.",ttsLang:"en-US"},
-    {id:"h25",title:"Bekhayali",artist:"Sachet Tandon",lyrics:"I have lost myself completely in thoughts of you. Neither sleep comes nor peace stays.",ttsLang:"en-US"},
-    {id:"h26",title:"Tera Ban Jaunga",artist:"Akhil Sachdeva",lyrics:"I will become yours. Just say the word and I will leave everything behind for you.",ttsLang:"en-US"},
-    {id:"h27",title:"Dilwale Dulhania Le Jayenge",artist:"Lata Mangeshkar",lyrics:"Come fall in love. The one who loves bravely will take the bride away.",ttsLang:"en-US"},
-    {id:"h28",title:"Gallan Goodiyan",artist:"Shankar Mahadevan",lyrics:"Sweet conversations have started happening between us. What magic have you done that I keep smiling?",ttsLang:"en-US"},
-    {id:"h29",title:"Kala Chashma",artist:"Badshah",lyrics:"You look so stylish with those black sunglasses. The whole town goes crazy when you walk by.",ttsLang:"en-US"},
-    {id:"h30",title:"London Thumakda",artist:"Labh Janjua",lyrics:"London is dancing and swaying. The wedding has started and everyone is celebrating tonight.",ttsLang:"en-US"},
-    {id:"h31",title:"Dil Se Re",artist:"A.R. Rahman",lyrics:"From the heart, I offer my breath, my life. There is no bigger truth than this love.",ttsLang:"en-US"},
-    {id:"h32",title:"Senorita",artist:"Sukhbir",lyrics:"Oh beautiful girl, you have stolen my heart away. Wherever you go, my eyes follow you.",ttsLang:"en-US"},
-    {id:"h33",title:"Chak De India",artist:"Sukhwinder Singh",lyrics:"Come on India, show the world your spirit. Let the strength of our team shake the ground.",ttsLang:"en-US"},
-    {id:"h34",title:"Mere Dholna",artist:"M.S. Subbulakshmi",lyrics:"My beloved has arrived. The entire world is celebrating. Even the stars are dancing tonight.",ttsLang:"en-US"},
-    {id:"h35",title:"Aankhon Mein Teri",artist:"K.K.",lyrics:"In your eyes I see a thousand dreams. I have found a home that I never want to leave.",ttsLang:"en-US"},
-    {id:"h36",title:"Swag Se Swagat",artist:"Vishal Dadlani",lyrics:"Welcome you with style and swagger. This celebration is grand and nothing compares to our spirit.",ttsLang:"en-US"},
-    {id:"h37",title:"Balam Pichkari",artist:"Vishal Dadlani",lyrics:"Throw the colors of spring at me. Today the festival has begun and the streets are alive.",ttsLang:"en-US"},
-    {id:"h38",title:"Masakali",artist:"Mohit Chauhan",lyrics:"Like a free pigeon flying across the sky. I have no destination, but the wind is my guide.",ttsLang:"en-US"},
-    {id:"h39",title:"Kar Har Maidaan Fateh",artist:"Sukhwinder Singh",lyrics:"Conquer every battlefield. Let no defeat define you, rise again and again.",ttsLang:"en-US"},
-    {id:"h40",title:"Roobaroo",artist:"A.R. Rahman",lyrics:"Face to face with life, I am finally awake. The journey has just begun and I am ready.",ttsLang:"en-US"}
+    {id:"h1",title:"Tum Hi Ho",artist:"Arijit Singh",lyrics:"Because you are the one, now you are only the one. You are the life, you are the peace, and you are also my pain.",tts:"en-US"},
+    {id:"h2",title:"Kal Ho Naa Ho",artist:"Sonu Nigam",lyrics:"Every moment is a new season, why assume that moment will stay? Whether there is a tomorrow or not.",tts:"en-US"},
+    {id:"h3",title:"Chaiyya Chaiyya",artist:"Sukhwinder Singh",lyrics:"Those who walk in the shade of love create heaven. Let's walk in the shade, walk in the shade.",tts:"en-US"},
+    {id:"h4",title:"Jai Ho",artist:"A.R. Rahman",lyrics:"May there be victory, may there be victory. Let your destiny open up. Defeat the enemies completely.",tts:"en-US"},
+    {id:"h5",title:"Tujhe Dekha Toh",artist:"Kumar Sanu",lyrics:"When I saw you, I realized this. Love implies craziness, doesn't it?",tts:"en-US"},
+    {id:"h6",title:"Apna Time Aayega",artist:"Ranveer Singh",lyrics:"My time will come. I have risen from the streets, I will reach the volcano.",tts:"en-US"},
+    {id:"h7",title:"Sheila Ki Jawani",artist:"Sunidhi Chauhan",lyrics:"My name is Sheila, Sheila's youth. I am too sexy for you, I am too sexy for you.",tts:"en-US"},
+    {id:"h8",title:"Chamak Challo",artist:"Akon",lyrics:"Girl, you are my shiny one. Don't be shy, show me some moves. You are my shiny one.",tts:"en-US"},
+    {id:"h9",title:"Kabira",artist:"Arijit Singh",lyrics:"Oh Kabira calling you, look the mystics differ. The ashes of the river water flow with the water.",tts:"en-US"},
+    {id:"h10",title:"Gerua",artist:"Arijit Singh",lyrics:"The sun has melted and fallen. Evening has happened. Just because of you, I have been painted in saffron color.",tts:"en-US"},
+    {id:"h11",title:"Kesariya",artist:"Arijit Singh",lyrics:"The color of saffron is now in my heart. Wherever I look, I see only your light.",tts:"en-US"},
+    {id:"h12",title:"Badtameez Dil",artist:"Benny Dayal",lyrics:"This mischievous heart still does not agree. It dances without rules and laughs at every warning.",tts:"en-US"},
+    {id:"h13",title:"Dil Diyan Gallan",artist:"Atif Aslam",lyrics:"Let's speak through our hearts. Let me tell you softly how deeply I belong to you.",tts:"en-US"},
+    {id:"h14",title:"Ghungroo",artist:"Arijit Singh",lyrics:"I tied bells to my feet and forgot the world. Tonight even the sky wants to dance.",tts:"en-US"},
+    {id:"h15",title:"Malang",artist:"Ved Sharma",lyrics:"I have become wild in your love. I walk like a traveler who found his destination in your eyes.",tts:"en-US"},
+    {id:"h16",title:"Raabta",artist:"Arijit Singh",lyrics:"There is some connection from before, as if we have known each other for lifetimes.",tts:"en-US"},
+    {id:"h17",title:"Zinda",artist:"Siddharth Mahadevan",lyrics:"I am alive because I keep fighting. Every wound reminds me I still have fire within.",tts:"en-US"},
+    {id:"h18",title:"Naatu Naatu",artist:"Rahul Sipligunj",lyrics:"Stamp your feet and dance like thunder. The earth itself starts shaking with our rhythm.",tts:"en-US"},
+    {id:"h19",title:"Rang De Basanti",artist:"Daler Mehndi",lyrics:"Color me in the shade of spring. My veins carry the color of freedom and youth.",tts:"en-US"},
+    {id:"h20",title:"Channa Mereya",artist:"Arijit Singh",lyrics:"My beloved, you set fire and left me burning. Still I smile through the ashes of my heart.",tts:"en-US"},
+    {id:"h21",title:"Kun Faya Kun",artist:"A.R. Rahman",lyrics:"Let it be, and it was. In the shrine of the divine, I found what I was looking for.",tts:"en-US"},
+    {id:"h22",title:"Ae Dil Hai Mushkil",artist:"Arijit Singh",lyrics:"This heart finds it difficult. Living without you is the hardest thing I have ever done.",tts:"en-US"},
+    {id:"h23",title:"Maa Tujhe Salaam",artist:"A.R. Rahman",lyrics:"Mother, I salute you. The rivers, the mountains, and every grain of dust bows to you.",tts:"en-US"},
+    {id:"h24",title:"Tere Bina",artist:"A.R. Rahman",lyrics:"Without you the days feel longer and the nights colder. Everything beautiful reminds me of you.",tts:"en-US"},
+    {id:"h25",title:"Bekhayali",artist:"Sachet Tandon",lyrics:"I have lost myself completely in thoughts of you. Neither sleep comes nor peace stays.",tts:"en-US"},
+    {id:"h26",title:"Tera Ban Jaunga",artist:"Akhil Sachdeva",lyrics:"I will become yours. Just say the word and I will leave everything behind for you.",tts:"en-US"},
+    {id:"h27",title:"Dilwale Dulhania Le Jayenge",artist:"Lata Mangeshkar",lyrics:"Come fall in love. The one who loves bravely will take the bride away.",tts:"en-US"},
+    {id:"h28",title:"Gallan Goodiyan",artist:"Shankar Mahadevan",lyrics:"Sweet conversations have started happening between us. What magic have you done that I keep smiling?",tts:"en-US"},
+    {id:"h29",title:"Kala Chashma",artist:"Badshah",lyrics:"You look so stylish with those black sunglasses. The whole town goes crazy when you walk by.",tts:"en-US"},
+    {id:"h30",title:"London Thumakda",artist:"Labh Janjua",lyrics:"London is dancing and swaying. The wedding has started and everyone is celebrating tonight.",tts:"en-US"},
+    {id:"h31",title:"Dil Se Re",artist:"A.R. Rahman",lyrics:"From the heart, I offer my breath, my life. There is no bigger truth than this love.",tts:"en-US"},
+    {id:"h32",title:"Senorita",artist:"Sukhbir",lyrics:"Oh beautiful girl, you have stolen my heart away. Wherever you go, my eyes follow you.",tts:"en-US"},
+    {id:"h33",title:"Chak De India",artist:"Sukhwinder Singh",lyrics:"Come on India, show the world your spirit. Let the strength of our team shake the ground.",tts:"en-US"},
+    {id:"h34",title:"Mere Dholna",artist:"M.S. Subbulakshmi",lyrics:"My beloved has arrived. The entire world is celebrating. Even the stars are dancing tonight.",tts:"en-US"},
+    {id:"h35",title:"Aankhon Mein Teri",artist:"K.K.",lyrics:"In your eyes I see a thousand dreams. I have found a home that I never want to leave.",tts:"en-US"},
+    {id:"h36",title:"Swag Se Swagat",artist:"Vishal Dadlani",lyrics:"Welcome you with style and swagger. This celebration is grand and nothing compares to our spirit.",tts:"en-US"},
+    {id:"h37",title:"Balam Pichkari",artist:"Vishal Dadlani",lyrics:"Throw the colors of spring at me. Today the festival has begun and the streets are alive.",tts:"en-US"},
+    {id:"h38",title:"Masakali",artist:"Mohit Chauhan",lyrics:"Like a free pigeon flying across the sky. I have no destination, but the wind is my guide.",tts:"en-US"},
+    {id:"h39",title:"Kar Har Maidaan Fateh",artist:"Sukhwinder Singh",lyrics:"Conquer every battlefield. Let no defeat define you, rise again and again.",tts:"en-US"},
+    {id:"h40",title:"Roobaroo",artist:"A.R. Rahman",lyrics:"Face to face with life, I am finally awake. The journey has just begun and I am ready.",tts:"en-US"}
   ],
   en: [
-    {id:"e1",title:"Shape of You",artist:"Ed Sheeran",lyrics:"\u0915\u094d\u0932\u092c \u092a\u094d\u0930\u0947\u092e\u0940 \u0922\u0942\u0901\u0922\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u0938\u092c\u0938\u0947 \u0905\u091a\u094d\u091b\u0940 \u091c\u0917\u0939 \u0928\u0939\u0940\u0902 \u0939\u0948, \u0907\u0938\u0932\u093f\u090f \u092e\u0948\u0902 \u092c\u093e\u0930 \u091c\u093e\u0924\u093e \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e2",title:"Baby",artist:"Justin Bieber",lyrics:"\u0914\u0930 \u092e\u0948\u0902 \u0910\u0938\u0940 \u0925\u0940 \u091c\u0948\u0938\u0947 \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940 \u0913\u0939\u0964 \u091c\u0948\u0938\u0947 \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940 \u0928\u0939\u0940\u0902\u0964",ttsLang:"hi-IN"},
-    {id:"e3",title:"Hello",artist:"Adele",lyrics:"\u0928\u092e\u0938\u094d\u0924\u0947, \u092f\u0939 \u092e\u0948\u0902 \u0939\u0942\u0901\u0964 \u092e\u0948\u0902 \u0938\u094b\u091a \u0930\u0939\u0940 \u0925\u0940 \u0915\u093f \u0907\u0928 \u0938\u092c \u0938\u093e\u0932\u094b\u0902 \u0915\u0947 \u092c\u093e\u0926 \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u092e\u093f\u0932\u0928\u093e \u091a\u093e\u0939\u094b\u0917\u0947\u0964",ttsLang:"hi-IN"},
-    {id:"e4",title:"Old Town Road",artist:"Lil Nas X",lyrics:"\u092e\u0948\u0902 \u0905\u092a\u0928\u093e \u0918\u094b\u0921\u093c\u093e \u092a\u0941\u0930\u093e\u0928\u0947 \u0936\u0939\u0930 \u0915\u0940 \u0938\u0921\u093c\u0915 \u092a\u0930 \u0932\u0947 \u091c\u093e\u090a\u0902\u0917\u093e\u0964 \u092e\u0948\u0902 \u0924\u092c \u0924\u0915 \u0938\u0935\u093e\u0930\u0940 \u0915\u0930\u0942\u0901\u0917\u093e \u091c\u092c \u0924\u0915 \u0914\u0930 \u0928\u0939\u0940\u0902 \u0915\u0930 \u0938\u0915\u0924\u093e\u0964",ttsLang:"hi-IN"},
-    {id:"e5",title:"Bad Guy",artist:"Billie Eilish",lyrics:"\u092e\u0948\u0902 \u0935\u094b \u092c\u0941\u0930\u0940 \u0915\u093f\u0938\u094d\u092e \u0915\u093e \u0939\u0942\u0901\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u092e\u093e\u0901 \u0915\u094b \u0926\u0941\u0916\u0940 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0917\u0930\u094d\u0932\u092b\u094d\u0930\u0947\u0902\u0921 \u0915\u094b \u092a\u093e\u0917\u0932 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e\u0964",ttsLang:"hi-IN"},
-    {id:"e6",title:"Let It Go",artist:"Idina Menzel",lyrics:"\u091c\u093e\u0928\u0947 \u0926\u094b, \u091c\u093e\u0928\u0947 \u0926\u094b\u0964 \u0905\u092c \u0907\u0938\u0947 \u0914\u0930 \u0928\u0939\u0940\u0902 \u0930\u094b\u0915 \u0938\u0915\u0924\u0940\u0964 \u091c\u093e\u0928\u0947 \u0926\u094b, \u091c\u093e\u0928\u0947 \u0926\u094b\u0964",ttsLang:"hi-IN"},
-    {id:"e7",title:"Rolling in the Deep",artist:"Adele",lyrics:"\u092e\u0947\u0930\u0947 \u0926\u093f\u0932 \u092e\u0947\u0902 \u090f\u0915 \u0906\u0917 \u0932\u0917 \u0930\u0939\u0940 \u0939\u0948\u0964 \u092c\u0941\u0916\u093e\u0930 \u0915\u0940 \u0939\u0926 \u0924\u0915 \u092a\u0939\u0941\u0901\u091a \u0930\u0939\u0940 \u0939\u0948 \u0914\u0930 \u092e\u0941\u091d\u0947 \u0905\u0902\u0927\u0947\u0930\u0947 \u0938\u0947 \u092c\u093e\u0939\u0930 \u0932\u093e \u0930\u0939\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e8",title:"Shake It Off",artist:"Taylor Swift",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u0916\u093f\u0932\u093e\u0921\u093c\u0940 \u0924\u094b \u0916\u0947\u0932\u0947\u0902\u0917\u0947, \u0916\u0947\u0932\u0947\u0902\u0917\u0947, \u0916\u0947\u0932\u0947\u0902\u0917\u0947\u0964 \u0914\u0930 \u0928\u092b\u0930\u0924 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u0947 \u0928\u092b\u0930\u0924 \u0915\u0930\u0947\u0902\u0917\u0947, \u0928\u092b\u0930\u0924 \u0915\u0930\u0947\u0902\u0917\u0947\u0964 \u092e\u0948\u0902 \u092c\u0938 \u0907\u0938\u0947 \u091d\u093e\u0921\u093c \u0926\u0942\u0902\u0917\u0940\u0964",ttsLang:"hi-IN"},
-    {id:"e9",title:"Roar",artist:"Katy Perry",lyrics:"\u092e\u0947\u0930\u0947 \u092a\u093e\u0938 \u092c\u093e\u0918 \u0915\u0940 \u0906\u0901\u0916\u0947\u0902 \u0939\u0948\u0902, \u090f\u0915 \u0932\u0921\u093c\u093e\u0915\u0942\u0964 \u0906\u0917 \u0915\u0947 \u092c\u0940\u091a \u0928\u093e\u091a \u0930\u0939\u0940 \u0939\u0942\u0901\u0964 \u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u090f\u0915 \u091a\u0948\u0902\u092a\u093f\u092f\u0928 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e10",title:"Happy",artist:"Pharrell Williams",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u0916\u0941\u0936 \u0939\u0942\u0901\u0964 \u0905\u0917\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0917\u0924\u093e \u0939\u0948 \u0915\u093f \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u092c\u093f\u0928\u093e \u091b\u0924 \u0935\u093e\u0932\u093e \u0915\u092e\u0930\u093e \u0939\u0948 \u0924\u094b \u0924\u093e\u0932\u0940 \u092c\u091c\u093e\u0913\u0964",ttsLang:"hi-IN"},
-    {id:"e11",title:"Believer",artist:"Imagine Dragons",lyrics:"\u0926\u0930\u094d\u0926 \u0928\u0947 \u092e\u0941\u091d\u0947 \u092c\u0928\u093e\u092f\u093e, \u0924\u094b\u0921\u093c\u093e \u0914\u0930 \u092b\u093f\u0930 \u0938\u0947 \u0916\u0921\u093c\u093e \u0915\u093f\u092f\u093e\u0964 \u0905\u092c \u092e\u0948\u0902 \u0935\u093f\u0936\u094d\u0935\u093e\u0938 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e12",title:"Blinding Lights",artist:"The Weeknd",lyrics:"\u092e\u0948\u0902 \u0936\u0939\u0930 \u0915\u0940 \u0930\u094b\u0936\u0928\u0940 \u092e\u0947\u0902 \u0916\u094b \u0917\u092f\u093e \u0939\u0942\u0901\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u094d\u092a\u0930\u094d\u0936 \u0915\u0947 \u092c\u093f\u0928\u093e \u0930\u093e\u0924 \u0915\u093e\u091f\u0928\u093e \u092e\u0941\u0936\u094d\u0915\u093f\u0932 \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e13",title:"Uptown Funk",artist:"Mark Ronson ft. Bruno Mars",lyrics:"\u0906\u091c \u0930\u093e\u0924 \u0939\u092e \u091a\u092e\u0915\u0928\u0947 \u0935\u093e\u0932\u0947 \u0939\u0948\u0902\u0964 \u0915\u0926\u092e, \u0938\u094d\u091f\u093e\u0907\u0932 \u0914\u0930 \u0906\u0924\u094d\u092e\u0935\u093f\u0936\u094d\u0935\u093e\u0938 \u0938\u092c \u0938\u093e\u0925 \u0932\u0947\u0915\u0930 \u091a\u0932\u094b\u0964",ttsLang:"hi-IN"},
-    {id:"e14",title:"Someone Like You",artist:"Adele",lyrics:"\u092e\u0948\u0902 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0932\u093f\u090f \u0915\u094b\u0908 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u091c\u0948\u0938\u093e \u0922\u0942\u0901\u0922\u0928\u0947 \u0915\u0940 \u0915\u093e\u092e\u0928\u093e \u0915\u0930\u0924\u0940 \u0939\u0942\u0901, \u0914\u0930 \u0915\u092d\u0940-\u0915\u092d\u0940 \u092a\u093f\u091b\u0932\u0940 \u092c\u093e\u0924\u0947\u0902 \u092f\u093e\u0926 \u0906\u0924\u0940 \u0939\u0948\u0902\u0964",ttsLang:"hi-IN"},
-    {id:"e15",title:"Senorita",artist:"Shawn Mendes & Camila Cabello",lyrics:"\u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0939\u094b\u0902\u0920\u094b\u0902 \u0915\u0940 \u0917\u0930\u094d\u092e\u0940 \u0914\u0930 \u0935\u094b \u0917\u0930\u094d\u092e\u0940 \u092d\u0930\u0940 \u0930\u093e\u0924\u0947\u0902, \u0926\u093f\u0932 \u0915\u0939\u0924\u093e \u0939\u0948 \u0914\u0930 \u092a\u093e\u0938 \u0906\u0913\u0964",ttsLang:"hi-IN"},
-    {id:"e16",title:"Dance Monkey",artist:"Tones and I",lyrics:"\u0935\u0947 \u0915\u0939\u0924\u0947 \u0939\u0948\u0902 \u092b\u093f\u0930 \u0938\u0947 \u0928\u093e\u091a\u094b, \u091c\u0948\u0938\u0947 \u092a\u0939\u0932\u0947 \u0915\u092d\u0940 \u0928\u0939\u0940\u0902 \u0926\u0947\u0916\u093e\u0964 \u092e\u0948\u0902 \u0909\u0928\u0915\u0940 \u0924\u093e\u0932 \u092a\u0930 \u091a\u0932\u0924\u0940 \u0930\u0939\u0924\u0940 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e17",title:"Thunder",artist:"Imagine Dragons",lyrics:"\u092c\u091a\u092a\u0928 \u092e\u0947\u0902 \u0938\u092c \u0939\u0902\u0938\u0924\u0947 \u0925\u0947, \u0905\u092c \u092e\u0947\u0930\u0940 \u0906\u0935\u093e\u091c\u093c \u0917\u0921\u093c\u0917\u0921\u093c\u093e\u0939\u091f \u091c\u0948\u0938\u0940 \u0917\u0942\u0902\u091c\u0924\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e18",title:"Counting Stars",artist:"OneRepublic",lyrics:"\u0939\u092e \u0905\u092c \u092a\u0948\u0938\u0947 \u0928\u0939\u0940\u0902, \u0938\u093f\u0924\u093e\u0930\u0947 \u0917\u093f\u0928\u0947\u0902\u0917\u0947\u0964 \u0938\u092a\u0928\u094b\u0902 \u092e\u0947\u0902 \u0928\u093f\u0935\u0947\u0936 \u0915\u0930\u0928\u093e \u091c\u094d\u092f\u093e\u0926\u093e \u0938\u0939\u0940 \u0932\u0917\u0924\u093e \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e19",title:"Bohemian Rhapsody",artist:"Queen",lyrics:"\u0915\u094d\u092f\u093e \u092f\u0939 \u0905\u0938\u0932\u0940 \u091c\u093c\u093f\u0928\u094d\u0926\u0917\u0940 \u0939\u0948? \u092f\u093e \u092c\u0938 \u090f\u0915 \u0915\u0932\u094d\u092a\u0928\u093e? \u092a\u0939\u093e\u0921\u093c\u0940 \u0938\u0947 \u0917\u093f\u0930\u0924\u0947 \u0939\u0941\u090f, \u0939\u0915\u0940\u0915\u0924 \u0938\u0947 \u092d\u093e\u0917\u0924\u0947 \u0939\u0941\u090f\u0964",ttsLang:"hi-IN"},
-    {id:"e20",title:"Yesterday",artist:"The Beatles",lyrics:"\u0915\u0932, \u0938\u093e\u0930\u0940 \u092e\u0941\u0938\u0940\u092c\u0924\u0947\u0902 \u092c\u0939\u0941\u0924 \u0926\u0942\u0930 \u0932\u0917 \u0930\u0939\u0940 \u0925\u0940\u0902\u0964 \u0905\u092c \u0932\u0917\u0924\u093e \u0939\u0948 \u091c\u0948\u0938\u0947 \u0935\u0947 \u092f\u0939\u0940\u0902 \u0920\u0939\u0930\u0928\u0947 \u0935\u093e\u0932\u0940 \u0939\u0948\u0902\u0964",ttsLang:"hi-IN"},
-    {id:"e21",title:"Hotel California",artist:"Eagles",lyrics:"\u0905\u0902\u0927\u0947\u0930\u0940 \u0930\u0947\u0917\u093f\u0938\u094d\u0924\u093e\u0928\u0940 \u0938\u0921\u093c\u0915 \u092a\u0930, \u0939\u0935\u093e \u092e\u0947\u0930\u0947 \u092c\u093e\u0932\u094b\u0902 \u092e\u0947\u0902 \u092c\u0939 \u0930\u0939\u0940 \u0925\u0940\u0964 \u0926\u0942\u0930 \u0938\u0947 \u090f\u0915 \u091a\u092e\u091a\u092e\u093e\u0924\u0940 \u0930\u094b\u0936\u0928\u0940 \u0926\u093f\u0916\u0940\u0964",ttsLang:"hi-IN"},
-    {id:"e22",title:"Thriller",artist:"Michael Jackson",lyrics:"\u0930\u093e\u0924 \u0915\u093e \u0905\u0902\u0927\u0947\u0930\u093e \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0918\u0947\u0930 \u0932\u0947\u0924\u093e \u0939\u0948\u0964 \u0915\u094b\u0908 \u092c\u0941\u0930\u093e\u0908 \u0915\u0940 \u0928\u091c\u093c\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0915\u0935\u093e\u0917\u094d\u0930\u0938\u094d\u0924 \u0915\u0930 \u0926\u0947\u0924\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e23",title:"Imagine",artist:"John Lennon",lyrics:"\u0915\u0932\u094d\u092a\u0928\u093e \u0915\u0930\u094b \u0915\u093f \u0915\u094b\u0908 \u0938\u094d\u0935\u0930\u094d\u0917 \u0928\u0939\u0940\u0902 \u0939\u0948\u0964 \u0915\u094b\u0936\u093f\u0936 \u0915\u0930\u094b, \u092f\u0939 \u0906\u0938\u093e\u0928 \u0939\u0948\u0964 \u0939\u092e\u093e\u0930\u0947 \u0928\u0940\u091a\u0947 \u0915\u094b\u0908 \u0928\u0930\u0915 \u0928\u0939\u0940\u0902\u0964",ttsLang:"hi-IN"},
-    {id:"e24",title:"Shallow",artist:"Lady Gaga & Bradley Cooper",lyrics:"\u092e\u0941\u091d\u0947 \u092c\u0924\u093e\u0913, \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u0916\u0941\u0936 \u0939\u094b \u0907\u0938 \u0906\u0927\u0941\u0928\u093f\u0915 \u0926\u0941\u0928\u093f\u092f\u093e \u092e\u0947\u0902? \u092f\u093e \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0914\u0930 \u0915\u0941\u091b \u091a\u093e\u0939\u093f\u090f? \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u0917\u0939\u0930\u093e\u0908 \u092e\u0947\u0902 \u091c\u093e \u0938\u0915\u0924\u0947 \u0939\u094b?",ttsLang:"hi-IN"},
-    {id:"e25",title:"Perfect",artist:"Ed Sheeran",lyrics:"\u092e\u0948\u0902\u0928\u0947 \u090f\u0915 \u0932\u0921\u093c\u0915\u0940 \u092a\u093e\u0908, \u091c\u094b \u092e\u0947\u0930\u0947 \u0938\u092a\u0928\u094b\u0902 \u0938\u0947 \u092d\u0940 \u091c\u093c\u094d\u092f\u093e\u0926\u093e \u0916\u093c\u0942\u092c\u0938\u0942\u0930\u0924 \u0939\u0948\u0964 \u092e\u0948\u0902 \u0907\u0938\u0915\u0947 \u0932\u093e\u092f\u0915 \u0928\u0939\u0940\u0902\u0964",ttsLang:"hi-IN"},
-    {id:"e26",title:"All of Me",artist:"John Legend",lyrics:"\u092e\u0947\u0930\u093e \u0938\u093e\u0930\u093e \u092a\u094d\u092f\u093e\u0930 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u093e\u0930\u0947 \u092a\u094d\u092f\u093e\u0930 \u0915\u0947 \u0932\u093f\u090f\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0939\u0930 \u0915\u092e\u091c\u093c\u094b\u0930\u0940 \u092e\u0941\u091d\u0947 \u0914\u0930 \u0926\u0940\u0935\u093e\u0928\u093e \u092c\u0928\u093e\u0924\u0940 \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e27",title:"Levitating",artist:"Dua Lipa",lyrics:"\u0905\u0917\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0917\u0924\u093e \u0939\u0948 \u0915\u093f \u092e\u0948\u0902 \u0938\u0941\u0902\u0926\u0930 \u0939\u0942\u0901, \u0924\u094b \u0930\u0941\u0915\u094b \u091c\u092c \u0924\u0915 \u092e\u0948\u0902 \u0924\u093e\u0930\u094b\u0902 \u092e\u0947\u0902 \u0928\u093e\u091a\u0942\u0901\u0964 \u092e\u0948\u0902 \u0939\u0935\u093e \u092e\u0947\u0902 \u0924\u0948\u0930 \u0930\u0939\u0940 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e28",title:"Watermelon Sugar",artist:"Harry Styles",lyrics:"\u0924\u0930\u092c\u0942\u091c\u093c \u0915\u0940 \u092e\u093f\u0920\u093e\u0938 \u090a\u0901\u091a\u0940\u0964 \u0917\u0930\u094d\u092e\u093f\u092f\u094b\u0902 \u0915\u0940 \u0936\u093e\u092e \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u093e\u0925, \u092f\u0939\u0940 \u0938\u092c \u0915\u0941\u091b \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e29",title:"Stay",artist:"The Kid LAROI & Justin Bieber",lyrics:"\u092e\u0941\u091d\u0947 \u092a\u0924\u093e \u0939\u0948 \u0915\u093f \u092e\u0948\u0902\u0928\u0947 \u0917\u0932\u0924\u0940 \u0915\u0940\u0964 \u0915\u0943\u092a\u092f\u093e \u092e\u0924 \u091c\u093e\u0913, \u092e\u0948\u0902 \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901 \u0915\u093f \u0924\u0941\u092e \u0930\u0939\u094b\u0964",ttsLang:"hi-IN"},
-    {id:"e30",title:"As It Was",artist:"Harry Styles",lyrics:"\u091a\u0940\u091c\u093c\u0947\u0902 \u092a\u0939\u0932\u0947 \u091c\u0948\u0938\u0940 \u0928\u0939\u0940\u0902 \u0930\u0939\u0940\u0902\u0964 \u0938\u092c \u092c\u0926\u0932 \u0917\u092f\u093e \u0939\u0948, \u0932\u0947\u0915\u093f\u0928 \u092e\u0948\u0902 \u0905\u092d\u0940 \u092d\u0940 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0922\u0942\u0901\u0922 \u0930\u0939\u093e \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e31",title:"Anti-Hero",artist:"Taylor Swift",lyrics:"\u092f\u0939 \u092e\u0948\u0902 \u0939\u0942\u0901, \u0928\u092e\u0938\u094d\u0924\u0947\u0964 \u092e\u0948\u0902 \u0938\u092e\u0938\u094d\u092f\u093e \u0939\u0942\u0901\u0964 \u092e\u0948\u0902 \u0916\u0941\u0926 \u0915\u093e \u0926\u0941\u0936\u094d\u092e\u0928 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e32",title:"Drivers License",artist:"Olivia Rodrigo",lyrics:"\u092e\u0948\u0902\u0928\u0947 \u0917\u093e\u0921\u093c\u0940 \u091a\u0932\u093e\u0928\u0947 \u0915\u093e \u0932\u093e\u0907\u0938\u0947\u0902\u0938 \u0932\u0947 \u0932\u093f\u092f\u093e\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0917\u0932\u0940 \u0938\u0947 \u0917\u0941\u091c\u093c\u0930\u0940 \u0914\u0930 \u0930\u094b\u0924\u0940 \u0930\u0939\u0940\u0964",ttsLang:"hi-IN"},
-    {id:"e33",title:"Dynamite",artist:"BTS",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u0930\u093e\u0924 \u092e\u0947\u0902 \u091a\u092e\u0915\u0924\u093e \u0939\u0942\u0901\u0964 \u0921\u093e\u092f\u0928\u093e\u092e\u093e\u0907\u091f \u091c\u0948\u0938\u093e\u0964 \u0926\u093f\u0928 \u092f\u093e \u0930\u093e\u0924, \u0906\u0938\u092e\u093e\u0928 \u091a\u092e\u0915 \u0930\u0939\u093e \u0939\u0948\u0964",ttsLang:"hi-IN"},
-    {id:"e34",title:"Heat Waves",artist:"Glass Animals",lyrics:"\u0915\u092d\u0940-\u0915\u092d\u0940 \u092e\u0941\u091d\u0947 \u0917\u0930\u094d\u092e\u0940 \u0915\u0940 \u0932\u0939\u0930\u0947\u0902 \u092e\u0939\u0938\u0942\u0938 \u0939\u094b\u0924\u0940 \u0939\u0948\u0902 \u091c\u094b \u092c\u0940\u091a \u0915\u0940 \u0930\u093e\u0924 \u092e\u0947\u0902 \u092d\u0940 \u092e\u0947\u0930\u093e \u092a\u0940\u091b\u093e \u0915\u0930\u0924\u0940 \u0939\u0948\u0902\u0964",ttsLang:"hi-IN"},
-    {id:"e35",title:"Flowers",artist:"Miley Cyrus",lyrics:"\u092e\u0948\u0902 \u0916\u0941\u0926 \u0915\u0947 \u0932\u093f\u090f \u092b\u0942\u0932 \u0916\u0930\u0940\u0926 \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964 \u0905\u092a\u0928\u093e \u0928\u093e\u092e \u092c\u0930\u094d\u092b \u092e\u0947\u0902 \u0932\u093f\u0916 \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964 \u0905\u0915\u0947\u0932\u0947 \u0928\u093e\u091a \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964",ttsLang:"hi-IN"},
-    {id:"e36",title:"Peaches",artist:"Justin Bieber",lyrics:"\u092e\u0941\u091d\u0947 \u091c\u0949\u0930\u094d\u091c\u093f\u092f\u093e \u0938\u0947 \u0906\u0921\u093c\u0942 \u091a\u093e\u0939\u093f\u090f\u0964 \u092e\u0941\u091d\u0947 \u0915\u0948\u0932\u093f\u092b\u093c\u094b\u0930\u094d\u0928\u093f\u092f\u093e \u0938\u0947 \u092a\u094d\u092f\u093e\u0930 \u091a\u093e\u0939\u093f\u090f\u0964 \u0924\u0941\u092e \u092e\u0947\u0930\u0940 \u0927\u0942\u092a \u0939\u094b\u0964",ttsLang:"hi-IN"},
-    {id:"e37",title:"Cruel Summer",artist:"Taylor Swift",lyrics:"\u092f\u0939 \u090f\u0915 \u0915\u094d\u0930\u0942\u0930 \u0917\u0930\u094d\u092e\u0940 \u0925\u0940\u0964 \u0939\u092e \u0926\u094b\u0928\u094b\u0902 \u091c\u093e\u0928\u0924\u0947 \u0925\u0947 \u0915\u093f \u092f\u0939 \u0916\u0924\u094d\u092e \u0939\u094b\u0917\u093e, \u092b\u093f\u0930 \u092d\u0940 \u0939\u092e\u0928\u0947 \u0928\u093e\u091f\u0915 \u091c\u093e\u0930\u0940 \u0930\u0916\u093e\u0964",ttsLang:"hi-IN"},
-    {id:"e38",title:"Starboy",artist:"The Weeknd",lyrics:"\u092e\u0948\u0902 \u090f\u0915 \u0938\u093f\u0924\u093e\u0930\u093e \u0932\u0921\u093c\u0915\u093e \u0939\u0942\u0901\u0964 \u0928\u091c\u093c\u0930 \u0932\u0917\u0928\u0947 \u0938\u0947 \u092c\u091a\u094b, \u0907\u0938 \u091a\u092e\u0915 \u0938\u0947 \u0905\u0902\u0927\u0947 \u0939\u094b \u091c\u093e\u0913\u0917\u0947\u0964",ttsLang:"hi-IN"},
-    {id:"e39",title:"Closer",artist:"The Chainsmokers",lyrics:"\u0939\u092e \u0915\u093e\u0930 \u0915\u0940 \u092a\u093f\u091b\u0932\u0940 \u0938\u0940\u091f \u092a\u0930 \u0939\u0948\u0902\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0915\u0930\u0940\u092c \u0906\u0928\u093e \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901, \u091a\u093e\u0930 \u0938\u093e\u0932 \u092c\u093e\u0926 \u092d\u0940\u0964",ttsLang:"hi-IN"},
-    {id:"e40",title:"God's Plan",artist:"Drake",lyrics:"\u092f\u0939 \u092d\u0917\u0935\u093e\u0928 \u0915\u0940 \u092f\u094b\u091c\u0928\u093e \u0939\u0948\u0964 \u092c\u0941\u0930\u0940 \u091a\u0940\u091c\u093c\u0947\u0902 \u0905\u091a\u094d\u091b\u0940 \u091a\u0940\u091c\u093c\u094b\u0902 \u092e\u0947\u0902 \u092c\u0926\u0932 \u091c\u093e\u0924\u0940 \u0939\u0948\u0902\u0964 \u0909\u0938\u0928\u0947 \u092e\u0941\u091d\u0947 \u092c\u091a\u093e \u0932\u093f\u092f\u093e\u0964",ttsLang:"hi-IN"}
+    {id:"e1",title:"Shape of You",artist:"Ed Sheeran",lyrics:"\u0915\u094d\u0932\u092c \u092a\u094d\u0930\u0947\u092e\u0940 \u0922\u0942\u0901\u0922\u0928\u0947 \u0915\u0947 \u0932\u093f\u090f \u0938\u092c\u0938\u0947 \u0905\u091a\u094d\u091b\u0940 \u091c\u0917\u0939 \u0928\u0939\u0940\u0902 \u0939\u0948, \u0907\u0938\u0932\u093f\u090f \u092e\u0948\u0902 \u092c\u093e\u0930 \u091c\u093e\u0924\u093e \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e2",title:"Baby",artist:"Justin Bieber",lyrics:"\u0914\u0930 \u092e\u0948\u0902 \u0910\u0938\u0940 \u0925\u0940 \u091c\u0948\u0938\u0947 \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940 \u0913\u0939\u0964 \u091c\u0948\u0938\u0947 \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940, \u092c\u0947\u092c\u0940 \u0928\u0939\u0940\u0902\u0964",tts:"hi-IN"},
+    {id:"e3",title:"Hello",artist:"Adele",lyrics:"\u0928\u092e\u0938\u094d\u0924\u0947, \u092f\u0939 \u092e\u0948\u0902 \u0939\u0942\u0901\u0964 \u092e\u0948\u0902 \u0938\u094b\u091a \u0930\u0939\u0940 \u0925\u0940 \u0915\u093f \u0907\u0928 \u0938\u092c \u0938\u093e\u0932\u094b\u0902 \u0915\u0947 \u092c\u093e\u0926 \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u092e\u093f\u0932\u0928\u093e \u091a\u093e\u0939\u094b\u0917\u0947\u0964",tts:"hi-IN"},
+    {id:"e4",title:"Old Town Road",artist:"Lil Nas X",lyrics:"\u092e\u0948\u0902 \u0905\u092a\u0928\u093e \u0918\u094b\u0921\u093c\u093e \u092a\u0941\u0930\u093e\u0928\u0947 \u0936\u0939\u0930 \u0915\u0940 \u0938\u0921\u093c\u0915 \u092a\u0930 \u0932\u0947 \u091c\u093e\u090a\u0902\u0917\u093e\u0964 \u092e\u0948\u0902 \u0924\u092c \u0924\u0915 \u0938\u0935\u093e\u0930\u0940 \u0915\u0930\u0942\u0901\u0917\u093e \u091c\u092c \u0924\u0915 \u0914\u0930 \u0928\u0939\u0940\u0902 \u0915\u0930 \u0938\u0915\u0924\u093e\u0964",tts:"hi-IN"},
+    {id:"e5",title:"Bad Guy",artist:"Billie Eilish",lyrics:"\u092e\u0948\u0902 \u0935\u094b \u092c\u0941\u0930\u0940 \u0915\u093f\u0938\u094d\u092e \u0915\u093e \u0939\u0942\u0901\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u092e\u093e\u0901 \u0915\u094b \u0926\u0941\u0916\u0940 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0917\u0930\u094d\u0932\u092b\u094d\u0930\u0947\u0902\u0921 \u0915\u094b \u092a\u093e\u0917\u0932 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e\u0964",tts:"hi-IN"},
+    {id:"e6",title:"Let It Go",artist:"Idina Menzel",lyrics:"\u091c\u093e\u0928\u0947 \u0926\u094b, \u091c\u093e\u0928\u0947 \u0926\u094b\u0964 \u0905\u092c \u0907\u0938\u0947 \u0914\u0930 \u0928\u0939\u0940\u0902 \u0930\u094b\u0915 \u0938\u0915\u0924\u0940\u0964 \u091c\u093e\u0928\u0947 \u0926\u094b, \u091c\u093e\u0928\u0947 \u0926\u094b\u0964",tts:"hi-IN"},
+    {id:"e7",title:"Rolling in the Deep",artist:"Adele",lyrics:"\u092e\u0947\u0930\u0947 \u0926\u093f\u0932 \u092e\u0947\u0902 \u090f\u0915 \u0906\u0917 \u0932\u0917 \u0930\u0939\u0940 \u0939\u0948\u0964 \u092c\u0941\u0916\u093e\u0930 \u0915\u0940 \u0939\u0926 \u0924\u0915 \u092a\u0939\u0941\u0901\u091a \u0930\u0939\u0940 \u0939\u0948 \u0914\u0930 \u092e\u0941\u091d\u0947 \u0905\u0902\u0927\u0947\u0930\u0947 \u0938\u0947 \u092c\u093e\u0939\u0930 \u0932\u093e \u0930\u0939\u0940 \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e8",title:"Shake It Off",artist:"Taylor Swift",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u0916\u093f\u0932\u093e\u0921\u093c\u0940 \u0924\u094b \u0916\u0947\u0932\u0947\u0902\u0917\u0947, \u0916\u0947\u0932\u0947\u0902\u0917\u0947, \u0916\u0947\u0932\u0947\u0902\u0917\u0947\u0964 \u0914\u0930 \u0928\u092b\u0930\u0924 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u0947 \u0928\u092b\u0930\u0924 \u0915\u0930\u0947\u0902\u0917\u0947, \u0928\u092b\u0930\u0924 \u0915\u0930\u0947\u0902\u0917\u0947\u0964 \u092e\u0948\u0902 \u092c\u0938 \u0907\u0938\u0947 \u091d\u093e\u0921\u093c \u0926\u0942\u0902\u0917\u0940\u0964",tts:"hi-IN"},
+    {id:"e9",title:"Roar",artist:"Katy Perry",lyrics:"\u092e\u0947\u0930\u0947 \u092a\u093e\u0938 \u092c\u093e\u0918 \u0915\u0940 \u0906\u0901\u0916\u0947\u0902 \u0939\u0948\u0902, \u090f\u0915 \u0932\u0921\u093c\u093e\u0915\u0942\u0964 \u0906\u0917 \u0915\u0947 \u092c\u0940\u091a \u0928\u093e\u091a \u0930\u0939\u0940 \u0939\u0942\u0901\u0964 \u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u090f\u0915 \u091a\u0948\u0902\u092a\u093f\u092f\u0928 \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e10",title:"Happy",artist:"Pharrell Williams",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u0916\u0941\u0936 \u0939\u0942\u0901\u0964 \u0905\u0917\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0917\u0924\u093e \u0939\u0948 \u0915\u093f \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u092c\u093f\u0928\u093e \u091b\u0924 \u0935\u093e\u0932\u093e \u0915\u092e\u0930\u093e \u0939\u0948 \u0924\u094b \u0924\u093e\u0932\u0940 \u092c\u091c\u093e\u0913\u0964",tts:"hi-IN"},
+    {id:"e11",title:"Believer",artist:"Imagine Dragons",lyrics:"\u0926\u0930\u094d\u0926 \u0928\u0947 \u092e\u0941\u091d\u0947 \u092c\u0928\u093e\u092f\u093e, \u0924\u094b\u0921\u093c\u093e \u0914\u0930 \u092b\u093f\u0930 \u0938\u0947 \u0916\u0921\u093c\u093e \u0915\u093f\u092f\u093e\u0964 \u0905\u092c \u092e\u0948\u0902 \u0935\u093f\u0936\u094d\u0935\u093e\u0938 \u0915\u0930\u0928\u0947 \u0935\u093e\u0932\u093e \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e12",title:"Blinding Lights",artist:"The Weeknd",lyrics:"\u092e\u0948\u0902 \u0936\u0939\u0930 \u0915\u0940 \u0930\u094b\u0936\u0928\u0940 \u092e\u0947\u0902 \u0916\u094b \u0917\u092f\u093e \u0939\u0942\u0901\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u094d\u092a\u0930\u094d\u0936 \u0915\u0947 \u092c\u093f\u0928\u093e \u0930\u093e\u0924 \u0915\u093e\u091f\u0928\u093e \u092e\u0941\u0936\u094d\u0915\u093f\u0932 \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e13",title:"Uptown Funk",artist:"Bruno Mars",lyrics:"\u0906\u091c \u0930\u093e\u0924 \u0939\u092e \u091a\u092e\u0915\u0928\u0947 \u0935\u093e\u0932\u0947 \u0939\u0948\u0902\u0964 \u0915\u0926\u092e, \u0938\u094d\u091f\u093e\u0907\u0932 \u0914\u0930 \u0906\u0924\u094d\u092e\u0935\u093f\u0936\u094d\u0935\u093e\u0938 \u0938\u092c \u0938\u093e\u0925 \u0932\u0947\u0915\u0930 \u091a\u0932\u094b\u0964",tts:"hi-IN"},
+    {id:"e14",title:"Someone Like You",artist:"Adele",lyrics:"\u092e\u0948\u0902 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0932\u093f\u090f \u0915\u094b\u0908 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u091c\u0948\u0938\u093e \u0922\u0942\u0901\u0922\u0928\u0947 \u0915\u0940 \u0915\u093e\u092e\u0928\u093e \u0915\u0930\u0924\u0940 \u0939\u0942\u0901, \u0914\u0930 \u0915\u092d\u0940-\u0915\u092d\u0940 \u092a\u093f\u091b\u0932\u0940 \u092c\u093e\u0924\u0947\u0902 \u092f\u093e\u0926 \u0906\u0924\u0940 \u0939\u0948\u0902\u0964",tts:"hi-IN"},
+    {id:"e15",title:"Senorita",artist:"Shawn Mendes & Camila Cabello",lyrics:"\u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0939\u094b\u0902\u0920\u094b\u0902 \u0915\u0940 \u0917\u0930\u094d\u092e\u0940 \u0914\u0930 \u0935\u094b \u0917\u0930\u094d\u092e\u0940 \u092d\u0930\u0940 \u0930\u093e\u0924\u0947\u0902, \u0926\u093f\u0932 \u0915\u0939\u0924\u093e \u0939\u0948 \u0914\u0930 \u092a\u093e\u0938 \u0906\u0913\u0964",tts:"hi-IN"},
+    {id:"e16",title:"Dance Monkey",artist:"Tones and I",lyrics:"\u0935\u0947 \u0915\u0939\u0924\u0947 \u0939\u0948\u0902 \u092b\u093f\u0930 \u0938\u0947 \u0928\u093e\u091a\u094b, \u091c\u0948\u0938\u0947 \u092a\u0939\u0932\u0947 \u0915\u092d\u0940 \u0928\u0939\u0940\u0902 \u0926\u0947\u0916\u093e\u0964 \u092e\u0948\u0902 \u0909\u0928\u0915\u0940 \u0924\u093e\u0932 \u092a\u0930 \u091a\u0932\u0924\u0940 \u0930\u0939\u0924\u0940 \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e17",title:"Thunder",artist:"Imagine Dragons",lyrics:"\u092c\u091a\u092a\u0928 \u092e\u0947\u0902 \u0938\u092c \u0939\u0902\u0938\u0924\u0947 \u0925\u0947, \u0905\u092c \u092e\u0947\u0930\u0940 \u0906\u0935\u093e\u091c\u093c \u0917\u0921\u093c\u0917\u0921\u093c\u093e\u0939\u091f \u091c\u0948\u0938\u0940 \u0917\u0942\u0902\u091c\u0924\u0940 \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e18",title:"Counting Stars",artist:"OneRepublic",lyrics:"\u0939\u092e \u0905\u092c \u092a\u0948\u0938\u0947 \u0928\u0939\u0940\u0902, \u0938\u093f\u0924\u093e\u0930\u0947 \u0917\u093f\u0928\u0947\u0902\u0917\u0947\u0964 \u0938\u092a\u0928\u094b\u0902 \u092e\u0947\u0902 \u0928\u093f\u0935\u0947\u0936 \u0915\u0930\u0928\u093e \u091c\u094d\u092f\u093e\u0926\u093e \u0938\u0939\u0940 \u0932\u0917\u0924\u093e \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e19",title:"Bohemian Rhapsody",artist:"Queen",lyrics:"\u0915\u094d\u092f\u093e \u092f\u0939 \u0905\u0938\u0932\u0940 \u091c\u093c\u093f\u0928\u094d\u0926\u0917\u0940 \u0939\u0948? \u092f\u093e \u092c\u0938 \u090f\u0915 \u0915\u0932\u094d\u092a\u0928\u093e? \u092a\u0939\u093e\u0921\u093c\u0940 \u0938\u0947 \u0917\u093f\u0930\u0924\u0947 \u0939\u0941\u090f, \u0939\u0915\u0940\u0915\u0924 \u0938\u0947 \u092d\u093e\u0917\u0924\u0947 \u0939\u0941\u090f\u0964",tts:"hi-IN"},
+    {id:"e20",title:"Yesterday",artist:"The Beatles",lyrics:"\u0915\u0932, \u0938\u093e\u0930\u0940 \u092e\u0941\u0938\u0940\u092c\u0924\u0947\u0902 \u092c\u0939\u0941\u0924 \u0926\u0942\u0930 \u0932\u0917 \u0930\u0939\u0940 \u0925\u0940\u0902\u0964 \u0905\u092c \u0932\u0917\u0924\u093e \u0939\u0948 \u091c\u0948\u0938\u0947 \u0935\u0947 \u092f\u0939\u0940\u0902 \u0920\u0939\u0930\u0928\u0947 \u0935\u093e\u0932\u0940 \u0939\u0948\u0902\u0964",tts:"hi-IN"},
+    {id:"e21",title:"Hotel California",artist:"Eagles",lyrics:"\u0905\u0902\u0927\u0947\u0930\u0940 \u0930\u0947\u0917\u093f\u0938\u094d\u0924\u093e\u0928\u0940 \u0938\u0921\u093c\u0915 \u092a\u0930, \u0939\u0935\u093e \u092e\u0947\u0930\u0947 \u092c\u093e\u0932\u094b\u0902 \u092e\u0947\u0902 \u092c\u0939 \u0930\u0939\u0940 \u0925\u0940\u0964 \u0926\u0942\u0930 \u0938\u0947 \u090f\u0915 \u091a\u092e\u091a\u092e\u093e\u0924\u0940 \u0930\u094b\u0936\u0928\u0940 \u0926\u093f\u0916\u0940\u0964",tts:"hi-IN"},
+    {id:"e22",title:"Thriller",artist:"Michael Jackson",lyrics:"\u0930\u093e\u0924 \u0915\u093e \u0905\u0902\u0927\u0947\u0930\u093e \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0918\u0947\u0930 \u0932\u0947\u0924\u093e \u0939\u0948\u0964 \u0915\u094b\u0908 \u092c\u0941\u0930\u093e\u0908 \u0915\u0940 \u0928\u091c\u093c\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0915\u0935\u093e\u0917\u094d\u0930\u0938\u094d\u0924 \u0915\u0930 \u0926\u0947\u0924\u0940 \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e23",title:"Imagine",artist:"John Lennon",lyrics:"\u0915\u0932\u094d\u092a\u0928\u093e \u0915\u0930\u094b \u0915\u093f \u0915\u094b\u0908 \u0938\u094d\u0935\u0930\u094d\u0917 \u0928\u0939\u0940\u0902 \u0939\u0948\u0964 \u0915\u094b\u0936\u093f\u0936 \u0915\u0930\u094b, \u092f\u0939 \u0906\u0938\u093e\u0928 \u0939\u0948\u0964 \u0939\u092e\u093e\u0930\u0947 \u0928\u0940\u091a\u0947 \u0915\u094b\u0908 \u0928\u0930\u0915 \u0928\u0939\u0940\u0902\u0964",tts:"hi-IN"},
+    {id:"e24",title:"Shallow",artist:"Lady Gaga & Bradley Cooper",lyrics:"\u092e\u0941\u091d\u0947 \u092c\u0924\u093e\u0913, \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u0916\u0941\u0936 \u0939\u094b \u0907\u0938 \u0906\u0927\u0941\u0928\u093f\u0915 \u0926\u0941\u0928\u093f\u092f\u093e \u092e\u0947\u0902? \u092f\u093e \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0914\u0930 \u0915\u0941\u091b \u091a\u093e\u0939\u093f\u090f? \u0915\u094d\u092f\u093e \u0924\u0941\u092e \u0917\u0939\u0930\u093e\u0908 \u092e\u0947\u0902 \u091c\u093e \u0938\u0915\u0924\u0947 \u0939\u094b?",tts:"hi-IN"},
+    {id:"e25",title:"Perfect",artist:"Ed Sheeran",lyrics:"\u092e\u0948\u0902\u0928\u0947 \u090f\u0915 \u0932\u0921\u093c\u0915\u0940 \u092a\u093e\u0908, \u091c\u094b \u092e\u0947\u0930\u0947 \u0938\u092a\u0928\u094b\u0902 \u0938\u0947 \u092d\u0940 \u091c\u093c\u094d\u092f\u093e\u0926\u093e \u0916\u093c\u0942\u092c\u0938\u0942\u0930\u0924 \u0939\u0948\u0964 \u092e\u0948\u0902 \u0907\u0938\u0915\u0947 \u0932\u093e\u092f\u0915 \u0928\u0939\u0940\u0902\u0964",tts:"hi-IN"},
+    {id:"e26",title:"All of Me",artist:"John Legend",lyrics:"\u092e\u0947\u0930\u093e \u0938\u093e\u0930\u093e \u092a\u094d\u092f\u093e\u0930 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u093e\u0930\u0947 \u092a\u094d\u092f\u093e\u0930 \u0915\u0947 \u0932\u093f\u090f\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0939\u0930 \u0915\u092e\u091c\u093c\u094b\u0930\u0940 \u092e\u0941\u091d\u0947 \u0914\u0930 \u0926\u0940\u0935\u093e\u0928\u093e \u092c\u0928\u093e\u0924\u0940 \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e27",title:"Levitating",artist:"Dua Lipa",lyrics:"\u0905\u0917\u0930 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0932\u0917\u0924\u093e \u0939\u0948 \u0915\u093f \u092e\u0948\u0902 \u0938\u0941\u0902\u0926\u0930 \u0939\u0942\u0901, \u0924\u094b \u0930\u0941\u0915\u094b \u091c\u092c \u0924\u0915 \u092e\u0948\u0902 \u0924\u093e\u0930\u094b\u0902 \u092e\u0947\u0902 \u0928\u093e\u091a\u0942\u0901\u0964 \u092e\u0948\u0902 \u0939\u0935\u093e \u092e\u0947\u0902 \u0924\u0948\u0930 \u0930\u0939\u0940 \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e28",title:"Watermelon Sugar",artist:"Harry Styles",lyrics:"\u0924\u0930\u092c\u0942\u091c\u093c \u0915\u0940 \u092e\u093f\u0920\u093e\u0938 \u090a\u0901\u091a\u0940\u0964 \u0917\u0930\u094d\u092e\u093f\u092f\u094b\u0902 \u0915\u0940 \u0936\u093e\u092e \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0938\u093e\u0925, \u092f\u0939\u0940 \u0938\u092c \u0915\u0941\u091b \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e29",title:"Stay",artist:"The Kid LAROI & Justin Bieber",lyrics:"\u092e\u0941\u091d\u0947 \u092a\u0924\u093e \u0939\u0948 \u0915\u093f \u092e\u0948\u0902\u0928\u0947 \u0917\u0932\u0924\u0940 \u0915\u0940\u0964 \u0915\u0943\u092a\u092f\u093e \u092e\u0924 \u091c\u093e\u0913, \u092e\u0948\u0902 \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901 \u0915\u093f \u0924\u0941\u092e \u0930\u0939\u094b\u0964",tts:"hi-IN"},
+    {id:"e30",title:"As It Was",artist:"Harry Styles",lyrics:"\u091a\u0940\u091c\u093c\u0947\u0902 \u092a\u0939\u0932\u0947 \u091c\u0948\u0938\u0940 \u0928\u0939\u0940\u0902 \u0930\u0939\u0940\u0902\u0964 \u0938\u092c \u092c\u0926\u0932 \u0917\u092f\u093e \u0939\u0948, \u0932\u0947\u0915\u093f\u0928 \u092e\u0948\u0902 \u0905\u092d\u0940 \u092d\u0940 \u0924\u0941\u092e\u094d\u0939\u0947\u0902 \u0922\u0942\u0901\u0922 \u0930\u0939\u093e \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e31",title:"Anti-Hero",artist:"Taylor Swift",lyrics:"\u092f\u0939 \u092e\u0948\u0902 \u0939\u0942\u0901, \u0928\u092e\u0938\u094d\u0924\u0947\u0964 \u092e\u0948\u0902 \u0938\u092e\u0938\u094d\u092f\u093e \u0939\u0942\u0901\u0964 \u092e\u0948\u0902 \u0916\u0941\u0926 \u0915\u093e \u0926\u0941\u0936\u094d\u092e\u0928 \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e32",title:"Drivers License",artist:"Olivia Rodrigo",lyrics:"\u092e\u0948\u0902\u0928\u0947 \u0917\u093e\u0921\u093c\u0940 \u091a\u0932\u093e\u0928\u0947 \u0915\u093e \u0932\u093e\u0907\u0938\u0947\u0902\u0938 \u0932\u0947 \u0932\u093f\u092f\u093e\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0940 \u0917\u0932\u0940 \u0938\u0947 \u0917\u0941\u091c\u093c\u0930\u0940 \u0914\u0930 \u0930\u094b\u0924\u0940 \u0930\u0939\u0940\u0964",tts:"hi-IN"},
+    {id:"e33",title:"Dynamite",artist:"BTS",lyrics:"\u0915\u094d\u092f\u094b\u0902\u0915\u093f \u092e\u0948\u0902 \u0930\u093e\u0924 \u092e\u0947\u0902 \u091a\u092e\u0915\u0924\u093e \u0939\u0942\u0901\u0964 \u0921\u093e\u092f\u0928\u093e\u092e\u093e\u0907\u091f \u091c\u0948\u0938\u093e\u0964 \u0926\u093f\u0928 \u092f\u093e \u0930\u093e\u0924, \u0906\u0938\u092e\u093e\u0928 \u091a\u092e\u0915 \u0930\u0939\u093e \u0939\u0948\u0964",tts:"hi-IN"},
+    {id:"e34",title:"Heat Waves",artist:"Glass Animals",lyrics:"\u0915\u092d\u0940-\u0915\u092d\u0940 \u092e\u0941\u091d\u0947 \u0917\u0930\u094d\u092e\u0940 \u0915\u0940 \u0932\u0939\u0930\u0947\u0902 \u092e\u0939\u0938\u0942\u0938 \u0939\u094b\u0924\u0940 \u0939\u0948\u0902 \u091c\u094b \u092c\u0940\u091a \u0915\u0940 \u0930\u093e\u0924 \u092e\u0947\u0902 \u092d\u0940 \u092e\u0947\u0930\u093e \u092a\u0940\u091b\u093e \u0915\u0930\u0924\u0940 \u0939\u0948\u0902\u0964",tts:"hi-IN"},
+    {id:"e35",title:"Flowers",artist:"Miley Cyrus",lyrics:"\u092e\u0948\u0902 \u0916\u0941\u0926 \u0915\u0947 \u0932\u093f\u090f \u092b\u0942\u0932 \u0916\u0930\u0940\u0926 \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964 \u0905\u092a\u0928\u093e \u0928\u093e\u092e \u092c\u0930\u094d\u092b \u092e\u0947\u0902 \u0932\u093f\u0916 \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964 \u0905\u0915\u0947\u0932\u0947 \u0928\u093e\u091a \u0938\u0915\u0924\u0940 \u0939\u0942\u0901\u0964",tts:"hi-IN"},
+    {id:"e36",title:"Peaches",artist:"Justin Bieber",lyrics:"\u092e\u0941\u091d\u0947 \u091c\u0949\u0930\u094d\u091c\u093f\u092f\u093e \u0938\u0947 \u0906\u0921\u093c\u0942 \u091a\u093e\u0939\u093f\u090f\u0964 \u092e\u0941\u091d\u0947 \u0915\u0948\u0932\u093f\u092b\u093c\u094b\u0930\u094d\u0928\u093f\u092f\u093e \u0938\u0947 \u092a\u094d\u092f\u093e\u0930 \u091a\u093e\u0939\u093f\u090f\u0964 \u0924\u0941\u092e \u092e\u0947\u0930\u0940 \u0927\u0942\u092a \u0939\u094b\u0964",tts:"hi-IN"},
+    {id:"e37",title:"Cruel Summer",artist:"Taylor Swift",lyrics:"\u092f\u0939 \u090f\u0915 \u0915\u094d\u0930\u0942\u0930 \u0917\u0930\u094d\u092e\u0940 \u0925\u0940\u0964 \u0939\u092e \u0926\u094b\u0928\u094b\u0902 \u091c\u093e\u0928\u0924\u0947 \u0925\u0947 \u0915\u093f \u092f\u0939 \u0916\u0924\u094d\u092e \u0939\u094b\u0917\u093e, \u092b\u093f\u0930 \u092d\u0940 \u0939\u092e\u0928\u0947 \u0928\u093e\u091f\u0915 \u091c\u093e\u0930\u0940 \u0930\u0916\u093e\u0964",tts:"hi-IN"},
+    {id:"e38",title:"Starboy",artist:"The Weeknd",lyrics:"\u092e\u0948\u0902 \u090f\u0915 \u0938\u093f\u0924\u093e\u0930\u093e \u0932\u0921\u093c\u0915\u093e \u0939\u0942\u0901\u0964 \u0928\u091c\u093c\u0930 \u0932\u0917\u0928\u0947 \u0938\u0947 \u092c\u091a\u094b, \u0907\u0938 \u091a\u092e\u0915 \u0938\u0947 \u0905\u0902\u0927\u0947 \u0939\u094b \u091c\u093e\u0913\u0917\u0947\u0964",tts:"hi-IN"},
+    {id:"e39",title:"Closer",artist:"The Chainsmokers",lyrics:"\u0939\u092e \u0915\u093e\u0930 \u0915\u0940 \u092a\u093f\u091b\u0932\u0940 \u0938\u0940\u091f \u092a\u0930 \u0939\u0948\u0902\u0964 \u0924\u0941\u092e\u094d\u0939\u093e\u0930\u0947 \u0915\u0930\u0940\u092c \u0906\u0928\u093e \u091a\u093e\u0939\u0924\u093e \u0939\u0942\u0901, \u091a\u093e\u0930 \u0938\u093e\u0932 \u092c\u093e\u0926 \u092d\u0940\u0964",tts:"hi-IN"},
+    {id:"e40",title:"God's Plan",artist:"Drake",lyrics:"\u092f\u0939 \u092d\u0917\u0935\u093e\u0928 \u0915\u0940 \u092f\u094b\u091c\u0928\u093e \u0939\u0948\u0964 \u092c\u0941\u0930\u0940 \u091a\u0940\u091c\u093c\u0947\u0902 \u0905\u091a\u094d\u091b\u0940 \u091a\u0940\u091c\u093c\u094b\u0902 \u092e\u0947\u0902 \u092c\u0926\u0932 \u091c\u093e\u0924\u0940 \u0939\u0948\u0902\u0964 \u0909\u0938\u0928\u0947 \u092e\u0941\u091d\u0947 \u092c\u091a\u093e \u0932\u093f\u092f\u093e\u0964",tts:"hi-IN"}
   ]
 };
 
-/* ===== GAME CONFIG ===== */
-const ROUNDS_PER_GAME = 10;
-const OPTIONS_PER_ROUND = 6;
-const TIMER_SECONDS = 18;
-const RECENT_MEMORY = 20;
+const CFG = { ROUNDS:10, OPTS:6, TIMER:18, MEMORY:20 };
+const CAT_NAMES = { hi:"Hindi", en:"English", mix:"Mixed" };
+
+/* ===== AUDIO ENGINE ===== */
+const SFX = (() => {
+  let ctx;
+  function getCtx() { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; }
+  function tone(freq, dur, type, vol) {
+    try {
+      const c = getCtx(), o = c.createOscillator(), g = c.createGain();
+      o.type = type || "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || .12, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, c.currentTime + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime + dur);
+    } catch(e) {}
+  }
+  return {
+    correct() { tone(523,.08,"sine",.15); setTimeout(()=>tone(659,.08,"sine",.15),80); setTimeout(()=>tone(784,.15,"sine",.12),160); },
+    wrong() { tone(200,.15,"sawtooth",.08); setTimeout(()=>tone(180,.2,"sawtooth",.06),100); },
+    tick() { tone(800,.04,"sine",.06); },
+    timeout() { tone(300,.3,"triangle",.08); setTimeout(()=>tone(250,.4,"triangle",.06),200); },
+    click() { tone(600,.03,"sine",.05); },
+    reveal() { tone(440,.06,"sine",.08); setTimeout(()=>tone(550,.06,"sine",.08),60); }
+  };
+})();
 
 /* ===== STATE ===== */
-let state = {
-  screen: "menu",
-  category: "hi",
-  questions: [],
-  qIndex: 0,
-  score: 0,
-  streak: 0,
-  bestStreak: 0,
-  lastPts: 0,
-  qStart: 0,
-  selected: null,
-  hintUsed: false,
-  timerLeft: TIMER_SECONDS,
-  correctCount: 0,
-  hintCount: 0,
-  fastCount: 0,
-  results: [],
-  isSpeaking: false,
-  highScore: 0,
-  recentIds: []
+const S = {
+  cat:"hi", qs:[], qi:0, score:0, streak:0, bStreak:0, lastPts:0,
+  qStart:0, sel:null, hintUsed:false, timer:CFG.TIMER,
+  correct:0, hints:0, fast:0, results:[], speaking:false,
+  recent:[], skipTimer:null
 };
+let timerIv = null, voices = [], advanceTimer = null;
 
-let timerInterval = null;
-let voices = [];
-
-/* ===== INIT ===== */
-function init() {
-  try { state.highScore = parseInt(localStorage.getItem("ll_highscore") || "0"); } catch(e) { state.highScore = 0; }
-  updateHighScoreBadge();
-  loadVoices();
-  window.speechSynthesis.onvoiceschanged = loadVoices;
+/* ===== HELPERS ===== */
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=0|Math.random()*(i+1);[b[i],b[j]]=[b[j],b[i]]}return b}
+function snippet(lyrics){
+  const c=lyrics.split(/[.!?\u0964]+/).map(s=>s.trim()).filter(Boolean);
+  if(c.length<=2) return lyrics;
+  const st=0|Math.random()*(c.length-1), sz=Math.random()>.5?2:1;
+  return c.slice(st,st+sz).join(". ")+".";
 }
+function pool(cat){return cat==="mix"?[...SONGS.hi,...SONGS.en]:SONGS[cat]}
 
-function loadVoices() {
-  voices = window.speechSynthesis.getVoices();
-}
-
-/* ===== UTILS ===== */
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function getLyricSnippet(lyrics) {
-  const chunks = lyrics.split(/[.!?\u0964]+/).map(s => s.trim()).filter(Boolean);
-  if (chunks.length <= 2) return lyrics;
-  const start = Math.floor(Math.random() * (chunks.length - 1));
-  const size = Math.random() > 0.5 ? 2 : 1;
-  return chunks.slice(start, start + size).join(". ") + ".";
-}
-
-function getSongsForCategory(cat) {
-  if (cat === "mix") return [...SONGS.hi, ...SONGS.en];
-  return SONGS[cat];
-}
-
-function $(id) { return document.getElementById(id); }
-
-/* ===== HIGH SCORE ===== */
-function updateHighScoreBadge() {
-  const badge = $("highScoreBadge");
-  if (state.highScore > 0) {
-    badge.textContent = "Personal Best: " + state.highScore + " pts";
-    badge.classList.remove("hidden");
-  } else {
-    badge.classList.add("hidden");
-  }
-}
+function hsKey(cat){return "ll_hs_"+cat}
+function getHS(cat){try{return parseInt(localStorage.getItem(hsKey(cat))||"0")}catch(e){return 0}}
+function setHS(cat,v){try{localStorage.setItem(hsKey(cat),String(v))}catch(e){}}
+function bestHS(){return Math.max(getHS("hi"),getHS("en"),getHS("mix"))}
 
 /* ===== SCREENS ===== */
-function showMenu() {
-  window.speechSynthesis.cancel();
-  state.isSpeaking = false;
-  clearInterval(timerInterval);
-  state.screen = "menu";
-  $("menu").style.display = "";
-  $("game").style.display = "none";
-  $("end").style.display = "none";
-  document.body.className = "";
-  updateHighScoreBadge();
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $(id).classList.add("active");
+  $(id).style.animation="none";$(id).offsetHeight;$(id).style.animation="fadeIn .45s ease-out both";
 }
 
-function showGame() {
-  state.screen = "playing";
-  $("menu").style.display = "none";
-  $("game").style.display = "";
-  $("end").style.display = "none";
-  const themeMap = { hi: "theme-hindi", en: "theme-english", mix: "theme-mixed" };
-  document.body.className = themeMap[state.category] || "";
-}
+/* ===== GAME OBJECT ===== */
+const G = {
+  toMenu(){
+    speechSynthesis.cancel(); S.speaking=false;
+    clearInterval(timerIv); clearTimeout(advanceTimer); clearTimeout(S.skipTimer);
+    document.body.className="";
+    showScreen("menu");
+    const best=bestHS();
+    if(best>0){$("hsBadgeText").textContent="Best: "+best+" pts";$("hsBadge").classList.remove("hidden")}
+    else $("hsBadge").classList.add("hidden");
+  },
 
-function showEnd() {
-  state.screen = "end";
-  $("menu").style.display = "none";
-  $("game").style.display = "none";
-  $("end").style.display = "";
-  renderEndScreen();
-}
+  start(cat){
+    SFX.click();
+    S.cat=cat;
+    const p=pool(cat);
+    const fresh=shuffle(p.filter(s=>!S.recent.includes(s.id)));
+    const old=shuffle(p.filter(s=>S.recent.includes(s.id)));
+    const sel=[...fresh,...old].slice(0,Math.min(CFG.ROUNDS,p.length));
 
-/* ===== START GAME ===== */
-function startGame(cat) {
-  state.category = cat;
-  const pool = getSongsForCategory(cat);
-  const fresh = shuffle(pool.filter(s => !state.recentIds.includes(s.id)));
-  const old = shuffle(pool.filter(s => state.recentIds.includes(s.id)));
-  const combined = [...fresh, ...old];
-  const selected = combined.slice(0, Math.min(ROUNDS_PER_GAME, combined.length));
+    S.qs=sel.map(song=>{
+      const wrong=shuffle(p.filter(s=>s.id!==song.id)).slice(0,CFG.OPTS-1).map(s=>s.title);
+      return {song, opts:shuffle([song.title,...wrong]), prompt:snippet(song.lyrics)};
+    });
+    S.recent=[...S.recent,...sel.map(s=>s.id)].slice(-CFG.MEMORY);
+    S.qi=0;S.score=0;S.streak=0;S.bStreak=0;S.lastPts=0;S.sel=null;
+    S.hintUsed=false;S.timer=CFG.TIMER;S.correct=0;S.hints=0;S.fast=0;S.results=[];S.speaking=false;
+    S.qStart=Date.now();
 
-  state.questions = selected.map(song => {
-    const sameCat = pool.filter(s => s.id !== song.id);
-    const wrongOptions = shuffle(sameCat).slice(0, OPTIONS_PER_ROUND - 1).map(s => s.title);
-    return {
-      song,
-      options: shuffle([song.title, ...wrongOptions]),
-      prompt: getLyricSnippet(song.lyrics)
-    };
-  });
+    document.body.className="theme-"+cat;
+    showScreen("game");
+    this._render();
+    this._startTimer();
+    setTimeout(()=>this._autoPlay(),600);
+  },
 
-  state.recentIds = [...state.recentIds, ...selected.map(s => s.id)].slice(-RECENT_MEMORY);
-  state.qIndex = 0;
-  state.score = 0;
-  state.streak = 0;
-  state.bestStreak = 0;
-  state.lastPts = 0;
-  state.selected = null;
-  state.hintUsed = false;
-  state.timerLeft = TIMER_SECONDS;
-  state.correctCount = 0;
-  state.hintCount = 0;
-  state.fastCount = 0;
-  state.results = [];
-  state.isSpeaking = false;
-  state.qStart = Date.now();
+  _render(){
+    const q=S.qs[S.qi]; if(!q)return;
+    $("gScore").textContent=S.score;
+    const sv=$("gStreak");
+    sv.textContent=S.streak;
+    if(S.streak>=3) sv.innerHTML=S.streak+'<span class="streak-fire">\ud83d\udd25</span>';
+    else sv.textContent=S.streak;
+    $("gRound").textContent=S.qi+1;
+    $("gTotal").textContent=S.qs.length;
+    $("hintR").classList.add("hidden");
+    $("toutM").classList.add("hidden");
+    $("skipB").classList.add("hidden");
+    $("hintB").disabled=false;
 
-  showGame();
-  renderQuestion();
-  startTimer();
-}
-
-/* ===== TIMER ===== */
-function startTimer() {
-  clearInterval(timerInterval);
-  state.timerLeft = TIMER_SECONDS;
-  updateTimerBar();
-  timerInterval = setInterval(() => {
-    state.timerLeft--;
-    updateTimerBar();
-    if (state.timerLeft <= 0) {
-      clearInterval(timerInterval);
-      handleTimeout();
-    }
-  }, 1000);
-}
-
-function updateTimerBar() {
-  const bar = $("timerBar");
-  const frac = state.timerLeft / TIMER_SECONDS;
-  bar.style.width = (frac * 100) + "%";
-  bar.className = "timer-bar " + (state.timerLeft > 10 ? "green" : state.timerLeft > 5 ? "yellow" : "red");
-}
-
-/* ===== RENDER QUESTION ===== */
-function renderQuestion() {
-  const q = state.questions[state.qIndex];
-  if (!q) return;
-
-  $("scoreVal").textContent = state.score;
-  $("streakVal").textContent = state.streak;
-  $("roundVal").textContent = state.qIndex + 1;
-  $("totalRounds").textContent = state.questions.length;
-
-  $("hintReveal").classList.add("hidden");
-  $("timeoutMsg").classList.add("hidden");
-  $("hintBtn").disabled = false;
-  $("infoText").innerHTML = state.lastPts > 0
-    ? "<span style='color:#86efac;font-weight:700'>+" + state.lastPts + " points" + (state.streak > 1 ? " (" + state.streak + "x streak!)" : "") + "</span>"
-    : "Answer quickly and keep your streak alive for bonus points.";
-
-  updateSpeakUI(false);
-
-  const grid = $("optionsGrid");
-  grid.innerHTML = "";
-  q.options.forEach(opt => {
-    const btn = document.createElement("button");
-    btn.className = "option-btn";
-    btn.innerHTML = '<span class="opt-text">' + escHTML(opt) + '</span><span class="icon"></span>';
-    btn.onclick = () => handleGuess(opt);
-    grid.appendChild(btn);
-  });
-}
-
-function escHTML(s) {
-  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
-
-/* ===== SPEAK ===== */
-function toggleSpeak() {
-  if (state.isSpeaking) {
-    stopSpeaking();
-  } else {
-    speakLyrics();
-  }
-}
-
-function speakLyrics() {
-  window.speechSynthesis.cancel();
-  const q = state.questions[state.qIndex];
-  if (!q) return;
-
-  const utt = new SpeechSynthesisUtterance(q.prompt);
-  const v = findVoice(q.song.ttsLang);
-  if (v) utt.voice = v;
-  else utt.lang = q.song.ttsLang;
-  utt.rate = 0.82 + Math.random() * 0.2;
-  utt.pitch = 0.95 + Math.random() * 0.25;
-  utt.onstart = () => updateSpeakUI(true);
-  utt.onend = () => updateSpeakUI(false);
-  utt.onerror = () => updateSpeakUI(false);
-  window.speechSynthesis.speak(utt);
-}
-
-function stopSpeaking() {
-  window.speechSynthesis.cancel();
-  updateSpeakUI(false);
-}
-
-function findVoice(langCode) {
-  let v = voices.find(v => v.lang === langCode);
-  if (v) return v;
-  const prefix = langCode.split("-")[0];
-  return voices.find(v => v.lang.startsWith(prefix)) || null;
-}
-
-function updateSpeakUI(speaking) {
-  state.isSpeaking = speaking;
-  const btn = $("playBtn");
-  $("playIcon").style.display = speaking ? "none" : "";
-  $("pauseIcon").style.display = speaking ? "" : "none";
-  $("bars").style.display = speaking ? "flex" : "none";
-  btn.classList.toggle("active", speaking);
-  $("playerLabel").textContent = speaking ? "Speaking Translated Lyrics..." : "Tap to Listen";
-  $("playerSublabel").textContent = speaking ? "" : "Each replay has slight voice variation";
-  if (speaking) $("playerLabel").style.opacity = "1";
-}
-
-/* ===== HINT ===== */
-function useHint() {
-  if (state.hintUsed || state.selected) return;
-  state.hintUsed = true;
-  state.hintCount++;
-  $("hintBtn").disabled = true;
-  const q = state.questions[state.qIndex];
-  $("hintReveal").innerHTML = "Artist: <strong>" + escHTML(q.song.artist) + "</strong> <span style='color:rgba(253,230,138,.5);margin-left:.5rem'>(-5 pts if correct)</span>";
-  $("hintReveal").classList.remove("hidden");
-}
-
-/* ===== GUESS ===== */
-function handleGuess(guess) {
-  const q = state.questions[state.qIndex];
-  if (!q || state.selected) return;
-
-  state.selected = guess;
-  stopSpeaking();
-  clearInterval(timerInterval);
-  $("hintBtn").disabled = true;
-
-  const isCorrect = guess === q.song.title;
-  const btns = $("optionsGrid").children;
-  for (let b of btns) {
-    const text = b.querySelector(".opt-text").textContent;
-    b.disabled = true;
-    if (text === q.song.title) {
-      b.classList.add("correct");
-      b.querySelector(".icon").innerHTML = svgCheck();
-    } else if (text === guess && !isCorrect) {
-      b.classList.add("wrong");
-      b.querySelector(".icon").innerHTML = svgX();
+    if(S.lastPts>0){
+      $("infoT").innerHTML='<span style="color:#86efac;font-weight:700">+'+S.lastPts+' pts'+(S.streak>1?' \u00b7 '+S.streak+'x streak':'')+'</span>';
     } else {
-      b.classList.add("dimmed");
+      $("infoT").textContent="Answer quickly for bonus points.";
     }
-  }
+    this._speakUI(false);
 
-  if (isCorrect) {
-    const elapsed = Date.now() - state.qStart;
-    const ns = state.streak + 1;
-    const streakBonus = Math.min((ns - 1) * 3, 15);
-    const speedBonus = Math.max(0, 8 - Math.floor(elapsed / 2000));
-    const hintPen = state.hintUsed ? 5 : 0;
-    const timerBonus = state.timerLeft >= 12 ? 3 : 0;
-    const pts = Math.max(5, 10 + streakBonus + speedBonus + timerBonus - hintPen);
+    const g=$("optsG"); g.innerHTML="";
+    q.opts.forEach((opt,i)=>{
+      const b=document.createElement("button");
+      b.className="opt";
+      b.setAttribute("aria-label","Option "+(i+1)+": "+opt);
+      b.innerHTML='<span class="ot">'+esc(opt)+'</span><span class="ic"></span><span class="kb">'+(i+1)+'</span>';
+      b.onclick=()=>this.guess(opt);
+      g.appendChild(b);
+    });
+  },
 
-    state.score += pts;
-    state.lastPts = pts;
-    state.streak = ns;
-    state.bestStreak = Math.max(state.bestStreak, ns);
-    state.correctCount++;
-    if (elapsed < 5000) state.fastCount++;
-    state.results.push({ song: q.song.title, artist: q.song.artist, correct: true });
-    fireConfetti();
-  } else {
-    state.streak = 0;
-    state.lastPts = 0;
-    state.results.push({ song: q.song.title, artist: q.song.artist, correct: false, timeout: false });
-  }
+  _startTimer(){
+    clearInterval(timerIv);
+    S.timer=CFG.TIMER; this._drawTimer();
+    timerIv=setInterval(()=>{
+      S.timer--;this._drawTimer();
+      if(S.timer<=5&&S.timer>0) SFX.tick();
+      if(S.timer<=0){clearInterval(timerIv);this._timeout()}
+    },1000);
+  },
+  _drawTimer(){
+    const f=S.timer/CFG.TIMER;
+    const bar=$("tBar");
+    bar.style.width=(f*100)+"%";
+    bar.className="timer-fill "+(S.timer>10?"g":S.timer>5?"y":"r");
+    const num=$("tNum");
+    num.textContent=S.timer;
+    num.classList.toggle("urgent",S.timer<=5);
+  },
 
-  setTimeout(() => advanceRound(), 1800);
-}
+  _autoPlay(){
+    if(S.sel) return;
+    this.speakLyrics();
+  },
 
-function handleTimeout() {
-  const q = state.questions[state.qIndex];
-  if (!q || state.selected) return;
+  toggleSpeak(){
+    if(S.speaking) this.stopSpeak(); else this.speakLyrics();
+  },
+  speakLyrics(){
+    speechSynthesis.cancel();
+    const q=S.qs[S.qi]; if(!q)return;
+    const u=new SpeechSynthesisUtterance(q.prompt);
+    const v=voices.find(v=>v.lang===q.song.tts)||voices.find(v=>v.lang.startsWith(q.song.tts.split("-")[0]));
+    if(v) u.voice=v; else u.lang=q.song.tts;
+    u.rate=.82+Math.random()*.18; u.pitch=.95+Math.random()*.22;
+    u.onstart=()=>this._speakUI(true);
+    u.onend=()=>this._speakUI(false);
+    u.onerror=()=>this._speakUI(false);
+    speechSynthesis.speak(u);
+  },
+  stopSpeak(){speechSynthesis.cancel();this._speakUI(false)},
+  _speakUI(on){
+    S.speaking=on;
+    const v=$("vinyl");
+    v.classList.toggle("on",on);
+    $("icPlay").style.display=on?"none":"";
+    $("icPause").style.display=on?"":"none";
+    $("bars").classList.toggle("on",on);
+    $("pLbl").textContent=on?"Speaking Translated Lyrics...":"Tap to Listen";
+    $("pSub").textContent=on?"":"Press Space or tap the circle";
+  },
 
-  state.selected = "__timeout__";
-  stopSpeaking();
-  state.streak = 0;
-  state.lastPts = 0;
-  state.results.push({ song: q.song.title, artist: q.song.artist, correct: false, timeout: true });
+  hint(){
+    if(S.hintUsed||S.sel) return;
+    SFX.reveal();
+    S.hintUsed=true; S.hints++;
+    $("hintB").disabled=true;
+    const q=S.qs[S.qi];
+    $("hintR").innerHTML='Artist: <strong>'+esc(q.song.artist)+'</strong> <span style="color:rgba(253,230,138,.4);margin-left:.4rem;font-weight:500">(-5 pts if correct)</span>';
+    $("hintR").classList.remove("hidden");
+  },
 
-  const btns = $("optionsGrid").children;
-  for (let b of btns) {
-    const text = b.querySelector(".opt-text").textContent;
-    b.disabled = true;
-    if (text === q.song.title) {
-      b.classList.add("correct");
-      b.querySelector(".icon").innerHTML = svgCheck();
+  guess(g){
+    const q=S.qs[S.qi]; if(!q||S.sel) return;
+    S.sel=g; this.stopSpeak(); clearInterval(timerIv);
+    $("hintB").disabled=true;
+
+    const ok=g===q.song.title;
+    const btns=$("optsG").children;
+    for(const b of btns){
+      const t=b.querySelector(".ot").textContent;
+      b.disabled=true;
+      if(t===q.song.title){b.classList.add("ok");b.querySelector(".ic").innerHTML=svgCk()}
+      else if(t===g&&!ok){b.classList.add("no");b.querySelector(".ic").innerHTML=svgX()}
+      else b.classList.add("dim");
+    }
+
+    if(ok){
+      SFX.correct();
+      const el=Date.now()-S.qStart, ns=S.streak+1;
+      const sb=Math.min((ns-1)*3,15), spd=Math.max(0,8-Math.floor(el/2000));
+      const hp=S.hintUsed?5:0, tb=S.timer>=12?3:0;
+      const pts=Math.max(5,10+sb+spd+tb-hp);
+      S.score+=pts; S.lastPts=pts; S.streak=ns;
+      S.bStreak=Math.max(S.bStreak,ns); S.correct++;
+      if(el<5000) S.fast++;
+      S.results.push({song:q.song.title,artist:q.song.artist,correct:true});
+      this._popScore(pts); this._confetti();
+      const sv=$("gScore");sv.textContent=S.score;sv.classList.add("pop");setTimeout(()=>sv.classList.remove("pop"),300);
     } else {
-      b.classList.add("dimmed");
+      SFX.wrong(); S.streak=0; S.lastPts=0;
+      S.results.push({song:q.song.title,artist:q.song.artist,correct:false,timeout:false});
+    }
+    $("skipB").classList.remove("hidden");
+    advanceTimer=setTimeout(()=>this._advance(),2200);
+  },
+
+  _timeout(){
+    const q=S.qs[S.qi]; if(!q||S.sel) return;
+    SFX.timeout(); S.sel="__timeout__"; this.stopSpeak();
+    S.streak=0; S.lastPts=0;
+    S.results.push({song:q.song.title,artist:q.song.artist,correct:false,timeout:true});
+    const btns=$("optsG").children;
+    for(const b of btns){
+      const t=b.querySelector(".ot").textContent;
+      b.disabled=true;
+      if(t===q.song.title){b.classList.add("ok");b.querySelector(".ic").innerHTML=svgCk()}
+      else b.classList.add("dim");
+    }
+    $("hintB").disabled=true;
+    $("toutM").innerHTML='The answer was <strong>'+esc(q.song.title)+'</strong> by '+esc(q.song.artist);
+    $("toutM").classList.remove("hidden");
+    $("skipB").classList.remove("hidden");
+    advanceTimer=setTimeout(()=>this._advance(),2500);
+  },
+
+  skip(){
+    clearTimeout(advanceTimer);
+    this._advance();
+  },
+
+  _advance(){
+    clearTimeout(advanceTimer);
+    $("skipB").classList.add("hidden");
+    if(S.qi<S.qs.length-1){
+      S.qi++; S.sel=null; S.hintUsed=false; S.qStart=Date.now();
+      this._render(); this._startTimer();
+      setTimeout(()=>this._autoPlay(),500);
+    } else {
+      const hs=getHS(S.cat);
+      if(S.score>hs) setHS(S.cat,S.score);
+      this._showEnd();
+    }
+  },
+
+  _popScore(pts){
+    const el=document.createElement("div");
+    el.className="pts-pop";el.textContent="+"+pts;
+    el.style.left="50%";el.style.top="40%";el.style.transform="translateX(-50%)";
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1200);
+  },
+
+  _confetti(){
+    const c=$("confC");c.classList.remove("hidden");c.innerHTML="";
+    const cols=["#FCD34D","#F87171","#60A5FA","#34D399","#A78BFA","#FB923C","#F472B6","#38BDF8"];
+    for(let i=0;i<55;i++){
+      const p=document.createElement("div");p.className="conf";
+      const w=4+Math.random()*6, h=w*(Math.random()>.7?2.5:1);
+      p.style.width=w+"px";p.style.height=h+"px";
+      p.style.left=(50+Math.random()*50-25)+"%";p.style.top="42%";
+      p.style.backgroundColor=cols[0|Math.random()*cols.length];
+      p.style.borderRadius=Math.random()>.5?"50%":"1px";
+      p.style.animationDelay=(Math.random()*.35)+"s";
+      p.style.setProperty("--tx",(Math.random()*600-300)+"px");
+      p.style.setProperty("--ty",(Math.random()*-500-80)+"px");
+      p.style.setProperty("--rot",(Math.random()*1200-600)+"deg");
+      c.appendChild(p);
+    }
+    setTimeout(()=>{c.classList.add("hidden");c.innerHTML=""},2000);
+  },
+
+  _showEnd(){
+    showScreen("end");
+    const mx=S.qs.length*36, pct=mx>0?(S.score/mx)*100:0;
+    const hs=getHS(S.cat), isNew=S.score>0&&S.score>=hs;
+    let rank,msg;
+    if(pct>=90){rank="Translation Master";msg="Your ears are universal!"}
+    else if(pct>=70){rank="Lyric Legend";msg="Truly impressive!"}
+    else if(pct>=50){rank="Melody Detective";msg="Solid performance!"}
+    else if(pct>=30){rank="Casual Crooner";msg="Not bad, keep at it!"}
+    else{rank="Novice Listener";msg="Practice makes perfect!"}
+
+    $("eBadge").classList.toggle("hidden",!isNew);
+    $("eRank").textContent=rank;
+    $("eMsg").textContent="\u201c"+msg+"\u201d";
+    $("eAcc").textContent=Math.round(pct)+"% accuracy \u00b7 "+CAT_NAMES[S.cat]+" mode";
+
+    this._countUp($("eScore"),S.score,1200);
+    $("eCorr").innerHTML=S.correct+'<span style="font-size:.7rem;color:rgba(255,255,255,.25)"> / '+S.qs.length+'</span>';
+    $("eBStr").textContent=S.bStreak;
+    $("eFast").textContent=S.fast;
+    $("eHint").textContent=S.hints;
+
+    const l=$("bdList");l.innerHTML="";
+    S.results.forEach((r,i)=>{
+      const d=document.createElement("div");
+      d.className="rr "+(r.correct?"rr-ok":"rr-no");
+      d.innerHTML='<span class="rr-n">'+(i+1)+'</span>'+
+        (r.correct?'<svg class="rr-i" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+        :'<svg class="rr-i" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>')+
+        '<span class="rr-s">'+esc(r.song)+'</span><span class="rr-a">'+esc(r.artist)+'</span>';
+      l.appendChild(d);
+    });
+    $("eAgain").onclick=()=>this.start(S.cat);
+  },
+
+  _countUp(el,target,dur){
+    const start=performance.now();el.textContent="0";
+    function step(now){
+      const p=Math.min((now-start)/dur,1);
+      const eased=1-Math.pow(1-p,3);
+      el.textContent=Math.round(eased*target);
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  },
+
+  share(){
+    const pct=S.qs.length>0?Math.round((S.correct/S.qs.length)*100):0;
+    const grid=S.results.map(r=>r.correct?"\u2705":"\u274c").join("");
+    const txt="\ud83c\udfb5 Lyrically Lost \ud83c\udf0d\n"+
+      CAT_NAMES[S.cat]+" Mode\n"+
+      "Score: "+S.score+" \u00b7 "+S.correct+"/"+S.qs.length+" ("+pct+"%)\n"+
+      "Streak: "+S.bStreak+"\ud83d\udd25\n"+
+      grid+"\n"+
+      "Can you beat my score?";
+    if(navigator.share){
+      navigator.share({title:"Lyrically Lost",text:txt}).catch(()=>{});
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(txt).then(()=>{
+        const t=$("toast");t.textContent="Copied to clipboard!";t.classList.remove("hidden");
+        setTimeout(()=>t.classList.add("hidden"),2500);
+      }).catch(()=>{});
     }
   }
-  $("hintBtn").disabled = true;
-  $("timeoutMsg").innerHTML = "The answer was <strong>" + escHTML(q.song.title) + "</strong> by " + escHTML(q.song.artist);
-  $("timeoutMsg").classList.remove("hidden");
+};
 
-  setTimeout(() => advanceRound(), 2000);
-}
+/* ===== SVG ===== */
+function svgCk(){return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'}
+function svgX(){return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'}
 
-/* ===== ADVANCE ===== */
-function advanceRound() {
-  if (state.qIndex < state.questions.length - 1) {
-    state.qIndex++;
-    state.selected = null;
-    state.hintUsed = false;
-    state.qStart = Date.now();
-    renderQuestion();
-    startTimer();
-  } else {
-    if (state.score > state.highScore) {
-      state.highScore = state.score;
-      try { localStorage.setItem("ll_highscore", String(state.score)); } catch(e) {}
+/* ===== KEYBOARD ===== */
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA") return;
+  const scr=document.querySelector(".screen.active");
+  if(!scr) return;
+  const sid=scr.id;
+
+  if(sid==="game"){
+    if(e.key===" "||e.key==="Spacebar"){e.preventDefault();G.toggleSpeak();return}
+    if(e.key==="h"||e.key==="H"){G.hint();return}
+    if(e.key==="n"||e.key==="N"||e.key==="Enter"){if(S.sel){G.skip();return}}
+    const n=parseInt(e.key);
+    if(n>=1&&n<=6){
+      const btns=$("optsG").children;
+      if(btns[n-1]&&!btns[n-1].disabled){btns[n-1].click()}
+      return;
     }
-    showEnd();
   }
-}
-
-/* ===== END SCREEN ===== */
-function renderEndScreen() {
-  const maxScore = state.questions.length * 36;
-  const pct = maxScore > 0 ? (state.score / maxScore) * 100 : 0;
-  const isNewHigh = state.score > 0 && state.score >= state.highScore;
-
-  let rank, msg;
-  if (pct >= 90) { rank = "Translation Master"; msg = "Your ears are universal!"; }
-  else if (pct >= 70) { rank = "Lyric Legend"; msg = "Truly impressive!"; }
-  else if (pct >= 50) { rank = "Melody Detective"; msg = "Solid performance!"; }
-  else if (pct >= 30) { rank = "Casual Crooner"; msg = "Not bad, keep at it!"; }
-  else { rank = "Novice Listener"; msg = "Practice makes perfect!"; }
-
-  $("newBestBadge").classList.toggle("hidden", !isNewHigh);
-  $("endRank").textContent = rank;
-  $("endMsg").textContent = '"' + msg + '"';
-  $("endScore").textContent = state.score;
-  $("endCorrect").innerHTML = state.correctCount + '<span style="font-size:.75rem;color:rgba(255,255,255,.3)"> / ' + state.questions.length + '</span>';
-  $("endStreak").textContent = state.bestStreak;
-  $("endFast").textContent = state.fastCount;
-  $("endHints").textContent = state.hintCount;
-
-  const list = $("breakdownList");
-  list.innerHTML = "";
-  state.results.forEach((r, i) => {
-    const row = document.createElement("div");
-    row.className = "round-row " + (r.correct ? "row-ok" : "row-fail");
-    row.innerHTML =
-      '<span class="round-num">' + (i + 1) + '</span>' +
-      (r.correct
-        ? '<svg class="round-icon" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
-        : '<svg class="round-icon" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
-      ) +
-      '<span class="round-song">' + escHTML(r.song) + '</span>' +
-      '<span class="round-artist">' + escHTML(r.artist) + '</span>';
-    list.appendChild(row);
-  });
-
-  $("playAgainBtn").onclick = () => startGame(state.category);
-}
-
-/* ===== CONFETTI ===== */
-function fireConfetti() {
-  const container = $("confettiContainer");
-  container.classList.remove("hidden");
-  container.innerHTML = "";
-  const colors = ["#FCD34D","#F87171","#60A5FA","#34D399","#A78BFA","#FB923C"];
-  for (let i = 0; i < 45; i++) {
-    const p = document.createElement("div");
-    p.className = "confetti-piece";
-    p.style.left = (50 + (Math.random() * 50 - 25)) + "%";
-    p.style.top = "45%";
-    p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-    p.style.animationDelay = (Math.random() * 0.3) + "s";
-    p.style.setProperty("--tx", (Math.random() * 500 - 250) + "px");
-    p.style.setProperty("--ty", (Math.random() * -400 - 100) + "px");
-    p.style.setProperty("--rot", (Math.random() * 1080 - 540) + "deg");
-    container.appendChild(p);
+  if(sid==="end"){
+    if(e.key==="Enter"||e.key===" "){e.preventDefault();G.start(S.cat);return}
+    if(e.key==="Escape"||e.key==="m"||e.key==="M"){G.toMenu();return}
   }
-  setTimeout(() => { container.classList.add("hidden"); container.innerHTML = ""; }, 2000);
-}
+  if(sid==="menu"){
+    if(e.key==="1"){G.start("hi");return}
+    if(e.key==="2"){G.start("en");return}
+    if(e.key==="3"){G.start("mix");return}
+  }
+});
 
-/* ===== SVG HELPERS ===== */
-function svgCheck() {
-  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
-}
-function svgX() {
-  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-}
+/* ===== VINYL KEYBOARD ===== */
+$("vinyl").addEventListener("keydown",e=>{
+  if(e.key===" "||e.key==="Enter"){e.preventDefault();G.toggleSpeak()}
+});
 
-/* ===== GO ===== */
-init();
+/* ===== INIT ===== */
+function loadVoices(){voices=speechSynthesis.getVoices()}
+loadVoices();
+speechSynthesis.onvoiceschanged=loadVoices;
+window.addEventListener("beforeunload",()=>speechSynthesis.cancel());
+G.toMenu();
 </script>
 </body>
 </html>

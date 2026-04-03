@@ -5,6 +5,7 @@ import {
   searchCatalog,
   getById,
 } from './catalog';
+import { sfx } from './sounds';
 
 function formatDimensions(obj: CatalogObject): string {
   const [w, h, d] = obj.dimensions;
@@ -65,7 +66,10 @@ function renderGrid(
         </div>
       `;
 
-      item.addEventListener('click', () => onSelect(obj));
+      item.addEventListener('click', () => {
+        sfx.click();
+        onSelect(obj);
+      });
       gridEl.appendChild(item);
     }
   }
@@ -144,6 +148,18 @@ function createCard(
   return { el: card, state };
 }
 
+/* ── Popular combos ────────────────────────────── */
+
+const POPULAR_COMBOS = [
+  { label: '🏀 Basketballs → 🚌 School Bus', small: 'basketball', large: 'school_bus' },
+  { label: '🍬 M&Ms → 🏡 Tiny House', small: 'mm_candy', large: 'tiny_house' },
+  { label: '⛳ Golf Balls → 🐘 Elephant', small: 'golf_ball', large: 'elephant' },
+  { label: '🧱 Legos → 🚗 Car', small: 'lego_brick', large: 'sedan' },
+  { label: '🌍 Earths → ☀️ Sun', small: 'earth', large: 'sun' },
+];
+
+/* ── Exports ───────────────────────────────────── */
+
 export interface LandingCallbacks {
   onCalculate: (small: CatalogObject, large: CatalogObject) => void;
   onSurprise: () => void;
@@ -159,7 +175,7 @@ export function createLanding(
   setSelections: (smallId: string, largeId: string) => void;
 } {
   const landing = document.createElement('div');
-  landing.className = 'landing';
+  landing.className = 'landing screen-enter';
 
   const title = document.createElement('h1');
   title.className = 'landing-title';
@@ -182,7 +198,7 @@ export function createLanding(
   };
 
   const smallCard = createCard(
-    'How many...',
+    '🔍 How many...',
     'Search objects...',
     'golf_ball',
     (obj) => {
@@ -193,7 +209,7 @@ export function createLanding(
   selectedSmall = smallCard.state.selected;
 
   const largeCard = createCard(
-    '...fit in a...',
+    '📦 ...fit in a...',
     'Search objects...',
     'boeing_747',
     (obj) => {
@@ -204,8 +220,16 @@ export function createLanding(
   selectedLarge = largeCard.state.selected;
 
   row.appendChild(smallCard.el);
+
+  const arrow = document.createElement('div');
+  arrow.className = 'flow-arrow';
+  arrow.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>`;
+  row.appendChild(arrow);
+
   row.appendChild(largeCard.el);
   landing.appendChild(row);
+
+  /* ── Controls ─────────────────────────── */
 
   const controls = document.createElement('div');
   controls.className = 'landing-controls';
@@ -228,6 +252,31 @@ export function createLanding(
   controls.appendChild(surpriseBtn);
 
   landing.appendChild(controls);
+
+  /* ── Popular combos ───────────────────── */
+
+  const popularSection = document.createElement('div');
+  popularSection.className = 'popular-combos';
+
+  const popularLabel = document.createElement('span');
+  popularLabel.className = 'popular-label';
+  popularLabel.textContent = 'Try:';
+  popularSection.appendChild(popularLabel);
+
+  for (const combo of POPULAR_COMBOS) {
+    const chip = document.createElement('button');
+    chip.className = 'combo-chip';
+    chip.textContent = combo.label;
+    chip.addEventListener('click', () => {
+      sfx.click();
+      const s = getById(combo.small);
+      const l = getById(combo.large);
+      if (s && l) callbacks.onCalculate(s, l);
+    });
+    popularSection.appendChild(chip);
+  }
+
+  landing.appendChild(popularSection);
   container.appendChild(landing);
 
   const setSelections = (smallId: string, largeId: string) => {

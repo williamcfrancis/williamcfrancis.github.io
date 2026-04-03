@@ -32,22 +32,27 @@ function getDriftReaction(drift: number): string {
   return DRIFT_REACTIONS[DRIFT_REACTIONS.length - 1].messages[0];
 }
 
+const prefersReducedMotion = () =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 export function createJourneyScreen(
   container: HTMLElement,
   sentence: string,
   chain: Language[],
   onComplete: (result: TranslationChain) => void,
+  onCancel?: () => void,
 ): void {
   const totalSteps = chain.length - 1;
   let cancelled = false;
+  let skipRequested = false;
 
   container.innerHTML = `
-    <div class="journey">
+    <div class="journey" role="region" aria-label="Translation journey" aria-live="polite">
       <div class="drift-meter">
         <div class="drift-label">
           <span id="drift-pct">0%</span> drift
         </div>
-        <div class="drift-bar">
+        <div class="drift-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
           <div class="drift-fill" id="drift-fill"></div>
         </div>
         <div class="drift-reaction hidden" id="drift-reaction"></div>
@@ -90,11 +95,21 @@ export function createJourneyScreen(
 
       <div class="journey-footer">
         <span id="step-counter">0</span> / ${totalSteps} translations
+        <div class="journey-controls">
+          <button class="btn-ghost btn-small" id="skip-btn" aria-label="Skip to results">Skip to end</button>
+          <button class="btn-ghost btn-small" id="cancel-btn" aria-label="Cancel and go back">&larr; Cancel</button>
+        </div>
+      </div>
+
+      <div class="journey-error hidden" id="journey-error" role="alert">
+        <span class="error-text" id="error-text"></span>
+        <button class="btn-small btn-secondary" id="retry-btn">Retry</button>
       </div>
     </div>
   `;
 
   const driftFill = container.querySelector('#drift-fill') as HTMLElement;
+  const driftBar = container.querySelector('.drift-bar') as HTMLElement;
   const driftPct = container.querySelector('#drift-pct') as HTMLElement;
   const driftReaction = container.querySelector('#drift-reaction') as HTMLElement;
   const ttext = container.querySelector('#ttext') as HTMLElement;
@@ -106,9 +121,54 @@ export function createJourneyScreen(
   const langName = container.querySelector('#lang-name') as HTMLElement;
   const stepBadge = container.querySelector('#step-badge') as HTMLElement;
   const stepCounter = container.querySelector('#step-counter') as HTMLElement;
+  const errorEl = container.querySelector('#journey-error') as HTMLElement;
+  const errorText = container.querySelector('#error-text') as HTMLElement;
+
+  container.querySelector('#cancel-btn')!.addEventListener('click', () => {
+    cancelled = true;
+    onCancel?.();
+  });
+
+  container.querySelector('#skip-btn')!.addEventListener('click', () => {
+    skipRequested = true;
+  });
 
   const stepBuffer: TranslationStep[] = [];
   let producerDone = false;
+  let retryResolve: (() => void) | null = null;
+
+  function showError(msg: string): Promise<void> {
+    return new Promise(resolve => {
+      errorText.textContent = msg;
+      errorEl.classList.remove('hidden');
+      retryResolve = () => {
+        errorEl.classList.add('hidden');
+        resolve();
+      };
+    });
+  }
+
+  container.querySelector('#retry-btn')!.addEventListener('click', () => {
+    retryResolve?.();
+  });
+
+  async function translateWithRetry(
+    text: string, src: string, tgt: string, maxAttempts = 3,
+  ) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (cancelled) throw new Error('cancelled');
+      try {
+        return await translateText(text, src, tgt);
+      } catch (err) {
+        if (attempt === maxAttempts) {
+          await showError(`Translation failed. Check your connection.`);
+          return translateText(text, src, tgt);
+        }
+        await sleep(1000 * attempt);
+      }
+    }
+    throw new Error('unreachable');
+  }
 
   async function produce() {
     let currentText = sentence;
@@ -119,7 +179,7 @@ export function createJourneyScreen(
       const tgt = chain[i + 1];
 
       try {
-        const fwd = await translateText(currentText, src.code, tgt.code);
+        const fwd = await translateWithRetry(currentText, src.code, tgt.code);
         currentText = fwd.translatedText;
 
         const step: TranslationStep = {
@@ -144,6 +204,7 @@ export function createJourneyScreen(
             .catch(() => {});
         }
       } catch (err) {
+        if (cancelled) return;
         console.error(`Step ${i} failed:`, err);
         stepBuffer.push({
           language: tgt,
@@ -165,11 +226,15 @@ export function createJourneyScreen(
       }
       if (stepBuffer.length <= i) break;
 
-      await animateStep(stepBuffer[i], i);
+      if (skipRequested) {
+        fastForwardStep(stepBuffer[i], i);
+      } else {
+        await animateStep(stepBuffer[i], i);
+      }
     }
 
     if (cancelled) return;
-    await sleep(800);
+    await sleep(skipRequested ? 200 : 800);
 
     const steps = stepBuffer.slice();
     onComplete({
@@ -189,18 +254,47 @@ export function createJourneyScreen(
     }
   }
 
+  function fastForwardStep(step: TranslationStep, idx: number) {
+    const station = container.querySelector(`#st-${idx + 1}`) as HTMLElement;
+    const prevStation = container.querySelector(`#st-${idx}`) as HTMLElement;
+    const node = station.querySelector('.station-node')!;
+
+    prevStation.classList.add('completed');
+    const prevCheck = prevStation.querySelector('.station-check');
+    if (prevCheck) prevCheck.classList.remove('hidden');
+    node.classList.add('done');
+    station.classList.add('completed');
+    station.querySelector('.station-check')!.classList.remove('hidden');
+
+    langFlag.textContent = countryCodeToFlag(step.language.countryCode);
+    langName.textContent = step.language.name;
+    stepBadge.textContent = `${idx + 1} / ${totalSteps}`;
+    ttext.textContent = step.text;
+    stepCounter.textContent = String(idx + 1);
+
+    const drift = step.driftScore;
+    driftFill.style.width = `${drift * 100}%`;
+    driftPct.textContent = `${Math.round(drift * 100)}%`;
+  }
+
+  const isLastStepEnglish = chain[chain.length - 1]?.code === 'en';
+
   async function animateStep(step: TranslationStep, idx: number) {
     const station = container.querySelector(`#st-${idx + 1}`) as HTMLElement;
     const prevStation = container.querySelector(`#st-${idx}`) as HTMLElement;
+    const isLastStep = idx === totalSteps - 1;
+    const reduced = prefersReducedMotion();
 
     station.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 
     langFlag.textContent = countryCodeToFlag(step.language.countryCode);
     langName.textContent = step.language.name;
     stepBadge.textContent = `${idx + 1} / ${totalSteps}`;
-    langFlag.classList.remove('bounce');
-    void langFlag.offsetWidth;
-    langFlag.classList.add('bounce');
+    if (!reduced) {
+      langFlag.classList.remove('bounce');
+      void langFlag.offsetWidth;
+      langFlag.classList.add('bounce');
+    }
 
     const node = station.querySelector('.station-node')!;
     node.classList.add('active');
@@ -210,32 +304,43 @@ export function createJourneyScreen(
     translit.classList.add('hidden');
     backTrans.classList.add('hidden');
 
-    await sleep(700);
+    await sleep(reduced ? 200 : 700);
 
     shimmer.classList.add('hidden');
     ttext.classList.remove('fading');
     ttext.dir = step.language.rtl ? 'rtl' : 'ltr';
 
-    await typewriter(ttext, step.text);
+    if (reduced) {
+      ttext.textContent = step.text;
+    } else {
+      await typewriter(ttext, step.text);
+    }
 
     if (step.transliteration && step.transliteration !== step.text) {
       translit.textContent = step.transliteration;
       translit.classList.remove('hidden');
     }
 
-    await waitForBackTranslation(step, 2000);
-
-    if (step.backTranslation) {
-      backTransText.textContent = '';
-      backTrans.classList.remove('hidden');
-      backTrans.classList.remove('back-trans-pop');
-      void backTrans.offsetWidth;
-      backTrans.classList.add('back-trans-pop');
-      await typewriter(backTransText, `"${step.backTranslation}"`);
+    const showBackTrans = !(isLastStep && isLastStepEnglish);
+    if (showBackTrans) {
+      await waitForBackTranslation(step, 2000);
+      if (step.backTranslation) {
+        backTransText.textContent = '';
+        backTrans.classList.remove('hidden');
+        backTrans.classList.remove('back-trans-pop');
+        void backTrans.offsetWidth;
+        backTrans.classList.add('back-trans-pop');
+        if (reduced) {
+          backTransText.textContent = `"${step.backTranslation}"`;
+        } else {
+          await typewriter(backTransText, `"${step.backTranslation}"`);
+        }
+      }
     }
 
     const drift = step.driftScore;
     driftFill.style.width = `${drift * 100}%`;
+    driftBar.setAttribute('aria-valuenow', String(Math.round(drift * 100)));
     driftPct.textContent = `${Math.round(drift * 100)}%`;
 
     if (drift < 0.33) {
@@ -252,7 +357,7 @@ export function createJourneyScreen(
     void driftReaction.offsetWidth;
     driftReaction.classList.add('reaction-pop');
 
-    if (drift > 0.4) {
+    if (drift > 0.4 && !reduced) {
       spawnOrbs(container.querySelector('.translation-display')!, drift);
     }
 
@@ -266,7 +371,7 @@ export function createJourneyScreen(
     station.querySelector('.station-check')!.classList.remove('hidden');
 
     stepCounter.textContent = String(idx + 1);
-    await sleep(800);
+    await sleep(reduced ? 200 : 800);
   }
 
   produce();

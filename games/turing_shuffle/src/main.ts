@@ -6,7 +6,12 @@ import { loadHistory, saveResult, getLastPassageIds } from './storage';
 import { submitResults, fetchStats } from './api';
 import { shareScore } from './share';
 
+/* ═══════ DOM & MEDIA ═══════ */
+
 const app = document.getElementById('app')!;
+const mqReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/* ═══════ STATE ═══════ */
 
 interface AppState {
   screen: 'landing' | 'game' | 'reveal';
@@ -36,6 +41,140 @@ let state: AppState = {
   bestStreak: 0,
 };
 
+let answerLocked = false;
+let scoreAnimated = false;
+
+/* ═══════ CONSTANTS ═══════ */
+
+const GENRE_COLORS: Record<string, string> = {
+  diary: '#f97316',
+  review: '#fbbf24',
+  fiction: '#a78bfa',
+  poem: '#f472b6',
+  recipe: '#34d399',
+  news: '#60a5fa',
+  tweet: '#38bdf8',
+  email: '#fb923c',
+  wikipedia: '#94a3b8',
+  instruction: '#2dd4bf',
+  academic: '#818cf8',
+};
+
+/* ═══════ UTILITIES ═══════ */
+
+function prefersReducedMotion(): boolean {
+  return mqReducedMotion.matches;
+}
+
+function escapeHtml(str: string): string {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatTime(ms: number): string {
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const min = Math.floor(seconds / 60);
+  const sec = Math.round(seconds % 60);
+  return `${min}m ${sec}s`;
+}
+
+function genrePillHtml(genre: string): string {
+  const c = GENRE_COLORS[genre];
+  const style = c ? ` style="color:${c}"` : '';
+  return `<span class="genre-pill"${style}>${genre}</span>`;
+}
+
+function haptic(pattern: number | number[]): void {
+  try { navigator.vibrate?.(pattern); } catch { /* unsupported */ }
+}
+
+/* ═══════ SCREEN TRANSITIONS ═══════ */
+
+function transitionTo(renderFn: () => void): void {
+  if (prefersReducedMotion()) {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    renderFn();
+    focusFirst();
+    return;
+  }
+  app.classList.add('transitioning');
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    renderFn();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        app.classList.remove('transitioning');
+        focusFirst();
+      });
+    });
+  }, 250);
+}
+
+function focusFirst(): void {
+  const el = app.querySelector<HTMLElement>('button, [tabindex="0"]');
+  el?.focus();
+}
+
+/* ═══════ SCORE ANIMATION ═══════ */
+
+function animateScoreCountUp(target: number): void {
+  const el = document.getElementById('score-num');
+  if (!el || target === 0 || prefersReducedMotion()) {
+    if (el) el.textContent = String(target);
+    return;
+  }
+  el.textContent = '0';
+  const startTime = performance.now();
+  const duration = 1500;
+
+  function update(now: number) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el!.textContent = String(Math.round(eased * target));
+    if (progress < 1) requestAnimationFrame(update);
+  }
+
+  requestAnimationFrame(update);
+}
+
+/* ═══════ KEYBOARD ═══════ */
+
+function adjustConfidence(delta: number): void {
+  state.confidence = Math.max(50, Math.min(100, state.confidence + delta));
+  const slider = document.getElementById('confidence') as HTMLInputElement | null;
+  const valueEl = document.getElementById('conf-value');
+  if (slider) slider.value = String(state.confidence);
+  if (valueEl) valueEl.textContent = `${state.confidence}%`;
+}
+
+function handleKeydown(e: KeyboardEvent): void {
+  if (e.target instanceof HTMLTextAreaElement) return;
+  if (e.target instanceof HTMLInputElement && (e.target as HTMLInputElement).type === 'text') return;
+
+  switch (state.screen) {
+    case 'landing':
+      if (e.key === 'Enter') { e.preventDefault(); startGame(); }
+      break;
+    case 'game':
+      if (answerLocked) return;
+      if (e.key === 'h' || e.key === 'H' || e.key === '1') { e.preventDefault(); submitAnswer('human'); }
+      else if (e.key === 'a' || e.key === 'A' || e.key === '2') { e.preventDefault(); submitAnswer('ai'); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); adjustConfidence(-5); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); adjustConfidence(5); }
+      break;
+    case 'reveal':
+      if (e.key === 'Enter') { e.preventDefault(); startGame(); }
+      break;
+  }
+}
+
+document.addEventListener('keydown', handleKeydown);
+
+/* ═══════ CORE GAME LOGIC ═══════ */
+
 function init(): void {
   fetchStats().then((stats) => {
     state.aggregateStats = stats;
@@ -56,10 +195,15 @@ function startGame(): void {
   state.insight = null;
   state.currentStreak = 0;
   state.bestStreak = 0;
-  renderGame();
+  answerLocked = false;
+  scoreAnimated = false;
+  transitionTo(() => renderGame());
 }
 
 function submitAnswer(guess: 'human' | 'ai'): void {
+  if (answerLocked) return;
+  answerLocked = true;
+
   document.querySelectorAll('.btn-guess').forEach(b => {
     (b as HTMLButtonElement).disabled = true;
   });
@@ -80,13 +224,16 @@ function submitAnswer(guess: 'human' | 'ai'): void {
   if (isCorrect) {
     state.currentStreak++;
     if (state.currentStreak > state.bestStreak) state.bestStreak = state.currentStreak;
+    haptic(50);
   } else {
     state.currentStreak = 0;
+    haptic([30, 50, 30]);
   }
 
   showFeedback(isCorrect, passage.source);
 
   setTimeout(() => {
+    answerLocked = false;
     state.currentIndex++;
     state.confidence = 75;
     if (state.currentIndex >= 10) {
@@ -115,6 +262,13 @@ function showFeedback(correct: boolean, source: 'human' | 'ai'): void {
     });
   });
 
+  const dots = document.querySelectorAll('.step-dot');
+  const currentDot = dots[state.currentIndex];
+  if (currentDot) {
+    currentDot.classList.remove('step-dot--active');
+    currentDot.classList.add(correct ? 'step-dot--correct' : 'step-dot--incorrect');
+  }
+
   const streakEl = document.getElementById('streak');
   if (correct && state.currentStreak >= 2 && streakEl) {
     streakEl.textContent = `\u{1F525} ${state.currentStreak} in a row`;
@@ -136,7 +290,7 @@ async function finishGame(): Promise<void> {
   state.history = loadHistory();
 
   state.screen = 'reveal';
-  renderReveal();
+  transitionTo(() => renderReveal());
 
   try {
     await submitResults(state.answers);
@@ -159,14 +313,21 @@ function renderLanding(): void {
   let historyHtml = '';
   if (h.totalGames > 0) {
     const accuracy = ((h.totalCorrect / h.totalAnswered) * 100).toFixed(0);
-    const streakStr = (h.bestStreak || 0) >= 2
-      ? ` Best streak: <strong>${h.bestStreak}</strong> \u{1F525}`
-      : '';
     historyHtml = `
       <div class="landing__history">
-        You've played <strong>${h.totalGames}</strong> time${h.totalGames === 1 ? '' : 's'}.
-        Lifetime accuracy: <strong>${accuracy}%</strong>.
-        Best: <strong>${h.bestScore}/10</strong>.${streakStr}
+        <div class="landing__history-row">
+          <span>Games played</span><strong>${h.totalGames}</strong>
+        </div>
+        <div class="landing__history-row">
+          <span>Lifetime accuracy</span><strong>${accuracy}%</strong>
+        </div>
+        <div class="landing__history-row">
+          <span>Best score</span><strong>${h.bestScore}/10</strong>
+        </div>
+        ${(h.bestStreak || 0) >= 2 ? `
+        <div class="landing__history-row">
+          <span>Best streak</span><strong>${h.bestStreak} \u{1F525}</strong>
+        </div>` : ''}
       </div>
     `;
   }
@@ -174,7 +335,7 @@ function renderLanding(): void {
   app.innerHTML = `
     <div class="landing">
       <h1 class="landing__title">The Turing Shuffle</h1>
-      <div class="shuffle-animation">
+      <div class="shuffle-animation" aria-hidden="true">
         ${Array.from({ length: 10 }, () => '<div class="shuffle-card"></div>').join('')}
       </div>
       <p class="landing__subtitle">
@@ -193,23 +354,35 @@ function renderLanding(): void {
 /* ═══════ GAME SCREEN ═══════ */
 
 function renderGame(): void {
+  window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+
   const p = state.passages[state.currentIndex];
-  const progress = ((state.currentIndex) / 10) * 100;
   const streakVisible = state.currentStreak >= 2;
+
+  const stepDotsHtml = Array.from({ length: 10 }, (_, i) => {
+    let cls = 'step-dot';
+    if (i < state.currentIndex) {
+      cls += state.answers[i].correct ? ' step-dot--correct' : ' step-dot--incorrect';
+    } else if (i === state.currentIndex) {
+      cls += ' step-dot--active';
+    }
+    return `<div class="${cls}"></div>`;
+  }).join('');
 
   app.innerHTML = `
     <div class="game">
-      <div class="progress-bar">
-        <div class="progress-bar__fill" style="width:${progress}%"></div>
-      </div>
-      <div class="progress-label">${state.currentIndex + 1} of 10</div>
-
-      <div class="streak-counter ${streakVisible ? '' : 'streak-hidden'}" id="streak">
-        \u{1F525} ${state.currentStreak} in a row
+      <div class="game-header">
+        <div class="step-dots" role="progressbar" aria-valuenow="${state.currentIndex + 1}" aria-valuemin="1" aria-valuemax="10" aria-label="Question ${state.currentIndex + 1} of 10">
+          ${stepDotsHtml}
+        </div>
+        <div class="progress-label">${state.currentIndex + 1} of 10</div>
+        <div class="streak-counter ${streakVisible ? '' : 'streak-hidden'}" id="streak">
+          \u{1F525} ${state.currentStreak} in a row
+        </div>
       </div>
 
       <div class="passage-card" id="passage-card">
-        <span class="genre-pill">${p.genre}</span>
+        ${genrePillHtml(p.genre)}
         <p class="passage-text">${escapeHtml(p.text)}</p>
       </div>
 
@@ -224,7 +397,9 @@ function renderGame(): void {
             max="100"
             value="${state.confidence}"
             step="1"
+            aria-label="Confidence level: ${state.confidence}%"
           />
+          <span class="confidence-value" id="conf-value">${state.confidence}%</span>
           <span class="confidence-label">Certain</span>
         </div>
 
@@ -232,10 +407,12 @@ function renderGame(): void {
           <button class="btn-guess btn-human" id="btn-human">
             <span class="btn-icon">&#9998;</span>
             Human
+            <kbd class="kbd-hint">H</kbd>
           </button>
           <button class="btn-guess btn-ai" id="btn-ai">
             <span class="btn-icon">&#9881;</span>
             AI
+            <kbd class="kbd-hint">A</kbd>
           </button>
         </div>
       </div>
@@ -244,6 +421,8 @@ function renderGame(): void {
 
   document.getElementById('confidence')!.addEventListener('input', (e) => {
     state.confidence = parseInt((e.target as HTMLInputElement).value, 10);
+    const valueEl = document.getElementById('conf-value');
+    if (valueEl) valueEl.textContent = `${state.confidence}%`;
   });
 
   document.getElementById('btn-human')!.addEventListener('click', () => submitAnswer('human'));
@@ -260,15 +439,14 @@ function renderReveal(): void {
   const circumference = 2 * Math.PI * 66;
   const offset = circumference - (pct / 100) * circumference;
   const strokeColor = score >= 7 ? 'url(#grad-correct)' : score >= 4 ? 'url(#grad-warn)' : 'url(#grad-incorrect)';
+  const glowColor = score >= 7 ? 'rgba(45,212,191,0.25)' : score >= 4 ? 'rgba(251,191,36,0.25)' : 'rgba(248,113,113,0.25)';
 
   const { title: scoreTitle, subtitle: scoreSubtitle } = getScoreTitle(score);
 
   let percentileHtml = '';
   if (state.aggregateStats?.global && state.aggregateStats.global.totalGames > 0) {
     const avg = state.aggregateStats.global.averageScore;
-    const percentile = Math.min(99, Math.max(1, Math.round(
-      50 + (score - avg) * 15
-    )));
+    const percentile = Math.min(99, Math.max(1, Math.round(50 + (score - avg) * 15)));
     percentileHtml = `<p class="percentile">Better than ${percentile}% of visitors</p>`;
   }
 
@@ -344,10 +522,12 @@ function renderReveal(): void {
     </div>
   `;
 
+  const rm = prefersReducedMotion();
   const breakdownHtml = state.passages.map((p, i) => {
     const a = state.answers[i];
     const isCorrect = a.correct;
     const icon = isCorrect ? '&#10003;' : '&#10007;';
+    const delay = rm ? 0 : 0.06 * (i + 1);
 
     const sourceLabel = p.source === 'human' ? 'Human' : 'AI';
     const sourceMeta = p.source === 'human'
@@ -382,11 +562,11 @@ function renderReveal(): void {
     }
 
     return `
-      <div class="reveal-card ${isCorrect ? 'correct' : 'incorrect'}" data-idx="${i}">
+      <div class="reveal-card ${isCorrect ? 'correct' : 'incorrect'}" data-idx="${i}" style="animation-delay:${delay}s">
         <div class="reveal-card__header">
           <div class="reveal-card__icon">${icon}</div>
           <div>
-            <span class="genre-pill">${p.genre}</span>
+            ${genrePillHtml(p.genre)}
             <div class="reveal-card__verdict">
               You said <strong>${a.guess === 'human' ? 'Human' : 'AI'}</strong>
               \u2014 Actually <span class="source-label" style="color:${p.source === 'human' ? 'var(--human-start)' : 'var(--ai-start)'}">${sourceLabel}</span>
@@ -394,14 +574,19 @@ function renderReveal(): void {
           </div>
         </div>
         <p class="reveal-card__text">${escapeHtml(p.text)}</p>
-        <p class="reveal-card__explanation">${p.explanation}</p>
-        ${sourceMeta}
-        <div class="reveal-card__badges">
-          <span class="difficulty-badge" title="Difficulty">${difficultyStars}</span>
-          <span class="time-badge">${timeStr}</span>
-          ${reactionLabel ? `<span class="reaction-badge ${reactionClass}">${reactionLabel}</span>` : ''}
+        <div class="reveal-card__expand-hint">Tap to read more</div>
+        <div class="reveal-card__details">
+          <div>
+            <p class="reveal-card__explanation">${p.explanation}</p>
+            ${sourceMeta}
+            <div class="reveal-card__badges">
+              <span class="difficulty-badge" title="Difficulty">${difficultyStars}</span>
+              <span class="time-badge">${timeStr}</span>
+              ${reactionLabel ? `<span class="reaction-badge ${reactionClass}">${reactionLabel}</span>` : ''}
+            </div>
+            ${communityHtml}
+          </div>
         </div>
-        ${communityHtml}
       </div>
     `;
   }).join('');
@@ -418,7 +603,7 @@ function renderReveal(): void {
   app.innerHTML = `
     <div class="reveal">
       <div class="score-header">
-        <div class="score-circle">
+        <div class="score-circle" style="filter:drop-shadow(0 0 14px ${glowColor})">
           <svg viewBox="0 0 140 140">
             <defs>
               <linearGradient id="grad-correct" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -445,7 +630,7 @@ function renderReveal(): void {
             />
           </svg>
           <div class="score-circle__text">
-            <div class="score-number">${score}</div>
+            <div class="score-number" id="score-num">${score}</div>
             <div class="score-label">out of 10</div>
           </div>
         </div>
@@ -474,6 +659,11 @@ function renderReveal(): void {
     </div>
   `;
 
+  if (!scoreAnimated) {
+    scoreAnimated = true;
+    animateScoreCountUp(score);
+  }
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const arc = document.getElementById('score-arc');
@@ -491,20 +681,6 @@ function renderReveal(): void {
   });
 }
 
-/* ═══════ HELPERS ═══════ */
-
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function formatTime(ms: number): string {
-  const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const min = Math.floor(seconds / 60);
-  const sec = Math.round(seconds % 60);
-  return `${min}m ${sec}s`;
-}
+/* ═══════ INIT ═══════ */
 
 init();

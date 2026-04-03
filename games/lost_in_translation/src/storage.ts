@@ -12,16 +12,39 @@ export function getCachedChain(sentence: string): TranslationChain | null {
   }
 }
 
+const MAX_CACHE_ENTRIES = 50;
+const MAX_CACHE_BYTES = 4_000_000;
+
 export function setCachedChain(chain: TranslationChain): void {
   try {
-    const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-    cache[chain.original.toLowerCase().trim()] = chain;
+    const cache: Record<string, TranslationChain> = JSON.parse(
+      localStorage.getItem(CACHE_KEY) || '{}',
+    );
+    const key = chain.original.toLowerCase().trim();
+    cache[key] = chain;
+
+    const entries = Object.entries(cache);
+    if (entries.length > MAX_CACHE_ENTRIES) {
+      entries
+        .sort((a, b) => (a[1].timestamp ?? 0) - (b[1].timestamp ?? 0))
+        .slice(0, entries.length - MAX_CACHE_ENTRIES)
+        .forEach(([k]) => delete cache[k]);
+    }
+
     const serialized = JSON.stringify(cache);
-    if (serialized.length < 5_000_000) {
+    if (serialized.length > MAX_CACHE_BYTES) {
+      const sorted = Object.entries(cache).sort(
+        (a, b) => (a[1].timestamp ?? 0) - (b[1].timestamp ?? 0),
+      );
+      while (sorted.length > 1 && JSON.stringify(Object.fromEntries(sorted)).length > MAX_CACHE_BYTES) {
+        sorted.shift();
+      }
+      localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(sorted)));
+    } else {
       localStorage.setItem(CACHE_KEY, serialized);
     }
   } catch {
-    // storage full or unavailable
+    /* storage full or unavailable */
   }
 }
 

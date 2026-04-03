@@ -2,12 +2,33 @@ import type { Language } from './types';
 import { DEFAULT_CHAIN, CHAOS_CHAIN, countryCodeToFlag } from './languages';
 import { createCustomizePanel } from './customize';
 
-const SUGGESTIONS = [
+const ALL_SUGGESTIONS = [
   'The early bird catches the worm',
   "I can't believe it's not butter",
   'To be or not to be, that is the question',
   'Whoever fights monsters should see to it that in the process they do not become a monster',
+  'All that glitters is not gold',
+  'A journey of a thousand miles begins with a single step',
+  'The grass is always greener on the other side',
+  'Actions speak louder than words',
+  'Every cloud has a silver lining',
+  'Curiosity killed the cat but satisfaction brought it back',
+  'The pen is mightier than the sword',
+  'You miss 100% of the shots you never take',
+  'Not all those who wander are lost',
+  'In the middle of difficulty lies opportunity',
+  'Time flies like an arrow, fruit flies like a banana',
+  'I think therefore I am',
 ];
+
+function pickSuggestions(count: number): string[] {
+  const shuffled = [...ALL_SUGGESTIONS];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, count);
+}
 
 export function createLandingScreen(
   container: HTMLElement,
@@ -60,7 +81,7 @@ export function createLandingScreen(
   const suggestionsEl = container.querySelector('#suggestion-buttons') as HTMLElement;
   const overlay = container.querySelector('#customize-overlay') as HTMLElement;
 
-  SUGGESTIONS.forEach(text => {
+  pickSuggestions(4).forEach(text => {
     const btn = document.createElement('button');
     btn.className = 'suggestion-btn';
     btn.textContent = `"${text}"`;
@@ -100,6 +121,8 @@ export function createLandingScreen(
   translateBtn.addEventListener('click', () => {
     const sentence = input.value.trim();
     if (!sentence) return;
+    translateBtn.disabled = true;
+    translateBtn.textContent = 'Translating\u2026';
     onTranslate(sentence, chaosMode ? [...CHAOS_CHAIN] : [...currentChain]);
   });
 
@@ -119,6 +142,10 @@ export function createLandingScreen(
     updateChainPreview();
   });
 
+  function closeOverlay() {
+    overlay.classList.add('hidden');
+  }
+
   customizeBtn.addEventListener('click', () => {
     overlay.classList.remove('hidden');
     createCustomizePanel(
@@ -130,9 +157,15 @@ export function createLandingScreen(
         chaosBtn.classList.remove('active');
         chaosBtn.innerHTML = '<span class="chaos-icon">&#9760;</span> Chaos mode';
         updateChainPreview();
-        overlay.classList.add('hidden');
+        closeOverlay();
       },
-      () => overlay.classList.add('hidden'),
+      closeOverlay,
     );
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+      closeOverlay();
+    }
   });
 }

@@ -10,6 +10,14 @@ function escapeHtml(s: string): string {
   return d.innerHTML;
 }
 
+function getDriftVerdict(drift: number): { label: string; className: string } {
+  if (drift === 0) return { label: 'Perfect preservation', className: 'verdict-perfect' };
+  if (drift <= 15) return { label: 'Remarkably faithful', className: 'verdict-low' };
+  if (drift <= 40) return { label: 'Noticeably altered', className: 'verdict-mid' };
+  if (drift <= 70) return { label: 'Heavily distorted', className: 'verdict-high' };
+  return { label: 'Completely transformed', className: 'verdict-extreme' };
+}
+
 export function createRevealScreen(
   container: HTMLElement,
   result: TranslationChain,
@@ -23,6 +31,7 @@ export function createRevealScreen(
   const isSingle = result.original.trim().split(/\s+/).length === 1;
   const isPerfect =
     result.original.toLowerCase().trim() === result.finalText.toLowerCase().trim();
+  const verdict = getDriftVerdict(drift);
 
   const highlighted = words
     .map(
@@ -39,25 +48,25 @@ export function createRevealScreen(
         s.backTranslation.toLowerCase() !== result.original.toLowerCase(),
     );
     if (interesting?.backTranslation) {
-      funFact = `Fun fact: &ldquo;${escapeHtml(result.original)}&rdquo; in ${interesting.language.name} translates to &ldquo;${escapeHtml(interesting.text)}&rdquo; which means &ldquo;${escapeHtml(interesting.backTranslation)}&rdquo; in English!`;
+      funFact = `&ldquo;${escapeHtml(result.original)}&rdquo; in ${interesting.language.name} translates to &ldquo;${escapeHtml(interesting.text)}&rdquo; which means &ldquo;${escapeHtml(interesting.backTranslation)}&rdquo; in English.`;
     }
   }
 
   container.innerHTML = `
-    <div class="reveal">
+    <div class="reveal" role="region" aria-label="Translation results">
       <div class="reveal-header">
         ${
           isPerfect
-            ? `<div class="perfect-badge">\uD83C\uDF89 Perfect translation!</div>
-               <p class="perfect-msg">This sentence survived ${result.chain.length - 1} languages unscathed. That&rsquo;s extremely rare.</p>`
+            ? `<div class="perfect-badge fade-in-up">Perfect translation</div>
+               <p class="perfect-msg fade-in-up">This sentence survived ${result.chain.length - 1} languages unscathed. That is extremely rare.</p>`
             : ''
         }
 
-        <div class="comparison-card">
+        <div class="comparison-card fade-in-up">
           <div class="comp-label">Original</div>
           <div class="comp-original">&ldquo;${escapeHtml(result.original)}&rdquo;</div>
 
-          <div class="flag-trail-mini">
+          <div class="flag-trail-mini" aria-label="${result.chain.length} languages traversed">
             ${result.chain.map(l => `<span title="${l.name}">${countryCodeToFlag(l.countryCode)}</span>`).join(' ')}
           </div>
 
@@ -67,27 +76,33 @@ export function createRevealScreen(
           <div class="word-highlight">${highlighted}</div>
 
           <div class="drift-score-card">
-            <div class="drift-number">${drift}%</div>
+            <div class="drift-number" id="drift-counter" aria-label="${drift} percent drift">0%</div>
             <div class="drift-caption">lost in translation</div>
+            <div class="drift-verdict ${verdict.className}">${verdict.label}</div>
           </div>
         </div>
 
-        ${isSingle && funFact ? `<div class="fun-fact">${funFact}</div>` : ''}
+        ${isSingle && funFact ? `<div class="fun-fact fade-in-up">${funFact}</div>` : ''}
       </div>
 
-      <div class="journey-timeline">
+      <div class="journey-timeline fade-in-up">
         <h3>The Journey</h3>
         <div class="timeline" id="timeline"></div>
       </div>
 
-      <div class="share-section">
-        <button class="btn-primary" id="share-btn">\uD83D\uDCE4 Share result</button>
-        <button class="btn-secondary" id="copy-btn">\uD83D\uDCCB Copy to clipboard</button>
-        <button class="btn-secondary" id="dl-btn">\uD83D\uDDBC Download as image</button>
-        <button class="btn-ghost" id="restart-btn">\u2190 Try another sentence</button>
+      <div class="share-section fade-in-up">
+        <button class="btn-primary" id="share-btn">Share result</button>
+        <button class="btn-secondary" id="copy-btn">Copy to clipboard</button>
+        <button class="btn-secondary" id="dl-btn">Download as image</button>
+        <button class="btn-ghost" id="restart-btn">&larr; Try another sentence</button>
       </div>
     </div>
   `;
+
+  animateDriftCounter(
+    container.querySelector('#drift-counter') as HTMLElement,
+    drift,
+  );
 
   const timeline = container.querySelector('#timeline')!;
 
@@ -101,7 +116,8 @@ export function createRevealScreen(
   );
   timeline.appendChild(origEntry);
 
-  result.steps.forEach((step, i) => {
+  result.steps.forEach((step) => {
+    const isEnglishStep = step.language.code === 'en';
     timeline.appendChild(
       timelineEntry(
         countryCodeToFlag(step.language.countryCode),
@@ -111,7 +127,7 @@ export function createRevealScreen(
         step.driftScore,
         false,
         step.language.rtl,
-        step.backTranslation,
+        isEnglishStep ? undefined : step.backTranslation,
       ),
     );
   });
@@ -127,8 +143,9 @@ export function createRevealScreen(
     const text = `"${result.original}" \u2192 "${result.finalText}" (${drift}% lost in translation)\n\nTry it: ${window.location.href}`;
     await copyToClipboard(text);
     const btn = container.querySelector('#copy-btn') as HTMLButtonElement;
-    btn.textContent = '\u2713 Copied!';
-    setTimeout(() => (btn.textContent = '\uD83D\uDCCB Copy to clipboard'), 2000);
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => (btn.textContent = original), 2000);
   });
 
   container.querySelector('#dl-btn')!.addEventListener('click', () =>
@@ -139,6 +156,24 @@ export function createRevealScreen(
     window.history.replaceState(null, '', window.location.pathname);
     onRestart();
   });
+}
+
+function animateDriftCounter(el: HTMLElement, target: number): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = `${target}%`;
+    return;
+  }
+  const duration = 1200;
+  const start = performance.now();
+  function tick(now: number) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(eased * target);
+    el.textContent = `${current}%`;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 }
 
 function timelineEntry(

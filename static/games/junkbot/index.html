@@ -119,6 +119,86 @@ canvas{display:block}
 .ctx-item:hover{background:#3a3530}
 .ctx-item.danger{color:#e74c3c}
 .ctx-item.danger:hover{background:#3a1515}
+
+/* ===== MILESTONE POPUP ===== */
+#milestone-popup{position:fixed;top:20%;left:50%;transform:translate(-50%,-50%) scale(0.5);z-index:60;pointer-events:none;text-align:center;opacity:0;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1)}
+#milestone-popup.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.milestone-text{font-family:'Lilita One',cursive;font-size:clamp(28px,5vw,48px);color:#e8a849;text-shadow:0 2px 20px rgba(232,168,73,0.6),0 0 40px rgba(232,168,73,0.3);white-space:nowrap}
+.milestone-dist{font-size:clamp(14px,2vw,20px);color:#fff;opacity:0.8;margin-top:4px}
+
+/* ===== RUN SUMMARY ===== */
+#run-summary{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)}
+#run-summary.active{display:flex}
+.summary-content{background:linear-gradient(135deg,#2a2520,#1e1c1a);border:2px solid #3a3530;border-radius:16px;padding:36px 44px;max-width:440px;width:90%;text-align:center;animation:summaryIn 0.5s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes summaryIn{from{transform:scale(0.8) translateY(30px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.summary-content h2{font-family:'Lilita One',cursive;font-size:28px;margin-bottom:4px}
+.summary-subtitle{color:#8a7e6e;font-size:13px;margin-bottom:16px;font-style:italic}
+.summary-stars{font-size:36px;margin:12px 0;letter-spacing:8px}
+.summary-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}
+.summary-stat{background:#1a1816;padding:10px;border-radius:8px}
+.summary-stat .stat-label{color:#8a7e6e;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.summary-stat .stat-value{color:#e8a849;font-size:20px;font-weight:700;font-family:'Lilita One',cursive;display:block;margin-top:2px}
+.new-pb{color:#4CAF50;font-size:14px;font-weight:700;margin:10px 0;animation:pbPulse 0.6s ease-in-out infinite alternate}
+@keyframes pbPulse{from{opacity:0.7;transform:scale(1)}to{opacity:1;transform:scale(1.05)}}
+.summary-btns{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+#new-pb.hidden{display:none!important}
+
+/* ===== SPEED LINES ===== */
+#speed-overlay{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:0;transition:opacity 0.3s;background:radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(232,168,73,0.06) 100%)}
+
+/* ===== PERSONAL BEST ===== */
+.pb-display{margin-top:6px;padding:4px 8px;background:#1a1816;border-radius:4px;font-size:11px;color:#4CAF50}
+.pb-display span{font-weight:700}
+
+/* ===== SAVE MODAL ===== */
+#save-modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.7)}
+#save-modal.active{display:flex}
+.save-content{background:#242120;border:2px solid #3a3530;border-radius:12px;padding:32px;max-width:420px;width:90%}
+.save-content h2{font-family:'Lilita One',cursive;color:#e8a849;margin-bottom:16px;text-align:center}
+.save-input{width:100%;background:#1a1816;border:1px solid #3a3530;color:#e8dcc8;padding:10px;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;margin-bottom:12px}
+.save-input:focus{outline:none;border-color:#e8a849}
+.saved-builds{max-height:200px;overflow-y:auto;margin-bottom:16px}
+.saved-build{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#1a1816;border-radius:6px;margin-bottom:4px;cursor:pointer;transition:background 0.15s}
+.saved-build:hover{background:#2a2624}
+.saved-build-name{color:#e8dcc8;font-size:13px;font-weight:600}
+.saved-build-meta{color:#6a6050;font-size:11px}
+.saved-build-del{color:#e74c3c;cursor:pointer;font-size:16px;padding:0 4px;opacity:0.5;transition:opacity 0.15s}
+.saved-build-del:hover{opacity:1}
+
+/* ===== SOUND TOGGLE ===== */
+.sound-toggle{background:none;border:none;color:#8a7e6e;font-size:18px;cursor:pointer;padding:4px 8px;transition:color 0.15s}
+.sound-toggle:hover{color:#e8dcc8}
+.sound-toggle.muted{opacity:0.4}
+
+/* ===== COUNTDOWN ===== */
+#test-status{font-size:clamp(36px,8vw,72px);transition:opacity 0.3s,transform 0.3s}
+#test-status.show{opacity:1;transform:translate(-50%,-50%) scale(1);animation:countPop 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes countPop{from{transform:translate(-50%,-50%) scale(1.8);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+
+/* ===== BUTTON ACTIVE STATES ===== */
+.btn:active{transform:translateY(1px)!important;box-shadow:none!important}
+.toolbar-btn:active{transform:scale(0.95)}
+.preset-card:active{transform:translateY(0);border-color:#e8a849}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+    #parts-palette{width:160px}
+    #inspector{width:180px}
+    .palette-item{padding:6px}
+    .palette-swatch{width:28px;height:28px;font-size:14px}
+    .palette-item-name{font-size:12px}
+    .palette-item-desc{font-size:9px}
+}
+@media(max-width:640px){
+    #parts-palette{width:60px;padding:4px}
+    .palette-category h3{display:none}
+    .palette-item-info{display:none}
+    .palette-swatch{width:40px;height:40px;font-size:18px}
+    #inspector{display:none}
+    .build-toolbar{padding:0 8px;gap:6px;flex-wrap:nowrap;overflow-x:auto}
+    .toolbar-btn{padding:4px 8px;font-size:11px}
+    .part-counter{font-size:11px;padding:2px 8px}
+}
 </style>
 </head>
 <body>
@@ -164,7 +244,9 @@ canvas{display:block}
         <button class="toolbar-btn" id="btn-redo" title="Redo (Ctrl+Y)">Redo</button>
         <span class="part-counter" id="part-counter">Parts: 0/20</span>
         <button class="toolbar-btn" id="btn-clear">Clear All</button>
+        <button class="toolbar-btn" id="btn-save-load">Save/Load</button>
         <button class="toolbar-btn" id="btn-back-landing">Menu</button>
+        <button class="sound-toggle" id="btn-sound" title="Toggle Sound">&#x1f50a;</button>
         <button class="btn btn-launch btn-small" id="btn-launch">Launch!</button>
     </div>
     <div class="build-main">
@@ -188,6 +270,7 @@ canvas{display:block}
         <div class="score-row"><span class="score-label">Time</span><span class="score-value" id="sc-time">0.0 s</span></div>
         <div class="score-row"><span class="score-label">Max Speed</span><span class="score-value" id="sc-speed">0.0 m/s</span></div>
         <div class="score-row"><span class="score-label">Style</span><span class="score-value" id="sc-style">0</span></div>
+        <div class="pb-display" id="pb-display" style="display:none">Best: <span id="pb-value">0</span>m</div>
     </div>
     <div id="test-status"></div>
     <div id="test-controls">
@@ -208,6 +291,47 @@ canvas{display:block}
             <button class="btn btn-primary btn-small" id="btn-copy-link">Copy Link</button>
             <button class="btn btn-secondary btn-small" id="btn-close-share">Close</button>
         </div>
+    </div>
+</div>
+
+<!-- Milestone Popup -->
+<div id="milestone-popup"><div class="milestone-text"></div><div class="milestone-dist"></div></div>
+
+<!-- Speed Overlay -->
+<div id="speed-overlay"></div>
+
+<!-- Run Summary -->
+<div id="run-summary">
+    <div class="summary-content">
+        <h2 id="summary-title">Run Complete!</h2>
+        <p class="summary-subtitle" id="summary-subtitle"></p>
+        <div class="summary-stars" id="summary-stars"></div>
+        <div class="summary-stats">
+            <div class="summary-stat"><span class="stat-label">Distance</span><span class="stat-value" id="sum-dist">0m</span></div>
+            <div class="summary-stat"><span class="stat-label">Time</span><span class="stat-value" id="sum-time">0s</span></div>
+            <div class="summary-stat"><span class="stat-label">Top Speed</span><span class="stat-value" id="sum-speed">0</span></div>
+            <div class="summary-stat"><span class="stat-label">Style</span><span class="stat-value" id="sum-style">0</span></div>
+        </div>
+        <div id="new-pb" class="hidden new-pb"></div>
+        <div class="summary-btns">
+            <button class="btn btn-primary btn-small" id="sum-replay">Try Again</button>
+            <button class="btn btn-secondary btn-small" id="sum-workshop">Back to Workshop</button>
+            <button class="btn btn-secondary btn-small" id="sum-share">Share</button>
+        </div>
+    </div>
+</div>
+
+<!-- Save Modal -->
+<div id="save-modal">
+    <div class="save-content">
+        <h2>Save / Load</h2>
+        <input type="text" class="save-input" id="save-name" placeholder="Name your creation..." maxlength="30">
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button class="btn btn-primary btn-small" id="btn-save-build" style="flex:1">Save</button>
+            <button class="btn btn-secondary btn-small" id="btn-close-save">Cancel</button>
+        </div>
+        <h3 style="color:#8a7e6e;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">Saved Builds</h3>
+        <div class="saved-builds" id="saved-builds-list"></div>
     </div>
 </div>
 
@@ -639,6 +763,202 @@ let testAnimId = null;
 let buildAnimId = null;
 let thrusterParticles = [];
 let crashParticles = [];
+let dustParticles = [];
+let milestonesHit = new Set();
+let lastMilestoneTime = 0;
+
+// ══════════════════════════════════════════════════════════
+// SOUND ENGINE (Web Audio API)
+// ══════════════════════════════════════════════════════════
+const sfx = {
+    ctx: null, master: null, enabled: true,
+    thrusterNode: null, thrusterGain: null, windGain: null, windNode: null,
+
+    init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0.35;
+        this.master.connect(this.ctx.destination);
+    },
+    ensure() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    toggle() {
+        this.enabled = !this.enabled;
+        if (this.master) this.master.gain.value = this.enabled ? 0.35 : 0;
+        const btn = document.getElementById('btn-sound');
+        if (btn) { btn.textContent = this.enabled ? '\u{1f50a}' : '\u{1f507}'; btn.classList.toggle('muted', !this.enabled); }
+    },
+    beep(freq, dur, vol = 0.3, type = 'sine') {
+        if (!this.enabled) return;
+        this.ensure();
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(vol, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        o.connect(g); g.connect(this.master);
+        o.start(); o.stop(this.ctx.currentTime + dur);
+    },
+    noise(dur, filterFreq = 1000, vol = 0.2) {
+        if (!this.enabled) return;
+        this.ensure();
+        const n = this.ctx.sampleRate * dur;
+        const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        const src = this.ctx.createBufferSource(); src.buffer = buf;
+        const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = filterFreq;
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(vol, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        src.connect(f); f.connect(g); g.connect(this.master); src.start();
+    },
+    countdown(n) { this.beep(n > 0 ? 440 : 880, n > 0 ? 0.12 : 0.3, n > 0 ? 0.3 : 0.5); },
+    milestone() {
+        [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.beep(f, 0.12, 0.35), i * 80));
+    },
+    crash() {
+        this.noise(0.4, 2000, 0.4);
+        this.beep(200, 0.1, 0.3, 'sawtooth');
+        setTimeout(() => this.beep(120, 0.2, 0.2, 'sawtooth'), 80);
+    },
+    click() { this.beep(800, 0.03, 0.12); },
+    launch() {
+        this.beep(330, 0.08, 0.2); setTimeout(() => this.beep(440, 0.08, 0.2), 60);
+        setTimeout(() => this.beep(660, 0.15, 0.3), 120);
+    },
+    startThruster() {
+        if (!this.enabled || this.thrusterNode) return;
+        this.ensure();
+        const n = this.ctx.sampleRate * 2;
+        const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        this.thrusterNode = this.ctx.createBufferSource(); this.thrusterNode.buffer = buf; this.thrusterNode.loop = true;
+        const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 300;
+        this.thrusterGain = this.ctx.createGain(); this.thrusterGain.gain.value = 0;
+        this.thrusterNode.connect(f); f.connect(this.thrusterGain); this.thrusterGain.connect(this.master);
+        this.thrusterNode.start();
+    },
+    setThrusterVolume(v) {
+        if (this.thrusterGain) this.thrusterGain.gain.linearRampToValueAtTime(Math.min(v, 0.15), this.ctx.currentTime + 0.05);
+    },
+    stopThruster() {
+        if (this.thrusterNode) { try { this.thrusterNode.stop(); } catch(e){} this.thrusterNode = null; this.thrusterGain = null; }
+    },
+    startWind() {
+        if (!this.enabled || this.windNode) return;
+        this.ensure();
+        const n = this.ctx.sampleRate * 2;
+        const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        this.windNode = this.ctx.createBufferSource(); this.windNode.buffer = buf; this.windNode.loop = true;
+        const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800; f.Q.value = 0.5;
+        this.windGain = this.ctx.createGain(); this.windGain.gain.value = 0;
+        this.windNode.connect(f); f.connect(this.windGain); this.windGain.connect(this.master);
+        this.windNode.start();
+    },
+    setWindVolume(v) {
+        if (this.windGain) this.windGain.gain.linearRampToValueAtTime(Math.min(v, 0.12), this.ctx.currentTime + 0.1);
+    },
+    stopWind() {
+        if (this.windNode) { try { this.windNode.stop(); } catch(e){} this.windNode = null; this.windGain = null; }
+    }
+};
+
+// ══════════════════════════════════════════════════════════
+// CHALLENGE / MILESTONE SYSTEM
+// ══════════════════════════════════════════════════════════
+const MILESTONES = [
+    { dist: 5, label: 'First Steps!', stars: 1 },
+    { dist: 15, label: 'Rolling!', stars: 1 },
+    { dist: 30, label: 'Nice Run!', stars: 2 },
+    { dist: 50, label: 'Excellent!', stars: 2 },
+    { dist: 75, label: 'Outstanding!', stars: 3 },
+    { dist: 100, label: 'LEGENDARY!', stars: 3 }
+];
+
+const QUIPS_GOOD = ['That was beautiful.', 'Engineering at its finest.', 'Your bot has heart.', 'Chef\'s kiss.', 'The crowd goes wild!'];
+const QUIPS_MID = ['Not bad for junk.', 'Room for improvement.', 'It did its best.', 'A valiant effort.', 'Back to the drawing board?'];
+const QUIPS_BAD = ['Well... it moved.', 'Gravity wins again.', 'That was... creative.', 'Physics is hard.', 'Try more wheels?'];
+
+function getPersonalBest() { return parseFloat(localStorage.getItem('junkbot_pb') || '0'); }
+function setPersonalBest(dist) {
+    if (dist > getPersonalBest()) { localStorage.setItem('junkbot_pb', dist.toFixed(1)); return true; }
+    return false;
+}
+function getStarsForDistance(dist) {
+    let s = 0;
+    for (const m of MILESTONES) { if (dist >= m.dist) s = m.stars; }
+    return s;
+}
+function showMilestonePopup(label, dist) {
+    const el = document.getElementById('milestone-popup');
+    el.querySelector('.milestone-text').textContent = label;
+    el.querySelector('.milestone-dist').textContent = dist.toFixed(0) + 'm';
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 1500);
+}
+function checkMilestones(dist) {
+    const now = performance.now();
+    if (now - lastMilestoneTime < 2000) return;
+    for (const m of MILESTONES) {
+        if (dist >= m.dist && !milestonesHit.has(m.dist)) {
+            milestonesHit.add(m.dist);
+            showMilestonePopup(m.label, m.dist);
+            sfx.milestone();
+            lastMilestoneTime = now;
+            break;
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// SAVE / LOAD SYSTEM
+// ══════════════════════════════════════════════════════════
+function getSavedBuilds() {
+    try { return JSON.parse(localStorage.getItem('junkbot_builds') || '[]'); } catch { return []; }
+}
+function saveBuild(name) {
+    const data = serializeBuild();
+    const builds = getSavedBuilds();
+    builds.unshift({ name, data, date: Date.now(), parts: buildState.parts.length });
+    if (builds.length > 20) builds.pop();
+    localStorage.setItem('junkbot_builds', JSON.stringify(builds));
+}
+function deleteSavedBuild(idx) {
+    const builds = getSavedBuilds();
+    builds.splice(idx, 1);
+    localStorage.setItem('junkbot_builds', JSON.stringify(builds));
+}
+function loadSavedBuild(idx) {
+    const builds = getSavedBuilds();
+    if (builds[idx]) {
+        clearBuild();
+        undoStack = []; redoStack = [];
+        deserializeBuildInto(builds[idx].data);
+        updatePartCounter();
+        document.getElementById('save-modal').classList.remove('active');
+    }
+}
+function renderSavedBuilds() {
+    const list = document.getElementById('saved-builds-list');
+    const builds = getSavedBuilds();
+    if (builds.length === 0) { list.innerHTML = '<p style="color:#5a5040;font-size:12px;text-align:center;padding:16px">No saved builds yet.</p>'; return; }
+    list.innerHTML = builds.map((b, i) => `
+        <div class="saved-build" onclick="loadSavedBuild(${i})">
+            <div><div class="saved-build-name">${b.name || 'Unnamed'}</div>
+            <div class="saved-build-meta">${b.parts || '?'} parts</div></div>
+            <span class="saved-build-del" onclick="event.stopPropagation();deleteSavedBuild(${i});renderSavedBuilds();">&times;</span>
+        </div>`).join('');
+}
+window.loadSavedBuild = loadSavedBuild;
+window.deleteSavedBuild = deleteSavedBuild;
+window.renderSavedBuilds = renderSavedBuilds;
 
 // ══════════════════════════════════════════════════════════
 // THREE.JS SETUP — BUILD MODE
@@ -786,31 +1106,84 @@ function initTestScene() {
 function createTestArena() {
     const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.ground, roughness: 0.9 });
     const obstacleMat = new THREE.MeshStandardMaterial({ color: COLORS.obstacle, roughness: 0.7 });
+    const markerMat = new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.5 });
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0x4a5a3a, roughness: 0.9 });
 
     const flatGround = new THREE.Mesh(new THREE.BoxGeometry(20, 0.5, 200), groundMat);
     flatGround.position.set(0, -0.25, 90);
     flatGround.receiveShadow = true;
     testArenaGroup.add(flatGround);
 
-    const startPad = new THREE.Mesh(new THREE.BoxGeometry(10, 0.52, 8), groundMat.clone());
-    startPad.material.color.set(0x4a5a3a);
+    const startPad = new THREE.Mesh(new THREE.BoxGeometry(10, 0.52, 8), stripeMat);
     startPad.position.set(0, -0.26, 0);
     startPad.receiveShadow = true;
     testArenaGroup.add(startPad);
+
+    for (let z = 10; z <= 100; z += 10) {
+        const lineMat = new THREE.MeshBasicMaterial({ color: z % 50 === 0 ? 0xffffff : 0xaaaaaa, transparent: true, opacity: z % 50 === 0 ? 0.5 : 0.25 });
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(16, 0.02, 0.15), lineMat);
+        stripe.position.set(0, 0.01, z);
+        testArenaGroup.add(stripe);
+
+        const poleMat = new THREE.MeshStandardMaterial({ color: z % 50 === 0 ? 0xe8a849 : 0x888888, roughness: 0.4 });
+        for (const side of [-1, 1]) {
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.5, 6), poleMat);
+            pole.position.set(side * 9, 0.75, z);
+            pole.castShadow = true;
+            testArenaGroup.add(pole);
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.05), poleMat);
+            sign.position.set(side * 9, 1.6, z);
+            testArenaGroup.add(sign);
+        }
+    }
+
+    for (const side of [-1, 1]) {
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 });
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 200), railMat);
+        rail.position.set(side * 9.5, 0.15, 90);
+        testArenaGroup.add(rail);
+    }
 
     const rampGeo = new THREE.BoxGeometry(6, 0.3, 4);
     const ramp = new THREE.Mesh(rampGeo, obstacleMat);
     ramp.position.set(0, 0.15, 30);
     ramp.rotation.x = -0.25;
     ramp.receiveShadow = true;
+    ramp.castShadow = true;
     testArenaGroup.add(ramp);
 
     const wallL = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 0.4), obstacleMat);
     wallL.position.set(4, 0.75, 50);
+    wallL.castShadow = true;
     testArenaGroup.add(wallL);
     const wallR = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 0.4), obstacleMat);
     wallR.position.set(-4, 0.75, 50);
+    wallR.castShadow = true;
     testArenaGroup.add(wallR);
+
+    const mountainMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a, roughness: 0.95, flatShading: true });
+    const treeMat = new THREE.MeshStandardMaterial({ color: 0x2a4a2a, roughness: 0.9, flatShading: true });
+    for (let i = 0; i < 30; i++) {
+        const side = i % 2 === 0 ? 1 : -1;
+        const z = Math.random() * 180 - 10;
+        const x = side * (14 + Math.random() * 25);
+        const h = 4 + Math.random() * 12;
+        const r = 2 + Math.random() * 5;
+        const mountain = new THREE.Mesh(new THREE.ConeGeometry(r, h, 5 + Math.floor(Math.random() * 3)), mountainMat);
+        mountain.position.set(x, h * 0.4, z);
+        testArenaGroup.add(mountain);
+    }
+    for (let i = 0; i < 40; i++) {
+        const side = i % 2 === 0 ? 1 : -1;
+        const z = Math.random() * 180 - 10;
+        const x = side * (12 + Math.random() * 15);
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.5, 5), new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 0.9 }));
+        trunk.position.set(x, 0.75, z);
+        testArenaGroup.add(trunk);
+        const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.6 + Math.random() * 0.4, 1.5 + Math.random(), 6), treeMat);
+        canopy.position.set(x, 2 + Math.random() * 0.5, z);
+        testArenaGroup.add(canopy);
+    }
 }
 
 function createPhysicsArena() {
@@ -1501,12 +1874,26 @@ function startSimulation() {
     testStartTime = performance.now();
     invertedTimer = 0;
     score = { distance: 0, time: 0, maxSpeed: 0, style: 0 };
+    milestonesHit = new Set();
+    lastMilestoneTime = 0;
     testRunning = true;
+    dustParticles = [];
 
-    showTestStatus('3...', 500);
-    setTimeout(() => showTestStatus('2...', 500), 500);
-    setTimeout(() => showTestStatus('1...', 500), 1000);
-    setTimeout(() => showTestStatus('GO!', 600), 1500);
+    document.getElementById('run-summary').classList.remove('active');
+    document.getElementById('speed-overlay').style.opacity = '0';
+
+    const pb = getPersonalBest();
+    const pbEl = document.getElementById('pb-display');
+    if (pb > 0) { pbEl.style.display = 'block'; document.getElementById('pb-value').textContent = pb; }
+    else { pbEl.style.display = 'none'; }
+
+    sfx.startThruster();
+    sfx.startWind();
+
+    showTestStatus('3', 500); sfx.countdown(3);
+    setTimeout(() => { showTestStatus('2', 500); sfx.countdown(2); }, 500);
+    setTimeout(() => { showTestStatus('1', 500); sfx.countdown(1); }, 1000);
+    setTimeout(() => { showTestStatus('GO!', 600); sfx.countdown(0); }, 1500);
 
     resizeTestRenderer();
     testLoop();
@@ -1552,11 +1939,13 @@ function testLoop() {
 
 function applyThrusters() {
     const elapsed = (performance.now() - testStartTime) / 1000;
-    if (elapsed < 2.0) return;
+    if (elapsed < 2.0) { sfx.setThrusterVolume(0); return; }
+    let thrustActive = 0;
     for (const [id, ent] of physicsBodies) {
         if (!ent.def.isThruster) continue;
         const part = ent.part;
         if (part.autoFire === false) continue;
+        thrustActive++;
         const mult = part.thrustMult || 1;
         const rampUp = Math.min(1, (elapsed - 2.0) / 1.0);
         const dir = new THREE.Vector3(...ent.def.thrustDir);
@@ -1569,6 +1958,7 @@ function applyThrusters() {
 
         spawnThrusterParticle(ent.body.translation(), dir.clone().negate().normalize());
     }
+    sfx.setThrusterVolume(thrustActive > 0 ? 0.1 : 0);
 }
 
 function applyLegOscillation(time) {
@@ -1635,6 +2025,10 @@ function updateScore(now) {
         if (avgPos.y > 1) score.style += 0.02;
         if (totalAngVel / count > 5) score.style += 0.03;
 
+        checkMilestones(score.distance);
+        sfx.setWindVolume(Math.min(speed / 15, 0.1));
+        document.getElementById('speed-overlay').style.opacity = Math.min(speed / 20, 0.6).toString();
+
         const upVec = new THREE.Vector3(0, 1, 0);
         const firstBody = physicsBodies.values().next().value;
         if (firstBody) {
@@ -1661,25 +2055,61 @@ function updateScore(now) {
 
 function endSimulation(reason) {
     testRunning = false;
-    showTestStatus(reason || 'Run Complete!', 2000);
+    sfx.stopThruster();
+    sfx.stopWind();
+    document.getElementById('speed-overlay').style.opacity = '0';
+
+    if (reason === 'Wipeout!') sfx.crash();
+
+    const stars = getStarsForDistance(score.distance);
+    const isPB = setPersonalBest(score.distance);
+    const quipList = stars >= 2 ? QUIPS_GOOD : (stars >= 1 ? QUIPS_MID : QUIPS_BAD);
+    const quip = quipList[Math.floor(Math.random() * quipList.length)];
+
+    setTimeout(() => {
+        const el = document.getElementById('run-summary');
+        document.getElementById('summary-title').textContent = reason || 'Run Complete!';
+        document.getElementById('summary-title').style.color = reason === 'Wipeout!' ? '#e74c3c' : '#e8a849';
+        document.getElementById('summary-subtitle').textContent = quip;
+        document.getElementById('summary-stars').textContent = '\u2b50'.repeat(stars) + '\u2606'.repeat(3 - stars);
+        document.getElementById('sum-dist').textContent = score.distance.toFixed(1) + 'm';
+        document.getElementById('sum-time').textContent = score.time.toFixed(1) + 's';
+        document.getElementById('sum-speed').textContent = score.maxSpeed.toFixed(1) + ' m/s';
+        document.getElementById('sum-style').textContent = Math.floor(score.style);
+        const pbEl = document.getElementById('new-pb');
+        if (isPB && score.distance > 1) { pbEl.textContent = '\u{1f3c6} NEW PERSONAL BEST! \u{1f3c6}'; pbEl.classList.remove('hidden'); }
+        else { pbEl.classList.add('hidden'); }
+        el.classList.add('active');
+    }, reason === 'Wipeout!' ? 800 : 200);
 }
 
 function updateTestCamera() {
     let target = new THREE.Vector3();
+    let totalSpeed = 0;
     let count = 0;
     for (const [id, ent] of physicsBodies) {
         const p = ent.body.translation();
+        const v = ent.body.linvel();
         target.add(new THREE.Vector3(p.x, p.y, p.z));
+        totalSpeed += Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
         count++;
     }
     if (count === 0) return;
     target.divideScalar(count);
+    const avgSpeed = totalSpeed / count;
 
-    const camOffset = new THREE.Vector3(5, 3, -6);
+    const baseFOV = 55;
+    const speedFOV = Math.min(avgSpeed * 1.5, 20);
+    testCamera.fov += (baseFOV + speedFOV - testCamera.fov) * 0.05;
+    testCamera.updateProjectionMatrix();
+
+    const pullBack = Math.min(avgSpeed * 0.3, 4);
+    const camOffset = new THREE.Vector3(5, 3 + pullBack * 0.2, -6 - pullBack);
     const desiredPos = target.clone().add(camOffset);
     testCamera.position.lerp(desiredPos, 0.04);
     const lookTarget = target.clone();
     lookTarget.y += 0.5;
+    lookTarget.z += avgSpeed * 0.3;
 
     testCamera.lookAt(lookTarget);
 }
@@ -1687,6 +2117,9 @@ function updateTestCamera() {
 function stopSimulation() {
     testRunning = false;
     if (testAnimId) cancelAnimationFrame(testAnimId);
+    sfx.stopThruster();
+    sfx.stopWind();
+    document.getElementById('speed-overlay').style.opacity = '0';
     if (physicsWorld) {
         physicsWorld.free();
         physicsWorld = null;
@@ -1695,8 +2128,10 @@ function stopSimulation() {
     physicsJoints.clear();
     for (const p of thrusterParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
     for (const p of crashParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
+    for (const p of dustParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
     thrusterParticles = [];
     crashParticles = [];
+    dustParticles = [];
 }
 
 function backToWorkshop() {
@@ -1704,12 +2139,14 @@ function backToWorkshop() {
     gamePhase = 'building';
     document.getElementById('test-screen').classList.remove('active');
     document.getElementById('build-screen').classList.add('active');
+    document.getElementById('run-summary').classList.remove('active');
     resizeBuildRenderer();
     startBuildLoop();
 }
 
 function replay() {
     stopSimulation();
+    document.getElementById('run-summary').classList.remove('active');
     startSimulation();
 }
 
@@ -1763,6 +2200,17 @@ function spawnCrashParticles(pos) {
     }
 }
 
+function spawnDustParticle(pos, speed) {
+    if (dustParticles.length > 100 || speed < 1) return;
+    const mat = new THREE.MeshBasicMaterial({ color: 0x998877, transparent: true, opacity: 0.4 });
+    const mesh = new THREE.Mesh(particleGeo, mat);
+    mesh.position.set(pos.x + (Math.random() - 0.5) * 0.3, pos.y, pos.z + (Math.random() - 0.5) * 0.3);
+    mesh.scale.setScalar(0.5 + Math.random() * 0.5);
+    const vel = new THREE.Vector3((Math.random() - 0.5) * 1.5, 0.5 + Math.random() * 1.5, (Math.random() - 0.5) * 1.5);
+    testScene.add(mesh);
+    dustParticles.push({ mesh, vel, life: 0.4 + Math.random() * 0.4 });
+}
+
 function updateParticles(dt) {
     const update = (arr) => {
         for (let i = arr.length - 1; i >= 0; i--) {
@@ -1782,6 +2230,17 @@ function updateParticles(dt) {
     };
     update(thrusterParticles);
     update(crashParticles);
+    update(dustParticles);
+
+    for (const [id, ent] of physicsBodies) {
+        if (!ent.def.isWheel) continue;
+        const p = ent.body.translation();
+        const v = ent.body.linvel();
+        const speed = Math.sqrt(v.x * v.x + v.z * v.z);
+        if (p.y < 0.5 && Math.random() < speed * 0.15) {
+            spawnDustParticle(p, speed);
+        }
+    }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1984,6 +2443,7 @@ function startBuildLoop() {
 // ══════════════════════════════════════════════════════════
 function initEvents() {
     document.getElementById('btn-start').addEventListener('click', () => {
+        sfx.click();
         gamePhase = 'building';
         document.getElementById('landing-screen').classList.add('hidden');
         document.getElementById('build-screen').classList.add('active');
@@ -1993,6 +2453,7 @@ function initEvents() {
 
     document.querySelectorAll('.preset-card').forEach(card => {
         card.addEventListener('click', () => {
+            sfx.click();
             const preset = card.dataset.preset;
             gamePhase = 'building';
             document.getElementById('landing-screen').classList.add('hidden');
@@ -2005,13 +2466,31 @@ function initEvents() {
         });
     });
 
-    document.getElementById('btn-launch').addEventListener('click', startSimulation);
+    document.getElementById('btn-launch').addEventListener('click', () => { sfx.launch(); startSimulation(); });
     document.getElementById('btn-back-workshop').addEventListener('click', backToWorkshop);
-    document.getElementById('btn-replay').addEventListener('click', replay);
+    document.getElementById('btn-replay').addEventListener('click', () => { document.getElementById('run-summary').classList.remove('active'); replay(); });
     document.getElementById('btn-share').addEventListener('click', shareLink);
     document.getElementById('btn-undo').addEventListener('click', undo);
     document.getElementById('btn-redo').addEventListener('click', redo);
     document.getElementById('btn-clear').addEventListener('click', clearBuild);
+    document.getElementById('btn-sound').addEventListener('click', () => sfx.toggle());
+    document.getElementById('btn-save-load').addEventListener('click', () => {
+        sfx.click(); renderSavedBuilds();
+        document.getElementById('save-modal').classList.add('active');
+    });
+    document.getElementById('btn-save-build').addEventListener('click', () => {
+        const name = document.getElementById('save-name').value.trim() || 'My Junkbot';
+        saveBuild(name);
+        document.getElementById('save-name').value = '';
+        renderSavedBuilds();
+        sfx.click();
+    });
+    document.getElementById('btn-close-save').addEventListener('click', () => {
+        document.getElementById('save-modal').classList.remove('active');
+    });
+    document.getElementById('sum-replay').addEventListener('click', () => { document.getElementById('run-summary').classList.remove('active'); replay(); });
+    document.getElementById('sum-workshop').addEventListener('click', () => { document.getElementById('run-summary').classList.remove('active'); backToWorkshop(); });
+    document.getElementById('sum-share').addEventListener('click', () => { document.getElementById('run-summary').classList.remove('active'); shareLink(); });
 
     document.getElementById('btn-back-landing').addEventListener('click', () => {
         gamePhase = 'landing';
@@ -2167,6 +2646,12 @@ async function main() {
 
     const loaded = loadFromURL();
     document.getElementById('loading-screen').classList.add('hidden');
+
+    const pb = getPersonalBest();
+    if (pb > 0) {
+        document.querySelector('.landing-subtitle').textContent =
+            `Build something. Break something. That's engineering.  \u{1f3c6} Best: ${pb}m`;
+    }
 
     if (loaded) {
         gamePhase = 'building';

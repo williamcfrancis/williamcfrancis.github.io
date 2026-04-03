@@ -2,23 +2,61 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5">
 <title>Lexicon Atlas — English Words Around the World</title>
+<meta name="description" content="Spin the globe and discover 400+ English words unique to their homeland. From brinjal in India to robot meaning traffic light in South Africa — explore how English speaks differently everywhere.">
+<meta name="theme-color" content="#0b0d17">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Lexicon Atlas — English Words Around the World">
+<meta property="og:description" content="Spin the globe and discover 400+ regional English words, take quizzes, and explore the fascinating etymology behind everyday words from 46 regions.">
+<meta property="og:image" content="/games/lexicon_atlas/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Lexicon Atlas">
+<meta name="twitter:description" content="Explore how English speaks differently around the world. 400+ words, 46 regions, infinite stories.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://unpkg.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:#0b0d17;--panel:rgba(12,14,28,.95);--card:rgba(25,30,55,.55);
-  --card-hover:rgba(40,48,85,.7);--text:#eef0f6;--text2:#8892b0;--muted:#4a5270;
+  --card-hover:rgba(40,48,85,.7);--text:#eef0f6;--text2:#a0a8c4;--muted:#5a6380;
   --gold:#f4c542;--teal:#4ecdc4;--coral:#ff6b6b;--blue:#64b5f6;
-  --border:rgba(100,120,180,.15);--radius:12px;--rsm:8px;
+  --border:rgba(100,120,180,.18);--radius:12px;--rsm:8px;
   --font:'Inter',system-ui,sans-serif;--heading:'Playfair Display',Georgia,serif;
+  --focus-ring:0 0 0 2px var(--teal);
 }
 *{margin:0;padding:0;box-sizing:border-box}
+*:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--muted);border-radius:3px}
+
+/* ─── Loading Screen ─── */
+#loading-screen{position:fixed;inset:0;z-index:9000;background:var(--bg);display:flex;
+  flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s,visibility .8s}
+#loading-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.loader-globe{width:64px;height:64px;border:3px solid var(--border);border-top-color:var(--teal);
+  border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{color:var(--text2);font-size:.9rem;letter-spacing:1px;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* ─── Confetti ─── */
+#confetti-canvas{position:fixed;inset:0;z-index:9999;pointer-events:none}
+
+/* ─── Mobile Panel Backdrop ─── */
+#panel-backdrop{position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.5);
+  opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s}
+#panel-backdrop.open{opacity:1;visibility:visible}
+
+/* ─── Favorites Count Badge ─── */
+.nav-badge{min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+  background:var(--coral);color:#fff;font-size:.6rem;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;margin-left:2px;
+  line-height:1;vertical-align:middle}
 
 #globe-container{position:fixed;inset:0;z-index:1}
 
@@ -219,11 +257,7 @@ nav{display:flex;gap:6px;align-items:center}
 .hover-label .hl-name{font-weight:600}
 .hover-label .hl-count{color:var(--teal);font-size:.75rem;margin-top:2px}
 
-.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);
-  z-index:400;padding:10px 20px;background:rgba(78,205,196,.15);border:1px solid rgba(78,205,196,.3);
-  border-radius:20px;color:var(--teal);font-size:.85rem;font-weight:500;opacity:0;
-  transition:all .3s;pointer-events:none}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* old toast class removed — see #toast-container stacking system below */
 
 #stats-bar{position:fixed;bottom:16px;left:16px;z-index:100;display:flex;gap:16px;
   padding:10px 18px;background:rgba(12,14,28,.85);border:1px solid var(--border);
@@ -359,6 +393,46 @@ nav{display:flex;gap:6px;align-items:center}
   text-decoration:none;transition:top .2s}
 .skip-link:focus{top:16px}
 
+/* ─── Achievement Progress ─── */
+.ach-progress{width:100%;height:4px;background:rgba(255,255,255,.06);border-radius:2px;
+  margin-top:6px;overflow:hidden}
+.ach-progress-bar{height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));
+  border-radius:2px;transition:width .6s ease}
+
+/* ─── Quiz Keyboard Hint ─── */
+.quiz-key-hint{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;
+  background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:4px;
+  font-size:.7rem;color:var(--text2);margin-right:8px;font-weight:600;flex-shrink:0}
+
+/* ─── Welcome Entrance ─── */
+.welcome-inner{animation:welcomeIn .8s ease both}
+@keyframes welcomeIn{from{opacity:0;transform:translateY(30px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* ─── Toast Stacking ─── */
+#toast-container{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);
+  z-index:10000;display:flex;flex-direction:column-reverse;align-items:center;gap:6px;
+  pointer-events:none}
+.toast-item{padding:10px 20px;background:rgba(78,205,196,.15);border:1px solid rgba(78,205,196,.3);
+  border-radius:20px;color:var(--teal);font-size:.85rem;font-weight:500;
+  animation:toastIn .3s ease,toastOut .3s ease 2.4s forwards;white-space:nowrap;
+  backdrop-filter:blur(8px)}
+.toast-item.achievement{background:rgba(244,197,66,.15);border-color:rgba(244,197,66,.3);color:var(--gold)}
+@keyframes toastIn{from{opacity:0;transform:translateY(16px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-8px) scale(.95)}}
+
+/* ─── Overlay Entrance ─── */
+.overlay-enter{animation:overlayIn .3s ease both}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+
+/* ─── Reduced Motion ─── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important}
+  .word-card{animation:none !important}
+  .quiz-timer.warning{animation:none !important}
+  .loader-globe{animation:none !important;border-color:var(--teal) !important}
+}
+
 @media(max-width:640px){
   header{padding:10px 14px}
   .logo span{font-size:1rem}
@@ -380,9 +454,16 @@ nav{display:flex;gap:6px;align-items:center}
 </style>
 </head>
 <body>
+<div id="loading-screen" aria-live="polite">
+  <div class="loader-globe" role="status"></div>
+  <div class="loader-text">Loading the world&hellip;</div>
+</div>
+<canvas id="confetti-canvas"></canvas>
+
 <a href="#globe-container" class="skip-link">Skip to globe</a>
 
 <div id="globe-container" role="application" aria-label="Interactive 3D globe showing English word regions"></div>
+<div id="panel-backdrop" onclick="closePanel()"></div>
 
 <header role="banner">
   <a href="/personal/#games" class="back-link" aria-label="Back to games">&#8592; Games</a>
@@ -392,7 +473,7 @@ nav{display:flex;gap:6px;align-items:center}
   </a>
   <nav role="navigation" aria-label="Main navigation">
     <button class="nav-btn" onclick="openSearch()" title="Search words" aria-label="Search words"><span class="ico">&#128270;</span><span class="label">Search</span></button>
-    <button class="nav-btn" onclick="openFavorites()" title="Favorites" aria-label="View saved words"><span class="ico">&#9829;</span><span class="label">Favorites</span></button>
+    <button class="nav-btn" id="fav-nav-btn" onclick="openFavorites()" title="Favorites" aria-label="View saved words"><span class="ico">&#9829;</span><span class="label">Favorites</span><span class="nav-badge" id="fav-badge" style="display:none">0</span></button>
     <button class="nav-btn" onclick="openQuiz()" title="Quiz mode" aria-label="Start quiz"><span class="ico">&#9889;</span><span class="label">Quiz</span></button>
     <button class="nav-btn" onclick="showRandom()" title="Random word" aria-label="Random word"><span class="ico">&#127922;</span><span class="label">Random</span></button>
     <button class="nav-btn" onclick="openConnections()" title="Word connections" aria-label="Word connections"><span class="ico">&#128279;</span><span class="label">Connections</span></button>
@@ -558,7 +639,7 @@ nav{display:flex;gap:6px;align-items:center}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div id="toast-container"></div>
 
 <script src="//unpkg.com/globe.gl@2.45.1"></script>
 <script>
@@ -2292,7 +2373,13 @@ function updateStats(){
   document.getElementById('s-words').textContent=viewedWords.size;
   document.getElementById('s-total-words').textContent=ALL_WORDS.length;
   document.getElementById('s-total-countries').textContent=Object.keys(REGIONS).length;
+  updateFavBadge();
   checkAchievements();
+}
+function updateFavBadge(){
+  const badge=document.getElementById('fav-badge');
+  if(favorites.size>0){badge.style.display='';badge.textContent=favorites.size;}
+  else{badge.style.display='none';}
 }
 
 /* ─── URL Params ─── */
@@ -2419,15 +2506,20 @@ const SYNTH_POLYS=[
 
 function loadCountryData(){
   fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl@master/example/datasets/ne_110m_admin_0_countries.geojson')
-    .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
+    .then(r=>{if(!r.ok)throw new Error('Network error: '+r.status);return r.json();})
     .then(d=>{
       const existing=new Set(d.features.map(f=>(f.properties.ADMIN||f.properties.name||'')));
       SYNTH_POLYS.forEach(s=>{
         if(!existing.has(s.name))d.features.push(makeMiniPoly(s.lat,s.lng,s.name,s.sz));
       });
       globe.polygonsData(d.features);
+      hideLoadingScreen();
     })
-    .catch(console.error);
+    .catch(err=>{
+      console.error('Failed to load country data:',err);
+      hideLoadingScreen();
+      toast('Globe data failed to load. Some features may not work.');
+    });
 }
 
 /* ─── Country Panel ─── */
@@ -2468,6 +2560,7 @@ function openPanel(keys){
 
   renderWords(keys[0]);
   panel.classList.add('open');
+  if(window.innerWidth<=640)document.getElementById('panel-backdrop').classList.add('open');
   globe.controls().autoRotate=false;
 }
 
@@ -2557,6 +2650,7 @@ function renderWords(regionKey){
 
 function closePanel(){
   document.getElementById('country-panel').classList.remove('open');
+  document.getElementById('panel-backdrop').classList.remove('open');
   selectedRegion=null;
   currentPanelKeys=null;
   activeTagFilter=null;
@@ -2584,8 +2678,19 @@ function openSearch(){
 }
 function closeSearch(){document.getElementById('search-overlay').classList.remove('open');}
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeSearch();closeQuiz();closeConnections();closeRandom();closeFavorites();closeAchievements();}
+  if(e.key==='Escape'){closeSearch();closeQuiz();closeConnections();closeRandom();closeFavorites();closeAchievements();closePanel();}
   if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!document.querySelector('input:focus')){e.preventDefault();openSearch();}
+  if(document.getElementById('quiz-overlay').classList.contains('open')&&document.getElementById('quiz-game').style.display!=='none'){
+    const num=parseInt(e.key);
+    if(num>=1&&num<=4){
+      const opts=document.querySelectorAll('.quiz-option:not(.locked)');
+      if(opts[num-1])opts[num-1].click();
+    }
+    if(e.key==='Enter'){const nb=document.getElementById('q-next');if(nb.classList.contains('show'))nb.click();}
+  }
+  if(e.key==='Enter'&&document.getElementById('welcome')&&!document.getElementById('welcome').classList.contains('hidden')){
+    startExploring();
+  }
 });
 document.getElementById('search-input').addEventListener('input',e=>{
   const q=e.target.value.toLowerCase().trim();
@@ -2773,8 +2878,9 @@ function showQuestion(){
 
   const opts=document.getElementById('q-options');
   if(q.type==='region'){
-    opts.innerHTML=q.options.map(k=>`
-      <button class="quiz-option" data-key="${k}" role="button" aria-label="${REGIONS[k].name}">
+    opts.innerHTML=q.options.map((k,i)=>`
+      <button class="quiz-option" data-key="${k}" role="button" aria-label="${i+1}: ${REGIONS[k].name}">
+        <span class="quiz-key-hint">${i+1}</span>
         <span class="qo-flag">${REGIONS[k].flag}</span>
         <span>${REGIONS[k].name}</span>
       </button>`).join('');
@@ -2783,7 +2889,8 @@ function showQuestion(){
     });
   }else if(q.type==='meaning'){
     opts.innerHTML=q.options.map((m,i)=>`
-      <button class="quiz-option" data-idx="${i}" role="button">
+      <button class="quiz-option" data-idx="${i}" role="button" aria-label="${i+1}: ${m.slice(0,60)}">
+        <span class="quiz-key-hint">${i+1}</span>
         <span>${m}</span>
       </button>`).join('');
     opts.querySelectorAll('.quiz-option').forEach(btn=>{
@@ -2791,7 +2898,8 @@ function showQuestion(){
     });
   }else{
     opts.innerHTML=q.options.map((w,i)=>`
-      <button class="quiz-option" data-idx="${i}" role="button">
+      <button class="quiz-option" data-idx="${i}" role="button" aria-label="${i+1}: ${w}">
+        <span class="quiz-key-hint">${i+1}</span>
         <span style="font-weight:700;color:var(--gold)">${w}</span>
       </button>`).join('');
     opts.querySelectorAll('.quiz-option').forEach(btn=>{
@@ -2877,6 +2985,7 @@ function showQuizEnd(){
   if(quiz.score===10){
     localStorage.setItem('la_perfect_quiz','true');
     checkAchievements();
+    setTimeout(fireConfetti,400);
   }
 }
 
@@ -2944,7 +3053,8 @@ function renderConnGame(){
   document.getElementById('conn-game-hint').textContent=
     `Select all words that share a concept. ${4-connGame.solved.length} groups remaining. ${connGame.mistakes} mistakes.`;
   if(connGame.solved.length===4){
-    document.getElementById('conn-game-status').innerHTML=`<strong style="color:var(--gold)">\u{1F389} You solved all 4 groups! ${connGame.mistakes===0?'Perfect!':connGame.mistakes+' mistakes.'}</strong>`;
+    document.getElementById('conn-game-status').innerHTML=`<strong style="color:var(--gold)">\u{1F389} You solved all 4 groups! ${connGame.mistakes===0?'Perfect!':connGame.mistakes+' mistake'+(connGame.mistakes!==1?'s':'')+'.'}</strong><br><button class="nav-btn" style="margin-top:12px;pointer-events:auto;display:inline-flex" onclick="initConnGame()">New Game</button>`;
+    if(connGame.mistakes===0)setTimeout(fireConfetti,300);
   }
 }
 function connGameSubmit(){
@@ -3012,11 +3122,14 @@ function closeRandom(){
   document.getElementById('random-backdrop').classList.remove('open');
 }
 
-/* ─── Toast ─── */
-function toast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2000);
+/* ─── Toast (Stacking) ─── */
+function toast(msg,type){
+  const container=document.getElementById('toast-container');
+  const el=document.createElement('div');
+  el.className='toast-item'+(type==='achievement'?' achievement':'');
+  el.textContent=msg;
+  container.appendChild(el);
+  setTimeout(()=>{if(el.parentNode)el.remove();},2800);
 }
 
 /* ─── Daily Word ─── */
@@ -3063,7 +3176,7 @@ function checkAchievements(){
     if(!achievements.has(a.id)&&a.check(stats)){
       achievements.add(a.id);
       newUnlock=true;
-      toast(`\u{1F3C6} Achievement: ${a.name}`);
+      toast(`\u{1F3C6} Achievement: ${a.name}`,'achievement');
     }
   });
   if(newUnlock)persist();
@@ -3075,22 +3188,73 @@ function openAchievements(){
 function closeAchievements(){document.getElementById('achievements-overlay').classList.remove('open');}
 function renderAchievements(){
   const grid=document.getElementById('ach-grid');
+  const stats=getAchievementStats();
   grid.innerHTML=ACHIEVEMENT_DEFS.map(a=>{
     const unlocked=achievements.has(a.id);
+    let progress='';
+    if(!unlocked){
+      const p=getAchievementProgress(a,stats);
+      if(p!==null)progress=`<div class="ach-progress"><div class="ach-progress-bar" style="width:${Math.min(p,100)}%"></div></div>`;
+    }
     return`<div class="ach-card ${unlocked?'unlocked':'locked'}">
       <div class="ach-icon">${a.icon}</div>
       <div class="ach-info">
         <div class="ach-name">${a.name}</div>
         <div class="ach-desc">${a.desc}</div>
-        ${unlocked?'<div class="ach-date">\u2713 Unlocked</div>':''}
+        ${unlocked?'<div class="ach-date">\u2713 Unlocked</div>':progress}
       </div>
     </div>`;
   }).join('');
+}
+function getAchievementProgress(a,s){
+  const map={first_region:[s.visited,1],ten_regions:[s.visited,10],all_regions:[s.visited,s.totalRegions],
+    ten_words:[s.words,10],fifty_words:[s.words,50],hundred_words:[s.words,100],all_words:[s.words,s.totalWords],
+    five_favs:[s.favs,5],twenty_favs:[s.favs,20],streak_five:[s.bestStreak,5],streak_ten:[s.bestStreak,10],
+    daily_three:[s.dailyDays,3],daily_seven:[s.dailyDays,7]};
+  const entry=map[a.id];
+  if(!entry)return null;
+  return(entry[0]/entry[1])*100;
 }
 
 /* ─── Welcome ─── */
 function startExploring(){
   document.getElementById('welcome').classList.add('hidden');
+}
+
+/* ─── Confetti ─── */
+function fireConfetti(){
+  const canvas=document.getElementById('confetti-canvas');
+  const ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const colors=['#f4c542','#4ecdc4','#ff6b6b','#64b5f6','#ff9ff3','#54a0ff'];
+  const pieces=[];
+  for(let i=0;i<120;i++){
+    pieces.push({x:canvas.width/2+(Math.random()-.5)*200,y:canvas.height/2,
+      vx:(Math.random()-.5)*12,vy:-(Math.random()*14+4),
+      size:Math.random()*6+3,color:colors[Math.floor(Math.random()*colors.length)],
+      rot:Math.random()*360,rotV:(Math.random()-.5)*10,
+      gravity:.25,drag:.99,opacity:1});
+  }
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive=false;
+    pieces.forEach(p=>{
+      p.vy+=p.gravity;p.vx*=p.drag;p.vy*=p.drag;
+      p.x+=p.vx;p.y+=p.vy;p.rot+=p.rotV;
+      if(frame>40)p.opacity=Math.max(0,p.opacity-.015);
+      if(p.opacity<=0)return;
+      alive=true;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);
+      ctx.globalAlpha=p.opacity;ctx.fillStyle=p.color;
+      ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size*0.6);
+      ctx.restore();
+    });
+    frame++;
+    if(alive&&frame<180)requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
 }
 
 /* ─── Mobile: Swipe to Close Panel ─── */
@@ -3107,6 +3271,12 @@ function startExploring(){
     if(dx>80&&dy<50)closePanel();
   },{passive:true});
 })();
+
+/* ─── Globe Loading State ─── */
+function hideLoadingScreen(){
+  const ls=document.getElementById('loading-screen');
+  if(ls&&!ls.classList.contains('hidden'))ls.classList.add('hidden');
+}
 
 /* ─── Init ─── */
 initGlobe();

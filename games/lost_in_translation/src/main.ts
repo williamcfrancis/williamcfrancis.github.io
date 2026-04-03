@@ -34,6 +34,8 @@ function showJourney(sentence: string, chain: Language[]) {
   app.innerHTML = '';
   createJourneyScreen(app, sentence, chain, result => {
     showReveal(result);
+  }, () => {
+    showLanding();
   });
 }
 
