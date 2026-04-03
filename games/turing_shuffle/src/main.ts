@@ -1,7 +1,7 @@
 import './styles.css';
 import type { Passage, UserAnswer, AggregateStats, GameHistory } from './types';
 import passagePool from './passages.json';
-import { selectPassages, generateInsight, type GameInsight } from './game';
+import { selectPassages, generateInsight, getScoreTitle, analyzeConfidence, analyzeTimings, type GameInsight } from './game';
 import { loadHistory, saveResult, getLastPassageIds } from './storage';
 import { submitResults, fetchStats } from './api';
 import { shareScore } from './share';
@@ -17,6 +17,9 @@ interface AppState {
   aggregateStats: AggregateStats | null;
   history: GameHistory;
   insight: GameInsight | null;
+  passageStartTime: number;
+  currentStreak: number;
+  bestStreak: number;
 }
 
 let state: AppState = {
@@ -28,6 +31,9 @@ let state: AppState = {
   aggregateStats: null,
   history: loadHistory(),
   insight: null,
+  passageStartTime: 0,
+  currentStreak: 0,
+  bestStreak: 0,
 };
 
 function init(): void {
@@ -48,23 +54,37 @@ function startGame(): void {
   state.confidence = 75;
   state.screen = 'game';
   state.insight = null;
+  state.currentStreak = 0;
+  state.bestStreak = 0;
   renderGame();
 }
 
 function submitAnswer(guess: 'human' | 'ai'): void {
+  document.querySelectorAll('.btn-guess').forEach(b => {
+    (b as HTMLButtonElement).disabled = true;
+  });
+
   const passage = state.passages[state.currentIndex];
+  const timeTaken = Date.now() - state.passageStartTime;
+  const isCorrect = guess === passage.source;
+
   const answer: UserAnswer = {
     passageId: passage.id,
     guess,
     confidence: state.confidence,
-    correct: guess === passage.source,
+    correct: isCorrect,
+    timeTaken,
   };
   state.answers.push(answer);
 
-  const btn = document.querySelector(
-    guess === 'human' ? '.btn-human' : '.btn-ai',
-  );
-  btn?.classList.add('flash');
+  if (isCorrect) {
+    state.currentStreak++;
+    if (state.currentStreak > state.bestStreak) state.bestStreak = state.currentStreak;
+  } else {
+    state.currentStreak = 0;
+  }
+
+  showFeedback(isCorrect, passage.source);
 
   setTimeout(() => {
     state.currentIndex++;
@@ -74,14 +94,45 @@ function submitAnswer(guess: 'human' | 'ai'): void {
     } else {
       renderGame();
     }
-  }, 250);
+  }, 900);
+}
+
+function showFeedback(correct: boolean, source: 'human' | 'ai'): void {
+  const card = document.getElementById('passage-card');
+  if (!card) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = `feedback-overlay ${correct ? 'feedback-correct' : 'feedback-incorrect'}`;
+  overlay.innerHTML = `
+    <div class="feedback-icon">${correct ? '&#10003;' : '&#10007;'}</div>
+    <div class="feedback-label">${correct ? 'Correct' : 'Wrong'}</div>
+    <div class="feedback-source">It was <strong>${source === 'human' ? 'Human' : 'AI'}</strong></div>
+  `;
+  card.appendChild(overlay);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      overlay.classList.add('show');
+    });
+  });
+
+  const streakEl = document.getElementById('streak');
+  if (correct && state.currentStreak >= 2 && streakEl) {
+    streakEl.textContent = `\u{1F525} ${state.currentStreak} in a row`;
+    streakEl.classList.remove('streak-hidden');
+    streakEl.classList.add('streak-pop');
+  } else if (!correct && streakEl && state.currentStreak === 0) {
+    if (!streakEl.classList.contains('streak-hidden')) {
+      streakEl.classList.add('streak-break');
+      setTimeout(() => streakEl.classList.add('streak-hidden'), 300);
+    }
+  }
 }
 
 async function finishGame(): Promise<void> {
   const score = state.answers.filter((a) => a.correct).length;
   state.insight = generateInsight(state.passages, state.answers);
 
-  saveResult(state.passages, state.answers, score);
+  saveResult(state.passages, state.answers, score, state.bestStreak);
   state.history = loadHistory();
 
   state.screen = 'reveal';
@@ -108,11 +159,14 @@ function renderLanding(): void {
   let historyHtml = '';
   if (h.totalGames > 0) {
     const accuracy = ((h.totalCorrect / h.totalAnswered) * 100).toFixed(0);
+    const streakStr = (h.bestStreak || 0) >= 2
+      ? ` Best streak: <strong>${h.bestStreak}</strong> \u{1F525}`
+      : '';
     historyHtml = `
       <div class="landing__history">
         You've played <strong>${h.totalGames}</strong> time${h.totalGames === 1 ? '' : 's'}.
         Lifetime accuracy: <strong>${accuracy}%</strong>.
-        Best: <strong>${h.bestScore}/10</strong>.
+        Best: <strong>${h.bestScore}/10</strong>.${streakStr}
       </div>
     `;
   }
@@ -141,6 +195,7 @@ function renderLanding(): void {
 function renderGame(): void {
   const p = state.passages[state.currentIndex];
   const progress = ((state.currentIndex) / 10) * 100;
+  const streakVisible = state.currentStreak >= 2;
 
   app.innerHTML = `
     <div class="game">
@@ -149,7 +204,11 @@ function renderGame(): void {
       </div>
       <div class="progress-label">${state.currentIndex + 1} of 10</div>
 
-      <div class="passage-card">
+      <div class="streak-counter ${streakVisible ? '' : 'streak-hidden'}" id="streak">
+        \u{1F525} ${state.currentStreak} in a row
+      </div>
+
+      <div class="passage-card" id="passage-card">
         <span class="genre-pill">${p.genre}</span>
         <p class="passage-text">${escapeHtml(p.text)}</p>
       </div>
@@ -189,6 +248,8 @@ function renderGame(): void {
 
   document.getElementById('btn-human')!.addEventListener('click', () => submitAnswer('human'));
   document.getElementById('btn-ai')!.addEventListener('click', () => submitAnswer('ai'));
+
+  state.passageStartTime = Date.now();
 }
 
 /* ═══════ REVEAL SCREEN ═══════ */
@@ -200,6 +261,8 @@ function renderReveal(): void {
   const offset = circumference - (pct / 100) * circumference;
   const strokeColor = score >= 7 ? 'url(#grad-correct)' : score >= 4 ? 'url(#grad-warn)' : 'url(#grad-incorrect)';
 
+  const { title: scoreTitle, subtitle: scoreSubtitle } = getScoreTitle(score);
+
   let percentileHtml = '';
   if (state.aggregateStats?.global && state.aggregateStats.global.totalGames > 0) {
     const avg = state.aggregateStats.global.averageScore;
@@ -208,6 +271,78 @@ function renderReveal(): void {
     )));
     percentileHtml = `<p class="percentile">Better than ${percentile}% of visitors</p>`;
   }
+
+  const bestStreakHtml = state.bestStreak >= 2
+    ? `<div class="best-streak">\u{1F525} Best streak: ${state.bestStreak} in a row</div>`
+    : '';
+
+  const confidence = analyzeConfidence(state.answers);
+  const timings = analyzeTimings(state.answers);
+
+  let confStatsHtml = '';
+  if (confidence.highConfAccuracy !== null) {
+    confStatsHtml += `
+      <div class="analysis-stat">
+        <span class="analysis-stat__label">When certain (80%+)</span>
+        <span class="analysis-stat__value">${Math.round(confidence.highConfAccuracy * 100)}% right</span>
+      </div>`;
+  }
+  if (confidence.lowConfAccuracy !== null) {
+    confStatsHtml += `
+      <div class="analysis-stat">
+        <span class="analysis-stat__label">When guessing (&lt;70%)</span>
+        <span class="analysis-stat__value">${Math.round(confidence.lowConfAccuracy * 100)}% right</span>
+      </div>`;
+  }
+  if (confidence.overconfidentCount > 0) {
+    confStatsHtml += `
+      <div class="analysis-stat">
+        <span class="analysis-stat__label">Overconfident</span>
+        <span class="analysis-stat__value">${confidence.overconfidentCount} time${confidence.overconfidentCount > 1 ? 's' : ''}</span>
+      </div>`;
+  }
+  if (confidence.underconfidentCount > 0) {
+    confStatsHtml += `
+      <div class="analysis-stat">
+        <span class="analysis-stat__label">Underconfident</span>
+        <span class="analysis-stat__value">${confidence.underconfidentCount} time${confidence.underconfidentCount > 1 ? 's' : ''}</span>
+      </div>`;
+  }
+
+  let timingStatsHtml = `
+    <div class="analysis-stat">
+      <span class="analysis-stat__label">Average per passage</span>
+      <span class="analysis-stat__value">${formatTime(timings.avgTime)}</span>
+    </div>`;
+  if (timings.gutAccuracy !== null) {
+    timingStatsHtml += `
+      <div class="analysis-stat">
+        <span class="analysis-stat__label">Gut instinct (&lt;5s)</span>
+        <span class="analysis-stat__value">${Math.round(timings.gutAccuracy * 100)}% right</span>
+      </div>`;
+  }
+  if (timings.deliberateAccuracy !== null) {
+    timingStatsHtml += `
+      <div class="analysis-stat">
+        <span class="analysis-stat__label">Deliberated (&gt;15s)</span>
+        <span class="analysis-stat__value">${Math.round(timings.deliberateAccuracy * 100)}% right</span>
+      </div>`;
+  }
+
+  const analysisHtml = `
+    <div class="analysis-grid">
+      <div class="analysis-card">
+        <div class="analysis-card__title">Confidence Calibration</div>
+        ${confStatsHtml}
+        <p class="analysis-card__summary">${escapeHtml(confidence.summary)}</p>
+      </div>
+      <div class="analysis-card">
+        <div class="analysis-card__title">Timing Patterns</div>
+        ${timingStatsHtml}
+        <p class="analysis-card__summary">${escapeHtml(timings.summary)}</p>
+      </div>
+    </div>
+  `;
 
   const breakdownHtml = state.passages.map((p, i) => {
     const a = state.answers[i];
@@ -218,8 +353,13 @@ function renderReveal(): void {
     const sourceMeta = p.source === 'human'
       ? (p.meta.author ? `<div class="reveal-card__meta">${escapeHtml(p.meta.author)}</div>` : '')
       : (p.meta.model
-        ? `<div class="reveal-card__meta">${escapeHtml(p.meta.model)}${p.meta.prompt ? ' — Prompt: "' + escapeHtml(p.meta.prompt) + '"' : ''}</div>`
+        ? `<div class="reveal-card__meta">${escapeHtml(p.meta.model)}${p.meta.prompt ? ' \u2014 Prompt: \u201C' + escapeHtml(p.meta.prompt) + '\u201D' : ''}</div>`
         : '');
+
+    const difficultyStars = '\u2605'.repeat(p.difficulty) + '\u2606'.repeat(3 - p.difficulty);
+    const timeStr = formatTime(a.timeTaken);
+    const reactionClass = a.timeTaken < 5000 ? 'gut' : a.timeTaken > 15000 ? 'deliberate' : '';
+    const reactionLabel = a.timeTaken < 5000 ? 'Gut instinct' : a.timeTaken > 15000 ? 'Deliberated' : '';
 
     let communityHtml = '';
     const passageStats = state.aggregateStats?.passages?.[p.id];
@@ -249,13 +389,18 @@ function renderReveal(): void {
             <span class="genre-pill">${p.genre}</span>
             <div class="reveal-card__verdict">
               You said <strong>${a.guess === 'human' ? 'Human' : 'AI'}</strong>
-              — Actually <span class="source-label" style="color:${p.source === 'human' ? 'var(--human-start)' : 'var(--ai-start)'}">${sourceLabel}</span>
+              \u2014 Actually <span class="source-label" style="color:${p.source === 'human' ? 'var(--human-start)' : 'var(--ai-start)'}">${sourceLabel}</span>
             </div>
           </div>
         </div>
         <p class="reveal-card__text">${escapeHtml(p.text)}</p>
         <p class="reveal-card__explanation">${p.explanation}</p>
         ${sourceMeta}
+        <div class="reveal-card__badges">
+          <span class="difficulty-badge" title="Difficulty">${difficultyStars}</span>
+          <span class="time-badge">${timeStr}</span>
+          ${reactionLabel ? `<span class="reaction-badge ${reactionClass}">${reactionLabel}</span>` : ''}
+        </div>
         ${communityHtml}
       </div>
     `;
@@ -304,11 +449,18 @@ function renderReveal(): void {
             <div class="score-label">out of 10</div>
           </div>
         </div>
+        <div class="score-rank">
+          <div class="score-rank__title">${escapeHtml(scoreTitle)}</div>
+          <div class="score-rank__subtitle">${escapeHtml(scoreSubtitle)}</div>
+        </div>
         <h2 class="score-title">You got ${score} out of 10 correct</h2>
         ${percentileHtml}
+        ${bestStreakHtml}
       </div>
 
       ${insightHtml}
+
+      ${analysisHtml}
 
       <div class="breakdown">
         <h3 class="breakdown__title">Passage Breakdown</h3>
@@ -322,7 +474,6 @@ function renderReveal(): void {
     </div>
   `;
 
-  // Animate score arc
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const arc = document.getElementById('score-arc');
@@ -330,7 +481,6 @@ function renderReveal(): void {
     });
   });
 
-  // Expandable reveal cards
   document.querySelectorAll('.reveal-card').forEach((card) => {
     card.addEventListener('click', () => card.classList.toggle('expanded'));
   });
@@ -347,6 +497,14 @@ function escapeHtml(str: string): string {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function formatTime(ms: number): string {
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const min = Math.floor(seconds / 60);
+  const sec = Math.round(seconds % 60);
+  return `${min}m ${sec}s`;
 }
 
 init();

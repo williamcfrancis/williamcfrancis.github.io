@@ -9,6 +9,7 @@ function defaultHistory(): GameHistory {
     totalCorrect: 0,
     totalAnswered: 0,
     bestScore: 0,
+    bestStreak: 0,
     results: [],
     passageMisses: {},
   };
@@ -28,6 +29,7 @@ export function saveResult(
   passages: Passage[],
   answers: UserAnswer[],
   score: number,
+  bestStreak: number,
 ): void {
   const history = loadHistory();
   const result: GameResult = {
@@ -36,12 +38,15 @@ export function saveResult(
     total: answers.length,
     passageIds: passages.map((p) => p.id),
     answers,
+    bestStreak,
   };
 
   history.totalGames++;
   history.totalCorrect += score;
   history.totalAnswered += answers.length;
   if (score > history.bestScore) history.bestScore = score;
+  if (bestStreak > (history.bestStreak || 0)) history.bestStreak = bestStreak;
+
   history.results.push(result);
 
   for (const a of answers) {
@@ -51,7 +56,6 @@ export function saveResult(
     }
   }
 
-  // Keep only last 50 game results to avoid storage bloat
   if (history.results.length > 50) {
     history.results = history.results.slice(-50);
   }

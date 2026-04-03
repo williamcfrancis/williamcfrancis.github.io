@@ -111,6 +111,7 @@ export function createRevealScreen(
         step.driftScore,
         false,
         step.language.rtl,
+        step.backTranslation,
       ),
     );
   });
@@ -148,9 +149,13 @@ function timelineEntry(
   drift: number,
   isOrig: boolean,
   rtl?: boolean,
+  backTranslation?: string,
 ): HTMLElement {
   const el = document.createElement('div');
   el.className = `tl-entry${isOrig ? ' tl-original' : ''} fade-in-up`;
+
+  const showBackTrans = !isOrig && backTranslation;
+  const driftColor = drift > 0.66 ? '#ff6b6b' : drift > 0.33 ? '#f7dc6f' : '#4ecdc4';
 
   el.innerHTML = `
     <div class="tl-marker">
@@ -161,7 +166,8 @@ function timelineEntry(
       <div class="tl-lang">${langName}${isOrig ? ' (Original)' : ''}</div>
       <div class="tl-text" ${rtl ? 'dir="rtl"' : ''}>${escapeHtml(text)}</div>
       ${translit ? `<div class="tl-translit">${escapeHtml(translit)}</div>` : ''}
-      ${!isOrig ? `<div class="tl-drift" style="color:${drift > 0.66 ? '#ff6b6b' : drift > 0.33 ? '#f7dc6f' : '#4ecdc4'}">${Math.round(drift * 100)}% drift</div>` : ''}
+      ${showBackTrans ? `<div class="tl-back-translation">\u2192 English: &ldquo;${escapeHtml(backTranslation)}&rdquo;</div>` : ''}
+      ${!isOrig ? `<div class="tl-drift" style="color:${driftColor}">${Math.round(drift * 100)}% drift</div>` : ''}
     </div>
   `;
 

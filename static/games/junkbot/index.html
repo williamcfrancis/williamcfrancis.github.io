@@ -438,24 +438,27 @@ const PART_DEFS = {
     // --- Legs ---
     leg_2seg: {
         name: '2-Seg Leg', category: 'Legs', icon: '⌇', color: COLORS.leg,
-        mass: 1, dims: [0.2, 0.8, 0.2], isLeg: true,
+        mass: 1.2, dims: [0.2, 1.4, 0.2], isLeg: true,
         desc: 'Oscillating walk leg',
         geom: () => {
-            const g = new THREE.BoxGeometry(0.2, 0.8, 0.2);
-            const knee = new THREE.BoxGeometry(0.2, 0.6, 0.2);
-            knee.translate(0.1, -0.7, 0);
-            return mergeGeometries([g, knee]) || g;
+            const upper = new THREE.BoxGeometry(0.2, 0.8, 0.2);
+            upper.translate(0, 0.3, 0);
+            const lower = new THREE.BoxGeometry(0.2, 0.6, 0.2);
+            lower.translate(0.1, -0.4, 0);
+            return mergeGeometries([upper, lower]) || upper;
         },
-        collider: () => RAPIER.ColliderDesc.cuboid(0.1, 0.4, 0.1),
+        collider: () => RAPIER.ColliderDesc.capsule(0.55, 0.12)
+            .setFriction(1.5)
+            .setRestitution(0.05),
         snaps: () => [
-            { off: [0, 0.4, 0], norm: [0,1,0], hAxis: [0,0,1] }
+            { off: [0, 0.7, 0], norm: [0,1,0], hAxis: [1,0,0] }
         ]
     },
 
     // --- Thrusters ---
     upward_thruster: {
         name: 'Up Thruster', category: 'Thrusters', icon: '▲', color: COLORS.thruster,
-        mass: 0.3, dims: [0.3, 0.4, 0.3], isThruster: true, thrustDir: [0, 1, 0], thrustForce: 15,
+        mass: 0.3, dims: [0.3, 0.4, 0.3], isThruster: true, thrustDir: [0, 1, 0], thrustForce: 8,
         desc: 'Pushes upward',
         geom: () => {
             const g = new THREE.ConeGeometry(0.15, 0.4, 8);
@@ -468,7 +471,7 @@ const PART_DEFS = {
     },
     forward_thruster: {
         name: 'Fwd Thruster', category: 'Thrusters', icon: '▶', color: COLORS.thruster,
-        mass: 0.3, dims: [0.4, 0.3, 0.3], isThruster: true, thrustDir: [0, 0, 1], thrustForce: 12,
+        mass: 0.3, dims: [0.4, 0.3, 0.3], isThruster: true, thrustDir: [0, 0, 1], thrustForce: 6,
         desc: 'Pushes forward',
         geom: () => {
             const g = new THREE.ConeGeometry(0.15, 0.4, 8);
@@ -730,7 +733,7 @@ function initTestScene() {
     container.appendChild(testRenderer.domElement);
 
     testCamera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
-    testCamera.position.set(0, 3, -6);
+    testCamera.position.set(4, 3, -6);
 
     const vertexShader = `
         varying vec3 vWorldPosition;
@@ -784,76 +787,55 @@ function createTestArena() {
     const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.ground, roughness: 0.9 });
     const obstacleMat = new THREE.MeshStandardMaterial({ color: COLORS.obstacle, roughness: 0.7 });
 
-    const flatGround = new THREE.Mesh(new THREE.BoxGeometry(100, 0.5, 20), groundMat);
-    flatGround.position.set(40, -0.25, 0);
+    const flatGround = new THREE.Mesh(new THREE.BoxGeometry(20, 0.5, 200), groundMat);
+    flatGround.position.set(0, -0.25, 90);
     flatGround.receiveShadow = true;
     testArenaGroup.add(flatGround);
 
-    const startPad = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 10), groundMat.clone());
+    const startPad = new THREE.Mesh(new THREE.BoxGeometry(10, 0.52, 8), groundMat.clone());
     startPad.material.color.set(0x4a5a3a);
-    startPad.position.set(0, -0.25, 0);
+    startPad.position.set(0, -0.26, 0);
     startPad.receiveShadow = true;
     testArenaGroup.add(startPad);
 
-    const slopeLen = 8;
-    const slopeGeo = new THREE.BoxGeometry(slopeLen, 0.5, 10);
-    const slope = new THREE.Mesh(slopeGeo, groundMat);
-    slope.position.set(14, -0.7, 0);
-    slope.rotation.z = -0.08;
-    slope.receiveShadow = true;
-    testArenaGroup.add(slope);
-
-    const rampGeo = new THREE.BoxGeometry(4, 0.3, 6);
+    const rampGeo = new THREE.BoxGeometry(6, 0.3, 4);
     const ramp = new THREE.Mesh(rampGeo, obstacleMat);
-    ramp.position.set(25, 0.1, 0);
-    ramp.rotation.z = -0.25;
+    ramp.position.set(0, 0.15, 30);
+    ramp.rotation.x = -0.25;
     ramp.receiveShadow = true;
     testArenaGroup.add(ramp);
 
-    const wallL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 6), obstacleMat);
-    wallL.position.set(35, 0.5, 3);
+    const wallL = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 0.4), obstacleMat);
+    wallL.position.set(4, 0.75, 50);
     testArenaGroup.add(wallL);
-    const wallR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 6), obstacleMat);
-    wallR.position.set(35, 0.5, -3);
+    const wallR = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 0.4), obstacleMat);
+    wallR.position.set(-4, 0.75, 50);
     testArenaGroup.add(wallR);
 }
 
 function createPhysicsArena() {
-    const ground = RAPIER.ColliderDesc.cuboid(50, 0.25, 10)
-        .setTranslation(40, -0.25, 0)
+    const ground = RAPIER.ColliderDesc.cuboid(10, 0.25, 100)
+        .setTranslation(0, -0.25, 90)
         .setFriction(0.7);
     physicsWorld.createCollider(ground);
 
-    const startPad = RAPIER.ColliderDesc.cuboid(4, 0.25, 5)
-        .setTranslation(0, -0.25, 0)
+    const startPad = RAPIER.ColliderDesc.cuboid(5, 0.26, 4)
+        .setTranslation(0, -0.26, 0)
         .setFriction(0.7);
     physicsWorld.createCollider(startPad);
 
-    const slopeBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed()
-        .setTranslation(14, -0.7, 0)
-        .setRotation(quatFromEuler(0, 0, -0.08)));
-    physicsWorld.createCollider(
-        RAPIER.ColliderDesc.cuboid(4, 0.25, 5).setFriction(0.7),
-        slopeBody
-    );
-
     const rampBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed()
-        .setTranslation(25, 0.1, 0)
-        .setRotation(quatFromEuler(0, 0, -0.25)));
+        .setTranslation(0, 0.15, 30)
+        .setRotation(quatFromEuler(-0.25, 0, 0)));
     physicsWorld.createCollider(
-        RAPIER.ColliderDesc.cuboid(2, 0.15, 3).setFriction(0.5),
+        RAPIER.ColliderDesc.cuboid(3, 0.15, 2).setFriction(0.5),
         rampBody
     );
 
-    const wl = RAPIER.ColliderDesc.cuboid(0.15, 0.5, 3).setTranslation(35, 0.5, 3);
+    const wl = RAPIER.ColliderDesc.cuboid(2.5, 0.75, 0.2).setTranslation(4, 0.75, 50);
     physicsWorld.createCollider(wl);
-    const wr = RAPIER.ColliderDesc.cuboid(0.15, 0.5, 3).setTranslation(35, 0.5, -3);
+    const wr = RAPIER.ColliderDesc.cuboid(2.5, 0.75, 0.2).setTranslation(-4, 0.75, 50);
     physicsWorld.createCollider(wr);
-
-    const pit = RAPIER.ColliderDesc.cuboid(2, 0.05, 5)
-        .setTranslation(42, -2, 0)
-        .setSensor(true);
-    physicsWorld.createCollider(pit);
 }
 
 function quatFromEuler(x, y, z) {
@@ -1139,16 +1121,11 @@ function getPartHalfExtentAlongAxis(def, axis) {
 }
 
 function getPartDefaultY(def) {
+    if (def.isWheel) return def.radius;
     return def.dims[1] / 2;
 }
 
 function orientPartToSnap(mesh, def, normal) {
-    if (def.isWheel && !def.radius) return;
-    if (def.isWheel) {
-        const up = new THREE.Vector3(1, 0, 0);
-        const q = new THREE.Quaternion().setFromUnitVectors(up, normal);
-        mesh.quaternion.copy(q);
-    }
 }
 
 function endDrag(e) {
@@ -1221,6 +1198,8 @@ function endDrag(e) {
         if (def.isLeg) {
             joint.motorEnabled = true;
             joint.oscillate = true;
+            const existingOscJoints = buildState.joints.filter(j => j.oscillate && j.id !== joint.id).length;
+            joint.oscPhase = (existingOscJoints % 2) * Math.PI;
         }
     }
 
@@ -1443,12 +1422,22 @@ function startSimulation() {
     for (const p of buildState.parts) centerOfBuild.add(p.position);
     if (buildState.parts.length > 0) centerOfBuild.divideScalar(buildState.parts.length);
 
+    let minRelBottomY = Infinity;
+    for (const part of buildState.parts) {
+        const def = PART_DEFS[part.type];
+        const relY = part.position.y - centerOfBuild.y;
+        const halfH = def.isWheel ? def.radius : def.dims[1] / 2;
+        const bottomY = relY - halfH;
+        if (bottomY < minRelBottomY) minRelBottomY = bottomY;
+    }
+    const spawnOffsetY = Math.max(0.5, -minRelBottomY + 0.15);
+
     for (const part of buildState.parts) {
         const def = PART_DEFS[part.type];
         const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
             .setTranslation(
                 part.position.x - centerOfBuild.x,
-                part.position.y - centerOfBuild.y + 1.5,
+                part.position.y - centerOfBuild.y + spawnOffsetY,
                 part.position.z - centerOfBuild.z
             )
             .setRotation({
@@ -1456,13 +1445,16 @@ function startSimulation() {
                 y: part.rotation.y,
                 z: part.rotation.z,
                 w: part.rotation.w
-            });
+            })
+            .setLinearDamping(0.3)
+            .setAngularDamping(0.5);
         const body = physicsWorld.createRigidBody(bodyDesc);
 
         const colliderDesc = def.collider();
         colliderDesc.setMass(def.mass);
-        if (!def.isWheel) colliderDesc.setFriction(0.5);
-        colliderDesc.setRestitution(def.isSpring ? 0.9 : 0.2);
+        if (!def.isWheel && !def.isLeg) colliderDesc.setFriction(0.5);
+        if (!def.isLeg) colliderDesc.setRestitution(def.isSpring ? 0.9 : 0.2);
+        colliderDesc.setCollisionGroups(0x00010002);
         physicsWorld.createCollider(colliderDesc, body);
 
         const mesh = createPartMesh(part.type, def);
@@ -1505,7 +1497,7 @@ function startSimulation() {
         }
     }
 
-    testStartPos.set(0, 1.5, 0);
+    testStartPos.set(0, spawnOffsetY, 0);
     testStartTime = performance.now();
     invertedTimer = 0;
     score = { distance: 0, time: 0, maxSpeed: 0, style: 0 };
@@ -1559,17 +1551,20 @@ function testLoop() {
 }
 
 function applyThrusters() {
+    const elapsed = (performance.now() - testStartTime) / 1000;
+    if (elapsed < 2.0) return;
     for (const [id, ent] of physicsBodies) {
         if (!ent.def.isThruster) continue;
         const part = ent.part;
         if (part.autoFire === false) continue;
         const mult = part.thrustMult || 1;
+        const rampUp = Math.min(1, (elapsed - 2.0) / 1.0);
         const dir = new THREE.Vector3(...ent.def.thrustDir);
         dir.applyQuaternion(new THREE.Quaternion(
             ent.body.rotation().x, ent.body.rotation().y,
             ent.body.rotation().z, ent.body.rotation().w
         ));
-        dir.multiplyScalar(ent.def.thrustForce * mult);
+        dir.multiplyScalar(ent.def.thrustForce * mult * rampUp);
         ent.body.addForce({ x: dir.x, y: dir.y, z: dir.z }, true);
 
         spawnThrusterParticle(ent.body.translation(), dir.clone().negate().normalize());
@@ -1577,9 +1572,12 @@ function applyThrusters() {
 }
 
 function applyLegOscillation(time) {
+    const elapsed = (performance.now() - testStartTime) / 1000;
+    if (elapsed < 1.8) return;
     for (const [id, jEnt] of physicsJoints) {
         if (!jEnt.data.oscillate) continue;
-        const speed = jEnt.data.motorSpeed * Math.sin(time * 4);
+        const phase = jEnt.data.oscPhase || 0;
+        const speed = jEnt.data.motorSpeed * Math.sin(time * 6 + phase);
         try {
             jEnt.joint.configureMotorVelocity(speed, jEnt.data.motorForce);
         } catch(e) {}
@@ -1587,10 +1585,12 @@ function applyLegOscillation(time) {
 }
 
 function applyPropellers(time) {
+    const elapsed = (performance.now() - testStartTime) / 1000;
+    if (elapsed < 2.0) return;
     for (const [id, ent] of physicsBodies) {
         if (!ent.def.isPropeller) continue;
-        ent.body.addForce({ x: 0, y: 6, z: 0 }, true);
-        ent.body.addTorque({ x: 0, y: 8, z: 0 }, true);
+        ent.body.addForce({ x: 0, y: 4, z: 0 }, true);
+        ent.body.addTorque({ x: 0, y: 6, z: 0 }, true);
     }
 }
 
@@ -1628,7 +1628,7 @@ function updateScore(now) {
         avgPos.divideScalar(count);
         avgVel.divideScalar(count);
 
-        score.distance = Math.max(score.distance, avgPos.x);
+        score.distance = Math.max(score.distance, avgPos.z);
         const speed = avgVel.length();
         score.maxSpeed = Math.max(score.maxSpeed, speed);
 
@@ -1647,7 +1647,7 @@ function updateScore(now) {
             }
         }
 
-        if (!anyAboveGround || invertedTimer > 3 || avgPos.y < -5) {
+        if (!anyAboveGround || invertedTimer > 5 || avgPos.y < -5) {
             endSimulation('Wipeout!');
             return;
         }
@@ -1675,14 +1675,12 @@ function updateTestCamera() {
     if (count === 0) return;
     target.divideScalar(count);
 
-    const camOffset = new THREE.Vector3(-5, 3, 4);
+    const camOffset = new THREE.Vector3(5, 3, -6);
     const desiredPos = target.clone().add(camOffset);
     testCamera.position.lerp(desiredPos, 0.04);
     const lookTarget = target.clone();
     lookTarget.y += 0.5;
 
-    const currentLook = new THREE.Vector3();
-    testCamera.getWorldDirection(currentLook);
     testCamera.lookAt(lookTarget);
 }
 
@@ -1804,7 +1802,8 @@ function serializeBuild() {
             ancB: [round3(j.anchorB.x), round3(j.anchorB.y), round3(j.anchorB.z)],
             axis: [j.axis.x, j.axis.y, j.axis.z],
             me: j.motorEnabled, ms: j.motorSpeed, mf: j.motorForce,
-            osc: j.oscillate || false
+            osc: j.oscillate || false,
+            oscP: j.oscPhase || 0
         })),
         npi: buildState.nextPartId,
         nji: buildState.nextJointId
@@ -1851,6 +1850,7 @@ function deserializeBuildInto(json) {
             motorSpeed: jd.ms,
             motorForce: jd.mf,
             oscillate: jd.osc,
+            oscPhase: jd.oscP || 0,
             line: null
         };
         buildState.joints.push(joint);
@@ -1899,31 +1899,31 @@ const PRESETS = {
     tricar: {
         parts: [
             { id: 1, type: 'long_plank', pos: [0, 0.5, 0], rot: [0, 0, 0, 1] },
-            { id: 2, type: 'small_wheel', pos: [-1.575, 0.5, 0.325], rot: [0, 0, 0, 1] },
-            { id: 3, type: 'small_wheel', pos: [-1.575, 0.5, -0.325], rot: [0, 0, 0, 1] },
-            { id: 4, type: 'big_wheel', pos: [1.6, 0.5, 0], rot: [0, 0, 0, 1] },
-            { id: 5, type: 'googly_eyes', pos: [1.5, 0.85, 0], rot: [0, 0, 0, 1] }
+            { id: 2, type: 'small_wheel', pos: [-1, 0.5, 0.325], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'small_wheel', pos: [-1, 0.5, -0.325], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'big_wheel', pos: [1.0, 0.5, 0.35], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'googly_eyes', pos: [0, 0.85, 0.35], rot: [0, 0, 0, 1] }
         ],
         joints: [
-            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [-1.5, 0, 0.25], ancB: [0.075, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 60, osc: false },
-            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [-1.5, 0, -0.25], ancB: [0.075, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 60, osc: false },
-            { id: 3, a: 1, b: 4, type: 'hinge', ancA: [1.5, 0, 0], ancB: [-0.1, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 80, osc: false },
-            { id: 4, a: 1, b: 5, type: 'fixed', ancA: [1.5, 0.25, 0], ancB: [0, -0.1, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
+            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [-1, 0, 0.325], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 60, osc: false },
+            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [-1, 0, -0.325], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 60, osc: false },
+            { id: 3, a: 1, b: 4, type: 'hinge', ancA: [1.0, 0, 0.35], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 80, osc: false },
+            { id: 4, a: 1, b: 5, type: 'fixed', ancA: [0, 0.25, 0.25], ancB: [0, -0.1, -0.1], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
         ],
         npi: 6, nji: 5
     },
     ostrich: {
         parts: [
             { id: 1, type: 'box_chassis', pos: [0, 1.5, 0], rot: [0, 0, 0, 1] },
-            { id: 2, type: 'leg_2seg', pos: [-0.25, 0.5, 0.4], rot: [0, 0, 0, 1] },
-            { id: 3, type: 'leg_2seg', pos: [-0.25, 0.5, -0.4], rot: [0, 0, 0, 1] },
-            { id: 4, type: 'googly_eyes', pos: [0.5, 1.85, 0], rot: [0, 0, 0, 1] },
-            { id: 5, type: 'antenna', pos: [0, 2.0, 0], rot: [0, 0, 0, 1] }
+            { id: 2, type: 'leg_2seg', pos: [0, 0.55, 0.4], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'leg_2seg', pos: [0, 0.55, -0.4], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'googly_eyes', pos: [0, 1.85, 0.6], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'antenna', pos: [0, 1.77, 0], rot: [0, 0, 0, 1] }
         ],
         joints: [
-            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [0, -0.25, 0.4], ancB: [0, 0.4, 0], axis: [0, 0, 1], me: true, ms: 3, mf: 40, osc: true },
-            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [0, -0.25, -0.4], ancB: [0, 0.4, 0], axis: [0, 0, 1], me: true, ms: 3, mf: 40, osc: true },
-            { id: 3, a: 1, b: 4, type: 'fixed', ancA: [0.5, 0.25, 0], ancB: [0, -0.1, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [0, -0.25, 0.4], ancB: [0, 0.7, 0], axis: [1, 0, 0], me: true, ms: 4, mf: 50, osc: true, oscP: 0 },
+            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [0, -0.25, -0.4], ancB: [0, 0.7, 0], axis: [1, 0, 0], me: true, ms: 4, mf: 50, osc: true, oscP: 3.14159 },
+            { id: 3, a: 1, b: 4, type: 'fixed', ancA: [0, 0.25, 0.5], ancB: [0, -0.1, -0.1], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
             { id: 4, a: 1, b: 5, type: 'fixed', ancA: [0, 0.25, 0], ancB: [0, -0.02, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
         ],
         npi: 6, nji: 5
@@ -1933,18 +1933,18 @@ const PRESETS = {
             { id: 1, type: 'platform', pos: [0, 0.5, 0], rot: [0, 0, 0, 1] },
             { id: 2, type: 'upward_thruster', pos: [0.5, 0.85, 0.5], rot: [0, 0, 0, 1] },
             { id: 3, type: 'upward_thruster', pos: [-0.5, 0.85, -0.5], rot: [0, 0, 0, 1] },
-            { id: 4, type: 'forward_thruster', pos: [0.5, 0.65, -1], rot: [0, 0, 0, 1] },
-            { id: 5, type: 'forward_thruster', pos: [-0.5, 0.65, -1], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'forward_thruster', pos: [0.5, 0.65, -0.8], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'forward_thruster', pos: [-0.5, 0.65, -0.8], rot: [0, 0, 0, 1] },
             { id: 6, type: 'propeller', pos: [0, 0.9, 0], rot: [0, 0, 0, 1] },
-            { id: 7, type: 'googly_eyes', pos: [0, 0.75, 1], rot: [0, 0, 0, 1] }
+            { id: 7, type: 'googly_eyes', pos: [0, 0.75, 1.1], rot: [0, 0, 0, 1] }
         ],
         joints: [
             { id: 1, a: 1, b: 2, type: 'fixed', ancA: [0.5, 0.15, 0.5], ancB: [0, -0.2, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
             { id: 2, a: 1, b: 3, type: 'fixed', ancA: [-0.5, 0.15, -0.5], ancB: [0, -0.2, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
-            { id: 3, a: 1, b: 4, type: 'fixed', ancA: [0.5, 0, -1], ancB: [0, 0, 0.2], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
-            { id: 4, a: 1, b: 5, type: 'fixed', ancA: [-0.5, 0, -1], ancB: [0, 0, 0.2], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 3, a: 1, b: 4, type: 'fixed', ancA: [0.5, 0.15, -1], ancB: [0, 0, -0.2], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 4, a: 1, b: 5, type: 'fixed', ancA: [-0.5, 0.15, -1], ancB: [0, 0, -0.2], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
             { id: 5, a: 1, b: 6, type: 'hinge', ancA: [0, 0.15, 0], ancB: [0, -0.025, 0], axis: [0, 1, 0], me: true, ms: 10, mf: 5, osc: false },
-            { id: 6, a: 1, b: 7, type: 'fixed', ancA: [0, 0, 1], ancB: [0, 0, -0.1], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
+            { id: 6, a: 1, b: 7, type: 'fixed', ancA: [0, 0.25, 1], ancB: [0, 0, -0.1], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
         ],
         npi: 8, nji: 7
     }

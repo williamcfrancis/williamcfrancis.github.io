@@ -14,6 +14,33 @@ function escapeHtml(text: string): string {
   return d.innerHTML;
 }
 
+const DRIFT_REACTIONS: { threshold: number; messages: string[] }[] = [
+  { threshold: 0.05, messages: ['Barely a scratch!', 'Rock solid.', 'Nailed it.'] },
+  { threshold: 0.15, messages: ['Still holding up!', 'Minor wobble.', 'Close enough!'] },
+  { threshold: 0.30, messages: ['Getting creative...', 'A little twist!', 'Hmmm, interesting.'] },
+  { threshold: 0.50, messages: ['Wait, what?', 'Plot twist!', 'That escalated.', 'Oh no...'] },
+  { threshold: 0.70, messages: ['It\'s mutating!', 'Unrecognizable!', 'Total chaos.'] },
+  { threshold: 1.0, messages: ['A completely new sentence.', 'Reborn.', 'Lost forever.'] },
+];
+
+function getDriftReaction(drift: number): string {
+  for (const tier of DRIFT_REACTIONS) {
+    if (drift <= tier.threshold) {
+      return tier.messages[Math.floor(Math.random() * tier.messages.length)];
+    }
+  }
+  return DRIFT_REACTIONS[DRIFT_REACTIONS.length - 1].messages[0];
+}
+
+function getDriftEmoji(drift: number): string {
+  if (drift <= 0.05) return '\u2728';
+  if (drift <= 0.15) return '\uD83D\uDC4D';
+  if (drift <= 0.30) return '\uD83E\uDD14';
+  if (drift <= 0.50) return '\uD83D\uDE32';
+  if (drift <= 0.70) return '\uD83E\uDD2F';
+  return '\uD83D\uDCA5';
+}
+
 export function createJourneyScreen(
   container: HTMLElement,
   sentence: string,
@@ -32,18 +59,24 @@ export function createJourneyScreen(
         <div class="drift-bar">
           <div class="drift-fill" id="drift-fill"></div>
         </div>
+        <div class="drift-reaction hidden" id="drift-reaction"></div>
       </div>
 
       <div class="translation-display">
         <div class="current-lang" id="current-lang">
           <span class="lang-flag" id="lang-flag">${countryCodeToFlag(chain[0].countryCode)}</span>
           <span class="lang-name" id="lang-name">${chain[0].name}</span>
+          <span class="step-badge" id="step-badge">START</span>
         </div>
         <div class="translation-text-wrapper">
           <div class="translation-text" id="ttext">${escapeHtml(sentence)}</div>
           <div class="shimmer-overlay hidden" id="shimmer"></div>
         </div>
         <div class="transliteration hidden" id="translit"></div>
+        <div class="back-translation hidden" id="back-trans">
+          <span class="back-trans-label">In English:</span>
+          <span class="back-trans-text" id="back-trans-text"></span>
+        </div>
       </div>
 
       <div class="station-track-wrapper">
@@ -72,11 +105,15 @@ export function createJourneyScreen(
 
   const driftFill = container.querySelector('#drift-fill') as HTMLElement;
   const driftPct = container.querySelector('#drift-pct') as HTMLElement;
+  const driftReaction = container.querySelector('#drift-reaction') as HTMLElement;
   const ttext = container.querySelector('#ttext') as HTMLElement;
   const shimmer = container.querySelector('#shimmer') as HTMLElement;
   const translit = container.querySelector('#translit') as HTMLElement;
+  const backTrans = container.querySelector('#back-trans') as HTMLElement;
+  const backTransText = container.querySelector('#back-trans-text') as HTMLElement;
   const langFlag = container.querySelector('#lang-flag') as HTMLElement;
   const langName = container.querySelector('#lang-name') as HTMLElement;
+  const stepBadge = container.querySelector('#step-badge') as HTMLElement;
   const stepCounter = container.querySelector('#step-counter') as HTMLElement;
 
   const stepBuffer: TranslationStep[] = [];
@@ -136,7 +173,7 @@ export function createJourneyScreen(
     }
 
     if (cancelled) return;
-    await sleep(600);
+    await sleep(800);
 
     const steps = stepBuffer.slice();
     onComplete({
@@ -149,6 +186,13 @@ export function createJourneyScreen(
     });
   }
 
+  async function waitForBackTranslation(step: TranslationStep, maxWait: number): Promise<void> {
+    const start = Date.now();
+    while (!step.backTranslation && Date.now() - start < maxWait) {
+      await sleep(100);
+    }
+  }
+
   async function animateStep(step: TranslationStep, idx: number) {
     const station = container.querySelector(`#st-${idx + 1}`) as HTMLElement;
     const prevStation = container.querySelector(`#st-${idx}`) as HTMLElement;
@@ -157,6 +201,7 @@ export function createJourneyScreen(
 
     langFlag.textContent = countryCodeToFlag(step.language.countryCode);
     langName.textContent = step.language.name;
+    stepBadge.textContent = `${idx + 1} / ${totalSteps}`;
     langFlag.classList.remove('bounce');
     void langFlag.offsetWidth;
     langFlag.classList.add('bounce');
@@ -167,8 +212,9 @@ export function createJourneyScreen(
     shimmer.classList.remove('hidden');
     ttext.classList.add('fading');
     translit.classList.add('hidden');
+    backTrans.classList.add('hidden');
 
-    await sleep(500);
+    await sleep(700);
 
     shimmer.classList.add('hidden');
     ttext.classList.remove('fading');
@@ -179,6 +225,17 @@ export function createJourneyScreen(
     if (step.transliteration && step.transliteration !== step.text) {
       translit.textContent = step.transliteration;
       translit.classList.remove('hidden');
+    }
+
+    await waitForBackTranslation(step, 2000);
+
+    if (step.backTranslation) {
+      backTransText.textContent = '';
+      backTrans.classList.remove('hidden');
+      backTrans.classList.remove('back-trans-pop');
+      void backTrans.offsetWidth;
+      backTrans.classList.add('back-trans-pop');
+      await typewriter(backTransText, `"${step.backTranslation}"`);
     }
 
     const drift = step.driftScore;
@@ -193,6 +250,17 @@ export function createJourneyScreen(
       driftFill.style.background = 'linear-gradient(90deg, #f7dc6f, #ff6b6b)';
     }
 
+    const emoji = getDriftEmoji(drift);
+    const reaction = getDriftReaction(drift);
+    driftReaction.innerHTML = `<span class="reaction-emoji">${emoji}</span> ${escapeHtml(reaction)}`;
+    driftReaction.classList.remove('hidden', 'reaction-pop');
+    void driftReaction.offsetWidth;
+    driftReaction.classList.add('reaction-pop');
+
+    if (drift > 0.5) {
+      spawnParticles(container.querySelector('.translation-display')!);
+    }
+
     prevStation.classList.add('completed');
     const prevCheck = prevStation.querySelector('.station-check');
     if (prevCheck) prevCheck.classList.remove('hidden');
@@ -203,17 +271,31 @@ export function createJourneyScreen(
     station.querySelector('.station-check')!.classList.remove('hidden');
 
     stepCounter.textContent = String(idx + 1);
-    await sleep(350);
+    await sleep(800);
   }
 
   produce();
   consume();
 }
 
+function spawnParticles(parent: HTMLElement): void {
+  const symbols = ['\u2728', '\uD83D\uDCAB', '\u2B50', '\uD83C\uDF1F', '\u26A1'];
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElement('span');
+    p.className = 'drift-particle';
+    p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+    p.style.left = `${20 + Math.random() * 60}%`;
+    p.style.animationDelay = `${Math.random() * 0.4}s`;
+    p.style.setProperty('--drift-x', `${(Math.random() - 0.5) * 80}px`);
+    parent.appendChild(p);
+    setTimeout(() => p.remove(), 1500);
+  }
+}
+
 async function typewriter(el: HTMLElement, text: string): Promise<void> {
   el.textContent = '';
   const chars = [...text];
-  const delay = Math.max(15, Math.min(50, 800 / chars.length));
+  const delay = Math.max(18, Math.min(55, 1000 / chars.length));
 
   for (const ch of chars) {
     el.textContent += ch;

@@ -344,6 +344,27 @@ button {
   transition: width 0.6s ease, background 0.6s ease;
 }
 
+.drift-reaction {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  min-height: 1.4em;
+  transition: opacity 0.3s;
+}
+.drift-reaction.reaction-pop {
+  animation: reactionPop 0.45s ease;
+}
+.reaction-emoji {
+  font-size: 1.1rem;
+  margin-right: 0.2rem;
+}
+
+@keyframes reactionPop {
+  0% { transform: scale(0.7); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* Translation display */
 .translation-display {
   flex: 1;
@@ -353,6 +374,8 @@ button {
   justify-content: center;
   text-align: center;
   padding: 2rem 1rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .current-lang {
@@ -367,6 +390,18 @@ button {
   font-family: 'Playfair Display', serif;
   font-size: 1.4rem;
   color: var(--text-secondary);
+}
+.step-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-teal);
+  background: rgba(78, 205, 196, 0.1);
+  border: 1px solid rgba(78, 205, 196, 0.25);
+  border-radius: 20px;
+  padding: 0.2rem 0.65rem;
+  margin-left: 0.3rem;
 }
 
 .translation-text-wrapper {
@@ -416,6 +451,50 @@ button {
   font-style: italic;
   margin-top: 0.5rem;
   animation: fadeIn 0.4s ease;
+}
+
+.back-translation {
+  margin-top: 0.8rem;
+  padding: 0.6rem 1.2rem;
+  background: rgba(78, 205, 196, 0.06);
+  border: 1px solid rgba(78, 205, 196, 0.15);
+  border-radius: var(--radius);
+  max-width: 600px;
+  animation: fadeIn 0.4s ease;
+}
+.back-translation.back-trans-pop {
+  animation: backTransSlide 0.5s ease;
+}
+.back-trans-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-teal);
+  margin-right: 0.4rem;
+  font-weight: 600;
+}
+.back-trans-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+@keyframes backTransSlide {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.drift-particle {
+  position: absolute;
+  font-size: 1.2rem;
+  pointer-events: none;
+  animation: particleFloat 1.2s ease-out forwards;
+  z-index: 10;
+}
+
+@keyframes particleFloat {
+  0% { opacity: 1; transform: translateY(0) translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) translateX(var(--drift-x, 20px)) scale(0.4); }
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -702,6 +781,15 @@ button {
   color: var(--text-muted);
   font-style: italic;
   margin-top: 0.15rem;
+}
+.tl-back-translation {
+  font-size: 0.82rem;
+  color: var(--accent-teal);
+  margin-top: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  background: rgba(78, 205, 196, 0.06);
+  border-radius: 6px;
+  display: inline-block;
 }
 .tl-drift {
   font-size: 0.72rem;

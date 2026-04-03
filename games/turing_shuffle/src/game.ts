@@ -239,3 +239,122 @@ export function generateInsight(
       'You got some right on instinct and some wrong despite confidence. The passages that fooled you reveal where your mental model of "AI writing" diverges from reality.',
   };
 }
+
+/* ═══════ SCORE TITLES ═══════ */
+
+export function getScoreTitle(score: number): { title: string; subtitle: string } {
+  const titles: Record<number, { title: string; subtitle: string }> = {
+    10: { title: 'Turing Complete', subtitle: 'You see through the machine.' },
+    9: { title: 'Pattern Anomaly', subtitle: 'Almost nobody scores this high.' },
+    8: { title: 'Signal Decoder', subtitle: 'You read between the lines.' },
+    7: { title: 'Binary Literate', subtitle: 'You know which bits are real.' },
+    6: { title: 'Above the Noise', subtitle: "You're starting to hear the difference." },
+    5: { title: 'Coin Flip Oracle', subtitle: 'Exactly what random chance predicts.' },
+    4: { title: 'Static Noise', subtitle: 'The signal is getting lost.' },
+    3: { title: 'Blurred Lines', subtitle: 'The boundary deceived you.' },
+    2: { title: 'Ghost in the Machine', subtitle: 'You see humans where there are none.' },
+    1: { title: 'AI Sympathizer', subtitle: 'You trust the machine too much.' },
+    0: { title: 'Perfectly Wrong', subtitle: 'Statistically impressive, actually.' },
+  };
+  return titles[score] ?? titles[5];
+}
+
+/* ═══════ CONFIDENCE CALIBRATION ═══════ */
+
+export interface ConfidenceCalibration {
+  highConfAccuracy: number | null;
+  lowConfAccuracy: number | null;
+  overconfidentCount: number;
+  underconfidentCount: number;
+  summary: string;
+}
+
+export function analyzeConfidence(answers: UserAnswer[]): ConfidenceCalibration {
+  const high = answers.filter(a => a.confidence >= 80);
+  const low = answers.filter(a => a.confidence < 70);
+
+  const highCorrect = high.filter(a => a.correct).length;
+  const lowCorrect = low.filter(a => a.correct).length;
+
+  const overconfident = answers.filter(a => a.confidence >= 85 && !a.correct).length;
+  const underconfident = answers.filter(a => a.confidence < 65 && a.correct).length;
+
+  const highAcc = high.length >= 2 ? highCorrect / high.length : null;
+  const lowAcc = low.length >= 2 ? lowCorrect / low.length : null;
+
+  let summary: string;
+  if (overconfident >= 3) {
+    summary = 'You were frequently certain — and frequently wrong. Overconfidence is the most common trap in this game.';
+  } else if (highAcc !== null && highAcc >= 0.8) {
+    summary = 'Your confidence was well-calibrated. When you felt sure, you usually were.';
+  } else if (underconfident >= 3) {
+    summary = 'You doubted yourself more than you should have. Your instincts were better than you thought.';
+  } else if (highAcc !== null && lowAcc !== null && lowAcc > highAcc) {
+    summary = 'Counterintuitively, you did better when you were less sure. Doubt might be your superpower.';
+  } else {
+    summary = "Your confidence didn't strongly predict your accuracy — which is typical. Our certainty about AI detection is often misplaced.";
+  }
+
+  return {
+    highConfAccuracy: highAcc,
+    lowConfAccuracy: lowAcc,
+    overconfidentCount: overconfident,
+    underconfidentCount: underconfident,
+    summary,
+  };
+}
+
+/* ═══════ TIMING INSIGHTS ═══════ */
+
+export interface TimingInsight {
+  avgTime: number;
+  fastestIdx: number;
+  slowestIdx: number;
+  gutAccuracy: number | null;
+  deliberateAccuracy: number | null;
+  summary: string;
+}
+
+export function analyzeTimings(answers: UserAnswer[]): TimingInsight {
+  const times = answers.map(a => a.timeTaken);
+  const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+
+  let fastestIdx = 0;
+  let slowestIdx = 0;
+  for (let i = 1; i < times.length; i++) {
+    if (times[i] < times[fastestIdx]) fastestIdx = i;
+    if (times[i] > times[slowestIdx]) slowestIdx = i;
+  }
+
+  const gut = answers.filter(a => a.timeTaken < 5000);
+  const deliberate = answers.filter(a => a.timeTaken > 15000);
+
+  const gutAcc = gut.length >= 2
+    ? gut.filter(a => a.correct).length / gut.length
+    : null;
+  const delibAcc = deliberate.length >= 2
+    ? deliberate.filter(a => a.correct).length / deliberate.length
+    : null;
+
+  let summary: string;
+  if (gutAcc !== null && delibAcc !== null && gutAcc > delibAcc + 0.15) {
+    summary = 'Your gut instinct outperformed your deliberation. Sometimes the first impression is the honest one.';
+  } else if (gutAcc !== null && delibAcc !== null && delibAcc > gutAcc + 0.15) {
+    summary = 'Taking your time paid off. Careful reading caught what snap judgments missed.';
+  } else if (avgTime < 8000) {
+    summary = 'You moved quickly through the passages. Speed suggests confidence — whether justified or not.';
+  } else if (avgTime > 20000) {
+    summary = "You took your time with each passage. Careful analysis is a valid strategy — but it doesn't always help.";
+  } else {
+    summary = 'Your pace was steady throughout. Neither rushing nor overthinking — a balanced approach.';
+  }
+
+  return {
+    avgTime,
+    fastestIdx,
+    slowestIdx,
+    gutAccuracy: gutAcc,
+    deliberateAccuracy: delibAcc,
+    summary,
+  };
+}

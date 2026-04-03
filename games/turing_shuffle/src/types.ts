@@ -18,6 +18,7 @@ export interface UserAnswer {
   guess: 'human' | 'ai';
   confidence: number;
   correct: boolean;
+  timeTaken: number;
 }
 
 export interface GameResult {
@@ -26,6 +27,7 @@ export interface GameResult {
   total: number;
   passageIds: string[];
   answers: UserAnswer[];
+  bestStreak: number;
 }
 
 export interface GameHistory {
@@ -33,6 +35,7 @@ export interface GameHistory {
   totalCorrect: number;
   totalAnswered: number;
   bestScore: number;
+  bestStreak: number;
   results: GameResult[];
   passageMisses: Record<string, number>;
 }

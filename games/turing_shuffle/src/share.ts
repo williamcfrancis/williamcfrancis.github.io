@@ -1,4 +1,5 @@
 import type { UserAnswer } from './types';
+import { getScoreTitle } from './game';
 
 export function generateShareImage(
   score: number,
@@ -7,30 +8,26 @@ export function generateShareImage(
 ): string {
   const canvas = document.createElement('canvas');
   canvas.width = 600;
-  canvas.height = 340;
+  canvas.height = 370;
   const ctx = canvas.getContext('2d')!;
 
-  // Background
-  const bg = ctx.createLinearGradient(0, 0, 600, 340);
+  const bg = ctx.createLinearGradient(0, 0, 600, 370);
   bg.addColorStop(0, '#0a0c10');
   bg.addColorStop(1, '#131620');
   ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, 600, 340);
+  ctx.fillRect(0, 0, 600, 370);
 
-  // Border
   ctx.strokeStyle = 'rgba(100, 120, 180, 0.3)';
   ctx.lineWidth = 2;
-  ctx.strokeRect(1, 1, 598, 338);
+  ctx.strokeRect(1, 1, 598, 368);
 
-  // Title
   ctx.fillStyle = '#eef0f6';
   ctx.font = 'bold 28px "Playfair Display", Georgia, serif';
   ctx.textAlign = 'center';
-  ctx.fillText('The Turing Shuffle', 300, 50);
+  ctx.fillText('The Turing Shuffle', 300, 48);
 
-  // Score
   ctx.font = 'bold 52px "Inter", sans-serif';
-  const scoreGrad = ctx.createLinearGradient(200, 80, 400, 140);
+  const scoreGrad = ctx.createLinearGradient(200, 60, 400, 120);
   if (score >= 7) {
     scoreGrad.addColorStop(0, '#2dd4bf');
     scoreGrad.addColorStop(1, '#38bdf8');
@@ -42,19 +39,22 @@ export function generateShareImage(
     scoreGrad.addColorStop(1, '#fb923c');
   }
   ctx.fillStyle = scoreGrad;
-  ctx.fillText(`${score} / ${total}`, 300, 130);
+  ctx.fillText(`${score} / ${total}`, 300, 118);
 
-  // Subtitle
+  const { title } = getScoreTitle(score);
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 20px "Inter", sans-serif';
+  ctx.fillText(title, 300, 150);
+
   ctx.fillStyle = '#8892b0';
   ctx.font = '16px "Inter", sans-serif';
-  ctx.fillText('Can you tell human writing from AI?', 300, 165);
+  ctx.fillText('Can you tell human writing from AI?', 300, 178);
 
-  // Answer squares
   const squareSize = 36;
   const gap = 8;
   const totalWidth = total * squareSize + (total - 1) * gap;
   const startX = (600 - totalWidth) / 2;
-  const squareY = 195;
+  const squareY = 200;
 
   for (let i = 0; i < answers.length; i++) {
     const x = startX + i * (squareSize + gap);
@@ -95,15 +95,13 @@ export function generateShareImage(
     }
   }
 
-  // CTA
   ctx.fillStyle = '#eef0f6';
   ctx.font = '500 18px "Inter", sans-serif';
-  ctx.fillText('Can you beat me?', 300, 275);
+  ctx.fillText('Can you beat me?', 300, 290);
 
-  // Watermark
   ctx.fillStyle = '#4a5568';
   ctx.font = '13px "Inter", sans-serif';
-  ctx.fillText('williamcfrancis.netlify.app', 300, 315);
+  ctx.fillText('williamcfrancis.netlify.app', 300, 345);
 
   return canvas.toDataURL('image/png');
 }
@@ -114,7 +112,8 @@ export async function shareScore(
   answers: UserAnswer[],
 ): Promise<void> {
   const imageUrl = generateShareImage(score, total, answers);
-  const text = `I scored ${score}/${total} on The Turing Shuffle — can you tell human writing from AI? 🤖✍️\n\nhttps://williamcfrancis.netlify.app/games/turing_shuffle/`;
+  const { title } = getScoreTitle(score);
+  const text = `I scored ${score}/${total} on The Turing Shuffle \u2014 "${title}" \u{1F916}\u270D\uFE0F\n\nhttps://williamcfrancis.netlify.app/games/turing_shuffle/`;
 
   if (navigator.share) {
     try {
@@ -133,7 +132,6 @@ export async function shareScore(
     await navigator.clipboard.writeText(text);
     showCopiedToast();
   } catch {
-    // Last resort: open in new tab
     const w = window.open('', '_blank');
     if (w) {
       w.document.write(
