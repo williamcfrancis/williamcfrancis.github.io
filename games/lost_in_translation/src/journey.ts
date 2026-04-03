@@ -15,12 +15,12 @@ function escapeHtml(text: string): string {
 }
 
 const DRIFT_REACTIONS: { threshold: number; messages: string[] }[] = [
-  { threshold: 0.05, messages: ['Barely a scratch!', 'Rock solid.', 'Nailed it.'] },
-  { threshold: 0.15, messages: ['Still holding up!', 'Minor wobble.', 'Close enough!'] },
-  { threshold: 0.30, messages: ['Getting creative...', 'A little twist!', 'Hmmm, interesting.'] },
-  { threshold: 0.50, messages: ['Wait, what?', 'Plot twist!', 'That escalated.', 'Oh no...'] },
-  { threshold: 0.70, messages: ['It\'s mutating!', 'Unrecognizable!', 'Total chaos.'] },
-  { threshold: 1.0, messages: ['A completely new sentence.', 'Reborn.', 'Lost forever.'] },
+  { threshold: 0.05, messages: ['The meaning holds.', 'Remarkably faithful.', 'Unchanged.'] },
+  { threshold: 0.15, messages: ['A subtle shift.', 'Almost there.', 'Close, but not quite.'] },
+  { threshold: 0.30, messages: ['The words are wandering.', 'A quiet reinterpretation.', 'Drifting.'] },
+  { threshold: 0.50, messages: ['The meaning is splitting.', 'Something changed along the way.', 'A different story now.'] },
+  { threshold: 0.70, messages: ['Barely recognizable.', 'The original is fading.', 'A new sentence is forming.'] },
+  { threshold: 1.0, messages: ['An entirely new thought.', 'The original is a distant memory.', 'Completely transformed.'] },
 ];
 
 function getDriftReaction(drift: number): string {
@@ -30,15 +30,6 @@ function getDriftReaction(drift: number): string {
     }
   }
   return DRIFT_REACTIONS[DRIFT_REACTIONS.length - 1].messages[0];
-}
-
-function getDriftEmoji(drift: number): string {
-  if (drift <= 0.05) return '\u2728';
-  if (drift <= 0.15) return '\uD83D\uDC4D';
-  if (drift <= 0.30) return '\uD83E\uDD14';
-  if (drift <= 0.50) return '\uD83D\uDE32';
-  if (drift <= 0.70) return '\uD83E\uDD2F';
-  return '\uD83D\uDCA5';
 }
 
 export function createJourneyScreen(
@@ -250,15 +241,14 @@ export function createJourneyScreen(
       driftFill.style.background = 'linear-gradient(90deg, #f7dc6f, #ff6b6b)';
     }
 
-    const emoji = getDriftEmoji(drift);
     const reaction = getDriftReaction(drift);
-    driftReaction.innerHTML = `<span class="reaction-emoji">${emoji}</span> ${escapeHtml(reaction)}`;
+    driftReaction.textContent = reaction;
     driftReaction.classList.remove('hidden', 'reaction-pop');
     void driftReaction.offsetWidth;
     driftReaction.classList.add('reaction-pop');
 
-    if (drift > 0.5) {
-      spawnParticles(container.querySelector('.translation-display')!);
+    if (drift > 0.4) {
+      spawnOrbs(container.querySelector('.translation-display')!, drift);
     }
 
     prevStation.classList.add('completed');
@@ -278,17 +268,18 @@ export function createJourneyScreen(
   consume();
 }
 
-function spawnParticles(parent: HTMLElement): void {
-  const symbols = ['\u2728', '\uD83D\uDCAB', '\u2B50', '\uD83C\uDF1F', '\u26A1'];
-  for (let i = 0; i < 6; i++) {
-    const p = document.createElement('span');
-    p.className = 'drift-particle';
-    p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-    p.style.left = `${20 + Math.random() * 60}%`;
-    p.style.animationDelay = `${Math.random() * 0.4}s`;
-    p.style.setProperty('--drift-x', `${(Math.random() - 0.5) * 80}px`);
-    parent.appendChild(p);
-    setTimeout(() => p.remove(), 1500);
+function spawnOrbs(parent: HTMLElement, drift: number): void {
+  const count = drift > 0.7 ? 5 : 3;
+  for (let i = 0; i < count; i++) {
+    const orb = document.createElement('span');
+    orb.className = 'drift-orb';
+    orb.style.left = `${15 + Math.random() * 70}%`;
+    orb.style.animationDelay = `${Math.random() * 0.5}s`;
+    orb.style.setProperty('--orb-x', `${(Math.random() - 0.5) * 60}px`);
+    const hue = drift > 0.7 ? '0' : '45';
+    orb.style.setProperty('--orb-hue', hue);
+    parent.appendChild(orb);
+    setTimeout(() => orb.remove(), 1800);
   }
 }
 

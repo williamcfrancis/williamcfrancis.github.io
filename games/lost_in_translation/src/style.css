@@ -345,24 +345,21 @@ button {
 }
 
 .drift-reaction {
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-top: 0.5rem;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-top: 0.6rem;
   min-height: 1.4em;
-  transition: opacity 0.3s;
+  letter-spacing: 0.02em;
 }
 .drift-reaction.reaction-pop {
-  animation: reactionPop 0.45s ease;
-}
-.reaction-emoji {
-  font-size: 1.1rem;
-  margin-right: 0.2rem;
+  animation: reactionFade 0.6s ease;
 }
 
-@keyframes reactionPop {
-  0% { transform: scale(0.7); opacity: 0; }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
+@keyframes reactionFade {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* Translation display */
@@ -484,17 +481,22 @@ button {
   100% { opacity: 1; transform: translateY(0); }
 }
 
-.drift-particle {
+.drift-orb {
   position: absolute;
-  font-size: 1.2rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   pointer-events: none;
-  animation: particleFloat 1.2s ease-out forwards;
+  background: hsl(var(--orb-hue, 45) 80% 65%);
+  box-shadow: 0 0 8px hsl(var(--orb-hue, 45) 80% 65% / 0.5);
+  animation: orbFloat 1.6s ease-out forwards;
   z-index: 10;
 }
 
-@keyframes particleFloat {
-  0% { opacity: 1; transform: translateY(0) translateX(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-60px) translateX(var(--drift-x, 20px)) scale(0.4); }
+@keyframes orbFloat {
+  0% { opacity: 0.7; transform: translateY(0) translateX(0) scale(1); }
+  60% { opacity: 0.4; }
+  100% { opacity: 0; transform: translateY(-50px) translateX(var(--orb-x, 15px)) scale(0.2); }
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
