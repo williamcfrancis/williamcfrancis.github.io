@@ -1521,6 +1521,16 @@ function endDrag(e) {
         return;
     }
 
+    if (buildState.parts.length > 0 && !activeSnap) {
+        draggingType = null;
+        const hint = document.getElementById('build-hint');
+        hint.textContent = 'Parts must connect to existing parts! Drag onto a green snap point.';
+        hint.style.opacity = '1';
+        hint.style.color = '#e8a849';
+        setTimeout(() => { hint.style.opacity = '0.7'; hint.style.color = ''; hint.textContent = 'Drag parts from the palette. Hold Shift for hinge joints.'; }, 2500);
+        return;
+    }
+
     pushUndo();
     const partId = buildState.nextPartId++;
     const def = PART_DEFS[type];
@@ -1762,8 +1772,36 @@ function restoreBuild(data) {
 let testArenaGroup = null;
 let testRobotGroup = null;
 
+function isFullyConnected() {
+    if (buildState.parts.length <= 1) return true;
+    const visited = new Set();
+    const adj = new Map();
+    for (const p of buildState.parts) adj.set(p.id, []);
+    for (const j of buildState.joints) {
+        adj.get(j.partAId)?.push(j.partBId);
+        adj.get(j.partBId)?.push(j.partAId);
+    }
+    const queue = [buildState.parts[0].id];
+    visited.add(buildState.parts[0].id);
+    while (queue.length > 0) {
+        const cur = queue.shift();
+        for (const nb of (adj.get(cur) || [])) {
+            if (!visited.has(nb)) { visited.add(nb); queue.push(nb); }
+        }
+    }
+    return visited.size === buildState.parts.length;
+}
+
 function startSimulation() {
     if (buildState.parts.length === 0) return;
+
+    if (!isFullyConnected()) {
+        const hint = document.getElementById('build-hint');
+        hint.textContent = 'Some parts are not connected! All parts must form one robot.';
+        hint.style.opacity = '1'; hint.style.color = '#e74c3c';
+        setTimeout(() => { hint.style.opacity = '0.7'; hint.style.color = ''; hint.textContent = 'Drag parts from the palette. Hold Shift for hinge joints.'; }, 3000);
+        return;
+    }
 
     gamePhase = 'testing';
     document.getElementById('build-screen').classList.remove('active');
@@ -1805,62 +1843,113 @@ function startSimulation() {
     }
     const spawnOffsetY = Math.max(0.5, -minRelBottomY + 0.15);
 
+    // === COMPOUND BODY SYSTEM ===
+    // Group parts connected by fixed joints into single rigid bodies.
+    // Only hinge joints create separate bodies.
+
+    const ufParent = new Map();
+    for (const part of buildState.parts) ufParent.set(part.id, part.id);
+    function ufFind(x) {
+        while (ufParent.get(x) !== x) { ufParent.set(x, ufParent.get(ufParent.get(x))); x = ufParent.get(x); }
+        return x;
+    }
+    for (const joint of buildState.joints) {
+        if (joint.type === 'fixed') {
+            const ra = ufFind(joint.partAId), rb = ufFind(joint.partBId);
+            if (ra !== rb) ufParent.set(ra, rb);
+        }
+    }
+
+    const compoundGroups = new Map();
     for (const part of buildState.parts) {
-        const def = PART_DEFS[part.type];
+        const root = ufFind(part.id);
+        if (!compoundGroups.has(root)) compoundGroups.set(root, []);
+        compoundGroups.get(root).push(part);
+    }
+
+    const compoundBodies = new Map();
+    const partToCompound = new Map();
+
+    for (const [rootId, parts] of compoundGroups) {
+        let totalMass = 0;
+        const com = new THREE.Vector3();
+        for (const part of parts) {
+            const def = PART_DEFS[part.type];
+            totalMass += def.mass;
+            com.add(part.position.clone().multiplyScalar(def.mass));
+        }
+        com.divideScalar(totalMass);
+
         const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
             .setTranslation(
-                part.position.x - centerOfBuild.x,
-                part.position.y - centerOfBuild.y + spawnOffsetY,
-                part.position.z - centerOfBuild.z
+                com.x - centerOfBuild.x,
+                com.y - centerOfBuild.y + spawnOffsetY,
+                com.z - centerOfBuild.z
             )
-            .setRotation({
-                x: part.rotation.x,
-                y: part.rotation.y,
-                z: part.rotation.z,
-                w: part.rotation.w
-            })
             .setLinearDamping(0.3)
             .setAngularDamping(0.5);
         const body = physicsWorld.createRigidBody(bodyDesc);
 
-        const colliderDesc = def.collider();
-        colliderDesc.setMass(def.mass);
-        if (!def.isWheel && !def.isLeg) colliderDesc.setFriction(0.5);
-        if (!def.isLeg) colliderDesc.setRestitution(def.isSpring ? 0.9 : 0.2);
-        colliderDesc.setCollisionGroups(0x00010002);
-        physicsWorld.createCollider(colliderDesc, body);
+        for (const part of parts) {
+            const def = PART_DEFS[part.type];
+            const colliderDesc = def.collider();
+            const offset = part.position.clone().sub(com);
+            colliderDesc.setTranslation(offset.x, offset.y, offset.z);
+            colliderDesc.setMass(def.mass);
+            if (!def.isWheel && !def.isLeg) colliderDesc.setFriction(0.5);
+            if (!def.isLeg) colliderDesc.setRestitution(def.isSpring ? 0.9 : 0.2);
+            colliderDesc.setCollisionGroups(0x00010002);
+            physicsWorld.createCollider(colliderDesc, body);
 
-        const mesh = createPartMesh(part.type, def);
-        mesh.userData.partMesh = true;
-        mesh.userData.partId = part.id;
-        mesh.userData.partType = part.type;
-        testRobotGroup.add(mesh);
+            const mesh = createPartMesh(part.type, def);
+            mesh.userData.partMesh = true;
+            mesh.userData.partId = part.id;
+            mesh.userData.partType = part.type;
+            testRobotGroup.add(mesh);
 
-        physicsBodies.set(part.id, { body, mesh, def, part });
+            physicsBodies.set(part.id, { body, mesh, def, part, offset: offset.clone() });
+        }
+
+        compoundBodies.set(rootId, { body, parts, com, totalMass });
+        for (const part of parts) partToCompound.set(part.id, rootId);
     }
 
     for (const joint of buildState.joints) {
-        const entA = physicsBodies.get(joint.partAId);
-        const entB = physicsBodies.get(joint.partBId);
-        if (!entA || !entB) continue;
+        if (joint.type !== 'hinge') continue;
+
+        const rootA = partToCompound.get(joint.partAId);
+        const rootB = partToCompound.get(joint.partBId);
+        if (rootA === undefined || rootB === undefined) continue;
+        if (rootA === rootB) continue;
+
+        const compA = compoundBodies.get(rootA);
+        const compB = compoundBodies.get(rootB);
+        const partA = buildState.parts.find(p => p.id === joint.partAId);
+        const partB = buildState.parts.find(p => p.id === joint.partBId);
+
+        const anchorAWorld = new THREE.Vector3(
+            partA.position.x + joint.anchorA.x,
+            partA.position.y + joint.anchorA.y,
+            partA.position.z + joint.anchorA.z
+        );
+        const anchorBWorld = new THREE.Vector3(
+            partB.position.x + joint.anchorB.x,
+            partB.position.y + joint.anchorB.y,
+            partB.position.z + joint.anchorB.z
+        );
+
+        const ancA = anchorAWorld.clone().sub(compA.com);
+        const ancB = anchorBWorld.clone().sub(compB.com);
 
         try {
-            let jointData;
-            if (joint.type === 'fixed') {
-                jointData = RAPIER.JointData.fixed(
-                    joint.anchorA, { x: 0, y: 0, z: 0, w: 1 },
-                    joint.anchorB, { x: 0, y: 0, z: 0, w: 1 }
-                );
-            } else {
-                jointData = RAPIER.JointData.revolute(
-                    joint.anchorA,
-                    joint.anchorB,
-                    joint.axis
-                );
-            }
-            const impulseJoint = physicsWorld.createImpulseJoint(jointData, entA.body, entB.body, true);
+            const jointData = RAPIER.JointData.revolute(
+                { x: ancA.x, y: ancA.y, z: ancA.z },
+                { x: ancB.x, y: ancB.y, z: ancB.z },
+                joint.axis
+            );
+            const impulseJoint = physicsWorld.createImpulseJoint(jointData, compA.body, compB.body, true);
 
-            if (joint.type === 'hinge' && joint.motorEnabled) {
+            if (joint.motorEnabled) {
                 impulseJoint.configureMotorVelocity(joint.motorSpeed, joint.motorForce);
             }
 
@@ -1948,15 +2037,18 @@ function applyThrusters() {
         thrustActive++;
         const mult = part.thrustMult || 1;
         const rampUp = Math.min(1, (elapsed - 2.0) / 1.0);
+        const bodyRot = ent.body.rotation();
+        const bodyQ = new THREE.Quaternion(bodyRot.x, bodyRot.y, bodyRot.z, bodyRot.w);
         const dir = new THREE.Vector3(...ent.def.thrustDir);
-        dir.applyQuaternion(new THREE.Quaternion(
-            ent.body.rotation().x, ent.body.rotation().y,
-            ent.body.rotation().z, ent.body.rotation().w
-        ));
+        dir.applyQuaternion(bodyQ);
         dir.multiplyScalar(ent.def.thrustForce * mult * rampUp);
-        ent.body.addForce({ x: dir.x, y: dir.y, z: dir.z }, true);
 
-        spawnThrusterParticle(ent.body.translation(), dir.clone().negate().normalize());
+        const bodyPos = ent.body.translation();
+        const worldOffset = ent.offset ? ent.offset.clone().applyQuaternion(bodyQ) : new THREE.Vector3();
+        const thrustPoint = { x: bodyPos.x + worldOffset.x, y: bodyPos.y + worldOffset.y, z: bodyPos.z + worldOffset.z };
+
+        ent.body.addForceAtPoint({ x: dir.x, y: dir.y, z: dir.z }, thrustPoint, true);
+        spawnThrusterParticle(thrustPoint, dir.clone().negate().normalize());
     }
     sfx.setThrusterVolume(thrustActive > 0 ? 0.1 : 0);
 }
@@ -1979,7 +2071,12 @@ function applyPropellers(time) {
     if (elapsed < 2.0) return;
     for (const [id, ent] of physicsBodies) {
         if (!ent.def.isPropeller) continue;
-        ent.body.addForce({ x: 0, y: 4, z: 0 }, true);
+        const bodyPos = ent.body.translation();
+        const bodyRot = ent.body.rotation();
+        const bodyQ = new THREE.Quaternion(bodyRot.x, bodyRot.y, bodyRot.z, bodyRot.w);
+        const worldOffset = ent.offset ? ent.offset.clone().applyQuaternion(bodyQ) : new THREE.Vector3();
+        const propPoint = { x: bodyPos.x + worldOffset.x, y: bodyPos.y + worldOffset.y, z: bodyPos.z + worldOffset.z };
+        ent.body.addForceAtPoint({ x: 0, y: 4, z: 0 }, propPoint, true);
         ent.body.addTorque({ x: 0, y: 6, z: 0 }, true);
     }
 }
@@ -1988,8 +2085,15 @@ function syncTestMeshes() {
     for (const [id, ent] of physicsBodies) {
         const pos = ent.body.translation();
         const rot = ent.body.rotation();
-        ent.mesh.position.set(pos.x, pos.y, pos.z);
-        ent.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+        const bodyQ = new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w);
+
+        if (ent.offset && (ent.offset.x !== 0 || ent.offset.y !== 0 || ent.offset.z !== 0)) {
+            const worldOffset = ent.offset.clone().applyQuaternion(bodyQ);
+            ent.mesh.position.set(pos.x + worldOffset.x, pos.y + worldOffset.y, pos.z + worldOffset.z);
+        } else {
+            ent.mesh.position.set(pos.x, pos.y, pos.z);
+        }
+        ent.mesh.quaternion.copy(bodyQ);
     }
 }
 
@@ -2003,7 +2107,11 @@ function updateScore(now) {
     let count = 0;
     let anyAboveGround = false;
 
+    const seenBodies = new Set();
     for (const [id, ent] of physicsBodies) {
+        const bodyHandle = ent.body.handle;
+        if (seenBodies.has(bodyHandle)) continue;
+        seenBodies.add(bodyHandle);
         const p = ent.body.translation();
         const v = ent.body.linvel();
         const av = ent.body.angvel();
@@ -2087,7 +2195,11 @@ function updateTestCamera() {
     let target = new THREE.Vector3();
     let totalSpeed = 0;
     let count = 0;
+    const seenCam = new Set();
     for (const [id, ent] of physicsBodies) {
+        const bh = ent.body.handle;
+        if (seenCam.has(bh)) continue;
+        seenCam.add(bh);
         const p = ent.body.translation();
         const v = ent.body.linvel();
         target.add(new THREE.Vector3(p.x, p.y, p.z));
