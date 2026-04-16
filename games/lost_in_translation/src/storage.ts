@@ -51,7 +51,7 @@ export function setCachedChain(chain: TranslationChain): void {
 export function encodeChainToHash(chain: TranslationChain): string {
   const json = JSON.stringify(chain);
   const compressed = pako.deflate(new TextEncoder().encode(json));
-  const base64 = btoa(String.fromCharCode(...compressed));
+  const base64 = btoa(Array.from(compressed, b => String.fromCharCode(b)).join(''));
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
