@@ -79,6 +79,137 @@ body.dark .personal-section-wrapper:nth-of-type(even) {
   font-weight: 700;
 }
 
+.arcade-cta {
+  position: relative;
+  display: block;
+  margin: 0 0 2.25rem;
+  padding: 1.75rem 2rem;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 18px 50px rgba(30, 15, 60, 0.28);
+  isolation: isolate;
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.arcade-cta:hover,
+.arcade-cta:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 60px rgba(30, 15, 60, 0.38);
+}
+
+.arcade-cta-bg {
+  position: absolute; inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(60% 90% at 12% 10%, rgba(255, 110, 199, 0.85) 0%, transparent 60%),
+    radial-gradient(55% 80% at 90% 20%, rgba(110, 203, 255, 0.8) 0%, transparent 60%),
+    radial-gradient(70% 110% at 60% 100%, rgba(194, 110, 255, 0.85) 0%, transparent 60%),
+    linear-gradient(135deg, #1a1040 0%, #10102a 100%);
+  background-size: 200% 200%, 200% 200%, 200% 200%, 100% 100%;
+  animation: arcade-cta-shift 14s ease-in-out infinite;
+}
+
+@keyframes arcade-cta-shift {
+  0%, 100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
+  50%      { background-position: 30% 40%, 70% 60%, 40% 80%, 0 0; }
+}
+
+.arcade-cta::before {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 85%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.arcade-cta-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 620px;
+}
+
+.arcade-cta-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.arcade-cta-title {
+  font-size: clamp(1.55rem, 2.6vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  text-shadow: 0 4px 22px rgba(0, 0, 0, 0.35);
+}
+
+.arcade-cta-arrow {
+  display: inline-block;
+  transition: transform 0.35s ease;
+}
+
+.arcade-cta:hover .arcade-cta-arrow,
+.arcade-cta:focus-visible .arcade-cta-arrow {
+  transform: translateX(8px);
+}
+
+.arcade-cta-sub {
+  font-size: 0.98rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.45;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.arcade-cta-orbs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.arcade-cta-orbs .orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(0.5px);
+  box-shadow: 0 0 14px currentColor, 0 0 28px currentColor;
+  opacity: 0.85;
+}
+
+.arcade-cta-orbs .o1 { width: 10px; height: 10px; color: #ff6ec7; right: 14%; top: 22%; animation: arcade-orb 7s ease-in-out infinite; }
+.arcade-cta-orbs .o2 { width: 6px;  height: 6px;  color: #6ecbff; right: 28%; top: 68%; animation: arcade-orb 9s ease-in-out infinite reverse; }
+.arcade-cta-orbs .o3 { width: 14px; height: 14px; color: #ffd36e; right: 6%;  top: 58%; animation: arcade-orb 11s ease-in-out infinite; }
+.arcade-cta-orbs .o4 { width: 4px;  height: 4px;  color: #7cf0c1; right: 40%; top: 18%; animation: arcade-orb 13s ease-in-out infinite reverse; }
+.arcade-cta-orbs .o5 { width: 8px;  height: 8px;  color: #c26eff; right: 20%; top: 40%; animation: arcade-orb 15s ease-in-out infinite; }
+
+@keyframes arcade-orb {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(-16px, 8px); }
+  50%      { transform: translate(-6px, -12px); }
+  75%      { transform: translate(12px, 6px); }
+}
+
+@media (max-width: 640px) {
+  .arcade-cta { padding: 1.35rem 1.4rem; }
+  .arcade-cta-orbs .o1 { right: 8%; top: 12%; }
+  .arcade-cta-orbs .o3 { right: 4%; top: 72%; }
+  .arcade-cta-orbs .o4, .arcade-cta-orbs .o5 { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcade-cta-bg { animation: none; }
+  .arcade-cta-orbs .orb { animation: none; }
+  .arcade-cta { transition: none; }
+}
+
 .personal-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
