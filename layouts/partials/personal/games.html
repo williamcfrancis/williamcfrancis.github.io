@@ -9,6 +9,20 @@
     <h2>{{ $intro.title | default .section.name }}</h2>
     <p>{{ $intro.description }}</p>
   </div>
+
+  <a class="arcade-cta" href="{{ "/arcade/" | relLangURL }}" aria-label="Enter the Arcade — an interactive physics sandbox of all games">
+    <span class="arcade-cta-bg" aria-hidden="true"></span>
+    <span class="arcade-cta-body">
+      <span class="arcade-cta-kicker">Featured &nbsp;·&nbsp; new</span>
+      <span class="arcade-cta-title">Enter the Arcade <span class="arcade-cta-arrow">→</span></span>
+      <span class="arcade-cta-sub">A playable physics sandbox that holds every game below. Drag, throw, and launch them into orbit.</span>
+    </span>
+    <span class="arcade-cta-orbs" aria-hidden="true">
+      <span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>
+      <span class="orb o4"></span><span class="orb o5"></span>
+    </span>
+  </a>
+
   {{ if $hasGames }}
     <div class="personal-card-grid">
       {{ range $games }}
