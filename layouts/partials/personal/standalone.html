@@ -1,0 +1,31 @@
+{{/*
+  Renders a single personal section (games / gallery) as a standalone landing
+  page. Expects a dict param: { sectionID: "games" }
+*/}}
+{{ $sectionID := .sectionID }}
+{{ $localizedData := index site.Data site.Language.Lang }}
+{{ $personal := dict }}
+{{ if and $localizedData $localizedData.personal }}
+  {{ $personal = $localizedData.personal }}
+{{ else if site.Data.personal }}
+  {{ $personal = site.Data.personal }}
+{{ end }}
+{{ $sections := $personal.sections | default (slice) }}
+{{ $target := "" }}
+{{ range $sections }}
+  {{ if eq .section.id $sectionID }}
+    {{ $target = . }}
+  {{ end }}
+{{ end }}
+<section class="personal-page personal-standalone" id="content-section">
+  {{ if $target }}
+    <div class="personal-section-wrapper">
+      {{ partial $target.section.template $target }}
+    </div>
+  {{ else }}
+    <div class="container text-center" style="padding: 6rem 1rem;">
+      <h2>Section not found</h2>
+      <p>The “{{ $sectionID }}” section is not defined in <code>personal.yaml</code>.</p>
+    </div>
+  {{ end }}
+</section>

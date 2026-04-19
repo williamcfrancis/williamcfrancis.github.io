@@ -1,0 +1,11 @@
+{{ define "header" }}
+  <link rel="stylesheet" href="{{ "/css/personal.css" | relURL }}">
+{{ end }}
+
+{{ define "navbar" }}
+  {{ partial "navigators/navbar.html" . }}
+{{ end }}
+
+{{ define "content" }}
+  {{ partial "personal/standalone.html" (dict "sectionID" "gallery") }}
+{{ end }}

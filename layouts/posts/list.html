@@ -1,0 +1,65 @@
+{{ define "header" }}
+  <link rel="stylesheet" href="{{ "/css/personal.css" | relURL }}">
+{{ end }}
+
+{{ define "navbar" }}
+  {{ partial "navigators/navbar.html" . }}
+{{ end }}
+
+{{ define "content" }}
+  {{ $localizedData := index site.Data site.Language.Lang }}
+  {{ $personal := dict }}
+  {{ if and $localizedData $localizedData.personal }}
+    {{ $personal = $localizedData.personal }}
+  {{ else if site.Data.personal }}
+    {{ $personal = site.Data.personal }}
+  {{ end }}
+  {{ $sections := $personal.sections | default (slice) }}
+  {{ $postsSection := dict "hero" (dict) }}
+  {{ range $sections }}
+    {{ if eq .section.id "posts" }}
+      {{ $postsSection = . }}
+    {{ end }}
+  {{ end }}
+  {{ $hero := ($postsSection.hero | default dict) }}
+  {{ $allPosts := where site.RegularPages "Section" "posts" }}
+
+  <section class="personal-page personal-standalone" id="content-section">
+    <div class="personal-section-wrapper">
+      <div class="container anchor personal-section posts">
+        <div class="section-copy text-center mb-5">
+          <p class="eyebrow-label">Posts</p>
+          <h2>{{ $hero.title | default "Posts" }}</h2>
+          {{ with $hero.description }}<p>{{ . }}</p>{{ end }}
+        </div>
+
+        {{ if gt (len $allPosts) 0 }}
+          <div class="personal-card-grid">
+            {{ range $allPosts }}
+              {{ $cover := "" }}
+              {{ with .Params.featured_image }}{{ $cover = . }}{{ end }}
+              {{ if not $cover }}{{ with .Params.cover }}{{ $cover = . }}{{ end }}{{ end }}
+              <article class="personal-card">
+                {{ if $cover }}
+                  <div class="card-media" style="background-image: url('{{ $cover | relURL }}');"></div>
+                {{ end }}
+                <div class="card-body">
+                  <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+                  <p class="post-date">{{ .Date.Format "Jan 2, 2006" }}</p>
+                  {{ with .Summary }}<p>{{ . | plainify | truncate 180 }}</p>{{ end }}
+                  {{ with .Params.tags }}
+                    <div class="tag-row">
+                      {{ range . }}<span class="tag">{{ . }}</span>{{ end }}
+                    </div>
+                  {{ end }}
+                </div>
+              </article>
+            {{ end }}
+          </div>
+        {{ else }}
+          <p class="latest-empty text-center">{{ $hero.emptyState | default "No posts have been published yet." }}</p>
+        {{ end }}
+      </div>
+    </div>
+  </section>
+{{ end }}
