@@ -8,13 +8,13 @@ nav:
   items:
     - name: Posts
       id: posts
-      url: "/personal/#posts"
+      url: "/posts/"
     - name: Games
       id: games
-      url: "/personal/#games"
+      url: "/games/"
     - name: Photo Gallery
       id: gallery
-      url: "/personal/#gallery"
+      url: "/gallery/"
 
 sections:
   - section:
