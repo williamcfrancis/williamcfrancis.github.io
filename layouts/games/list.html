@@ -49,8 +49,11 @@
 
     <div class="games-shell">
       <header class="games-hero">
-        <h1 class="games-marquee">
-          Games<span class="and">&amp;</span>Sandboxes
+        <h1 class="games-marquee" aria-label="Games & Sandboxes">
+          <span class="m-word m-games" aria-hidden="true">Games</span>
+          <span class="m-amp" aria-hidden="true">&amp;</span>
+          <span class="m-rule" aria-hidden="true"></span>
+          <span class="m-word m-sand" aria-hidden="true">Sandboxes</span>
         </h1>
         <p class="games-subtitle">{{ $intro.description | default "Playable experiments and toys I tinker with after hours." }}</p>
       </header>
