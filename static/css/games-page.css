@@ -21,6 +21,24 @@
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
+/* WebGL Fluid Simulation canvas — fullscreen background behind all content.
+   Pointer-events none so clicks / scrolls pass through to cabinet cards; the sim
+   still reacts to mouse movement because its listeners live on window. */
+.games-page .fluid-bg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+}
+
+/* Replaced by the fluid sim — hide the starfield + perspective grid floor. */
+.games-page .games-bg {
+  display: none;
+}
+
 /* Grid floor — perspective vanishing into the horizon */
 .games-bg {
   position: absolute;
@@ -524,4 +542,7 @@
   .games-cabinet-screen::before, .games-cabinet-title-screen, .games-sprite, .games-foot .coin {
     animation: none !important;
   }
+  /* Kill the fluid sim and restore the static gradient starfield as a fallback. */
+  .games-page .fluid-bg { display: none !important; }
+  .games-page .games-bg { display: block !important; }
 }
