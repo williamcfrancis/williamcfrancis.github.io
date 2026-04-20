@@ -1,5 +1,6 @@
 {{ define "header" }}
   <link rel="stylesheet" href="{{ "/css/games-page.css" | relURL }}">
+  <script defer src="{{ "/js/webgl-fluid.js" | relURL }}"></script>
 {{ end }}
 
 {{ define "navbar" }}
@@ -43,6 +44,7 @@
   }}
 
   <section class="games-page" id="content-section">
+    <canvas class="fluid-bg" aria-hidden="true"></canvas>
     <div class="games-bg" aria-hidden="true">
       <div class="games-grid-floor"></div>
     </div>
