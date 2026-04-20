@@ -58,11 +58,6 @@
         <p class="games-subtitle">{{ $intro.description | default "Playable experiments and toys I tinker with after hours." }}</p>
       </header>
 
-      <div class="games-section-head">
-        <h2><span class="dot"></span>All Cabinets</h2>
-        <span class="total">{{ len $games }} titles · press play</span>
-      </div>
-
       <div class="games-cabinet-grid">
         {{ range $games }}
           {{ $slug := "" }}
@@ -97,7 +92,6 @@
           <a class="games-cabinet acc-{{ $accent }}" href="{{ $playURL }}" target="_blank" rel="noopener" aria-label="{{ .title }}">
             <div class="games-cabinet-marquee">
               <span class="games-cabinet-genre">{{ .genre }}</span>
-              <span class="games-cabinet-icon">▶</span>
             </div>
             <div class="games-cabinet-screen">
               <img src="{{ $imgPath | relURL }}" alt="{{ .title }} preview" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='block';">
@@ -106,7 +100,6 @@
             <div class="games-cabinet-body">
               <h3 class="games-cabinet-title">{{ .title }}</h3>
               <p class="games-cabinet-summary">{{ .summary }}</p>
-              <span class="games-cabinet-play"><span class="tri"></span> {{ $playLabel }}</span>
             </div>
           </a>
         {{ end }}
