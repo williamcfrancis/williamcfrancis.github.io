@@ -1,5 +1,5 @@
 {{ define "header" }}
-  <link rel="stylesheet" href="{{ "/css/personal.css" | relURL }}">
+  <link rel="stylesheet" href="{{ "/css/games-page.css" | relURL }}">
 {{ end }}
 
 {{ define "navbar" }}
@@ -7,5 +7,140 @@
 {{ end }}
 
 {{ define "content" }}
-  {{ partial "personal/standalone.html" (dict "sectionID" "games") }}
+  {{ $localizedData := index site.Data site.Language.Lang }}
+  {{ $personal := dict }}
+  {{ if and $localizedData $localizedData.personal }}
+    {{ $personal = $localizedData.personal }}
+  {{ else if site.Data.personal }}
+    {{ $personal = site.Data.personal }}
+  {{ end }}
+  {{ $gamesSection := dict }}
+  {{ range ($personal.sections | default (slice)) }}
+    {{ if eq .section.id "games" }}{{ $gamesSection = . }}{{ end }}
+  {{ end }}
+  {{ $intro := ($gamesSection.intro | default dict) }}
+  {{ $games := ($gamesSection.games | default (slice)) }}
+
+  {{/* Map genre keywords to accent classes */}}
+  {{ $genreAccent := dict
+     "arcade" "cyan"    "reflex" "cyan"
+     "chill"  "green"   "casual" "green"
+     "audio"  "amber"
+     "word"   "teal"    "typing" "teal"   "survival" "teal"
+     "lyric"  "pink"    "music"  "pink"
+     "deep"   "sky"
+     "dark"   "rose"    "simulation" "rose"
+     "3d"     "coral"   "arena"  "coral"
+     "llm"    "violet"  "ai"     "violet" "couch" "violet"
+     "fps"    "rose"
+     "educational" "sky" "explainer" "sky" "interactive" "sky"
+     "scale"  "amber"
+     "language" "teal"
+     "quiz"   "cyan"
+     "sandbox" "coral"
+     "cyberpunk" "pink"
+     "physics"  "teal"   "puzzle" "teal"
+  }}
+
+  <section class="games-page" id="content-section">
+    <div class="games-bg" aria-hidden="true">
+      <div class="games-grid-floor"></div>
+    </div>
+    <div class="games-sprites" aria-hidden="true">
+      <span class="games-sprite" style="left:6%;  top:18%; color:#ff3ea5; animation-delay:0s;">▚</span>
+      <span class="games-sprite" style="left:88%; top:14%; color:#29dcff; animation-delay:-3s;">◉</span>
+      <span class="games-sprite" style="left:12%; top:62%; color:#b85bff; animation-delay:-6s;">▲</span>
+      <span class="games-sprite" style="left:80%; top:72%; color:#ffce4d; animation-delay:-9s;">✦</span>
+      <span class="games-sprite" style="left:50%; top:8%;  color:#6df5b1; animation-delay:-4s;">▞</span>
+      <span class="games-sprite" style="left:92%; top:42%; color:#ff9b6e; animation-delay:-7s;">◆</span>
+      <span class="games-sprite" style="left:3%;  top:42%; color:#8ea9ff; animation-delay:-11s;">✧</span>
+    </div>
+
+    <div class="games-shell">
+      <header class="games-hero">
+        <div class="games-eyebrow">
+          <span class="coin"></span>
+          Insert coin &nbsp;·&nbsp; After Hours
+          <span class="coin"></span>
+        </div>
+        <h1 class="games-marquee">
+          Games<span class="and">&amp;</span>Sandboxes
+          <span class="sandboxes">— PLAYABLE ·  AFTER HOURS —</span>
+        </h1>
+        <p class="games-subtitle">{{ $intro.description | default "Playable experiments and toys I tinker with after hours." }}</p>
+        <div class="games-hud" role="status">
+          <span class="chip">{{ len $games }} cabinets</span>
+          <span class="chip hot">1 sandbox</span>
+          <span class="chip">HI-SCORE · ∞</span>
+        </div>
+      </header>
+
+      <a class="games-cta" href="{{ "/arcade/" | relLangURL }}" aria-label="Enter the Arcade — a physics sandbox of every game">
+        <div class="games-cta-text">
+          <span class="games-cta-kicker">Featured · live</span>
+          <span class="games-cta-title">Enter The Arcade <span class="arrow">→</span></span>
+          <span class="games-cta-sub">A playable physics sandbox holding every game below. Drag, throw, and launch them into orbit.</span>
+        </div>
+        <div class="games-cta-play" aria-hidden="true"></div>
+      </a>
+
+      <div class="games-section-head">
+        <h2><span class="dot"></span>All Cabinets</h2>
+        <span class="total">{{ len $games }} titles · press play</span>
+      </div>
+
+      <div class="games-cabinet-grid">
+        {{ range $games }}
+          {{ $slug := "" }}
+          {{ with .link.url }}
+            {{ $path := . }}
+            {{ if hasPrefix $path "/games/" }}
+              {{ $slug = replaceRE "^/games/|/$" "" $path }}
+            {{ end }}
+          {{ end }}
+          {{ if not $slug }}
+            {{ $slug = replace (lower .title) " " "_" }}
+          {{ end }}
+
+          {{/* Pick accent from the first matching genre word */}}
+          {{ $accent := "cyan" }}
+          {{ $genreLower := lower (.genre | default "") }}
+          {{ range $k, $v := $genreAccent }}
+            {{ if in $genreLower $k }}{{ $accent = $v }}{{ end }}
+          {{ end }}
+
+          {{ $imgPath := printf "/games/%s/%s.png" $slug $slug }}
+          {{ $defaultImg := "/games/game_placeholder.svg" }}
+
+          {{ $playURL := "#" }}
+          {{ $playLabel := "Play" }}
+          {{ if .link }}
+            {{ with .link.url }}{{ $playURL = . }}{{ end }}
+            {{ if hasPrefix $playURL "/" }}{{ $playURL = relLangURL $playURL }}{{ end }}
+            {{ with .link.label }}{{ $playLabel = . }}{{ end }}
+          {{ end }}
+
+          <a class="games-cabinet acc-{{ $accent }}" href="{{ $playURL }}" target="_blank" rel="noopener" aria-label="{{ .title }}">
+            <div class="games-cabinet-marquee">
+              <span class="games-cabinet-genre">{{ .genre }}</span>
+              <span class="games-cabinet-icon">▶</span>
+            </div>
+            <div class="games-cabinet-screen">
+              <img src="{{ $imgPath | relURL }}" alt="{{ .title }} preview" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='block';">
+              <div class="games-cabinet-title-screen" style="display:none;">{{ upper .title }}</div>
+            </div>
+            <div class="games-cabinet-body">
+              <h3 class="games-cabinet-title">{{ .title }}</h3>
+              <p class="games-cabinet-summary">{{ .summary }}</p>
+              <span class="games-cabinet-play"><span class="tri"></span> {{ $playLabel }}</span>
+            </div>
+          </a>
+        {{ end }}
+      </div>
+
+      <div class="games-foot">
+        <span class="coin"></span> press any cabinet &nbsp;·&nbsp; or drag them in the arcade <span class="coin"></span>
+      </div>
+    </div>
+  </section>
 {{ end }}

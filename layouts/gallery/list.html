@@ -1,5 +1,5 @@
 {{ define "header" }}
-  <link rel="stylesheet" href="{{ "/css/personal.css" | relURL }}">
+  <link rel="stylesheet" href="{{ "/css/gallery-page.css" | relURL }}">
 {{ end }}
 
 {{ define "navbar" }}
@@ -7,5 +7,95 @@
 {{ end }}
 
 {{ define "content" }}
-  {{ partial "personal/standalone.html" (dict "sectionID" "gallery") }}
+  {{ $localizedData := index site.Data site.Language.Lang }}
+  {{ $personal := dict }}
+  {{ if and $localizedData $localizedData.personal }}
+    {{ $personal = $localizedData.personal }}
+  {{ else if site.Data.personal }}
+    {{ $personal = site.Data.personal }}
+  {{ end }}
+  {{ $gallerySection := dict }}
+  {{ range ($personal.sections | default (slice)) }}
+    {{ if eq .section.id "gallery" }}{{ $gallerySection = . }}{{ end }}
+  {{ end }}
+  {{ $intro := ($gallerySection.intro | default dict) }}
+  {{ $photos := ($gallerySection.photos | default (slice)) }}
+
+  {{ $today := now.Format "2006.01.02" }}
+  {{ $sizes := slice "size-large" "size-tall" "size-mid" "size-square" "size-wide" "size-square" "size-large" "size-tall" "size-mid" "size-square" }}
+
+  <section class="gallery-page" id="content-section">
+    <div class="gallery-filmstrip left"  aria-hidden="true"></div>
+    <div class="gallery-filmstrip right" aria-hidden="true"></div>
+    <div class="gallery-letterbox top"    aria-hidden="true"></div>
+    <div class="gallery-letterbox bottom" aria-hidden="true"></div>
+
+    <div class="gallery-shell">
+
+      <header class="gallery-hero">
+        <div class="gallery-eyebrow">
+          <span class="rec"></span>
+          Rec &nbsp;·&nbsp; After Hours
+        </div>
+        <h1 class="gallery-title">Photo <span class="italic">gallery</span></h1>
+        <p class="gallery-subtitle">{{ $intro.description | default "A rotating feed of images from trips, residencies, and long walks with a camera." }}</p>
+        <div class="gallery-shutter-spec" aria-hidden="true">
+          <span><b>ISO</b> 400</span>
+          <span><b>ƒ</b> 1.8</span>
+          <span><b>1/</b>250</span>
+          <span><b>DATE</b> {{ $today }}</span>
+        </div>
+      </header>
+
+      {{ if gt (len $photos) 0 }}
+        <div class="gallery-grid">
+          {{ range $i, $photo := $photos }}
+            {{ $size := index $sizes (mod $i (len $sizes)) }}
+            {{ $imgPath := "" }}
+            {{ with $photo.image }}
+              {{ $r := resources.Get . }}
+              {{ if $r }}
+                {{ $imgPath = ($r.Fill "1200x800 center").RelPermalink }}
+              {{ else }}
+                {{ $imgPath = . }}
+              {{ end }}
+            {{ end }}
+            <figure class="gallery-frame {{ $size }}">
+              {{ if $imgPath }}<img src="{{ $imgPath }}" alt="{{ $photo.title }}" loading="lazy">{{ end }}
+              <div class="gallery-frame-corners" aria-hidden="true">
+                <span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span>
+              </div>
+              <figcaption class="gallery-frame-caption">
+                {{ with $photo.location }}<span class="loc">{{ . }}</span>{{ end }}
+                <h3>{{ $photo.title }}</h3>
+                {{ with $photo.caption }}<p>{{ . }}</p>{{ end }}
+              </figcaption>
+            </figure>
+          {{ end }}
+        </div>
+      {{ else }}
+        <div class="gallery-empty">
+          <div class="gallery-shutter" aria-hidden="true">
+            <span class="gallery-shutter-blade"></span>
+            <span class="gallery-shutter-blade"></span>
+            <span class="gallery-shutter-blade"></span>
+            <span class="gallery-shutter-blade"></span>
+            <span class="gallery-shutter-blade"></span>
+            <span class="gallery-shutter-blade"></span>
+            <span class="gallery-shutter-lens"></span>
+          </div>
+          <p class="gallery-empty-text">Developing the next roll.</p>
+          <p class="gallery-empty-note">A fresh set of frames from trips, residencies, and long walks with a camera is on the way.</p>
+          <div class="gallery-empty-stats" aria-hidden="true">
+            <span>Exposures · 0</span>
+            <span>Status · in the darkroom</span>
+          </div>
+        </div>
+      {{ end }}
+
+      <div class="gallery-foot">
+        <span class="gallery-foot-reel"><span class="dot"></span> Reel · {{ now.Format "2006" }} · live</span>
+      </div>
+    </div>
+  </section>
 {{ end }}
