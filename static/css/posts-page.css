@@ -1,0 +1,333 @@
+/* ============================================================
+   Posts landing page — "Field Notes" notebook vibe
+   ============================================================ */
+
+.posts-page {
+  --ink:        #1b1a17;
+  --ink-soft:   #4a463d;
+  --ink-faint:  #85806f;
+  --paper:      #f3ecd8;
+  --paper-lit:  #fbf5df;
+  --margin:     #c84a3a;
+  --rule:       rgba(50, 60, 120, 0.22);
+  --accent:     #b6882b;
+  --stamp:      #d33;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(255,242,200,0.45), transparent 65%),
+    radial-gradient(900px 500px at 120% 110%, rgba(255,220,170,0.35), transparent 60%),
+    var(--paper);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  padding: 120px 0 160px;
+}
+
+body.dark .posts-page {
+  --ink:       #eae2cf;
+  --ink-soft:  #c2b99f;
+  --ink-faint: #8d8772;
+  --paper:     #17181c;
+  --paper-lit: #1d1e24;
+  --margin:    #e6604e;
+  --rule:      rgba(180,200,255,0.14);
+  --accent:    #e5c07b;
+  --stamp:     #ff5a4a;
+  background:
+    radial-gradient(900px 500px at 20% -10%, rgba(120,90,40,0.18), transparent 65%),
+    radial-gradient(700px 400px at 120% 110%, rgba(80,60,140,0.18), transparent 60%),
+    var(--paper);
+}
+
+/* Paper fibers + subtle grain */
+.posts-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(0,0,0,0.025) 1px, transparent 1px),
+    radial-gradient(rgba(0,0,0,0.018) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 1px;
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+}
+body.dark .posts-page::before { mix-blend-mode: screen; opacity: 0.35; }
+
+.posts-shell {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Hero ---------- */
+.posts-hero {
+  position: relative;
+  padding: 1rem 0 2.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1.5px solid var(--ink);
+}
+.posts-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font: 700 0.74rem/1 "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--margin);
+  margin-bottom: 1rem;
+}
+.posts-eyebrow::before,
+.posts-eyebrow::after {
+  content: "";
+  flex: 0 0 28px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.posts-title {
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1;
+  margin: 0 0 0.9rem;
+  letter-spacing: -0.01em;
+}
+.posts-title .ampersand {
+  font-family: "Baskerville", Georgia, serif;
+  font-style: italic;
+  color: var(--margin);
+  padding: 0 0.05em;
+}
+.posts-subtitle {
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+  max-width: 42ch;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.posts-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.6rem 2.4rem;
+  margin-top: 1.75rem;
+  font: 500 0.82rem/1.4 "JetBrains Mono", ui-monospace, monospace;
+  color: var(--ink-faint);
+}
+.posts-meta dt {
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  margin-bottom: 0.15rem;
+}
+.posts-meta dd { margin: 0; }
+
+/* Typed cursor on the title */
+.posts-title .caret {
+  display: inline-block;
+  width: 0.08em;
+  height: 0.85em;
+  margin-left: 0.08em;
+  background: var(--ink);
+  vertical-align: baseline;
+  animation: posts-caret 1.1s steps(2) infinite;
+}
+@keyframes posts-caret {
+  50% { opacity: 0; }
+}
+
+/* ---------- Notebook ruled page ---------- */
+.posts-notebook {
+  position: relative;
+  background: var(--paper-lit);
+  border-radius: 4px;
+  padding: 3.25rem 3rem 3.5rem 5.5rem;
+  box-shadow:
+    0 1px 0 rgba(0,0,0,0.06),
+    0 20px 40px rgba(60,40,20,0.12),
+    0 0 0 1px rgba(0,0,0,0.05);
+  background-image:
+    linear-gradient(to bottom, transparent 0, transparent 2.95rem, var(--rule) 2.95rem, var(--rule) 3rem, transparent 3rem);
+  background-size: 100% 3rem;
+  background-position: 0 3rem;
+}
+body.dark .posts-notebook {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.03),
+    0 20px 40px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(255,255,255,0.05);
+}
+/* Red margin rule */
+.posts-notebook::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 4rem;
+  width: 1px;
+  background: var(--margin);
+  opacity: 0.55;
+}
+/* Spiral/tape accent top-left */
+.posts-notebook::after {
+  content: "";
+  position: absolute;
+  top: -12px; left: 30%;
+  width: 120px; height: 26px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+  border: 1px solid rgba(0,0,0,0.08);
+  transform: rotate(-3deg);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+  pointer-events: none;
+  background-color: rgba(240, 225, 175, 0.75);
+}
+body.dark .posts-notebook::after {
+  background-color: rgba(90, 85, 70, 0.75);
+  border-color: rgba(255,255,255,0.08);
+}
+
+/* ---------- Entry ---------- */
+.posts-entries {
+  display: flex;
+  flex-direction: column;
+}
+.posts-entry {
+  position: relative;
+  padding: 2rem 0 2.25rem;
+  border-bottom: 1px dashed var(--rule);
+}
+.posts-entry:last-child { border-bottom: none; }
+
+.posts-entry-stamp {
+  position: absolute;
+  left: -4.35rem;
+  top: 2.1rem;
+  width: 3rem;
+  text-align: right;
+  font: 700 0.7rem/1.1 "JetBrains Mono", ui-monospace, monospace;
+  color: var(--stamp);
+  letter-spacing: 0.08em;
+}
+.posts-entry-stamp .m { display: block; text-transform: uppercase; }
+.posts-entry-stamp .d { display: block; font-size: 1.25rem; color: var(--ink); }
+.posts-entry-stamp .y { display: block; color: var(--ink-faint); }
+
+.posts-entry h2 {
+  font-size: 1.9rem;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.005em;
+}
+.posts-entry h2 a {
+  color: inherit;
+  text-decoration: none;
+  background-image: linear-gradient(to bottom, transparent 60%, rgba(230, 96, 78, 0.25) 60%);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.5s cubic-bezier(0.2,0.8,0.2,1);
+}
+.posts-entry h2 a:hover { background-size: 100% 100%; }
+
+.posts-entry p {
+  font-size: 1.06rem;
+  line-height: 1.72;
+  color: var(--ink-soft);
+  margin: 0 0 0.85rem;
+}
+
+.posts-entry .posts-tags {
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+.posts-entry .posts-tag {
+  font: 600 0.7rem/1 "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.3rem 0.55rem;
+  color: var(--ink-soft);
+  border: 1px dashed rgba(0,0,0,0.18);
+  border-radius: 2px;
+  background: rgba(0,0,0,0.02);
+}
+body.dark .posts-entry .posts-tag {
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.03);
+}
+
+/* ---------- Empty state ---------- */
+.posts-empty {
+  padding: 3rem 0.5rem;
+  text-align: center;
+}
+.posts-empty .typewriter {
+  font: 500 1.25rem/1.5 "Courier Prime", "Courier New", monospace;
+  color: var(--ink);
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--ink);
+  animation: posts-type 4.5s steps(40, end) 0.4s both, posts-caret 1s steps(2) 4.9s infinite;
+  max-width: 100%;
+}
+@keyframes posts-type {
+  from { width: 0; }
+  to   { width: 32ch; }
+}
+.posts-empty-note {
+  margin-top: 1.25rem;
+  font-size: 0.95rem;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.posts-empty-ornament {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font: 600 0.72rem/1 "JetBrains Mono", monospace;
+}
+.posts-empty-ornament::before,
+.posts-empty-ornament::after {
+  content: ""; flex: 0 0 40px; height: 1px; background: currentColor; opacity: 0.5;
+}
+
+/* ---------- Footer signature ---------- */
+.posts-footer {
+  margin-top: 3rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-faint);
+}
+.posts-footer .sig {
+  font-family: "Homemade Apple", "Brush Script MT", cursive;
+  font-size: 2rem;
+  color: var(--accent);
+  transform: rotate(-3deg);
+  display: inline-block;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 720px) {
+  .posts-page { padding: 100px 0 120px; }
+  .posts-notebook { padding: 2.25rem 1.25rem 2.5rem 3rem; }
+  .posts-notebook::before { left: 1.9rem; }
+  .posts-entry-stamp { left: -2.4rem; width: 2rem; font-size: 0.62rem; }
+  .posts-entry-stamp .d { font-size: 1rem; }
+  .posts-entry h2 { font-size: 1.35rem; }
+  .posts-empty .typewriter { font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .posts-title .caret { animation: none; }
+  .posts-empty .typewriter { animation: none; width: auto; border-right: none; }
+}
