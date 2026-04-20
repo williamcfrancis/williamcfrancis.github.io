@@ -16,9 +16,9 @@
   --amber:     #ffce4d;
   --green:     #6df5b1;
 
-  /* Glass tokens — all panels are ~85% see-through (alpha 0.15 or less). */
-  --glass-bg:          rgba(255, 255, 255, 0.08);
-  --glass-bg-dark:     rgba(10, 8, 28, 0.15);
+  /* Glass tokens — panels are ~75% see-through (alpha 0.25). */
+  --glass-bg:          rgba(255, 255, 255, 0.25);
+  --glass-bg-dark:     rgba(10, 8, 28, 0.25);
   --glass-border:      rgba(255, 255, 255, 0.16);
   --glass-border-hot:  rgba(255, 255, 255, 0.3);
   --glass-highlight:   rgba(255, 255, 255, 0.3);
@@ -57,20 +57,17 @@
 }
 
 /* ============================================================
-   Click-through / unselectable content
+   Unselectable / un-draggable content
    --------------------------------------------------------------
-   Every panel inside .games-shell is presentation-only: all pointer
-   events pass straight through to the fluid canvas so the background
-   is the sole interaction target. Text can't be selected or long-
-   pressed. Mobile scroll is untouched because touch events still
-   bubble to the document body (the fluid sim's window touchmove
-   listener is passive, so native scrolling is never preventDefault'd).
-   dat.GUI is mounted on document.body outside .games-shell, so it
-   keeps its own interactivity and the control panel still works.
+   Clicks on cabinets still navigate — we only disable text
+   selection, drag-to-select, the iOS long-press callout, and
+   image dragging. Mouse moves still reach the fluid sim because
+   its mousemove listener is on `window` (fires regardless of
+   what element is under the cursor). Mobile scrolling is
+   untouched — the fluid sim's touchmove is passive.
    ============================================================ */
 .games-page .games-shell,
 .games-page .games-shell * {
-  pointer-events: none !important;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -79,6 +76,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 .games-page .games-shell img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;   /* image itself is decorative — click falls to the <a> */
+}
+.games-page .games-shell a {
   -webkit-user-drag: none;
   user-drag: none;
 }
@@ -424,7 +426,8 @@
 }
 .dg.main {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
-  background: rgba(8, 6, 22, 0.15) !important;
+  /* 75% see-through (alpha 0.25) — matches the cabinet panels. */
+  background: rgba(8, 6, 22, 0.25) !important;
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.16)) !important;
   border-radius: 14px !important;
   box-shadow:
