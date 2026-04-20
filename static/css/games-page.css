@@ -1,17 +1,32 @@
 /* ============================================================
-   Games landing — "Neon Arcade"
+   Games landing — "Glass Fluid"
+   Frosted-glass UI on top of a WebGL fluid simulation background.
    ============================================================ */
 
 .games-page {
+  /* Accent palette */
   --bg:        #05040c;
   --bg-deep:   #02020a;
-  --ink:       #e8ecff;
-  --muted:     #8a90b8;
+  --ink:       #f3f5ff;
+  --muted:     #b3bbe0;
   --pink:      #ff3ea5;
   --cyan:      #29dcff;
   --violet:    #b85bff;
   --amber:     #ffce4d;
   --green:     #6df5b1;
+
+  /* Glass tokens (used across cabinets, headings, GUI) */
+  --glass-bg:          rgba(255, 255, 255, 0.045);
+  --glass-bg-strong:   rgba(255, 255, 255, 0.085);
+  --glass-bg-deep:     rgba(10, 8, 28, 0.35);
+  --glass-border:      rgba(255, 255, 255, 0.14);
+  --glass-border-hot:  rgba(255, 255, 255, 0.26);
+  --glass-highlight:   rgba(255, 255, 255, 0.28);
+  --glass-shadow:      0 24px 60px -18px rgba(0, 0, 0, 0.55),
+                       0 6px 18px -8px rgba(0, 0, 0, 0.35);
+  --glass-blur:        blur(18px) saturate(150%);
+  --glass-blur-heavy:  blur(26px) saturate(160%);
+
   position: relative;
   min-height: 100vh;
   color: var(--ink);
@@ -21,9 +36,7 @@
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
-/* WebGL Fluid Simulation canvas — fullscreen background behind all content.
-   Pointer-events none so clicks / scrolls pass through to cabinet cards; the sim
-   still reacts to mouse movement because its listeners live on window. */
+/* WebGL Fluid Simulation canvas — fullscreen background behind all content. */
 .games-page .fluid-bg {
   position: fixed;
   inset: 0;
@@ -34,12 +47,12 @@
   pointer-events: none;
 }
 
-/* Replaced by the fluid sim — hide the starfield + perspective grid floor. */
+/* The fluid sim replaces the starfield + perspective grid floor. */
 .games-page .games-bg {
   display: none;
 }
 
-/* Grid floor — perspective vanishing into the horizon */
+/* Kept for prefers-reduced-motion fallback only. */
 .games-bg {
   position: absolute;
   inset: 0;
@@ -48,53 +61,38 @@
   overflow: hidden;
 }
 .games-bg::before,
-.games-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-/* starfield gradient */
+.games-bg::after { content: ""; position: absolute; inset: 0; }
 .games-bg::before {
   background:
-    radial-gradient(1400px 900px at 50% 0%, rgba(185, 91, 255, 0.18), transparent 55%),
+    radial-gradient(1400px 900px at 50% 0%,   rgba(185, 91, 255, 0.18), transparent 55%),
     radial-gradient(1200px 700px at 10% 100%, rgba(41, 220, 255, 0.12), transparent 60%),
-    radial-gradient(900px 600px at 95% 95%, rgba(255, 62, 165, 0.14), transparent 60%);
+    radial-gradient(900px  600px at 95% 95%,  rgba(255, 62, 165, 0.14), transparent 60%);
 }
-/* CRT scanlines */
 .games-bg::after {
   background-image: repeating-linear-gradient(
     to bottom,
-    rgba(255,255,255,0.04) 0px,
-    rgba(255,255,255,0.04) 1px,
+    rgba(255, 255, 255, 0.04) 0,
+    rgba(255, 255, 255, 0.04) 1px,
     transparent 1px,
     transparent 3px
   );
   mix-blend-mode: screen;
   opacity: 0.5;
 }
-
 .games-grid-floor {
   position: absolute;
-  left: -20%; right: -20%;
-  bottom: -40%;
+  left: -20%; right: -20%; bottom: -40%;
   height: 70%;
   transform: perspective(600px) rotateX(58deg);
   transform-origin: center top;
   background:
-    linear-gradient(to right, transparent 0 49.6%, rgba(255,62,165,0.22) 49.6% 50.4%, transparent 50.4%),
-    repeating-linear-gradient(to right,
-      rgba(41,220,255,0.18) 0 1px, transparent 1px 80px),
-    repeating-linear-gradient(to bottom,
-      rgba(41,220,255,0.22) 0 1px, transparent 1px 60px);
+    linear-gradient(to right, transparent 0 49.6%, rgba(255, 62, 165, 0.22) 49.6% 50.4%, transparent 50.4%),
+    repeating-linear-gradient(to right,  rgba(41, 220, 255, 0.18) 0 1px, transparent 1px 80px),
+    repeating-linear-gradient(to bottom, rgba(41, 220, 255, 0.22) 0 1px, transparent 1px 60px);
   mask-image: linear-gradient(to top, black 30%, transparent 90%);
-  animation: games-floor 12s linear infinite;
-}
-@keyframes games-floor {
-  from { background-position: 0 0, 0 0, 0 0; }
-  to   { background-position: 0 0, 0 0, 0 60px; }
 }
 
-/* Floating pixel sprites */
+/* Floating pixel sprites (tiny accents on top of the fluid sim) */
 .games-sprites {
   position: absolute;
   inset: 0;
@@ -104,11 +102,10 @@
 .games-sprite {
   position: absolute;
   font-size: 18px;
-  opacity: 0.35;
+  opacity: 0.28;
   filter: drop-shadow(0 0 6px currentColor);
   animation: games-float 14s ease-in-out infinite;
 }
-
 @keyframes games-float {
   0%, 100% { transform: translate(0, 0); }
   50%      { transform: translate(20px, -30px); }
@@ -123,203 +120,51 @@
   padding: 0 2rem;
 }
 
-/* ---------- Hero: neon marquee ---------- */
+/* ---------- Hero ---------- */
 .games-hero {
   text-align: center;
-  padding: 1rem 0 2.5rem;
+  padding: 1rem 0 3rem;
   position: relative;
-}
-.games-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  font: 700 0.72rem/1 'JetBrains Mono', ui-monospace, monospace;
-  letter-spacing: 0.4em;
-  text-transform: uppercase;
-  color: var(--cyan);
-  margin-bottom: 1.5rem;
-}
-.games-eyebrow::before,
-.games-eyebrow::after {
-  content: "";
-  width: 22px; height: 1px; background: currentColor; opacity: 0.6;
-}
-.games-eyebrow .coin {
-  display: inline-block;
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 10px var(--amber);
-  animation: games-coin 1.2s ease-in-out infinite;
-}
-@keyframes games-coin {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50%      { transform: scale(1.3); opacity: 1; }
 }
 
 .games-marquee {
   display: inline-block;
   font-family: 'Orbitron', 'Audiowide', 'Inter', sans-serif;
-  font-weight: 900;
-  font-size: clamp(3.4rem, 11vw, 8.2rem);
-  letter-spacing: 0.06em;
-  line-height: 0.9;
+  font-weight: 800;
+  font-size: clamp(2.8rem, 9vw, 6.4rem);
+  letter-spacing: 0.04em;
+  line-height: 1;
   text-transform: uppercase;
-  color: var(--pink);
-  text-shadow:
-    0 0 8px #ff3ea5,
-    0 0 18px #ff3ea5,
-    0 0 36px #ff3ea5,
-    0 0 76px rgba(255,62,165,0.65),
-    0 3px 0 rgba(0,0,0,0.35);
-  animation: games-flicker 6s infinite;
-  position: relative;
+  margin: 0;
+  color: #fff;
+  background: linear-gradient(100deg, #fff 0%, #ffd0ec 35%, #b5ecff 65%, #fff 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter:
+    drop-shadow(0 0 14px rgba(255, 62, 165, 0.35))
+    drop-shadow(0 0 28px rgba(41, 220, 255, 0.2));
 }
 .games-marquee .and {
-  font-size: 0.55em;
-  color: var(--cyan);
-  text-shadow:
-    0 0 8px #29dcff,
-    0 0 18px #29dcff,
-    0 0 36px #29dcff;
-  vertical-align: 0.25em;
-  padding: 0 0.2em;
+  font-size: 0.6em;
   font-style: italic;
-}
-.games-marquee .sandboxes {
-  display: block;
-  font-size: 0.45em;
-  color: var(--amber);
-  text-shadow:
-    0 0 8px var(--amber),
-    0 0 20px rgba(255, 206, 77, 0.6);
-  letter-spacing: 0.4em;
-  margin-top: 0.6em;
-}
-@keyframes games-flicker {
-  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
-  20%, 24%, 55% { opacity: 0.55; }
+  vertical-align: 0.2em;
+  padding: 0 0.15em;
+  background: linear-gradient(100deg, var(--pink), var(--violet) 60%, var(--cyan));
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(184, 91, 255, 0.55));
 }
 
 .games-subtitle {
-  margin: 1.8rem auto 0;
-  max-width: 54ch;
-  font-size: 1.1rem;
-  line-height: 1.6;
+  margin: 1.6rem auto 0;
+  max-width: 56ch;
+  font-size: 1.05rem;
+  line-height: 1.65;
   color: var(--muted);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
 }
-
-.games-hud {
-  margin-top: 2rem;
-  display: inline-flex;
-  gap: 0.4rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.55);
-  border-radius: 999px;
-  font: 600 0.72rem/1 'JetBrains Mono', monospace;
-  color: var(--muted);
-  letter-spacing: 0.12em;
-  backdrop-filter: blur(6px);
-}
-.games-hud .chip {
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.04);
-}
-.games-hud .chip.hot {
-  color: var(--bg);
-  background: var(--pink);
-  box-shadow: 0 0 12px rgba(255,62,165,0.5);
-}
-
-/* ---------- Arcade CTA ---------- */
-.games-cta {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1.4fr auto;
-  gap: 2rem;
-  align-items: center;
-  margin: 3.5rem 0 4rem;
-  padding: 2rem 2.25rem;
-  border-radius: 24px;
-  color: #fff;
-  text-decoration: none;
-  overflow: hidden;
-  isolation: isolate;
-  border: 1px solid rgba(255,255,255,0.1);
-  background:
-    radial-gradient(70% 100% at 12% 10%, rgba(255, 62, 165, 0.8), transparent 55%),
-    radial-gradient(65% 90% at 95% 30%, rgba(41, 220, 255, 0.7), transparent 55%),
-    radial-gradient(80% 120% at 60% 120%, rgba(184, 91, 255, 0.85), transparent 55%),
-    linear-gradient(135deg, #17093a 0%, #0a0a22 100%);
-  box-shadow: 0 25px 70px rgba(184,91,255,0.25), 0 0 0 1px rgba(255,255,255,0.06) inset;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.games-cta:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 34px 90px rgba(255,62,165,0.35);
-}
-.games-cta::before {
-  content: "";
-  position: absolute; inset: 0;
-  z-index: -1;
-  background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(ellipse at center, #000 35%, transparent 80%);
-  opacity: 0.6;
-}
-.games-cta-text {
-  display: flex; flex-direction: column; gap: 0.4rem; max-width: 620px;
-}
-.games-cta-kicker {
-  font: 700 0.7rem/1 'JetBrains Mono', monospace;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.85);
-}
-.games-cta-title {
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 1.05;
-  color: #fff;
-}
-.games-cta-title .arrow {
-  display: inline-block;
-  margin-left: 0.4rem;
-  transition: transform 0.3s ease;
-}
-.games-cta:hover .arrow { transform: translateX(8px); }
-.games-cta-sub {
-  font-size: 1rem;
-  color: rgba(255,255,255,0.85);
-  line-height: 1.5;
-}
-.games-cta-play {
-  position: relative;
-  width: 100px; height: 100px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #fff, #ffd36e 50%, #ff3ea5 100%);
-  display: grid; place-items: center;
-  box-shadow: 0 0 0 6px rgba(255,255,255,0.07), 0 0 40px rgba(255,206,77,0.6);
-}
-.games-cta-play::before {
-  content: "";
-  width: 0; height: 0;
-  border-left: 22px solid #1a0530;
-  border-top: 14px solid transparent;
-  border-bottom: 14px solid transparent;
-  margin-left: 6px;
-  filter: drop-shadow(0 1px 0 rgba(255,255,255,0.4));
-}
-.games-cta-play::after {
-  content: "";
-  position: absolute; inset: -14px;
-  border-radius: 50%;
-  border: 2px dashed rgba(255,255,255,0.35);
-  animation: games-spin 12s linear infinite;
-}
-@keyframes games-spin { to { transform: rotate(360deg); } }
 
 /* ---------- Section heading ---------- */
 .games-section-head {
@@ -327,13 +172,18 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin: 0 0 1.4rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin: 0 0 1.6rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 .games-section-head h2 {
-  font: 900 1.3rem/1 'Inter', sans-serif;
-  letter-spacing: 0.2em;
+  font: 800 1rem/1 'Inter', sans-serif;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--ink);
   margin: 0;
@@ -343,47 +193,94 @@
   width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--pink);
-  box-shadow: 0 0 10px var(--pink);
-  margin-right: 0.65rem;
+  box-shadow: 0 0 12px var(--pink), 0 0 2px #fff inset;
+  margin-right: 0.75rem;
   vertical-align: middle;
 }
 .games-section-head .total {
-  font: 700 0.8rem/1 'JetBrains Mono', monospace;
+  font: 600 0.72rem/1 'JetBrains Mono', ui-monospace, monospace;
   color: var(--muted);
-  letter-spacing: 0.15em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
-/* ---------- Cabinet cards ---------- */
+/* ---------- Cabinet cards (glass + mist) ---------- */
 .games-cabinet-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.5rem;
 }
+
 .games-cabinet {
   position: relative;
   display: block;
-  background: linear-gradient(180deg, rgba(30,18,58,0.92) 0%, rgba(8,6,24,0.98) 100%);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
+  isolation: isolate;
+  border-radius: 18px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition: transform 0.25s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.25s;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0.04) 45%,
+      rgba(10, 8, 28, 0.22)      100%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: var(--glass-blur-heavy);
+  -webkit-backdrop-filter: var(--glass-blur-heavy);
+  transition:
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
   will-change: transform;
 }
+
+/* Misty droplet sheen: slow radial highlight drifting across the top of the card. */
+.games-cabinet::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(120% 60% at 20% 0%,  rgba(255, 255, 255, 0.18), transparent 55%),
+    radial-gradient(100% 60% at 80% 0%,  rgba(255, 255, 255, 0.10), transparent 55%),
+    radial-gradient(80% 80% at 50% 115%, color-mix(in srgb, var(--accent, #29dcff) 22%, transparent), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.85;
+}
+
+/* Very subtle SVG noise gives the "rained on" frosted texture. */
+.games-cabinet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>");
+  background-size: 160px 160px;
+}
+
 .games-cabinet:hover {
   transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--accent, #29dcff) 55%, var(--glass-border-hot));
   box-shadow:
-    0 18px 40px rgba(0,0,0,0.6),
-    0 0 0 1px var(--accent, #29dcff),
-    0 0 30px color-mix(in srgb, var(--accent, #29dcff) 35%, transparent);
+    0 34px 70px -20px rgba(0, 0, 0, 0.65),
+    0 0 0 1px color-mix(in srgb, var(--accent, #29dcff) 40%, transparent),
+    0 0 34px color-mix(in srgb, var(--accent, #29dcff) 28%, transparent),
+    inset 0 1px 0 var(--glass-highlight);
 }
+
 .games-cabinet-marquee {
   position: relative;
-  padding: 0.8rem 1rem;
-  background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(0,0,0,0.2));
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  z-index: 1;
+  padding: 0.75rem 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 90%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -393,57 +290,60 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(120% 200% at 50% 150%, var(--accent, #29dcff), transparent 55%);
-  opacity: 0.4;
   pointer-events: none;
+  background: radial-gradient(120% 200% at 50% 140%, var(--accent, #29dcff), transparent 55%);
+  opacity: 0.22;
 }
 .games-cabinet-genre {
   position: relative;
-  font: 700 0.65rem/1 'JetBrains Mono', monospace;
-  letter-spacing: 0.18em;
+  font: 700 0.66rem/1 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--accent, #29dcff);
-  text-shadow: 0 0 6px currentColor;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent, #29dcff) 70%, transparent);
 }
 .games-cabinet-icon {
   position: relative;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
+  color: #fff;
   filter: drop-shadow(0 0 5px var(--accent, #29dcff));
 }
 
 .games-cabinet-screen {
   position: relative;
+  z-index: 1;
   aspect-ratio: 4 / 3;
-  background:
-    radial-gradient(80% 60% at 50% 40%, rgba(255,255,255,0.05), transparent 70%),
-    linear-gradient(180deg, #0a0615, #050410);
-  display: grid; place-items: center;
   overflow: hidden;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(80% 60% at 50% 40%, rgba(255, 255, 255, 0.06), transparent 70%),
+    linear-gradient(180deg, rgba(10, 6, 20, 0.55), rgba(5, 4, 14, 0.72));
 }
 .games-cabinet-screen::before {
   content: "";
-  position: absolute; inset: 6px;
-  border-radius: 6px;
+  position: absolute; inset: 10px;
+  border-radius: 8px;
   background: radial-gradient(60% 40% at 50% 45%, var(--accent, #29dcff), transparent 75%);
-  opacity: 0.25;
+  opacity: 0.22;
   pointer-events: none;
-  animation: games-pulse 4s ease-in-out infinite;
+  animation: games-pulse 5s ease-in-out infinite;
 }
 .games-cabinet-screen::after {
   content: "";
   position: absolute; inset: 0;
+  pointer-events: none;
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
     transparent 2px,
-    rgba(0,0,0,0.18) 2px,
-    rgba(0,0,0,0.18) 3px
+    rgba(0, 0, 0, 0.14) 2px,
+    rgba(0, 0, 0, 0.14) 3px
   );
-  pointer-events: none;
 }
 @keyframes games-pulse {
-  0%, 100% { transform: scale(0.9); opacity: 0.2; }
-  50%      { transform: scale(1.15); opacity: 0.35; }
+  0%, 100% { transform: scale(0.92); opacity: 0.18; }
+  50%      { transform: scale(1.12); opacity: 0.32; }
 }
 .games-cabinet-screen img {
   position: relative;
@@ -451,7 +351,7 @@
   max-width: 78%;
   max-height: 78%;
   object-fit: contain;
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.55));
 }
 .games-cabinet-title-screen {
   position: relative;
@@ -468,20 +368,25 @@
 @keyframes games-blink { 50% { opacity: 0.3; } }
 
 .games-cabinet-body {
-  padding: 1rem 1.1rem 1.2rem;
+  position: relative;
+  z-index: 1;
+  padding: 1rem 1.15rem 1.2rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18));
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 .games-cabinet-title {
-  font-size: 1.08rem;
-  font-weight: 800;
+  font-size: 1.06rem;
+  font-weight: 700;
   margin: 0 0 0.35rem;
   color: #fff;
-  letter-spacing: -0.005em;
+  letter-spacing: 0.005em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 .games-cabinet-summary {
   font-size: 0.85rem;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--muted);
-  margin: 0 0 0.7rem;
+  margin: 0 0 0.8rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -491,7 +396,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font: 700 0.7rem/1 'JetBrains Mono', monospace;
+  font: 700 0.7rem/1 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent, #29dcff);
@@ -518,31 +423,190 @@
 .games-foot {
   margin-top: 4rem;
   text-align: center;
-  font: 600 0.78rem/1.5 'JetBrains Mono', monospace;
+  font: 600 0.72rem/1.5 'JetBrains Mono', ui-monospace, monospace;
   color: var(--muted);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
 }
 .games-foot .coin {
-  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
-  background: var(--amber); box-shadow: 0 0 8px var(--amber);
-  vertical-align: middle; margin: 0 0.5rem;
-  animation: games-coin 1.2s infinite;
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 10px var(--amber);
+  animation: games-coin 1.4s ease-in-out infinite;
+}
+@keyframes games-coin {
+  0%, 100% { transform: scale(1);   opacity: 0.9; }
+  50%      { transform: scale(1.3); opacity: 1; }
 }
 
+/* ============================================================
+   dat.GUI glass override — matches the cabinet + heading vibe
+   dat.GUI injects its own <style> tags, so we use high-specificity
+   + !important on the handful of surfaces that need re-skinning.
+   ============================================================ */
+.dg.ac {
+  /* Stay accessible while the user scrolls the cabinet grid. */
+  position: fixed !important;
+  top: 80px !important;   /* clear the site navbar */
+  right: 0 !important;
+  left: auto !important;
+  z-index: 40 !important; /* above shell content, below the navbar */
+}
+.dg.main {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+  background: rgba(8, 6, 22, 0.28) !important;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14)) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 24px 60px -18px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 1px 0 rgba(255, 255, 255, 0.24) inset !important;
+  backdrop-filter: blur(22px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
+  overflow: hidden !important;
+  margin-right: 14px !important;
+  margin-top: 14px !important;
+}
+.dg.main.taskbar {
+  display: none !important; /* hide the always-on-top phone notch */
+}
+.dg.main .close-button {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #c7cdee !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  font: 600 0.72rem/1 'JetBrains Mono', ui-monospace, monospace !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  height: 30px !important;
+  line-height: 30px !important;
+  transition: background 0.2s ease, color 0.2s ease !important;
+}
+.dg.main .close-button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+.dg .cr {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.dg .cr.function,
+.dg .cr.number,
+.dg .cr.color,
+.dg .cr.boolean,
+.dg .cr.string {
+  background: transparent !important;
+}
+.dg .cr.function:hover,
+.dg .cr.number:hover,
+.dg .cr.boolean:hover,
+.dg .cr.string:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.dg .property-name {
+  color: #e7ebff !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* Sliders */
+.dg .c .slider {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+}
+.dg .c .slider-fg {
+  background: linear-gradient(90deg, var(--cyan, #29dcff), var(--violet, #b85bff)) !important;
+}
+.dg .c .slider:hover .slider-fg,
+.dg .c .slider-fg:hover {
+  background: linear-gradient(90deg, var(--pink, #ff3ea5), var(--cyan, #29dcff)) !important;
+}
+
+/* Inputs */
+.dg .c input[type=text],
+.dg .c select {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 2px 6px !important;
+  outline: none !important;
+}
+.dg .c input[type=text]:focus,
+.dg .c select:focus {
+  border-color: color-mix(in srgb, var(--cyan, #29dcff) 60%, white 0%) !important;
+  box-shadow: 0 0 0 3px rgba(41, 220, 255, 0.18) !important;
+}
+
+/* Checkboxes */
+.dg .c input[type=checkbox] {
+  accent-color: var(--pink, #ff3ea5) !important;
+}
+
+/* Folders */
+.dg .folder > .title {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #fff !important;
+  font: 700 0.68rem/1 'JetBrains Mono', ui-monospace, monospace !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  padding: 8px 10px 8px 22px !important;
+}
+.dg .folder > .title:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Function buttons */
+.dg .cr.function .property-name {
+  color: var(--cyan, #29dcff) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.12em !important;
+  font-size: 11px !important;
+}
+.dg .cr.function.bigFont .property-name {
+  color: #fff !important;
+}
+.dg .cr.function.appBigFont .property-name {
+  color: var(--green, #6df5b1) !important;
+}
+
+/* Hide the upstream demo's promo links (Github / Twitter / Discord / mobile app).
+   We keep the actual simulation controls intact — users can still trigger random
+   splats, take screenshots, and tweak every config the original exposes. */
+.dg .cr.function.bigFont,
+.dg .cr.function.appBigFont { display: none !important; }
+
+/* ---------- Mobile tweaks ---------- */
 @media (max-width: 720px) {
   .games-page { padding: 90px 0 80px; }
-  .games-cta { grid-template-columns: 1fr; padding: 1.5rem 1.4rem; }
-  .games-cta-play { margin: 0 auto; width: 72px; height: 72px; }
-  .games-cta-play::before { border-left-width: 16px; border-top-width: 10px; border-bottom-width: 10px; }
+  .games-shell { padding: 0 1.25rem; }
+  .games-section-head { padding: 0.75rem 1rem; }
+  .games-cabinet-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.1rem; }
+  .games-cabinet {
+    /* lighter backdrop-filter on small screens for perf */
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+  }
+  .dg.main { transform: scale(0.92); transform-origin: top right; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .games-marquee, .games-grid-floor, .games-eyebrow .coin, .games-cta-play::after,
-  .games-cabinet-screen::before, .games-cabinet-title-screen, .games-sprite, .games-foot .coin {
+  .games-marquee, .games-sprite, .games-foot .coin,
+  .games-cabinet-screen::before, .games-cabinet-title-screen {
     animation: none !important;
   }
-  /* Kill the fluid sim and restore the static gradient starfield as a fallback. */
   .games-page .fluid-bg { display: none !important; }
   .games-page .games-bg { display: block !important; }
 }
