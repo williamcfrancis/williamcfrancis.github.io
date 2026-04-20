@@ -1,5 +1,6 @@
 {{ define "header" }}
   <link rel="stylesheet" href="{{ "/css/games-page.css" | relURL }}">
+  <script defer src="{{ "/js/dat.gui.min.js" | relURL }}"></script>
   <script defer src="{{ "/js/webgl-fluid.js" | relURL }}"></script>
 {{ end }}
 
@@ -60,31 +61,11 @@
 
     <div class="games-shell">
       <header class="games-hero">
-        <div class="games-eyebrow">
-          <span class="coin"></span>
-          Insert coin &nbsp;·&nbsp; After Hours
-          <span class="coin"></span>
-        </div>
         <h1 class="games-marquee">
           Games<span class="and">&amp;</span>Sandboxes
-          <span class="sandboxes">— PLAYABLE ·  AFTER HOURS —</span>
         </h1>
         <p class="games-subtitle">{{ $intro.description | default "Playable experiments and toys I tinker with after hours." }}</p>
-        <div class="games-hud" role="status">
-          <span class="chip">{{ len $games }} cabinets</span>
-          <span class="chip hot">1 sandbox</span>
-          <span class="chip">HI-SCORE · ∞</span>
-        </div>
       </header>
-
-      <a class="games-cta" href="{{ "/arcade/" | relLangURL }}" aria-label="Enter the Arcade — a physics sandbox of every game">
-        <div class="games-cta-text">
-          <span class="games-cta-kicker">Featured · live</span>
-          <span class="games-cta-title">Enter The Arcade <span class="arrow">→</span></span>
-          <span class="games-cta-sub">A playable physics sandbox holding every game below. Drag, throw, and launch them into orbit.</span>
-        </div>
-        <div class="games-cta-play" aria-hidden="true"></div>
-      </a>
 
       <div class="games-section-head">
         <h2><span class="dot"></span>All Cabinets</h2>

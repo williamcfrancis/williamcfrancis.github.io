@@ -24,7 +24,7 @@ SOFTWARE.
 
 /* Vendored from https://github.com/PavelDoGreat/WebGL-Fluid-Simulation
  * Local patches:
- *   A) startGUI() no-op'd (no settings panel)
+ *   A) (removed — dat.GUI is re-enabled; see glassy CSS overrides in games-page.css)
  *   B) promo / app-store DOM + ga() references guarded for null (games page has none)
  *   C) mousedown/mousemove/touchstart/touchmove listeners moved from canvas to window;
  *      offsetX/Y -> clientX/Y so clicks pass through a pointer-events:none canvas
@@ -134,7 +134,7 @@ if (!ext.supportLinearFiltering) {
     config.SUNRAYS = false;
 }
 
-// startGUI();  // disabled: no settings panel when used as a background sim
+startGUI();
 
 function getWebGLContext (canvas) {
     const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false };
@@ -227,9 +227,6 @@ function supportRenderTextureFormat (gl, internalFormat, format, type) {
 }
 
 function startGUI () {
-    // Patch A: disabled — we don't ship dat.gui on this site.
-    return;
-    // eslint-disable-next-line no-unreachable
     var gui = new dat.GUI({ width: 300 });
     gui.add(config, 'DYE_RESOLUTION', { 'high': 1024, 'medium': 512, 'low': 256, 'very low': 128 }).name('quality').onFinishChange(initFramebuffers);
     gui.add(config, 'SIM_RESOLUTION', { '32': 32, '64': 64, '128': 128, '256': 256 }).name('sim resolution').onFinishChange(initFramebuffers);
