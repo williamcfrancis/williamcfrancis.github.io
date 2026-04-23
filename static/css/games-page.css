@@ -361,7 +361,7 @@
    ============================================================ */
 .dg.ac {
   position: fixed !important;
-  top: 80px !important;
+  top: 128px !important;          /* offset so .fluid-hint sits above the panel */
   right: 0 !important;
   left: auto !important;
   z-index: 40 !important;
@@ -402,35 +402,54 @@
 
 .dg.main.taskbar { display: none !important; }
 
-/* Close-button doubles as the minimize/maximize toggle.
-   dat.GUI puts a `closed` class on the inner <ul> when the panel is
-   collapsed; we swap the glyph via :has() so the button is labeled
-   "Minimize" while expanded and "Maximize" while collapsed. */
-.dg.main .close-button {
-  background: rgba(255, 255, 255, 0.04) !important;
-  color: #c7cdee !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-  font-size: 0 !important;                 /* hide default "Close/Open Controls" text */
-  letter-spacing: 0 !important;
-  text-transform: none !important;
-  height: 32px !important;
-  line-height: 32px !important;
-  position: relative;
-  transition: background 0.2s ease, color 0.2s ease !important;
+/* Hide the full-width "— Minimize / + Maximize" bar — games-extras.js injects
+   a small icon-sized toggle in the panel header instead (see .dg-min-toggle). */
+.dg.main .close-button { display: none !important; }
+
+/* Small minimize / maximize toggle pinned to the top-right of the header. */
+.dg.main .dg-min-toggle {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  color: #e7ebff;
+  cursor: pointer;
+  z-index: 3;
+  transition: background 0.18s ease, border-color 0.18s ease,
+              color 0.18s ease, transform 0.12s ease;
 }
-.dg.main .close-button::before {
-  font: 700 0.72rem/32px 'JetBrains Mono', ui-monospace, monospace;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  content: "— Minimize";   /* expanded state */
-  color: inherit;
+.dg.main .dg-min-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.36);
+  color: #fff;
 }
-.dg.main:has(ul.closed) .close-button::before {
-  content: "+ Maximize";    /* collapsed state */
+.dg.main .dg-min-toggle:active { transform: scale(0.92); }
+.dg.main .dg-min-toggle:focus-visible {
+  outline: 2px solid var(--cyan, #29dcff);
+  outline-offset: 2px;
 }
-.dg.main .close-button:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #fff !important;
+.dg.main .dg-min-toggle .dg-min-icon {
+  display: block;
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: width 0.18s ease, height 0.18s ease,
+              background 0.18s ease, border 0.18s ease;
+}
+.dg.main .dg-min-toggle.is-closed .dg-min-icon {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
 }
 
 .dg .cr {
@@ -519,4 +538,90 @@
 
 @media (prefers-reduced-motion: reduce) {
   .games-page .fluid-bg { display: none !important; }
+  .fluid-hint,
+  .games-cat { display: none !important; }
+}
+
+/* ============================================================
+   "Click & drag anywhere" hint — floats just above the Fluid
+   Controls panel. Pointer-events off so drags still reach the
+   fluid sim underneath. Self-dismisses on first real drag.
+   ============================================================ */
+.fluid-hint {
+  position: fixed;
+  top: 86px;
+  right: 14px;
+  z-index: 41;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(8, 6, 22, 0.45);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.16));
+  color: #e7ebff;
+  font: 600 0.66rem/1 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: 0 10px 26px -12px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  animation:
+    fluid-hint-in 600ms ease-out 400ms forwards,
+    fluid-hint-drift 3.4s ease-in-out 1200ms infinite;
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.fluid-hint.is-dismissed {
+  opacity: 0;
+  transform: translateY(-8px);
+  animation: none;
+}
+.fluid-hint .fluid-hint-ico {
+  display: inline-flex;
+  width: 22px;
+  height: 20px;
+  color: var(--cyan, #29dcff);
+  filter: drop-shadow(0 0 4px rgba(41, 220, 255, 0.45));
+}
+@keyframes fluid-hint-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fluid-hint-drift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+/* ============================================================
+   Periodic cat companion — hops across the viewport every 30s.
+   games-extras.js drives position via transform; the fluid sim
+   paints a trail along its path via window.fluidSplatScreen.
+   ============================================================ */
+.games-cat {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 60px;
+  height: 50px;
+  z-index: 42;
+  pointer-events: none;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 6px 14px rgba(255, 62, 165, 0.35));
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.games-cat.is-active { opacity: 1; }
+
+@media (max-width: 720px) {
+  .fluid-hint {
+    top: 76px;
+    font-size: 0.58rem;
+    padding: 6px 12px;
+    letter-spacing: 0.18em;
+  }
+  .dg.ac { top: 116px !important; }
 }

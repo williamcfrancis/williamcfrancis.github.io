@@ -1690,3 +1690,29 @@ if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) {
 if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     config.PAUSED = true;
 }
+
+// Expose a splat helper so outside scripts (e.g. the periodic cat companion)
+// can paint a fluid trail from screen coordinates without faking mouse events
+// — faking would hijack pointers[0] and fight a real user's cursor.
+window.fluidSplatScreen = function (clientX, clientY, prevClientX, prevClientY) {
+    if (!canvas || !canvas.width || !canvas.height) return;
+    try {
+        const posX = scaleByPixelRatio(clientX);
+        const posY = scaleByPixelRatio(clientY);
+        const prevPosX = scaleByPixelRatio(prevClientX);
+        const prevPosY = scaleByPixelRatio(prevClientY);
+        const texcoordX = posX / canvas.width;
+        const texcoordY = 1.0 - posY / canvas.height;
+        const prevTexcoordX = prevPosX / canvas.width;
+        const prevTexcoordY = 1.0 - prevPosY / canvas.height;
+        const deltaX = correctDeltaX(texcoordX - prevTexcoordX);
+        const deltaY = correctDeltaY(texcoordY - prevTexcoordY);
+        const dx = deltaX * config.SPLAT_FORCE;
+        const dy = deltaY * config.SPLAT_FORCE;
+        const color = generateColor();
+        color.r *= 10.0;
+        color.g *= 10.0;
+        color.b *= 10.0;
+        splat(texcoordX, texcoordY, dx, dy, color);
+    } catch (e) { /* silent — sim may not have initialized (no WebGL) */ }
+};
