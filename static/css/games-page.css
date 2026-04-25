@@ -597,47 +597,41 @@
 }
 
 /* ============================================================
-   Periodic cat companion — a rigged SVG that walks, trots,
-   bounds, sits, looks around, grooms, and stretches across
-   the viewport. games-extras.js drives every part-transform
-   per frame; the fluid sim paints a trail along its path via
-   window.fluidSplatScreen. transform-origin is pinned to the
-   cat's feet so any rotation/scale pivots at ground contact.
+   Periodic cat companion — the canonical oneko.js spritesheet
+   (256×128, 8×4 cells of 32×32, MIT licensed by adryd325)
+   rendered at 2× as a pixel-perfect CSS background. games-
+   extras.js translates the wrapper to anchor the cat's feet
+   at the world position and swaps backgroundPosition per
+   frame to play any of 17 baked animations (idle, alert, tired,
+   sleeping, scratchSelf, scratchWall N/S/E/W, and 8-direction
+   walk). The fluid sim paints a trail along the cat's path via
+   window.fluidSplatScreen.
    ============================================================ */
 .games-cat {
   position: fixed;
   top: 0;
   left: 0;
-  width: 84px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   z-index: 42;
   pointer-events: none;
+  background-image: url(/img/oneko.gif);
+  background-repeat: no-repeat;
+  /* Source sheet is 256×128. At 2× we render it as 512×256, and js
+     emits backgroundPosition offsets pre-multiplied by the same scale. */
+  background-size: 512px 256px;
+  /* Keep pixel art crisp instead of bilinearly blurring it on scale-up. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
   will-change: transform, opacity;
-  transform-origin: 42px 50px;
+  transform-origin: 32px 56px; /* feet — for any future rotate/scale */
   filter:
-    drop-shadow(0 8px 18px rgba(255, 62, 165, 0.30))
-    drop-shadow(0 2px 4px rgba(20, 12, 40, 0.35));
+    drop-shadow(0 8px 18px rgba(255, 62, 165, 0.32))
+    drop-shadow(0 2px 4px rgba(20, 12, 40, 0.40));
   opacity: 0;
   transition: opacity 320ms ease;
 }
 .games-cat.is-active { opacity: 1; }
-.games-cat .cat-svg { overflow: visible; display: block; }
-.games-cat .cat-tail,
-.games-cat .cat-tail-curve,
-.games-cat .cat-tail-stripes,
-.games-cat .cat-leg,
-.games-cat .cat-leg-thigh,
-.games-cat .cat-leg-shin,
-.games-cat .cat-body,
-.games-cat .cat-head,
-.games-cat .cat-ear,
-.games-cat .cat-eye-shape,
-.games-cat .cat-pupil,
-.games-cat .cat-glint {
-  /* Avoid composited transitions that would smear the
-     per-frame transforms js sets via setAttribute. */
-  transition: none;
-}
 
 @media (max-width: 720px) {
   .fluid-hint {
