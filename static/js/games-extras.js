@@ -23,9 +23,6 @@
   var reduceMotion = window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  if (document.readyState !== 'loading') init();
-  else document.addEventListener('DOMContentLoaded', init);
-
   function init() {
     // dat.GUI is mounted by webgl-fluid.js asynchronously after WebGL setup.
     // Poll briefly; give up after ~5s in case WebGL isn't available.
@@ -990,4 +987,11 @@
       get position() { return { x: cat.state.x, y: cat.state.y }; },
     };
   }
+
+  // Entry point — placed at the end of the IIFE so all `var` initializers
+  // (SPRITES, BUBBLE_BAG, etc.) have run before init() reaches them via
+  // scheduleCat → createCat → setSprite. With `defer`, the script evaluates
+  // after parsing so document.readyState is 'interactive' here, not 'loading'.
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
 })();
