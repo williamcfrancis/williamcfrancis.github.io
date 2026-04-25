@@ -187,6 +187,11 @@
       cat.state.queuedCard = null;
     });
 
+    // The cat lives onscreen: enter once, then chain small actions
+    // (wander, scratch, nap, look around, sit, stretch). Rare exit/re-entry
+    // gives a slight sense of the cat coming and going, but most of the
+    // time it stays put. Scene gaps are small (0.6–2.5 s) so the cat reads
+    // as a continuous presence rather than a series of cameos.
     function tick() {
       if (document.hidden) {
         setTimeout(tick, 4000);
@@ -196,18 +201,44 @@
         setTimeout(tick, 4000);
         return;
       }
-      // Idle-timeout sleep: if no input for 75 s, escalate to a sleep scene
-      // (which suspends until input arrives), then resume normal scheduling.
+      // Idle-timeout sleep: if no input for 75 s, escalate to a long sleep
+      // (suspends until input arrives), then resume normal scheduling.
       var idleMs = Date.now() - cat.state.lastInputTs;
       if (idleMs >= 75000 && !cat.state.isSleeping) {
         sleepUntilWoken(cat).then(function () {
-          setTimeout(tick, 2000 + Math.random() * 4000);
+          setTimeout(tick, 1200 + Math.random() * 1800);
         });
         return;
       }
-      runCatScene(cat).then(function () {
-        var nextDelay = 14000 + Math.random() * 26000; // 14–40 s gap
-        setTimeout(tick, nextDelay);
+      // Card-hover companion takes priority over idle action.
+      if (cat.state.queuedCard) {
+        var card = cat.state.queuedCard;
+        cat.state.queuedCard = null;
+        cat.state.sceneActive = true;
+        cardCompanionScene(cat, card).then(function () {
+          cat.state.sceneActive = false;
+          setTimeout(tick, 1200 + Math.random() * 1500);
+        });
+        return;
+      }
+      // Off-screen: walk in. On-screen: pick a living action.
+      if (!cat.state.onScreen) {
+        enterScene(cat).then(function () {
+          setTimeout(tick, 600 + Math.random() * 1400);
+        });
+        return;
+      }
+      cat.state.sceneActive = true;
+      runLivingAction(cat).then(function () {
+        cat.state.sceneActive = false;
+        // Rare quick exit-and-return for variety (about 1 in 25 actions).
+        if (Math.random() < 0.04) {
+          exitScene(cat).then(function () {
+            setTimeout(tick, 7000 + Math.random() * 8000);
+          });
+        } else {
+          setTimeout(tick, 600 + Math.random() * 1900);
+        }
       });
     }
     setTimeout(tick, 4000 + Math.random() * 2000); // first appearance after 4–6 s
@@ -226,6 +257,7 @@
         frame: 0,
         animTimer: null,
         scenesPaused: false,
+        onScreen: false,
         // ----- Behavior layer -----
         cursor: { x: 0, y: 0, has: false },
         lastInputTs: Date.now(),
@@ -442,24 +474,46 @@
   }
 
   // ------------------ Scene composition ------------------
+  //
+  // The cat lives onscreen across many actions instead of cameo-scenes:
+  //   tick → enterScene (once) → runLivingAction → runLivingAction → ...
+  // Most actions stay in place or wander a short distance. exitScene only
+  // runs ~4 % of the time, so the cat almost always remains visible.
 
-  function runCatScene(cat) {
-    // If the user has been hovering a game card long enough to queue a visit,
-    // hand the wheel to the card-companion scene instead of rolling.
-    if (cat.state.queuedCard) {
-      var card = cat.state.queuedCard;
-      cat.state.queuedCard = null;
-      cat.state.sceneActive = true;
-      return cardCompanionScene(cat, card).then(function () {
-        cat.state.sceneActive = false;
-      });
+  function getViewportBand() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    // Keep the cat in the lower-middle band so it doesn't fight the
+    // section header or run under the dat.GUI panel.
+    var minY = Math.max(220, h * 0.34);
+    var maxY = Math.max(minY + 80, h * 0.86);
+    return { w: w, h: h, minY: minY, maxY: maxY };
+  }
+
+  // Pick a target spot inside the band that's a meaningful distance from
+  // the cat's current position (avoids "wander to the same spot" reads).
+  function pickSpot(cat, vp) {
+    var x = 60, y = vp.minY;
+    for (var i = 0; i < 6; i++) {
+      x = 60 + Math.random() * Math.max(120, vp.w - 120);
+      y = vp.minY + Math.random() * (vp.maxY - vp.minY);
+      var dx = x - cat.state.x;
+      var dy = y - cat.state.y;
+      if (dx * dx + dy * dy > 160 * 160) break;
     }
+    return { x: x, y: y };
+  }
 
+  function enterScene(cat) {
     return new Promise(function (resolve) {
       cat.state.sceneActive = true;
+      var vp = getViewportBand();
+      var enterLeft = Math.random() < 0.5;
+      var startX = enterLeft ? -100 : vp.w + 100;
+      var startY = vp.minY + Math.random() * (vp.maxY - vp.minY);
+      placeCat(cat, startX, startY);
       cat.root.classList.add('is-active');
 
-      // First scene of the page session gets a tiny greeting bubble.
       if (!cat.state.hasGreeted) {
         cat.state.hasGreeted = true;
         setTimeout(function () {
@@ -469,122 +523,161 @@
         }, 700);
       }
 
-      var w = window.innerWidth;
-      var h = window.innerHeight;
-      var pad = 100;
-      // Keep the cat in the lower-middle band of the viewport so it doesn't
-      // fight the section header or run under the dat.GUI panel.
-      var minY = Math.max(220, h * 0.34);
-      var maxY = Math.max(minY + 80, h * 0.86);
-
-      var enterLeft = Math.random() < 0.5;
-      var startX = enterLeft ? -pad : w + pad;
-      var startY = minY + Math.random() * (maxY - minY);
-
-      placeCat(cat, startX, startY);
-
-      var roll = Math.random();
-      var scene;
-      if (roll < 0.35) {
-        // Casual stroll, sometimes diagonal — with a chance of a mid-walk pause.
-        var endY = minY + Math.random() * (maxY - minY);
-        var endX = enterLeft ? w + pad : -pad;
-        var dist = Math.hypot(endX - startX, endY - startY);
-        scene = walkToInterruptible(cat, startX, startY, endX, endY, dist / 0.20, 200);
-      } else if (roll < 0.55) {
-        // Brisker pass — frames swap faster, motion is faster, no pauses.
-        var endY2 = minY + Math.random() * (maxY - minY);
-        var endX2 = enterLeft ? w + pad : -pad;
-        var dist2 = Math.hypot(endX2 - startX, endY2 - startY);
-        scene = walkTo(cat, startX, startY, endX2, endY2, dist2 / 0.34, 110);
-      } else {
-        // Linger: walk to a stop, do something cat-like, walk out.
-        scene = lingerScene(cat, startX, startY, enterLeft, w, minY, maxY);
-      }
-
-      scene.then(function () {
-        stopAnim(cat);
-        cat.root.classList.remove('is-active');
-        if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
-        // After fade-out, snap the cat offscreen.
-        setTimeout(function () {
-          placeCat(cat, -9999, -9999);
+      // Walk toward a comfortable spot a little inside the viewport.
+      var dest = pickSpot(cat, vp);
+      var dist = Math.hypot(dest.x - startX, dest.y - startY);
+      walkToInterruptible(cat, startX, startY, dest.x, dest.y, dist / 0.20, 200)
+        .then(function () {
+          cat.state.onScreen = true;
           cat.state.sceneActive = false;
           resolve();
-        }, 360);
-      });
+        });
     });
   }
 
-  function lingerScene(cat, startX, startY, enterLeft, w, minY, maxY) {
-    var stopX = w * (0.22 + Math.random() * 0.56);
-    var stopY = minY + Math.random() * (maxY - minY);
-    // Make sure stop is roughly forward of the entry, not behind it.
-    if (enterLeft  && stopX < startX + 200) stopX = startX + 200 + Math.random() * 220;
-    if (!enterLeft && stopX > startX - 200) stopX = startX - 200 - Math.random() * 220;
-
-    var entryDist = Math.hypot(stopX - startX, stopY - startY);
-    var entryFast = Math.random() < 0.35;
-    var entrySpeed = entryFast ? 0.32 : 0.20;
-    var entryFrame = entryFast ? 110 : 200;
-
-    return walkToInterruptible(cat, startX, startY, stopX, stopY, entryDist / entrySpeed, entryFrame)
-      .then(function () { return idleSequence(cat, stopX, stopY, w); })
-      .then(function () {
-        // Decide exit: 25% turn-around, otherwise continue same direction.
-        var exitLeft = Math.random() < 0.25 ? enterLeft : !enterLeft;
-        var exitX = exitLeft ? -100 : w + 100;
-        var exitY = minY + Math.random() * (maxY - minY);
-        var exitDist = Math.hypot(exitX - stopX, exitY - stopY);
-        var exitFast = Math.random() < 0.5;
-        var exitWalk = exitFast ? walkTo : walkToInterruptible;
-        return exitWalk(
-          cat, stopX, stopY, exitX, exitY,
-          exitDist / (exitFast ? 0.34 : 0.20),
-          exitFast ? 110 : 200
-        );
-      });
+  function exitScene(cat) {
+    return new Promise(function (resolve) {
+      cat.state.sceneActive = true;
+      var vp = getViewportBand();
+      var goLeft = cat.state.x > vp.w / 2;
+      var endX = goLeft ? -100 : vp.w + 100;
+      var endY = vp.minY + Math.random() * (vp.maxY - vp.minY);
+      var dist = Math.hypot(endX - cat.state.x, endY - cat.state.y);
+      walkTo(cat, cat.state.x, cat.state.y, endX, endY, dist / 0.24, 160)
+        .then(function () {
+          stopAnim(cat);
+          cat.root.classList.remove('is-active');
+          if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
+          setTimeout(function () {
+            placeCat(cat, -9999, -9999);
+            cat.state.onScreen = false;
+            cat.state.sceneActive = false;
+            resolve();
+          }, 360);
+        });
+    });
   }
 
-  function idleSequence(cat, x, y, w) {
-    var actions = [];
-    // Cat almost always perks up first ("alert" pose) when it stops.
-    if (Math.random() < 0.78) actions.push({ name: 'alert', dur: 800 + Math.random() * 600, period: 220 });
-
+  // Pick and run one action while the cat is onscreen. Weighted to favor
+  // gentle ambient behavior — wandering a bit, sitting, looking around —
+  // with scratches and naps as occasional accents. Every named animation
+  // in the spritesheet is reachable through one of these branches.
+  function runLivingAction(cat) {
+    var vp = getViewportBand();
     var roll = Math.random();
-    if (roll < 0.30) {
-      // Self-grooming.
-      actions.push({ name: 'scratchSelf', dur: 2200 + Math.random() * 1100, period: 220 });
-    } else if (roll < 0.55) {
-      // Get tired, take a nap.
-      actions.push({ name: 'tired',    dur: 700  + Math.random() * 400,  period: 240 });
-      actions.push({ name: 'sleeping', dur: 3200 + Math.random() * 1800, period: 380 });
-    } else if (roll < 0.78) {
-      // Scratch the nearest "wall" — pick side from screen position.
-      var wallDir = (x > w / 2) ? 'E' : 'W';
-      actions.push({ name: 'scratchWall' + wallDir, dur: 1700 + Math.random() * 900, period: 220 });
-    } else {
-      // Sit, look, sit again.
-      actions.push({ name: 'idle',  dur: 900,  period: 200 });
-      actions.push({ name: 'alert', dur: 750,  period: 200 });
-      actions.push({ name: 'idle',  dur: 700,  period: 200 });
-    }
+    if      (roll < 0.30) return doWander(cat, vp);
+    else if (roll < 0.42) return doSit(cat);
+    else if (roll < 0.54) return doLookAround(cat);
+    else if (roll < 0.66) return doScratchWall(cat, vp);
+    else if (roll < 0.78) return doScratchSelf(cat);
+    else if (roll < 0.88) return doStretch(cat);
+    else                  return doBriefNap(cat);
+  }
 
-    if (Math.random() < 0.4) actions.push({ name: 'idle', dur: 600, period: 200 });
+  function doWander(cat, vp) {
+    var dest = pickSpot(cat, vp);
+    var dist = Math.hypot(dest.x - cat.state.x, dest.y - cat.state.y);
+    var brisk = Math.random() < 0.30;
+    var speed  = brisk ? 0.32 : 0.20;
+    var period = brisk ? 110  : 200;
+    var fn     = brisk ? walkTo : walkToInterruptible;
+    return fn(cat, cat.state.x, cat.state.y, dest.x, dest.y, dist / speed, period);
+  }
 
-    var promise = Promise.resolve();
+  function doSit(cat) {
+    return chainHolds(cat, [
+      { name: 'alert', dur: 600 + Math.random() * 400,  period: 220 },
+      { name: 'idle',  dur: 2200 + Math.random() * 2400, period: 200 },
+    ]);
+  }
+
+  // Cat perks up, faces a random direction (using walk-frame[0] as a
+  // facing pose), then another, then settles. Exercises walk-direction
+  // sprites without actually moving — like the cat is checking its
+  // surroundings.
+  function doLookAround(cat) {
+    var dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    var d1 = dirs[Math.floor(Math.random() * dirs.length)];
+    var d2 = dirs[Math.floor(Math.random() * dirs.length)];
+    return holdAnim(cat, 'alert', 500 + Math.random() * 200, 220)
+      .then(function () {
+        stopAnim(cat); setSprite(cat, d1, 0);
+        return wait(550 + Math.random() * 350);
+      })
+      .then(function () { return holdAnim(cat, 'alert', 350, 220); })
+      .then(function () {
+        stopAnim(cat); setSprite(cat, d2, 0);
+        return wait(550 + Math.random() * 350);
+      })
+      .then(function () { return holdAnim(cat, 'idle', 600, 200); });
+  }
+
+  // Scratch the nearest "wall" — pick from the cat's distance to each
+  // viewport edge so all four scratchWall sprites (N, S, E, W) get
+  // reached depending on where the cat happens to be.
+  function doScratchWall(cat, vp) {
+    var leftDist  = cat.state.x;
+    var rightDist = vp.w - cat.state.x;
+    var topDist   = cat.state.y - vp.minY;
+    var botDist   = vp.maxY - cat.state.y;
+    var dirs = [
+      { d: leftDist,  name: 'scratchWallW' },
+      { d: rightDist, name: 'scratchWallE' },
+      { d: topDist,   name: 'scratchWallN' },
+      { d: botDist,   name: 'scratchWallS' },
+    ];
+    dirs.sort(function (a, b) { return a.d - b.d; });
+    return chainHolds(cat, [
+      { name: 'alert',     dur: 450 + Math.random() * 250,  period: 220 },
+      { name: dirs[0].name, dur: 1500 + Math.random() * 800, period: 220 },
+    ]);
+  }
+
+  function doScratchSelf(cat) {
+    return chainHolds(cat, [
+      { name: 'alert',       dur: 450 + Math.random() * 250,  period: 220 },
+      { name: 'scratchSelf', dur: 1900 + Math.random() * 1000, period: 220 },
+    ]);
+  }
+
+  // Stretch: tired pose, then alert. Reads as a cat working a kink out.
+  function doStretch(cat) {
+    return chainHolds(cat, [
+      { name: 'tired', dur: 600 + Math.random() * 300, period: 240 },
+      { name: 'alert', dur: 700 + Math.random() * 300, period: 220 },
+    ]);
+  }
+
+  // Brief inline nap. Distinct from sleepUntilWoken — that's the long
+  // idle-timeout escalation; this is just a 4–6 s power nap.
+  function doBriefNap(cat) {
+    return chainHolds(cat, [
+      { name: 'tired',    dur: 700  + Math.random() * 400,  period: 240, bubble: 'tired' },
+      { name: 'sleeping', dur: 3500 + Math.random() * 2000, period: 380, bubble: 'sleep' },
+      { name: 'alert',    dur: 700  + Math.random() * 300,  period: 220, bubble: 'wake'  },
+    ]);
+  }
+
+  // Run a sequence of static/looped animations one after another. Each
+  // entry: { name, dur, period, bubble? }. Bubble triggers a contextual
+  // speech bubble at the start of that segment.
+  function chainHolds(cat, actions) {
+    var p = Promise.resolve();
     actions.forEach(function (a) {
-      promise = promise.then(function () {
-        placeCat(cat, x, y); // re-anchor between behaviours
-        if (a.name === 'tired') {
-          sayBubble(cat, pickFromBag(cat, 'tired'),  { duration: Math.min(1500, a.dur - 100) });
-        } else if (a.name === 'sleeping') {
-          sayBubble(cat, pickFromBag(cat, 'sleep'),  { duration: Math.min(2400, a.dur - 400) });
+      p = p.then(function () {
+        if (a.bubble) {
+          sayBubble(cat, pickFromBag(cat, a.bubble), {
+            duration: Math.min(2400, Math.max(800, a.dur - 300)),
+          });
         }
         return holdAnim(cat, a.name, a.dur, a.period);
       });
     });
-    return promise;
+    return p;
+  }
+
+  function wait(ms) {
+    return new Promise(function (r) { setTimeout(r, ms); });
   }
 
   // =========================================================================
@@ -803,19 +896,25 @@
         return;
       }
       var rect = cardEl.getBoundingClientRect();
-      var w = window.innerWidth;
-      var h = window.innerHeight;
-      var minY = Math.max(220, h * 0.34);
-      var maxY = Math.max(minY + 80, h * 0.86);
+      var vp = getViewportBand();
 
       var targetX = rect.left + rect.width / 2;
-      var targetY = Math.min(maxY, Math.max(minY, rect.bottom + 70));
+      var targetY = Math.min(vp.maxY, Math.max(vp.minY, rect.bottom + 70));
 
-      var enterLeft = targetX < w / 2;
-      var startX = enterLeft ? -100 : w + 100;
-      var startY = targetY + (Math.random() - 0.5) * 60;
-      placeCat(cat, startX, startY);
-      cat.root.classList.add('is-active');
+      // If the cat is already onscreen, walk from where it is. Otherwise
+      // enter from the closer side. Either way, the cat stays onscreen
+      // when we're done.
+      var startX, startY;
+      if (cat.state.onScreen) {
+        startX = cat.state.x;
+        startY = cat.state.y;
+      } else {
+        var enterLeft = targetX < vp.w / 2;
+        startX = enterLeft ? -100 : vp.w + 100;
+        startY = targetY + (Math.random() - 0.5) * 60;
+        placeCat(cat, startX, startY);
+        cat.root.classList.add('is-active');
+      }
 
       var dist = Math.hypot(targetX - startX, targetY - startY);
       walkToInterruptible(cat, startX, startY, targetX, targetY, dist / 0.26, 150)
@@ -830,19 +929,16 @@
           return holdAnim(cat, 'idle', 1100, 220);
         })
         .then(function () {
-          var exitX = enterLeft ? w + 100 : -100;
-          var exitY = minY + Math.random() * (maxY - minY);
-          var exitDist = Math.hypot(exitX - targetX, exitY - targetY);
-          return walkTo(cat, targetX, targetY, exitX, exitY, exitDist / 0.22, 180);
+          // Stroll a short distance away from the card so the cat reads
+          // as "moving on" rather than vanishing — but stays onscreen.
+          var dest = pickSpot(cat, vp);
+          var sDist = Math.hypot(dest.x - cat.state.x, dest.y - cat.state.y);
+          return walkToInterruptible(cat, cat.state.x, cat.state.y, dest.x, dest.y, sDist / 0.22, 180);
         })
         .then(function () {
-          stopAnim(cat);
-          cat.root.classList.remove('is-active');
+          cat.state.onScreen = true;
           if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
-          setTimeout(function () {
-            placeCat(cat, -9999, -9999);
-            resolve();
-          }, 360);
+          resolve();
         });
     });
   }
@@ -861,11 +957,17 @@
       var minY = Math.max(220, h * 0.34);
       var maxY = Math.max(minY + 80, h * 0.86);
 
-      var enterLeft = Math.random() < 0.5;
-      var startX = enterLeft ? -100 : w + 100;
-      var startY = minY + (maxY - minY) * (0.5 + Math.random() * 0.4);
-      placeCat(cat, startX, startY);
-      cat.root.classList.add('is-active');
+      // Cat is already onscreen in living mode; walk from current position
+      // to a chosen sleep spot. If somehow offscreen, enter from a side.
+      var startX = cat.state.x;
+      var startY = cat.state.y;
+      if (!cat.state.onScreen || startX < 0 || startX > w) {
+        startX = (Math.random() < 0.5 ? -100 : w + 100);
+        startY = minY + (maxY - minY) * (0.5 + Math.random() * 0.4);
+        placeCat(cat, startX, startY);
+        cat.root.classList.add('is-active');
+        cat.state.onScreen = true;
+      }
 
       var sleepX = w * (0.20 + Math.random() * 0.60);
       var sleepY = minY + (maxY - minY) * (0.65 + Math.random() * 0.30);
@@ -891,13 +993,10 @@
           return holdAnim(cat, 'alert', 800, 220);
         })
         .then(function () {
-          cat.root.classList.remove('is-active');
-          if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
-          setTimeout(function () {
-            placeCat(cat, -9999, -9999);
-            cat.state.sceneActive = false;
-            resolve();
-          }, 360);
+          // Stay onscreen — let the next tick continue with living actions.
+          cat.state.onScreen = true;
+          cat.state.sceneActive = false;
+          resolve();
         });
     });
   }
