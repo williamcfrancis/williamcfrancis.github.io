@@ -213,7 +213,7 @@
         setTimeout(tick, nextDelay);
       });
     }
-    setTimeout(tick, 9000 + Math.random() * 9000); // first appearance after 9–18 s
+    setTimeout(tick, 4000 + Math.random() * 2000); // first appearance after 4–6 s
   }
 
   function createCat() {
