@@ -152,10 +152,43 @@
     NW: [[-1,  0], [-1, -1]],
   };
 
+  // Short, contextual things the cat can "say". Each key holds a small bag
+  // and pickFromBag rotates without immediate repeats. Keep messages ≤ 12
+  // chars so the bubble fits without wrapping at small viewport widths.
+  var BUBBLE_BAG = {
+    hello:  ['*meow*', 'hi', 'oh hi'],
+    pause:  ['...', 'hm?', '*sniff*'],
+    cursor: ['hi', '?', '*purr*'],
+    card:   ['ooh', 'this one?', 'nice'],
+    tired:  ['*yawn*'],
+    sleep:  ['zzz...'],
+    wake:   ['hm?', '*stretch*'],
+  };
+
   function scheduleCat() {
     var cat = createCat();
     document.body.appendChild(cat.root);
     window.gamesCat = catApi(cat);
+
+    // Behavior layer install: input tracking, hover watchers, cursor head-turn
+    // tick, and a visibilitychange hook to clean up bubbles + queued scenes
+    // when the page is hidden.
+    installInputTracking(cat);
+    installCardWatchers(cat);
+    setInterval(function () { cursorAwarenessTick(cat); }, 250);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) return;
+      if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
+      if (cat.state.bubbleTimer) {
+        clearTimeout(cat.state.bubbleTimer);
+        cat.state.bubbleTimer = null;
+      }
+      if (cat.state.hoverTimer) {
+        clearTimeout(cat.state.hoverTimer);
+        cat.state.hoverTimer = null;
+      }
+      cat.state.queuedCard = null;
+    });
 
     function tick() {
       if (document.hidden) {
@@ -164,6 +197,15 @@
       }
       if (cat.state.scenesPaused) {
         setTimeout(tick, 4000);
+        return;
+      }
+      // Idle-timeout sleep: if no input for 75 s, escalate to a sleep scene
+      // (which suspends until input arrives), then resume normal scheduling.
+      var idleMs = Date.now() - cat.state.lastInputTs;
+      if (idleMs >= 75000 && !cat.state.isSleeping) {
+        sleepUntilWoken(cat).then(function () {
+          setTimeout(tick, 2000 + Math.random() * 4000);
+        });
         return;
       }
       runCatScene(cat).then(function () {
@@ -189,6 +231,22 @@
         lastSplatY: undefined,
         animTimer: null,
         scenesPaused: false,
+        // ----- Behavior layer -----
+        cursor: { x: 0, y: 0, has: false },
+        lastInputTs: Date.now(),
+        hoverTimer: null,
+        queuedCard: null,
+        isWalking: false,
+        isSleeping: false,
+        sceneActive: false,
+        cursorLooking: false,
+        cursorRestoreAt: 0,
+        cursorGreeted: false,
+        hasGreeted: false,
+        pendingWake: null,
+        bubble: null,
+        bubbleTimer: null,
+        bagState: {},
       },
     };
 
@@ -317,6 +375,7 @@
       placeCat(cat, x1, y1);
       return Promise.resolve();
     }
+    cat.state.isWalking = true;
     var dirName = dirFromVector(dx, dy);
     var frames  = SPRITES[dirName];
     var fIdx = 0;
@@ -330,14 +389,71 @@
         setSprite(cat, dirName, fIdx);
         lastSwap = now;
       }
+    }).then(function () {
+      cat.state.isWalking = false;
     });
+  }
+
+  // Wraps walkTo with a chance to insert a single mid-walk pause: the cat
+  // stops near the path's midpoint, plays "alert" briefly (sometimes with a
+  // bubble), then continues. Probability scales with walk duration so a
+  // long stroll usually pauses, but a short hop never does. Keep raw
+  // walkTo for the brisk-pass scene and the public `moveTo` API where
+  // predictable timing matters.
+  function walkToInterruptible(cat, x0, y0, x1, y1, durationMs, periodMs) {
+    var dist = Math.hypot(x1 - x0, y1 - y0);
+    if (dist < 380 || durationMs < 2200) {
+      return walkTo(cat, x0, y0, x1, y1, durationMs, periodMs);
+    }
+    var seconds = durationMs / 1000;
+    var pauseProb = 1 - Math.pow(1 - 0.18, seconds); // ~18 %/s, compounded
+    if (Math.random() > pauseProb) {
+      return walkTo(cat, x0, y0, x1, y1, durationMs, periodMs);
+    }
+    var t = 0.30 + Math.random() * 0.40;
+    var midX = lerp(x0, x1, t) + (Math.random() - 0.5) * 26;
+    var midY = lerp(y0, y1, t) + (Math.random() - 0.5) * 18;
+    var pauseDur = 700 + Math.random() * 400;
+
+    return walkTo(cat, x0, y0, midX, midY, durationMs * t, periodMs)
+      .then(function () {
+        if (Math.random() < 0.4) {
+          sayBubble(cat, pickFromBag(cat, 'pause'), { duration: 1100 });
+        }
+        return holdAnim(cat, 'alert', pauseDur, 220);
+      })
+      .then(function () {
+        return walkTo(cat, midX, midY, x1, y1, durationMs * (1 - t), periodMs);
+      });
   }
 
   // ------------------ Scene composition ------------------
 
   function runCatScene(cat) {
+    // If the user has been hovering a game card long enough to queue a visit,
+    // hand the wheel to the card-companion scene instead of rolling.
+    if (cat.state.queuedCard) {
+      var card = cat.state.queuedCard;
+      cat.state.queuedCard = null;
+      cat.state.sceneActive = true;
+      return cardCompanionScene(cat, card).then(function () {
+        cat.state.sceneActive = false;
+      });
+    }
+
     return new Promise(function (resolve) {
+      cat.state.sceneActive = true;
       cat.root.classList.add('is-active');
+
+      // First scene of the page session gets a tiny greeting bubble.
+      if (!cat.state.hasGreeted) {
+        cat.state.hasGreeted = true;
+        setTimeout(function () {
+          if (!cat.state.scenesPaused && !document.hidden) {
+            sayBubble(cat, pickFromBag(cat, 'hello'), { duration: 1500 });
+          }
+        }, 700);
+      }
 
       var w = window.innerWidth;
       var h = window.innerHeight;
@@ -359,13 +475,13 @@
       var roll = Math.random();
       var scene;
       if (roll < 0.35) {
-        // Casual stroll, sometimes diagonal.
+        // Casual stroll, sometimes diagonal — with a chance of a mid-walk pause.
         var endY = minY + Math.random() * (maxY - minY);
         var endX = enterLeft ? w + pad : -pad;
         var dist = Math.hypot(endX - startX, endY - startY);
-        scene = walkTo(cat, startX, startY, endX, endY, dist / 0.20, 200);
+        scene = walkToInterruptible(cat, startX, startY, endX, endY, dist / 0.20, 200);
       } else if (roll < 0.55) {
-        // Brisker pass — frames swap faster, motion is faster.
+        // Brisker pass — frames swap faster, motion is faster, no pauses.
         var endY2 = minY + Math.random() * (maxY - minY);
         var endX2 = enterLeft ? w + pad : -pad;
         var dist2 = Math.hypot(endX2 - startX, endY2 - startY);
@@ -378,12 +494,14 @@
       scene.then(function () {
         stopAnim(cat);
         cat.root.classList.remove('is-active');
+        if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
         // After fade-out, snap offscreen and clear trail anchor so the next
         // placement doesn't paint a long streak from the cat's last spot.
         setTimeout(function () {
           cat.state.lastSplatX = undefined;
           cat.state.lastSplatY = undefined;
           placeCat(cat, -9999, -9999);
+          cat.state.sceneActive = false;
           resolve();
         }, 360);
       });
@@ -402,7 +520,7 @@
     var entrySpeed = entryFast ? 0.32 : 0.20;
     var entryFrame = entryFast ? 110 : 200;
 
-    return walkTo(cat, startX, startY, stopX, stopY, entryDist / entrySpeed, entryFrame)
+    return walkToInterruptible(cat, startX, startY, stopX, stopY, entryDist / entrySpeed, entryFrame)
       .then(function () { return idleSequence(cat, stopX, stopY, w); })
       .then(function () {
         // Decide exit: 25% turn-around, otherwise continue same direction.
@@ -411,7 +529,8 @@
         var exitY = minY + Math.random() * (maxY - minY);
         var exitDist = Math.hypot(exitX - stopX, exitY - stopY);
         var exitFast = Math.random() < 0.5;
-        return walkTo(
+        var exitWalk = exitFast ? walkTo : walkToInterruptible;
+        return exitWalk(
           cat, stopX, stopY, exitX, exitY,
           exitDist / (exitFast ? 0.34 : 0.20),
           exitFast ? 110 : 200
@@ -449,10 +568,338 @@
     actions.forEach(function (a) {
       promise = promise.then(function () {
         placeCat(cat, x, y); // re-anchor between behaviours
+        if (a.name === 'tired') {
+          sayBubble(cat, pickFromBag(cat, 'tired'),  { duration: Math.min(1500, a.dur - 100) });
+        } else if (a.name === 'sleeping') {
+          sayBubble(cat, pickFromBag(cat, 'sleep'),  { duration: Math.min(2400, a.dur - 400) });
+        }
         return holdAnim(cat, a.name, a.dur, a.period);
       });
     });
     return promise;
+  }
+
+  // =========================================================================
+  // BEHAVIOR LAYER
+  // =========================================================================
+  // Cursor awareness, card-hover companion, idle-timeout sleep, speech
+  // bubbles. All listeners are passive and rAF-throttled. Every behavior
+  // gates on `cat.state.scenesPaused`, `document.hidden`, and respects
+  // prefers-reduced-motion (which prevents the cat from being created at all).
+
+  function pickFromBag(cat, key) {
+    var bag = BUBBLE_BAG[key];
+    if (!bag || !bag.length) return '';
+    if (bag.length === 1) return bag[0];
+    var state = cat.state.bagState;
+    var last = state[key];
+    var idx;
+    do { idx = Math.floor(Math.random() * bag.length); }
+    while (idx === last);
+    state[key] = idx;
+    return bag[idx];
+  }
+
+  // Lazily creates the bubble element as a child of the cat wrapper so its
+  // transform inherits — the bubble follows the cat for free, and `is-active`
+  // fades both at once.
+  function buildBubble(cat) {
+    if (cat.state.bubble) return cat.state.bubble;
+    var b = document.createElement('div');
+    b.className = 'games-cat-bubble';
+    b.setAttribute('aria-hidden', 'true');
+    cat.root.appendChild(b);
+    cat.state.bubble = b;
+    return b;
+  }
+
+  // Show a short message in a pixel-styled bubble above the cat. The bubble's
+  // tail flips between center / left / right depending on cat's screen-x so
+  // it doesn't get clipped at the viewport edges. Subsequent calls replace
+  // any visible message (single-slot queue, no overlapping bubbles).
+  function sayBubble(cat, text, opts) {
+    if (!text) return;
+    if (document.hidden) return;
+    if (!cat || cat.state.scenesPaused) return;
+    opts = opts || {};
+    var b = buildBubble(cat);
+    b.textContent = text;
+
+    // Position / tail based on cat's horizontal screen position.
+    var w = window.innerWidth;
+    var x = cat.state.x;
+    b.classList.remove('tail-left', 'tail-right');
+    if (x < 90) {
+      b.classList.add('tail-left');
+      b.style.left = '8px';
+      b.style.transform = 'translate(0, -100%)';
+    } else if (x > w - 90) {
+      b.classList.add('tail-right');
+      b.style.left = '56px';
+      b.style.transform = 'translate(-100%, -100%)';
+    } else {
+      b.style.left = '32px';
+      b.style.transform = 'translate(-50%, -100%)';
+    }
+
+    // Force a reflow so the opacity transition runs even when text changes
+    // back-to-back (otherwise replacing text in the same frame skips the
+    // fade).
+    /* eslint-disable no-unused-expressions */
+    b.offsetHeight;
+    /* eslint-enable no-unused-expressions */
+
+    b.classList.add('is-visible');
+
+    if (cat.state.bubbleTimer) clearTimeout(cat.state.bubbleTimer);
+    var dur = opts.duration || 1600;
+    cat.state.bubbleTimer = setTimeout(function () {
+      b.classList.remove('is-visible');
+      cat.state.bubbleTimer = null;
+    }, dur);
+  }
+
+  // ----- Input tracking (cursor + last-input timestamp) -----
+  // One throttled pointermove + lightweight activity listeners feed the
+  // sleep escalation timer and the cursor-awareness tick.
+  function installInputTracking(cat) {
+    var rafPending = false;
+    var pendingX = 0, pendingY = 0;
+    function flush() {
+      rafPending = false;
+      cat.state.cursor.x = pendingX;
+      cat.state.cursor.y = pendingY;
+      cat.state.cursor.has = true;
+      cat.state.lastInputTs = Date.now();
+      if (cat.state.isSleeping && cat.state.pendingWake) {
+        var wake = cat.state.pendingWake;
+        cat.state.pendingWake = null;
+        wake();
+      }
+    }
+    function onPointerMove(e) {
+      pendingX = e.clientX; pendingY = e.clientY;
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(flush);
+    }
+    function onActivity() {
+      cat.state.lastInputTs = Date.now();
+      if (cat.state.isSleeping && cat.state.pendingWake) {
+        var wake = cat.state.pendingWake;
+        cat.state.pendingWake = null;
+        wake();
+      }
+    }
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerdown', onActivity,    { passive: true });
+    window.addEventListener('keydown',     onActivity,    { passive: true });
+    window.addEventListener('touchstart',  onActivity,    { passive: true });
+    window.addEventListener('scroll',      onActivity,    { passive: true });
+  }
+
+  // 8-direction sprite names that we may swap between for "head-turn".
+  var DIRECTIONAL = { N: 1, NE: 1, E: 1, SE: 1, S: 1, SW: 1, W: 1, NW: 1 };
+
+  // While the cat is presenting an idle pose (not walking, sleeping, or
+  // mid-action), if the cursor enters a ~280 px radius around its body, the
+  // sprite swaps to the directional walk-frame[0] facing the cursor — a
+  // "head-turn". When the cursor leaves the radius for 200 ms, restore
+  // 'idle'. Never overrides motion sprites mid-walk or mid-action.
+  function cursorAwarenessTick(cat) {
+    if (cat.state.scenesPaused) return;
+    if (document.hidden) return;
+    if (!cat.state.cursor.has) return;
+    if (cat.state.isWalking) return;
+    if (cat.state.isSleeping) return;
+    if (cat.state.x < 0 || cat.state.x > window.innerWidth + 1) return;
+
+    var sprite = cat.state.sprite;
+    // Only hijack when cat is showing the static 'idle', or while we already
+    // swapped to a directional pose ourselves and it's still showing.
+    var ours = cat.state.cursorLooking && DIRECTIONAL[sprite];
+    if (sprite !== 'idle' && !ours) {
+      // Some other animation took over (tired, scratch, etc.) — drop our
+      // claim so we don't try to restore later.
+      cat.state.cursorLooking = false;
+      cat.state.cursorRestoreAt = 0;
+      return;
+    }
+
+    var dx = cat.state.cursor.x - cat.state.x;
+    var dy = cat.state.cursor.y - (cat.state.y - 16); // body center
+    var dist2 = dx * dx + dy * dy;
+    var nearR2 = 280 * 280;
+
+    if (dist2 < nearR2) {
+      var dir = dirFromVector(dx, dy);
+      if (cat.state.sprite !== dir) {
+        stopAnim(cat);
+        setSprite(cat, dir, 0);
+        cat.state.cursorLooking = true;
+        if (!cat.state.cursorGreeted && Math.random() < 0.5) {
+          cat.state.cursorGreeted = true;
+          sayBubble(cat, pickFromBag(cat, 'cursor'), { duration: 1300 });
+          setTimeout(function () { cat.state.cursorGreeted = false; }, 9000);
+        }
+      }
+      cat.state.cursorRestoreAt = 0;
+    } else if (cat.state.cursorLooking) {
+      if (!cat.state.cursorRestoreAt) {
+        cat.state.cursorRestoreAt = Date.now();
+      } else if (Date.now() - cat.state.cursorRestoreAt > 200) {
+        setSprite(cat, 'idle', 0);
+        cat.state.cursorLooking = false;
+        cat.state.cursorRestoreAt = 0;
+      }
+    }
+  }
+
+  // ----- Card-hover companion -----
+  // Hovering a `.game-preview-link` for 1.4 s queues a one-shot scene where
+  // the cat trots over to the card and looks at it. Cancellable on
+  // mouseleave. The scene runs on the next tick, replacing whatever roll
+  // would have been picked.
+  function installCardWatchers(cat) {
+    var grid = document.querySelector('.personal-card-grid');
+    if (!grid) return;
+    grid.addEventListener('mouseover', function (e) {
+      var link = e.target.closest && e.target.closest('.game-preview-link');
+      if (!link) return;
+      if (cat.state.hoverTimer) clearTimeout(cat.state.hoverTimer);
+      cat.state.hoverTimer = setTimeout(function () {
+        cat.state.hoverTimer = null;
+        if (cat.state.sceneActive) return;
+        if (cat.state.isSleeping) return;
+        if (cat.state.scenesPaused) return;
+        if (document.hidden) return;
+        cat.state.queuedCard = link.closest('.game-card') || link;
+      }, 1400);
+    });
+    grid.addEventListener('mouseout', function (e) {
+      var link = e.target.closest && e.target.closest('.game-preview-link');
+      if (!link) return;
+      var rel = e.relatedTarget;
+      if (rel && link.contains(rel)) return;
+      if (cat.state.hoverTimer) {
+        clearTimeout(cat.state.hoverTimer);
+        cat.state.hoverTimer = null;
+      }
+    });
+  }
+
+  function cardCompanionScene(cat, cardEl) {
+    return new Promise(function (resolve) {
+      if (!cardEl || !document.body.contains(cardEl)) {
+        resolve();
+        return;
+      }
+      var rect = cardEl.getBoundingClientRect();
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      var minY = Math.max(220, h * 0.34);
+      var maxY = Math.max(minY + 80, h * 0.86);
+
+      var targetX = rect.left + rect.width / 2;
+      var targetY = Math.min(maxY, Math.max(minY, rect.bottom + 70));
+
+      var enterLeft = targetX < w / 2;
+      var startX = enterLeft ? -100 : w + 100;
+      var startY = targetY + (Math.random() - 0.5) * 60;
+      cat.state.lastSplatX = startX;
+      cat.state.lastSplatY = startY;
+      placeCat(cat, startX, startY);
+      cat.root.classList.add('is-active');
+
+      var dist = Math.hypot(targetX - startX, targetY - startY);
+      walkToInterruptible(cat, startX, startY, targetX, targetY, dist / 0.26, 150)
+        .then(function () {
+          var lookDir = dirFromVector(0, -1); // look up at the card
+          stopAnim(cat);
+          setSprite(cat, lookDir, 0);
+          sayBubble(cat, pickFromBag(cat, 'card'), { duration: 1500 });
+          return holdAnim(cat, 'alert', 1700, 220);
+        })
+        .then(function () {
+          return holdAnim(cat, 'idle', 1100, 220);
+        })
+        .then(function () {
+          var exitX = enterLeft ? w + 100 : -100;
+          var exitY = minY + Math.random() * (maxY - minY);
+          var exitDist = Math.hypot(exitX - targetX, exitY - targetY);
+          return walkTo(cat, targetX, targetY, exitX, exitY, exitDist / 0.22, 180);
+        })
+        .then(function () {
+          stopAnim(cat);
+          cat.root.classList.remove('is-active');
+          if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
+          setTimeout(function () {
+            cat.state.lastSplatX = undefined;
+            cat.state.lastSplatY = undefined;
+            placeCat(cat, -9999, -9999);
+            resolve();
+          }, 360);
+        });
+    });
+  }
+
+  // ----- Idle-timeout sleep -----
+  // When `lastInputTs` is older than 75 s, swap the next scene roll for a
+  // sleep scene: walk to a quiet spot, get tired, then sleep until any
+  // input wakes the cat. The wake handshake uses `cat.state.pendingWake`,
+  // which the input-tracker resolves on the next pointermove/keydown.
+  function sleepUntilWoken(cat) {
+    return new Promise(function (resolve) {
+      cat.state.isSleeping = true;
+      cat.state.sceneActive = true;
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      var minY = Math.max(220, h * 0.34);
+      var maxY = Math.max(minY + 80, h * 0.86);
+
+      var enterLeft = Math.random() < 0.5;
+      var startX = enterLeft ? -100 : w + 100;
+      var startY = minY + (maxY - minY) * (0.5 + Math.random() * 0.4);
+      cat.state.lastSplatX = startX;
+      cat.state.lastSplatY = startY;
+      placeCat(cat, startX, startY);
+      cat.root.classList.add('is-active');
+
+      var sleepX = w * (0.20 + Math.random() * 0.60);
+      var sleepY = minY + (maxY - minY) * (0.65 + Math.random() * 0.30);
+      var dist = Math.hypot(sleepX - startX, sleepY - startY);
+
+      walkToInterruptible(cat, startX, startY, sleepX, sleepY, dist / 0.18, 220)
+        .then(function () {
+          sayBubble(cat, pickFromBag(cat, 'tired'), { duration: 1400 });
+          return holdAnim(cat, 'tired', 1100, 240);
+        })
+        .then(function () {
+          sayBubble(cat, pickFromBag(cat, 'sleep'), { duration: 4000 });
+          loopAnim(cat, 'sleeping', 380);
+          return new Promise(function (wake) {
+            cat.state.pendingWake = wake;
+          });
+        })
+        .then(function () {
+          stopAnim(cat);
+          cat.state.isSleeping = false;
+          if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
+          sayBubble(cat, pickFromBag(cat, 'wake'), { duration: 1300 });
+          return holdAnim(cat, 'alert', 800, 220);
+        })
+        .then(function () {
+          cat.root.classList.remove('is-active');
+          if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
+          setTimeout(function () {
+            cat.state.lastSplatX = undefined;
+            cat.state.lastSplatY = undefined;
+            placeCat(cat, -9999, -9999);
+            cat.state.sceneActive = false;
+            resolve();
+          }, 360);
+        });
+    });
   }
 
   // ------------------ Public API ------------------
@@ -463,11 +910,43 @@
     return {
       // Direct DOM controls.
       show: function () { cat.root.classList.add('is-active'); },
-      hide: function () { cat.root.classList.remove('is-active'); },
+      hide: function () {
+        cat.root.classList.remove('is-active');
+        if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
+      },
 
       // Pause / resume the auto-scheduled wandering scenes (manual control).
-      pauseScenes:  function () { cat.state.scenesPaused = true; },
+      pauseScenes:  function () {
+        cat.state.scenesPaused = true;
+        if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
+        if (cat.state.bubbleTimer) {
+          clearTimeout(cat.state.bubbleTimer);
+          cat.state.bubbleTimer = null;
+        }
+        if (cat.state.hoverTimer) {
+          clearTimeout(cat.state.hoverTimer);
+          cat.state.hoverTimer = null;
+        }
+        cat.state.queuedCard = null;
+      },
       resumeScenes: function () { cat.state.scenesPaused = false; },
+
+      // Show a short message in a pixel-styled bubble above the cat. Truncates
+      // to a sensible length to avoid clipping at the viewport edges.
+      say: function (text, durationMs) {
+        if (typeof text !== 'string' || !text) return;
+        var trimmed = text.length > 20 ? text.slice(0, 20) : text;
+        sayBubble(cat, trimmed, { duration: durationMs || 1600 });
+      },
+
+      // If the cat is in a sleep scene, wake it on demand (otherwise no-op).
+      wakeUp: function () {
+        if (cat.state.pendingWake) {
+          var w = cat.state.pendingWake;
+          cat.state.pendingWake = null;
+          w();
+        }
+      },
 
       // Move with a directional walk sprite. opts.speed (px/ms, default 0.20)
       // or opts.duration (ms) sets pace; opts.frameMs sets frame swap rate.

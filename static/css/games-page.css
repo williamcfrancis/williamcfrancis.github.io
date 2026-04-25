@@ -633,6 +633,72 @@
 }
 .games-cat.is-active { opacity: 1; }
 
+/* ----- Pixel speech bubble (child of .games-cat) -----
+   The bubble follows the cat for free since it inherits the wrapper's
+   transform. Positioned just above the cat's head; left / transform are
+   adjusted in JS when the cat is near a viewport edge so the bubble stays
+   on-screen, with a matching tail-left / tail-right modifier flipping the
+   tail's anchor. A two-layer triangle (::after = border, ::before = inner
+   white fill) creates the pixel-art tail. */
+.games-cat-bubble {
+  position: absolute;
+  left: 32px;
+  top: -10px;
+  transform: translate(-50%, -100%);
+  background: #ffffff;
+  color: #1a0f33;
+  border: 2px solid #1a0f33;
+  padding: 6px 10px 5px;
+  font: 9px/1.4 'Press Start 2P', 'Courier New', monospace;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  box-shadow: 2px 2px 0 rgba(20, 12, 40, 0.30);
+  z-index: 43;
+}
+.games-cat-bubble.is-visible { opacity: 1; }
+
+/* Outer (border) tail — sits below the bubble, pointing down at the cat. */
+.games-cat-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  margin-left: -5px;
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #1a0f33;
+}
+/* Inner (white) tail masks the interior of the outer triangle so the tail
+   reads as a continuous "balloon" extension rather than a filled triangle. */
+.games-cat-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  margin-left: -3px;
+  width: 0; height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 4px solid #ffffff;
+  z-index: 1;
+}
+/* When cat is near the left edge, bubble shifts right and tail anchors to
+   its left side (still pointing down at the cat just outside the viewport). */
+.games-cat-bubble.tail-left::after  { left: 12px; margin-left: 0; }
+.games-cat-bubble.tail-left::before { left: 14px; margin-left: 0; }
+/* Mirror for the right edge. */
+.games-cat-bubble.tail-right::after  { left: auto; right: 12px; margin-left: 0; }
+.games-cat-bubble.tail-right::before { left: auto; right: 14px; margin-left: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .games-cat-bubble { display: none; }
+}
+
 @media (max-width: 720px) {
   .fluid-hint {
     top: 76px;
