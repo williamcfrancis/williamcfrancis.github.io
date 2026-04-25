@@ -200,7 +200,7 @@
     <div id="win-screen" class="overlay">
         <a class="back-link" href="/games/"><span>&#8592;</span> Back to games</a>
         <div class="game-title win-title">You Did It!</div>
-        <p class="menu-desc">All 15 levels cleared &mdash; you're a glow hopping champion!</p>
+        <p class="menu-desc">All 20 levels cleared &mdash; you're a glow hopping champion!</p>
         <div class="highscore-box" id="win-score"></div>
         <div class="btn-group">
             <button class="btn" onclick="showMainMenu()">Main Menu</button>
@@ -1686,6 +1686,111 @@ const levels = [
         crystals: [[200,530],[320,530],[290,400],[460,350],[580,290],[420,230],[310,170],[430,10]],
         text: 'Every trick in the book. Ice, conveyors, ghosts, spikes, and more. Go!',
         bonus: 15000
+    },
+
+    // 16  Up & Away — vertical elevators
+    {
+        name: 'Up & Away',
+        start: [40, 540], portal: [730, 60],
+        platforms: [
+            [20, 560, 100, 16, 'normal'],
+            [160, 470, 50, 14, 'moving', {my:70}],
+            [270, 380, 50, 14, 'moving', {my:90}],
+            [380, 350, 70, 16, 'normal'],
+            [490, 320, 50, 14, 'moving', {my:110}],
+            [600, 230, 50, 14, 'moving', {my:130, speed:0.03}],
+            [690, 80, 100, 16, 'normal']
+        ],
+        crystals: [[185,420],[295,330],[405,330],[515,260],[625,170],[750,60]],
+        text: 'New: vertical elevators. Step on as they rise.',
+        bonus: 13000
+    },
+
+    // 17  Pendulum — diagonal swings
+    {
+        name: 'Pendulum',
+        start: [40, 480], portal: [740, 480],
+        platforms: [
+            [20, 500, 90, 16, 'normal'],
+            [170, 460, 60, 14, 'moving', {mx:55, my:55}],
+            [320, 340, 70, 16, 'normal'],
+            [460, 380, 60, 14, 'moving', {mx:60, my:-60, speed:0.025}],
+            [600, 320, 60, 14, 'moving', {mx:50, my:50}],
+            [710, 500, 90, 16, 'normal'],
+            [380, 540, 80, 40, 'spike']
+        ],
+        crystals: [[200,415],[355,315],[490,330],[630,275],[745,475]],
+        text: 'New: diagonal swings. Two boarding moments per cycle.',
+        bonus: 14000
+    },
+
+    // 18  Crosswinds — variable conveyor speeds
+    {
+        name: 'Crosswinds',
+        start: [40, 510], portal: [730, 100],
+        platforms: [
+            [20, 530, 100, 16, 'normal'],
+            [150, 490, 130, 14, 'conveyor', {dir:1, cspeed:1}],
+            [310, 490, 50, 40, 'spike'],
+            [380, 430, 130, 14, 'conveyor', {dir:-1, cspeed:4.5}],
+            [540, 380, 80, 16, 'normal'],
+            [400, 300, 130, 14, 'conveyor', {dir:1, cspeed:3}],
+            [580, 240, 50, 40, 'spike'],
+            [580, 190, 80, 16, 'normal'],
+            [400, 140, 160, 14, 'conveyor', {dir:1, cspeed:4}],
+            [690, 100, 100, 16, 'normal']
+        ],
+        crystals: [[210,460],[440,400],[460,270],[470,110],[755,75]],
+        text: 'New: conveyor speeds vary. Some are a breeze, some are a gale.',
+        bonus: 15500
+    },
+
+    // 19  Out of Phase — anchor vs window phantoms
+    {
+        name: 'Out of Phase',
+        start: [40, 510], portal: [730, 80],
+        platforms: [
+            [20, 530, 100, 16, 'normal'],
+            [160, 470, 80, 14, 'phantom', {on:140, off:40}],
+            [290, 410, 70, 14, 'phantom', {on:40, off:80}],
+            [410, 350, 70, 14, 'phantom', {on:140, off:40}],
+            [540, 290, 70, 14, 'phantom', {on:30, off:90}],
+            [410, 220, 70, 14, 'phantom', {on:140, off:40}],
+            [280, 160, 70, 14, 'phantom', {on:30, off:90}],
+            [410, 100, 80, 14, 'normal'],
+            [560, 130, 60, 14, 'phantom', {on:60, off:60}],
+            [690, 100, 100, 16, 'normal']
+        ],
+        crystals: [[195,420],[325,360],[445,300],[575,240],[315,110],[745,75]],
+        text: 'New: anchors stay, windows blink. Watch first, then move.',
+        bonus: 17000
+    },
+
+    // 20  Glow Hop — finale combining all new mechanics
+    {
+        name: 'Glow Hop',
+        start: [40, 540], portal: [400, 20],
+        platforms: [
+            [20, 560, 90, 16, 'normal'],
+            [120, 560, 130, 16, 'ice'],
+            [270, 540, 50, 14, 'moving', {my:80, speed:0.035}],
+            [350, 470, 110, 14, 'conveyor', {dir:1, cspeed:3}],
+            [490, 440, 50, 40, 'spike'],
+            [560, 410, 110, 14, 'conveyor', {dir:-1, cspeed:4}],
+            [690, 380, 90, 16, 'normal'],
+            [560, 320, 60, 14, 'moving', {mx:60, my:60}],
+            [400, 280, 80, 16, 'crumble'],
+            [240, 240, 60, 14, 'moving', {mx:55, my:-55}],
+            [120, 200, 70, 14, 'phantom', {on:120, off:40}],
+            [240, 150, 60, 14, 'phantom', {on:40, off:80}],
+            [340, 100, 50, 14, 'bounce'],
+            [380, 30, 80, 16, 'normal'],
+            [100, 30, 16, 180],
+            [680, 30, 16, 200]
+        ],
+        crystals: [[185,520],[290,470],[405,420],[515,370],[625,360],[590,260],[440,250],[270,180],[155,160],[365,60],[420,10]],
+        text: 'Glow Hop — every trick, all at once. You know what to do.',
+        bonus: 22000
     }
 ];
 
