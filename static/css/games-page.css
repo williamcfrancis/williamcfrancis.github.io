@@ -597,24 +597,47 @@
 }
 
 /* ============================================================
-   Periodic cat companion — hops across the viewport every 30s.
-   games-extras.js drives position via transform; the fluid sim
-   paints a trail along its path via window.fluidSplatScreen.
+   Periodic cat companion — a rigged SVG that walks, trots,
+   bounds, sits, looks around, grooms, and stretches across
+   the viewport. games-extras.js drives every part-transform
+   per frame; the fluid sim paints a trail along its path via
+   window.fluidSplatScreen. transform-origin is pinned to the
+   cat's feet so any rotation/scale pivots at ground contact.
    ============================================================ */
 .games-cat {
   position: fixed;
   top: 0;
   left: 0;
-  width: 60px;
-  height: 50px;
+  width: 84px;
+  height: 56px;
   z-index: 42;
   pointer-events: none;
   will-change: transform, opacity;
-  filter: drop-shadow(0 6px 14px rgba(255, 62, 165, 0.35));
+  transform-origin: 42px 50px;
+  filter:
+    drop-shadow(0 8px 18px rgba(255, 62, 165, 0.30))
+    drop-shadow(0 2px 4px rgba(20, 12, 40, 0.35));
   opacity: 0;
-  transition: opacity 220ms ease;
+  transition: opacity 320ms ease;
 }
 .games-cat.is-active { opacity: 1; }
+.games-cat .cat-svg { overflow: visible; display: block; }
+.games-cat .cat-tail,
+.games-cat .cat-tail-curve,
+.games-cat .cat-tail-stripes,
+.games-cat .cat-leg,
+.games-cat .cat-leg-thigh,
+.games-cat .cat-leg-shin,
+.games-cat .cat-body,
+.games-cat .cat-head,
+.games-cat .cat-ear,
+.games-cat .cat-eye-shape,
+.games-cat .cat-pupil,
+.games-cat .cat-glint {
+  /* Avoid composited transitions that would smear the
+     per-frame transforms js sets via setAttribute. */
+  transition: none;
+}
 
 @media (max-width: 720px) {
   .fluid-hint {
