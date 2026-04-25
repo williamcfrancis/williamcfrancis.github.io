@@ -224,8 +224,6 @@
         x: -9999, y: -9999,
         sprite: 'idle',
         frame: 0,
-        lastSplatX: undefined,
-        lastSplatY: undefined,
         animTimer: null,
         scenesPaused: false,
         // ----- Behavior layer -----
@@ -272,29 +270,40 @@
     cat.state.y = y;
     cat.root.style.transform =
       'translate(' + (x - FOOT_OFFSET_X) + 'px,' + (y - FOOT_OFFSET_Y) + 'px)';
-    paintTrail(cat);
   }
 
-  function paintTrail(cat) {
+  // Single directional splat at the cat's body center. The fluid sim derives
+  // splat velocity from (current - prev), so passing a non-zero (dirX,dirY)
+  // makes the puff visibly fly away from the cat — useful for making the
+  // splat read as if the cat is causing it (clawing, swatting, startling).
+  function paintSplat(cat, dirX, dirY, mag) {
     if (typeof window.fluidSplatScreen !== 'function') return;
-    var s = cat.state;
-    if (s.lastSplatX === undefined) {
-      s.lastSplatX = s.x; s.lastSplatY = s.y;
-      return;
+    if (cat.state.x < 0 || cat.state.x > window.innerWidth) return;
+    mag = mag || 28;
+    var cx = cat.state.x;
+    var cy = cat.state.y - 16; // body center, ~16 px above feet
+    var len = Math.hypot(dirX, dirY) || 1;
+    var nx = dirX / len;
+    var ny = dirY / len;
+    window.fluidSplatScreen(cx + nx * mag, cy + ny * mag, cx, cy);
+  }
+
+  // Splats are intentionally only emitted from sprites that LOOK like the
+  // cat is making them — claw strokes (scratchSelf, scratchWall*) and the
+  // mid-walk startle (alert). Walking and idle never paint.
+  function splatForSprite(cat, name) {
+    if (name === 'scratchSelf') {
+      var ang = Math.random() * Math.PI * 2;
+      paintSplat(cat, Math.cos(ang), Math.sin(ang) - 0.4, 22);
+    } else if (name === 'scratchWallE') {
+      paintSplat(cat, 1, -0.25, 38);
+    } else if (name === 'scratchWallW') {
+      paintSplat(cat, -1, -0.25, 38);
+    } else if (name === 'scratchWallN') {
+      paintSplat(cat, 0, -1, 36);
+    } else if (name === 'scratchWallS') {
+      paintSplat(cat, 0, 1, 28);
     }
-    var dx = s.x - s.lastSplatX;
-    var dy = s.y - s.lastSplatY;
-    if (dx * dx + dy * dy < 6) {
-      s.lastSplatX = s.x; s.lastSplatY = s.y;
-      return;
-    }
-    // Splat at body center (~16 px above feet) for a cleaner trail.
-    var cx = s.x;
-    var cy = s.y - 16;
-    var pcx = s.lastSplatX;
-    var pcy = s.lastSplatY - 16;
-    window.fluidSplatScreen(cx, cy, pcx, pcy);
-    s.lastSplatX = s.x; s.lastSplatY = s.y;
   }
 
   // Map a velocity vector to one of the 8 baked walking sprites.
@@ -335,7 +344,10 @@
     }
   }
 
-  // Cycle through frames of an animation at the given period.
+  // Cycle through frames of an animation at the given period. For sprite
+  // names the user perceives as "the cat is making a splash" (scratches),
+  // emit one fluid splat at the start and one per completed cycle. Walking
+  // sprites and idle never paint — that ran the screen ragged.
   function loopAnim(cat, name, periodMs) {
     stopAnim(cat);
     var frames = SPRITES[name];
@@ -346,9 +358,11 @@
     }
     var i = 0;
     setSprite(cat, name, i);
+    splatForSprite(cat, name);
     cat.state.animTimer = setInterval(function () {
       i = (i + 1) % frames.length;
       setSprite(cat, name, i);
+      if (i === 0) splatForSprite(cat, name);
     }, periodMs);
   }
 
@@ -417,6 +431,9 @@
         if (Math.random() < 0.4) {
           sayBubble(cat, pickFromBag(cat, 'pause'), { duration: 1100 });
         }
+        // One startle puff at the moment the cat snaps to "alert" — reads
+        // as "something made it perk up" rather than a continuous trail.
+        paintSplat(cat, 0, -1, 18);
         return holdAnim(cat, 'alert', pauseDur, 220);
       })
       .then(function () {
@@ -464,9 +481,6 @@
       var startX = enterLeft ? -pad : w + pad;
       var startY = minY + Math.random() * (maxY - minY);
 
-      // Anchor trail BEFORE first place so we don't draw a streak from offscreen.
-      cat.state.lastSplatX = startX;
-      cat.state.lastSplatY = startY;
       placeCat(cat, startX, startY);
 
       var roll = Math.random();
@@ -492,11 +506,8 @@
         stopAnim(cat);
         cat.root.classList.remove('is-active');
         if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
-        // After fade-out, snap offscreen and clear trail anchor so the next
-        // placement doesn't paint a long streak from the cat's last spot.
+        // After fade-out, snap the cat offscreen.
         setTimeout(function () {
-          cat.state.lastSplatX = undefined;
-          cat.state.lastSplatY = undefined;
           placeCat(cat, -9999, -9999);
           cat.state.sceneActive = false;
           resolve();
@@ -803,8 +814,6 @@
       var enterLeft = targetX < w / 2;
       var startX = enterLeft ? -100 : w + 100;
       var startY = targetY + (Math.random() - 0.5) * 60;
-      cat.state.lastSplatX = startX;
-      cat.state.lastSplatY = startY;
       placeCat(cat, startX, startY);
       cat.root.classList.add('is-active');
 
@@ -831,8 +840,6 @@
           cat.root.classList.remove('is-active');
           if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
           setTimeout(function () {
-            cat.state.lastSplatX = undefined;
-            cat.state.lastSplatY = undefined;
             placeCat(cat, -9999, -9999);
             resolve();
           }, 360);
@@ -857,8 +864,6 @@
       var enterLeft = Math.random() < 0.5;
       var startX = enterLeft ? -100 : w + 100;
       var startY = minY + (maxY - minY) * (0.5 + Math.random() * 0.4);
-      cat.state.lastSplatX = startX;
-      cat.state.lastSplatY = startY;
       placeCat(cat, startX, startY);
       cat.root.classList.add('is-active');
 
@@ -889,8 +894,6 @@
           cat.root.classList.remove('is-active');
           if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
           setTimeout(function () {
-            cat.state.lastSplatX = undefined;
-            cat.state.lastSplatY = undefined;
             placeCat(cat, -9999, -9999);
             cat.state.sceneActive = false;
             resolve();
@@ -959,11 +962,8 @@
         return walkTo(cat, x0, y0, x, y, dur, frameMs);
       },
 
-      // Snap to a location with no animation. Resets the trail anchor so a
-      // subsequent moveTo doesn't paint a streak from the previous spot.
+      // Snap to a location with no animation.
       placeAt: function (x, y) {
-        cat.state.lastSplatX = x;
-        cat.state.lastSplatY = y;
         placeCat(cat, x, y);
       },
 
