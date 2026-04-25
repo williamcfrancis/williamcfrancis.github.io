@@ -42,14 +42,6 @@ sections:
       title: Games & sandboxes
       description: Playable experiments I tinker with after hours.
     games:
-      - title: Pulse Snare
-        genre: Reflex arcade
-        summary: "An original one-more-run loop: rotate a magnetic arc and catch pulses blasting out from the core before they break through."
-        tags: ["browser", "arcade", "addictive"]
-        link:
-          label: Play Pulse Snare
-          url: "/games/pulse_snare/"
-        image: "/games/pulse_snare/pulse_snare.svg"
       - title: Lily Leap
         genre: Chill arcade
         summary: "Drift across cozy lily pads, snack on sparkles, and vibe with chatty squishmallows."
