@@ -153,12 +153,12 @@
   // and pickFromBag rotates without immediate repeats. Keep messages ≤ 12
   // chars so the bubble fits without wrapping at small viewport widths.
   var BUBBLE_BAG = {
-    hello:  ['*meow*', 'hi', 'oh hi'],
-    pause:  ['...', 'hm?', '*sniff*'],
-    card:   ['ooh', 'this one?', 'nice'],
+    hello:  ['*meow*', '*mrrp*', '*purr*'],
+    pause:  ['...', '*sniff*', '*mrrp?*'],
+    card:   ['*sniff*', '*chirp*', '*mrrp?*'],
     tired:  ['*yawn*'],
     sleep:  ['zzz...'],
-    wake:   ['hm?', '*stretch*'],
+    wake:   ['*stretch*', '*mrrp*'],
   };
 
   function scheduleCat() {
