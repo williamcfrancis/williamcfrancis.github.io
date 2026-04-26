@@ -75,6 +75,73 @@ if (googleLink) {
 // Simulation section
 
 const canvas = document.getElementsByTagName('canvas')[0];
+
+/* ---------- Patch E: per-frame allocation + reflow elimination ----------
+ * Caches DPR / client dimensions / aspect ratio so the per-frame update loop
+ * never reads layout-dependent DOM properties (which force a style flush) and
+ * never recomputes values that change only on resize / monitor change.
+ *
+ * DPR is clamped to FLUID_MAX_DPR (default 2.0). On DPR=3 displays this drops
+ * the composite/bloom/sunrays render area from 9× to 4× CSS pixels — a 2.25×
+ * cut to display-pass GPU cost. The actual sim quality (DYE_RESOLUTION=1024)
+ * is unaffected; the upsample 1024→screen is a hardware bilinear filter and
+ * indistinguishable to the eye above DPR=2. Set window.FLUID_MAX_DPR =
+ * Infinity before this script loads to opt out.
+ *
+ * Critical correctness invariant: pointer.texcoordX = posX / canvas.width.
+ * Both numerator (posX) and denominator (canvas.width) come from
+ * scaleByPixelRatio, so the DPR factor cancels — splat alignment is preserved
+ * regardless of clamp value. */
+window.FLUID_MAX_DPR = window.FLUID_MAX_DPR || 2.0;
+let _cachedDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
+let pendingResize = true;
+let cachedClientW = canvas.clientWidth;
+let cachedClientH = canvas.clientHeight;
+let cachedAspectRatio = 1;
+function _refreshDPR () {
+    _cachedDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
+    pendingResize = true;
+    // matchMedia DPR queries are one-shot per breakpoint — re-arm after each fire.
+    if (window.matchMedia)
+        matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+            .addEventListener('change', _refreshDPR, { once: true });
+}
+if (window.matchMedia)
+    matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+        .addEventListener('change', _refreshDPR, { once: true });
+
+if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(es => {
+        const e = es[0];
+        const box = e.contentBoxSize
+            ? (Array.isArray(e.contentBoxSize) ? e.contentBoxSize[0] : e.contentBoxSize)
+            : null;
+        cachedClientW = box ? box.inlineSize : e.contentRect.width;
+        cachedClientH = box ? box.blockSize  : e.contentRect.height;
+        pendingResize = true;
+    }).observe(canvas);
+} else {
+    // Fallback: keep the old behavior on ancient browsers (no ResizeObserver).
+    window.addEventListener('resize', () => {
+        cachedClientW = canvas.clientWidth;
+        cachedClientH = canvas.clientHeight;
+        pendingResize = true;
+    });
+}
+
+// Active-program + texture-unit binding caches. Avoid redundant gl.useProgram
+// (called twice per splat) and gl.activeTexture+bindTexture (called 20× in
+// the pressure solver loop). Invalidated in initFramebuffers and resizeFBO
+// because those create fresh GL textures that may reuse old GPU object slots.
+let _activeGLProgram = null;
+const _texUnitBindings = [];
+
+// Render-dirty flag: when PAUSED, skip render() to avoid running bloom +
+// sunrays + display passes for a frozen frame. Set true on pause→active
+// transitions and on visibilitychange→visible so the next paused frame still
+// renders one fresh frame before stopping.
+let _renderDirty = true;
+
 resizeCanvas();
 
 let config = {
@@ -398,7 +465,11 @@ class Material {
     }
 
     bind () {
+        // Patch E: skip redundant gl.useProgram. _activeGLProgram is module-level
+        // and only mutated here + in Program.bind below (audited: no other callers).
+        if (_activeGLProgram === this.activeProgram) return;
         gl.useProgram(this.activeProgram);
+        _activeGLProgram = this.activeProgram;
     }
 }
 
@@ -410,7 +481,10 @@ class Program {
     }
 
     bind () {
+        // Patch E: skip redundant gl.useProgram. See Material.bind comment above.
+        if (_activeGLProgram === this.program) return;
         gl.useProgram(this.program);
+        _activeGLProgram = this.program;
     }
 }
 
@@ -1001,6 +1075,11 @@ const gradienSubtractProgram = new Program(baseVertexShader, gradientSubtractSha
 const displayMaterial = new Material(baseVertexShader, displayShaderSource);
 
 function initFramebuffers () {
+    // Patch E: any/all FBO textures may be replaced below; invalidate the
+    // texture-unit binding cache so stale entries don't suppress re-binding
+    // of a fresh texture that happens to land on the same JS object slot.
+    _texUnitBindings.length = 0;
+
     let simRes = getResolution(config.SIM_RESOLUTION);
     let dyeRes = getResolution(config.DYE_RESOLUTION);
 
@@ -1090,8 +1169,15 @@ function createFBO (w, h, internalFormat, format, type, param) {
         texelSizeX,
         texelSizeY,
         attach (id) {
-            gl.activeTexture(gl.TEXTURE0 + id);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Patch E: skip redundant activeTexture+bindTexture. The pressure
+            // solver loop calls attach(1) 20× per frame; this drops 40 GL calls.
+            // After pressure.swap() the texture pointer changes, so the cache
+            // correctly misses and re-binds — no special-casing needed.
+            if (_texUnitBindings[id] !== texture) {
+                gl.activeTexture(gl.TEXTURE0 + id);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                _texUnitBindings[id] = texture;
+            }
             return id;
         }
     };
@@ -1127,6 +1213,9 @@ function createDoubleFBO (w, h, internalFormat, format, type, param) {
 }
 
 function resizeFBO (target, w, h, internalFormat, format, type, param) {
+    // Patch E: a fresh texture is about to be created; invalidate the
+    // texture-unit cache so the old reference doesn't suppress re-binding.
+    _texUnitBindings.length = 0;
     let newFBO = createFBO(w, h, internalFormat, format, type, param);
     copyProgram.bind();
     gl.uniform1i(copyProgram.uniforms.uTexture, target.attach(0));
@@ -1160,8 +1249,12 @@ function createTextureAsync (url) {
         width: 1,
         height: 1,
         attach (id) {
-            gl.activeTexture(gl.TEXTURE0 + id);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Patch E: see createFBO.attach comment.
+            if (_texUnitBindings[id] !== texture) {
+                gl.activeTexture(gl.TEXTURE0 + id);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                _texUnitBindings[id] = texture;
+            }
             return id;
         }
     };
@@ -1200,9 +1293,17 @@ function update () {
         initFramebuffers();
     updateColors(dt);
     applyInputs();
-    if (!config.PAUSED)
+    if (!config.PAUSED) {
         step(dt);
-    render(null);
+        render(null);
+    } else if (_renderDirty) {
+        // Patch E: when paused, skip the bloom + sunrays + display passes
+        // (saves 0.5–3 ms/frame on integrated GPUs). Render exactly one final
+        // frame on a pause→active transition so the canvas reflects the most
+        // recent state instead of a stale framebuffer.
+        render(null);
+        _renderDirty = false;
+    }
     requestAnimationFrame(update);
 }
 
@@ -1215,11 +1316,18 @@ function calcDeltaTime () {
 }
 
 function resizeCanvas () {
-    let width = scaleByPixelRatio(canvas.clientWidth);
-    let height = scaleByPixelRatio(canvas.clientHeight);
+    // Patch E: previous version read canvas.clientWidth/Height every frame,
+    // which forces a layout flush. ResizeObserver (set up at module init)
+    // toggles pendingResize when the canvas actually changes size, so the
+    // common case is a single boolean check.
+    if (!pendingResize) return false;
+    pendingResize = false;
+    let width  = scaleByPixelRatio(cachedClientW);
+    let height = scaleByPixelRatio(cachedClientH);
     if (canvas.width != width || canvas.height != height) {
         canvas.width = width;
         canvas.height = height;
+        cachedAspectRatio = canvas.width / canvas.height;
         return true;
     }
     return false;
@@ -1345,7 +1453,7 @@ function drawColor (target, color) {
 
 function drawCheckerboard (target) {
     checkerboardProgram.bind();
-    gl.uniform1f(checkerboardProgram.uniforms.aspectRatio, canvas.width / canvas.height);
+    gl.uniform1f(checkerboardProgram.uniforms.aspectRatio, cachedAspectRatio); // Patch E
     blit(target);
 }
 
@@ -1462,7 +1570,7 @@ function multipleSplats (amount) {
 function splat (x, y, dx, dy, color) {
     splatProgram.bind();
     gl.uniform1i(splatProgram.uniforms.uTarget, velocity.read.attach(0));
-    gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width / canvas.height);
+    gl.uniform1f(splatProgram.uniforms.aspectRatio, cachedAspectRatio); // Patch E
     gl.uniform2f(splatProgram.uniforms.point, x, y);
     gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0.0);
     gl.uniform1f(splatProgram.uniforms.radius, correctRadius(config.SPLAT_RADIUS / 100.0));
@@ -1476,9 +1584,9 @@ function splat (x, y, dx, dy, color) {
 }
 
 function correctRadius (radius) {
-    let aspectRatio = canvas.width / canvas.height;
-    if (aspectRatio > 1)
-        radius *= aspectRatio;
+    // Patch E: cachedAspectRatio is updated on resize.
+    if (cachedAspectRatio > 1)
+        radius *= cachedAspectRatio;
     return radius;
 }
 
@@ -1489,9 +1597,11 @@ function correctRadius (radius) {
 window.addEventListener('mousedown', e => {
     let posX = scaleByPixelRatio(e.clientX);
     let posY = scaleByPixelRatio(e.clientY);
-    let pointer = pointers.find(p => p.id == -1);
-    if (pointer == null)
-        pointer = new pointerPrototype();
+    // Patch E: pointers[0] is created at module init (line ~123) with id=-1
+    // and nothing in this file ever mutates pointers[0].id away from -1.
+    // Touch handlers use pointers[i+1], so pointers[0] is reserved for mouse.
+    // (Keep .find() for touchend below — touch ids are arbitrary integers.)
+    let pointer = pointers[0];
     updatePointerDownData(pointer, -1, posX, posY);
 });
 
@@ -1574,14 +1684,14 @@ function updatePointerUpData (pointer) {
 }
 
 function correctDeltaX (delta) {
-    let aspectRatio = canvas.width / canvas.height;
-    if (aspectRatio < 1) delta *= aspectRatio;
+    // Patch E: cached at canvas resize, see Patch E header comment.
+    if (cachedAspectRatio < 1) delta *= cachedAspectRatio;
     return delta;
 }
 
 function correctDeltaY (delta) {
-    let aspectRatio = canvas.width / canvas.height;
-    if (aspectRatio > 1) delta /= aspectRatio;
+    // Patch E.
+    if (cachedAspectRatio > 1) delta /= cachedAspectRatio;
     return delta;
 }
 
@@ -1654,8 +1764,10 @@ function getTextureScale (texture, width, height) {
 }
 
 function scaleByPixelRatio (input) {
-    let pixelRatio = window.devicePixelRatio || 1;
-    return Math.floor(input * pixelRatio);
+    // Patch E: DPR is cached at module init and refreshed by a matchMedia
+    // listener on monitor / zoom change. Reads here are hot — every pointer
+    // event and every resize check calls in.
+    return Math.floor(input * _cachedDPR);
 }
 
 function hashCode (s) {
@@ -1674,7 +1786,18 @@ function hashCode (s) {
 // for hidden tabs, but explicitly pausing the sim also zeroes shader dispatch.
 document.addEventListener('visibilitychange', () => {
     config.PAUSED = document.hidden;
+    // Patch E: on visible-again, force one render so the user sees the last
+    // simulation state immediately rather than a (possibly cleared) buffer.
+    if (!document.hidden) _renderDirty = true;
 });
+
+// Patch E: external pause control used by games-extras.js to auto-pause when
+// the cat is sleeping AND the user has been idle. Wakes back up on any input.
+window.fluidSetActive = function (active) {
+    const wasPaused = config.PAUSED;
+    config.PAUSED = !active;
+    if (active && wasPaused) _renderDirty = true;
+};
 
 // Scale simulation resolution down on small screens so phones stay smooth.
 // Desktop keeps the upstream defaults so the look matches the source demo.

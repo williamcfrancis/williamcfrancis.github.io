@@ -159,6 +159,7 @@
     tired:  ['*yawn*'],
     sleep:  ['zzz...'],
     wake:   ['*stretch*', '*mrrp*'],
+    fart:   ['*fart*'],
   };
 
   function scheduleCat() {
@@ -171,6 +172,7 @@
     // page is hidden.
     installInputTracking(cat);
     installCardWatchers(cat);
+    installFluidAutopause(cat);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) return;
       if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
@@ -317,6 +319,19 @@
     // mag means a longer "drag" — which the sim reads as a stronger,
     // more directional sweep instead of a tap-sized puff.
     window.fluidSplatScreen(cx + nx * mag, cy + ny * mag, cx, cy);
+  }
+
+  // Sideways "swish" of fluid emitted from a seated cat — three staggered
+  // splats with shrinking magnitude so the fluid sim reads them as a single
+  // pulse trailing off, not three separate puffs. Side is randomised per
+  // call so consecutive farts don't always blow the same way.
+  function paintFart(cat) {
+    // Small puff — much shorter drag than a claw stroke so it reads as a
+    // tiny gas swish, not a wall-scratch sweep.
+    var side = Math.random() < 0.5 ? -1 : 1;
+    paintSplat(cat, side, 0.35, 45);
+    setTimeout(function () { paintSplat(cat, side * 0.7, 0.5, 30); }, 120);
+    setTimeout(function () { paintSplat(cat, side * 0.4, 0.6, 22); }, 260);
   }
 
   // Splats are intentionally only emitted from sprites that LOOK like the
@@ -610,6 +625,17 @@
   }
 
   function doSit(cat) {
+    // ~25% of sits include a fart — split the idle into "before" and
+    // "fart moment" so the bubble + fluid swish line up with a single
+    // segment boundary instead of mid-animation.
+    if (Math.random() < 0.25) {
+      return chainHolds(cat, [
+        { name: 'alert', dur: 600 + Math.random() * 400,  period: 220 },
+        { name: 'idle',  dur: 2500 + Math.random() * 2000, period: 200 },
+        { name: 'idle',  dur: 3000 + Math.random() * 2500, period: 200,
+          bubble: 'fart', splat: 'fart' },
+      ]);
+    }
     return chainHolds(cat, [
       { name: 'alert', dur: 600 + Math.random() * 400,  period: 220 },
       { name: 'idle',  dur: 6000 + Math.random() * 5000, period: 200 },
@@ -675,6 +701,7 @@
             duration: Math.min(5000, Math.max(2500, a.dur - 300)),
           });
         }
+        if (a.splat === 'fart') paintFart(cat);
         return holdAnim(cat, a.name, a.dur, a.period);
       });
     });
@@ -782,6 +809,35 @@
     window.addEventListener('keydown',     onActivity, { passive: true });
     window.addEventListener('touchstart',  onActivity, { passive: true });
     window.addEventListener('scroll',      onActivity, { passive: true });
+  }
+
+  // ----- Fluid autopause coordinator -----
+  // Tells the fluid sim to fully pause its render loop (skipping bloom +
+  // sunrays + display passes) when the cat is asleep AND the user has been
+  // idle for 4+ seconds. Velocity has decayed to near-zero by then anyway,
+  // so the freeze is on a quiet image. Any input wakes the fluid instantly
+  // (and also wakes the cat via installInputTracking above).
+  function installFluidAutopause(cat) {
+    var QUIESCENT_MS = 4000;
+    var lastInput = Date.now();
+    function bump() {
+      lastInput = Date.now();
+      if (typeof window.fluidSetActive === 'function')
+        window.fluidSetActive(true);
+    }
+    window.addEventListener('pointermove', bump, { passive: true });
+    window.addEventListener('pointerdown', bump, { passive: true });
+    window.addEventListener('keydown',     bump, { passive: true });
+    window.addEventListener('touchstart',  bump, { passive: true });
+    window.addEventListener('scroll',      bump, { passive: true });
+    window.addEventListener('wheel',       bump, { passive: true });
+    setInterval(function () {
+      if (document.hidden) return;
+      if (cat.state.isSleeping && Date.now() - lastInput > QUIESCENT_MS) {
+        if (typeof window.fluidSetActive === 'function')
+          window.fluidSetActive(false);
+      }
+    }, 1000);
   }
 
   // ----- Card-hover companion -----
