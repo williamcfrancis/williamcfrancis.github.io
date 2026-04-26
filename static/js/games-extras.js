@@ -155,7 +155,6 @@
   var BUBBLE_BAG = {
     hello:  ['*meow*', 'hi', 'oh hi'],
     pause:  ['...', 'hm?', '*sniff*'],
-    cursor: ['hi', '?', '*purr*'],
     card:   ['ooh', 'this one?', 'nice'],
     tired:  ['*yawn*'],
     sleep:  ['zzz...'],
@@ -167,12 +166,11 @@
     document.body.appendChild(cat.root);
     window.gamesCat = catApi(cat);
 
-    // Behavior layer install: input tracking, hover watchers, cursor head-turn
-    // tick, and a visibilitychange hook to clean up bubbles + queued scenes
-    // when the page is hidden.
+    // Behavior layer install: input tracking, hover watchers, and a
+    // visibilitychange hook to clean up bubbles + queued scenes when the
+    // page is hidden.
     installInputTracking(cat);
     installCardWatchers(cat);
-    setInterval(function () { cursorAwarenessTick(cat); }, 250);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) return;
       if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
@@ -190,8 +188,9 @@
     // The cat lives onscreen: enter once, then chain small actions
     // (wander, scratch, nap, look around, sit, stretch). Rare exit/re-entry
     // gives a slight sense of the cat coming and going, but most of the
-    // time it stays put. Scene gaps are small (0.6–2.5 s) so the cat reads
-    // as a continuous presence rather than a series of cameos.
+    // time it stays put. Scene gaps are short (0.2–0.9 s) so transitions
+    // read as continuous — the resting pose during the gap is the static
+    // 'idle' frame that walkTo settles into, not a frozen mid-stride pose.
     function tick() {
       if (document.hidden) {
         setTimeout(tick, 4000);
@@ -224,7 +223,7 @@
       // Off-screen: walk in. On-screen: pick a living action.
       if (!cat.state.onScreen) {
         enterScene(cat).then(function () {
-          setTimeout(tick, 600 + Math.random() * 1400);
+          setTimeout(tick, 200 + Math.random() * 500);
         });
         return;
       }
@@ -237,7 +236,7 @@
             setTimeout(tick, 7000 + Math.random() * 8000);
           });
         } else {
-          setTimeout(tick, 600 + Math.random() * 1900);
+          setTimeout(tick, 200 + Math.random() * 700);
         }
       });
     }
@@ -259,21 +258,18 @@
         scenesPaused: false,
         onScreen: false,
         // ----- Behavior layer -----
-        cursor: { x: 0, y: 0, has: false },
         lastInputTs: Date.now(),
         hoverTimer: null,
         queuedCard: null,
         isWalking: false,
         isSleeping: false,
         sceneActive: false,
-        cursorLooking: false,
-        cursorRestoreAt: 0,
-        cursorGreeted: false,
         hasGreeted: false,
         pendingWake: null,
         bubble: null,
         bubbleTimer: null,
         bagState: {},
+        lastAction: null,
       },
     };
 
@@ -434,6 +430,12 @@
       }
     }).then(function () {
       cat.state.isWalking = false;
+      // Settle to a static idle frame so the cat doesn't read as frozen
+      // mid-stride during the inter-action gap. Downstream callers that
+      // immediately chain another animation overwrite this in the next
+      // microtask, so the user never sees a flash.
+      stopAnim(cat);
+      setSprite(cat, 'idle', 0);
     });
   }
 
@@ -565,13 +567,36 @@
   function runLivingAction(cat) {
     var vp = getViewportBand();
     var roll = Math.random();
-    if      (roll < 0.30) return doWander(cat, vp);
-    else if (roll < 0.42) return doSit(cat);
-    else if (roll < 0.54) return doLookAround(cat);
-    else if (roll < 0.66) return doScratchWall(cat, vp);
-    else if (roll < 0.78) return doScratchSelf(cat);
-    else if (roll < 0.88) return doStretch(cat);
-    else                  return doBriefNap(cat);
+    var pick;
+    // After a wander, force a rest action — back-to-back wanders read as
+    // nervous pacing. Wander's 0.18 weight is redistributed across sit
+    // (+0.10) and briefNap (+0.08) for the no-wander branch.
+    if (cat.state.lastAction === 'wander') {
+      if      (roll < 0.32) pick = 'sit';
+      else if (roll < 0.44) pick = 'lookAround';
+      else if (roll < 0.54) pick = 'scratchWall';
+      else if (roll < 0.64) pick = 'scratchSelf';
+      else if (roll < 0.74) pick = 'stretch';
+      else                  pick = 'briefNap';
+    } else {
+      if      (roll < 0.18) pick = 'wander';
+      else if (roll < 0.40) pick = 'sit';
+      else if (roll < 0.52) pick = 'lookAround';
+      else if (roll < 0.62) pick = 'scratchWall';
+      else if (roll < 0.72) pick = 'scratchSelf';
+      else if (roll < 0.82) pick = 'stretch';
+      else                  pick = 'briefNap';
+    }
+    cat.state.lastAction = pick;
+    switch (pick) {
+      case 'wander':      return doWander(cat, vp);
+      case 'sit':         return doSit(cat);
+      case 'lookAround':  return doLookAround(cat);
+      case 'scratchWall': return doScratchWall(cat, vp);
+      case 'scratchSelf': return doScratchSelf(cat);
+      case 'stretch':     return doStretch(cat);
+      default:            return doBriefNap(cat);
+    }
   }
 
   function doWander(cat, vp) {
@@ -587,7 +612,7 @@
   function doSit(cat) {
     return chainHolds(cat, [
       { name: 'alert', dur: 600 + Math.random() * 400,  period: 220 },
-      { name: 'idle',  dur: 2200 + Math.random() * 2400, period: 200 },
+      { name: 'idle',  dur: 6000 + Math.random() * 5000, period: 200 },
     ]);
   }
 
@@ -609,7 +634,7 @@
         stopAnim(cat); setSprite(cat, d2, 0);
         return wait(550 + Math.random() * 350);
       })
-      .then(function () { return holdAnim(cat, 'idle', 600, 200); });
+      .then(function () { return holdAnim(cat, 'idle', 1200, 200); });
   }
 
   // Scratch the nearest "wall" — pick from the cat's distance to each
@@ -640,11 +665,12 @@
     ]);
   }
 
-  // Stretch: tired pose, then alert. Reads as a cat working a kink out.
+  // Stretch: tired pose (long yawn), then alert. Reads as a cat working a
+  // kink out and surveying the room before settling again.
   function doStretch(cat) {
     return chainHolds(cat, [
-      { name: 'tired', dur: 600 + Math.random() * 300, period: 240 },
-      { name: 'alert', dur: 700 + Math.random() * 300, period: 220 },
+      { name: 'tired', dur: 1500 + Math.random() * 1000, period: 240 },
+      { name: 'alert', dur: 700 + Math.random() * 300,   period: 220 },
     ]);
   }
 
@@ -652,9 +678,9 @@
   // idle-timeout escalation; this is just a 4–6 s power nap.
   function doBriefNap(cat) {
     return chainHolds(cat, [
-      { name: 'tired',    dur: 700  + Math.random() * 400,  period: 240, bubble: 'tired' },
-      { name: 'sleeping', dur: 3500 + Math.random() * 2000, period: 380, bubble: 'sleep' },
-      { name: 'alert',    dur: 700  + Math.random() * 300,  period: 220, bubble: 'wake'  },
+      { name: 'tired',    dur: 1200 + Math.random() * 800,  period: 240, bubble: 'tired' },
+      { name: 'sleeping', dur: 9000 + Math.random() * 5000, period: 380, bubble: 'sleep' },
+      { name: 'alert',    dur: 1000 + Math.random() * 500,  period: 220, bubble: 'wake'  },
     ]);
   }
 
@@ -760,30 +786,10 @@
     }, dur);
   }
 
-  // ----- Input tracking (cursor + last-input timestamp) -----
-  // One throttled pointermove + lightweight activity listeners feed the
-  // sleep escalation timer and the cursor-awareness tick.
+  // ----- Input tracking (last-input timestamp) -----
+  // Lightweight activity listeners feed the sleep-escalation timer and
+  // resolve the wake handshake when the cat is sleeping.
   function installInputTracking(cat) {
-    var rafPending = false;
-    var pendingX = 0, pendingY = 0;
-    function flush() {
-      rafPending = false;
-      cat.state.cursor.x = pendingX;
-      cat.state.cursor.y = pendingY;
-      cat.state.cursor.has = true;
-      cat.state.lastInputTs = Date.now();
-      if (cat.state.isSleeping && cat.state.pendingWake) {
-        var wake = cat.state.pendingWake;
-        cat.state.pendingWake = null;
-        wake();
-      }
-    }
-    function onPointerMove(e) {
-      pendingX = e.clientX; pendingY = e.clientY;
-      if (rafPending) return;
-      rafPending = true;
-      requestAnimationFrame(flush);
-    }
     function onActivity() {
       cat.state.lastInputTs = Date.now();
       if (cat.state.isSleeping && cat.state.pendingWake) {
@@ -792,68 +798,11 @@
         wake();
       }
     }
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    window.addEventListener('pointerdown', onActivity,    { passive: true });
-    window.addEventListener('keydown',     onActivity,    { passive: true });
-    window.addEventListener('touchstart',  onActivity,    { passive: true });
-    window.addEventListener('scroll',      onActivity,    { passive: true });
-  }
-
-  // 8-direction sprite names that we may swap between for "head-turn".
-  var DIRECTIONAL = { N: 1, NE: 1, E: 1, SE: 1, S: 1, SW: 1, W: 1, NW: 1 };
-
-  // While the cat is presenting an idle pose (not walking, sleeping, or
-  // mid-action), if the cursor enters a ~280 px radius around its body, the
-  // sprite swaps to the directional walk-frame[0] facing the cursor — a
-  // "head-turn". When the cursor leaves the radius for 200 ms, restore
-  // 'idle'. Never overrides motion sprites mid-walk or mid-action.
-  function cursorAwarenessTick(cat) {
-    if (cat.state.scenesPaused) return;
-    if (document.hidden) return;
-    if (!cat.state.cursor.has) return;
-    if (cat.state.isWalking) return;
-    if (cat.state.isSleeping) return;
-    if (cat.state.x < 0 || cat.state.x > window.innerWidth + 1) return;
-
-    var sprite = cat.state.sprite;
-    // Only hijack when cat is showing the static 'idle', or while we already
-    // swapped to a directional pose ourselves and it's still showing.
-    var ours = cat.state.cursorLooking && DIRECTIONAL[sprite];
-    if (sprite !== 'idle' && !ours) {
-      // Some other animation took over (tired, scratch, etc.) — drop our
-      // claim so we don't try to restore later.
-      cat.state.cursorLooking = false;
-      cat.state.cursorRestoreAt = 0;
-      return;
-    }
-
-    var dx = cat.state.cursor.x - cat.state.x;
-    var dy = cat.state.cursor.y - (cat.state.y - 16); // body center
-    var dist2 = dx * dx + dy * dy;
-    var nearR2 = 280 * 280;
-
-    if (dist2 < nearR2) {
-      var dir = dirFromVector(dx, dy);
-      if (cat.state.sprite !== dir) {
-        stopAnim(cat);
-        setSprite(cat, dir, 0);
-        cat.state.cursorLooking = true;
-        if (!cat.state.cursorGreeted && Math.random() < 0.5) {
-          cat.state.cursorGreeted = true;
-          sayBubble(cat, pickFromBag(cat, 'cursor'), { duration: 1300 });
-          setTimeout(function () { cat.state.cursorGreeted = false; }, 9000);
-        }
-      }
-      cat.state.cursorRestoreAt = 0;
-    } else if (cat.state.cursorLooking) {
-      if (!cat.state.cursorRestoreAt) {
-        cat.state.cursorRestoreAt = Date.now();
-      } else if (Date.now() - cat.state.cursorRestoreAt > 200) {
-        setSprite(cat, 'idle', 0);
-        cat.state.cursorLooking = false;
-        cat.state.cursorRestoreAt = 0;
-      }
-    }
+    window.addEventListener('pointermove', onActivity, { passive: true });
+    window.addEventListener('pointerdown', onActivity, { passive: true });
+    window.addEventListener('keydown',     onActivity, { passive: true });
+    window.addEventListener('touchstart',  onActivity, { passive: true });
+    window.addEventListener('scroll',      onActivity, { passive: true });
   }
 
   // ----- Card-hover companion -----
