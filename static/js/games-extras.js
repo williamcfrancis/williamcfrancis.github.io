@@ -186,7 +186,7 @@
     });
 
     // The cat lives onscreen: enter once, then chain small actions
-    // (wander, scratch, nap, look around, sit, stretch). Rare exit/re-entry
+    // (wander, scratch, nap, sit, stretch). Rare exit/re-entry
     // gives a slight sense of the cat coming and going, but most of the
     // time it stays put. Scene gaps are short (0.2–0.9 s) so transitions
     // read as continuous — the resting pose during the gap is the static
@@ -307,12 +307,15 @@
   function paintSplat(cat, dirX, dirY, mag) {
     if (typeof window.fluidSplatScreen !== 'function') return;
     if (cat.state.x < 0 || cat.state.x > window.innerWidth) return;
-    mag = mag || 28;
+    mag = mag || 60;
     var cx = cat.state.x;
     var cy = cat.state.y - 16; // body center, ~16 px above feet
     var len = Math.hypot(dirX, dirY) || 1;
     var nx = dirX / len;
     var ny = dirY / len;
+    // The fluid sim derives splat velocity from (current - prev). A bigger
+    // mag means a longer "drag" — which the sim reads as a stronger,
+    // more directional sweep instead of a tap-sized puff.
     window.fluidSplatScreen(cx + nx * mag, cy + ny * mag, cx, cy);
   }
 
@@ -322,15 +325,15 @@
   function splatForSprite(cat, name) {
     if (name === 'scratchSelf') {
       var ang = Math.random() * Math.PI * 2;
-      paintSplat(cat, Math.cos(ang), Math.sin(ang) - 0.4, 22);
+      paintSplat(cat, Math.cos(ang), Math.sin(ang) - 0.4, 55);
     } else if (name === 'scratchWallE') {
-      paintSplat(cat, 1, -0.25, 38);
+      paintSplat(cat, 1, -0.25, 90);
     } else if (name === 'scratchWallW') {
-      paintSplat(cat, -1, -0.25, 38);
+      paintSplat(cat, -1, -0.25, 90);
     } else if (name === 'scratchWallN') {
-      paintSplat(cat, 0, -1, 36);
+      paintSplat(cat, 0, -1, 85);
     } else if (name === 'scratchWallS') {
-      paintSplat(cat, 0, 1, 28);
+      paintSplat(cat, 0, 1, 70);
     }
   }
 
@@ -463,11 +466,11 @@
     return walkTo(cat, x0, y0, midX, midY, durationMs * t, periodMs)
       .then(function () {
         if (Math.random() < 0.4) {
-          sayBubble(cat, pickFromBag(cat, 'pause'), { duration: 1100 });
+          sayBubble(cat, pickFromBag(cat, 'pause'), { duration: 2000 });
         }
         // One startle puff at the moment the cat snaps to "alert" — reads
         // as "something made it perk up" rather than a continuous trail.
-        paintSplat(cat, 0, -1, 18);
+        paintSplat(cat, 0, -1, 45);
         return holdAnim(cat, 'alert', pauseDur, 220);
       })
       .then(function () {
@@ -520,7 +523,7 @@
         cat.state.hasGreeted = true;
         setTimeout(function () {
           if (!cat.state.scenesPaused && !document.hidden) {
-            sayBubble(cat, pickFromBag(cat, 'hello'), { duration: 1500 });
+            sayBubble(cat, pickFromBag(cat, 'hello'), { duration: 2400 });
           }
         }, 700);
       }
@@ -572,26 +575,23 @@
     // nervous pacing. Wander's 0.18 weight is redistributed across sit
     // (+0.10) and briefNap (+0.08) for the no-wander branch.
     if (cat.state.lastAction === 'wander') {
-      if      (roll < 0.32) pick = 'sit';
-      else if (roll < 0.44) pick = 'lookAround';
-      else if (roll < 0.54) pick = 'scratchWall';
-      else if (roll < 0.64) pick = 'scratchSelf';
+      if      (roll < 0.38) pick = 'sit';
+      else if (roll < 0.48) pick = 'scratchWall';
+      else if (roll < 0.58) pick = 'scratchSelf';
       else if (roll < 0.74) pick = 'stretch';
       else                  pick = 'briefNap';
     } else {
       if      (roll < 0.18) pick = 'wander';
-      else if (roll < 0.40) pick = 'sit';
-      else if (roll < 0.52) pick = 'lookAround';
-      else if (roll < 0.62) pick = 'scratchWall';
-      else if (roll < 0.72) pick = 'scratchSelf';
-      else if (roll < 0.82) pick = 'stretch';
+      else if (roll < 0.46) pick = 'sit';
+      else if (roll < 0.56) pick = 'scratchWall';
+      else if (roll < 0.66) pick = 'scratchSelf';
+      else if (roll < 0.78) pick = 'stretch';
       else                  pick = 'briefNap';
     }
     cat.state.lastAction = pick;
     switch (pick) {
       case 'wander':      return doWander(cat, vp);
       case 'sit':         return doSit(cat);
-      case 'lookAround':  return doLookAround(cat);
       case 'scratchWall': return doScratchWall(cat, vp);
       case 'scratchSelf': return doScratchSelf(cat);
       case 'stretch':     return doStretch(cat);
@@ -614,27 +614,6 @@
       { name: 'alert', dur: 600 + Math.random() * 400,  period: 220 },
       { name: 'idle',  dur: 6000 + Math.random() * 5000, period: 200 },
     ]);
-  }
-
-  // Cat perks up, faces a random direction (using walk-frame[0] as a
-  // facing pose), then another, then settles. Exercises walk-direction
-  // sprites without actually moving — like the cat is checking its
-  // surroundings.
-  function doLookAround(cat) {
-    var dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    var d1 = dirs[Math.floor(Math.random() * dirs.length)];
-    var d2 = dirs[Math.floor(Math.random() * dirs.length)];
-    return holdAnim(cat, 'alert', 500 + Math.random() * 200, 220)
-      .then(function () {
-        stopAnim(cat); setSprite(cat, d1, 0);
-        return wait(550 + Math.random() * 350);
-      })
-      .then(function () { return holdAnim(cat, 'alert', 350, 220); })
-      .then(function () {
-        stopAnim(cat); setSprite(cat, d2, 0);
-        return wait(550 + Math.random() * 350);
-      })
-      .then(function () { return holdAnim(cat, 'idle', 1200, 200); });
   }
 
   // Scratch the nearest "wall" — pick from the cat's distance to each
@@ -693,7 +672,7 @@
       p = p.then(function () {
         if (a.bubble) {
           sayBubble(cat, pickFromBag(cat, a.bubble), {
-            duration: Math.min(2400, Math.max(800, a.dur - 300)),
+            duration: Math.min(3500, Math.max(1800, a.dur - 300)),
           });
         }
         return holdAnim(cat, a.name, a.dur, a.period);
@@ -779,7 +758,7 @@
     b.classList.add('is-visible');
 
     if (cat.state.bubbleTimer) clearTimeout(cat.state.bubbleTimer);
-    var dur = opts.duration || 1600;
+    var dur = opts.duration || 2600;
     cat.state.bubbleTimer = setTimeout(function () {
       b.classList.remove('is-visible');
       cat.state.bubbleTimer = null;
@@ -868,10 +847,7 @@
       var dist = Math.hypot(targetX - startX, targetY - startY);
       walkToInterruptible(cat, startX, startY, targetX, targetY, dist / 0.26, 150)
         .then(function () {
-          var lookDir = dirFromVector(0, -1); // look up at the card
-          stopAnim(cat);
-          setSprite(cat, lookDir, 0);
-          sayBubble(cat, pickFromBag(cat, 'card'), { duration: 1500 });
+          sayBubble(cat, pickFromBag(cat, 'card'), { duration: 2400 });
           return holdAnim(cat, 'alert', 1700, 220);
         })
         .then(function () {
@@ -924,11 +900,11 @@
 
       walkToInterruptible(cat, startX, startY, sleepX, sleepY, dist / 0.18, 220)
         .then(function () {
-          sayBubble(cat, pickFromBag(cat, 'tired'), { duration: 1400 });
+          sayBubble(cat, pickFromBag(cat, 'tired'), { duration: 2400 });
           return holdAnim(cat, 'tired', 1100, 240);
         })
         .then(function () {
-          sayBubble(cat, pickFromBag(cat, 'sleep'), { duration: 4000 });
+          sayBubble(cat, pickFromBag(cat, 'sleep'), { duration: 5500 });
           loopAnim(cat, 'sleeping', 380);
           return new Promise(function (wake) {
             cat.state.pendingWake = wake;
@@ -938,7 +914,7 @@
           stopAnim(cat);
           cat.state.isSleeping = false;
           if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
-          sayBubble(cat, pickFromBag(cat, 'wake'), { duration: 1300 });
+          sayBubble(cat, pickFromBag(cat, 'wake'), { duration: 2200 });
           return holdAnim(cat, 'alert', 800, 220);
         })
         .then(function () {
@@ -984,7 +960,7 @@
       say: function (text, durationMs) {
         if (typeof text !== 'string' || !text) return;
         var trimmed = text.length > 20 ? text.slice(0, 20) : text;
-        sayBubble(cat, trimmed, { duration: durationMs || 1600 });
+        sayBubble(cat, trimmed, { duration: durationMs || 2600 });
       },
 
       // If the cat is in a sleep scene, wake it on demand (otherwise no-op).
