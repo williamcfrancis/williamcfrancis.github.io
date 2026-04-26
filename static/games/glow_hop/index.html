@@ -298,7 +298,15 @@ let state = {
     running: false, paused: false, level: 0, frames: 0,
     totalScore: 0, levelBonus: 0,
     combo: 0, comboTimer: 0,
-    deathCount: 0
+    deathCount: 0,
+    // Per-level mechanic state (reset by initLevel)
+    gravityDir: 1,
+    windZones: null,
+    chaseWall: null,
+    phaseT: 0, phasePeriod: 0,
+    revealOverride: 0,
+    crystalRevealPermanent: 0,
+    permanentRevealBoost: 0
 };
 
 // ── Input ───────────────────────────────────────────────────────
@@ -712,14 +720,26 @@ function updatePlayer() {
         p.vx += ix * accel;
         if (Math.abs(p.vx) > diff.maxSpeed) p.vx = Math.sign(p.vx) * diff.maxSpeed;
 
-        p.vy += diff.gravity;
+        const gDir = state.gravityDir;
+        p.vy += diff.gravity * gDir;
 
-        // Wall slide
+        // Wind zones: apply directional force when player overlaps
+        if (state.windZones) {
+            for (const wz of state.windZones) {
+                if (aabb(p.x, p.y, p.w, p.h, wz.x, wz.y, wz.w, wz.h)) {
+                    p.vx += wz.fx;
+                    p.vy += wz.fy;
+                }
+            }
+        }
+
+        // Wall slide (relative to gravity direction — sliding while "falling")
         p.wallSliding = false;
-        if (!p.grounded && p.vy > 0 && p.wallDir !== 0) {
+        if (!p.grounded && p.vy * gDir > 0 && p.wallDir !== 0) {
             if ((p.wallDir === 1 && input.right) || (p.wallDir === -1 && input.left)) {
                 p.wallSliding = true;
-                p.vy = Math.min(p.vy, WALL_SLIDE_SPEED);
+                if (gDir > 0) p.vy = Math.min(p.vy, WALL_SLIDE_SPEED);
+                else          p.vy = Math.max(p.vy, -WALL_SLIDE_SPEED);
                 if (state.frames % 6 === 0) {
                     sfx('wallSlide');
                     spawnParticle(
@@ -730,10 +750,12 @@ function updatePlayer() {
             }
         }
 
-        p.vy = Math.min(p.vy, MAX_FALL_SPEED);
+        // Cap fall speed in gravity direction
+        if (gDir > 0) p.vy = Math.min(p.vy, MAX_FALL_SPEED);
+        else          p.vy = Math.max(p.vy, -MAX_FALL_SPEED);
 
         // Variable jump height — holding jump sustains full arc, releasing cuts it short
-        if (!input.jump && p.vy < -2) p.vy *= 0.55;
+        if (!input.jump && p.vy * gDir < -2) p.vy *= 0.55;
     }
 
     // ── Coyote time & jump buffer ──
@@ -748,9 +770,10 @@ function updatePlayer() {
 
     // ── Jump execution ──
     if (p.jumpBuffer > 0 && !p.isDashing) {
+        const gDir = state.gravityDir;
         if (p.wallSliding) {
             p.vx = -p.wallDir * diff.wallJumpX;
-            p.vy = diff.wallJumpY;
+            p.vy = diff.wallJumpY * gDir;
             p.facing = -p.wallDir;
             p.wallSliding = false; p.wallDir = 0;
             p.coyoteTimer = 0; p.jumpBuffer = 0;
@@ -759,14 +782,14 @@ function updatePlayer() {
             spawnBurst(p.x+p.w/2, p.y+p.h/2, [200,200,220], 6, 2);
             revealPulses.push({ x:p.x+p.w/2, y:p.y+p.h/2, radius:0, maxRadius:160, speed:7 });
         } else if (p.coyoteTimer > 0) {
-            p.vy = diff.jumpForce;
+            p.vy = diff.jumpForce * gDir;
             p.grounded = false;
             p.coyoteTimer = 0; p.jumpBuffer = 0;
             p.squash = -4;
             sfx('jump');
-            spawnBurst(p.x+p.w/2, p.y+p.h, [180,170,160], 5, 1.5, 2);
+            spawnBurst(p.x+p.w/2, p.y + (gDir > 0 ? p.h : 0), [180,170,160], 5, 1.5, 2);
         } else if (p.canDoubleJump) {
-            p.vy = diff.doubleJumpForce;
+            p.vy = diff.doubleJumpForce * gDir;
             p.canDoubleJump = false;
             p.jumpBuffer = 0;
             p.squash = -3;
@@ -828,14 +851,28 @@ function updatePlayer() {
         }
     }
 
-    // Death
-    if (p.y > H + 80) {
+    // Death — fall into the void (direction depends on gravity)
+    const fellIntoVoid = state.gravityDir > 0 ? (p.y > H + 80) : (p.y + p.h < -80);
+    if (fellIntoVoid) {
         p.dead = true;
         sfx('death');
         screenShake = 8;
         deathFlash = 1;
         state.deathCount++;
-        spawnBurst(p.x+p.w/2, H-20, [239,68,68], 15, 3, 3);
+        const burstY = state.gravityDir > 0 ? H - 20 : 20;
+        spawnBurst(p.x+p.w/2, burstY, [239,68,68], 15, 3, 3);
+        setTimeout(autoRetry, 700);
+        return;
+    }
+
+    // Death — caught by the chase wall
+    if (state.chaseWall && p.x < state.chaseWall.x + 8) {
+        p.dead = true;
+        sfx('death');
+        screenShake = 10;
+        deathFlash = 1;
+        state.deathCount++;
+        spawnBurst(p.x+p.w/2, p.y+p.h/2, [239,68,68], 18, 3, 3);
         setTimeout(autoRetry, 700);
     }
 }
@@ -849,7 +886,14 @@ function isSolid(pl) {
     if (pl.type === 'crumble' && pl.broken) return false;
     if (pl.type === 'phantom' && !pl.phantomVisible) return false;
     if (pl.type === 'spike') return false;
+    if (pl.type === 'sun'  && !isSunPhase()) return false;
+    if (pl.type === 'moon' &&  isSunPhase()) return false;
     return pl.visibility > 0.3;
+}
+
+function isSunPhase() {
+    if (!state.phasePeriod) return true;
+    return (state.phaseT % (state.phasePeriod * 2)) < state.phasePeriod;
 }
 
 function resolveCollisionsX() {
@@ -869,45 +913,56 @@ function resolveCollisionsX() {
 function resolveCollisionsY() {
     const p = player;
     const wasGrounded = p.grounded;
+    const gDir = state.gravityDir;
     p.grounded = false;
     p.standingOn = null;
     for (const pl of platforms) {
         if (!isSolid(pl)) continue;
         if (!aabb(p.x, p.y, p.w, p.h, pl.x, pl.y, pl.w, pl.h)) continue;
-        const oT = (p.y + p.h) - pl.y;
-        const oB = (pl.y + pl.h) - p.y;
-        if (oT < oB) {
+        const oT = (p.y + p.h) - pl.y; // overlap if hit from above
+        const oB = (pl.y + pl.h) - p.y; // overlap if hit from below
+        const hitFromAbove = oT < oB;
+
+        // "Landing" depends on gravity: in normal gravity, land on top edge;
+        // in flipped gravity, land on bottom edge.
+        const landingHere = (gDir > 0 ? hitFromAbove : !hitFromAbove);
+
+        if (hitFromAbove) {
             p.y = pl.y - p.h;
-            if (p.vy > 0) {
-                if (!wasGrounded && p.vy > 2) {
-                    sfx('land');
-                    spawnBurst(p.x+p.w/2, p.y+p.h, [180,170,160], 4, 1, 2);
-                    p.squash = 3;
-                    revealPulses.push({ x:p.x+p.w/2, y:p.y+p.h/2, radius:0, maxRadius:200, speed:7 });
-                    sfx('pulse');
-                }
-                p.vy = 0;
-            }
+        } else {
+            p.y = pl.y + pl.h;
+        }
+
+        if (landingHere) {
+            const fellHard = !wasGrounded && Math.abs(p.vy) > 2;
+            p.vy = 0;
             p.grounded = true;
             p.standingOn = pl;
+            if (fellHard) {
+                sfx('land');
+                spawnBurst(p.x+p.w/2, p.y + (gDir > 0 ? p.h : 0), [180,170,160], 4, 1, 2);
+                p.squash = 3;
+                revealPulses.push({ x:p.x+p.w/2, y:p.y+p.h/2, radius:0, maxRadius:200, speed:7 });
+                sfx('pulse');
+            }
             // Crumble trigger
             if (pl.type === 'crumble' && !pl.crumbling) {
                 pl.crumbling = true;
                 pl.crumbleTimer = diff.crumbleTime;
                 sfx('crumble');
             }
-            // Bounce
+            // Bounce — launch opposite to gravity
             if (pl.type === 'bounce') {
-                p.vy = -15.5;
+                p.vy = -15.5 * gDir;
                 p.grounded = false;
                 p.canDoubleJump = true;
                 p.squash = -5;
                 sfx('bounce');
-                spawnBurst(p.x+p.w/2, pl.y, [34,197,94], 8, 2, 2);
+                spawnBurst(p.x+p.w/2, pl.y + (gDir > 0 ? 0 : pl.h), [34,197,94], 8, 2, 2);
             }
         } else {
-            p.y = pl.y + pl.h;
-            if (p.vy < 0) p.vy = 0;
+            // Hit head into platform from "ceiling" side relative to gravity
+            if ((gDir > 0 && p.vy < 0) || (gDir < 0 && p.vy > 0)) p.vy = 0;
         }
     }
 }
@@ -935,6 +990,8 @@ function createPlatform(x, y, w, h, type, extra) {
 }
 
 function updatePlatform(pl) {
+    // Sun/moon platforms are always partly visible — their solidity, not visibility, is the puzzle
+    if (pl.type === 'sun' || pl.type === 'moon') pl.visibility = Math.max(pl.visibility, 0.85);
     if (pl.type === 'moving') {
         const ox = pl.x, oy = pl.y;
         pl.moveT += pl.moveSpeed;
@@ -987,6 +1044,11 @@ function updateCrystal(c) {
         if (state.combo > 1) addFloatingText(c.x, cy-15, `x${state.combo}!`, '251,191,36');
         addFloatingText(c.x, cy, `+${pts}`, '56,189,248');
         player.revealBoost = Math.min(player.revealBoost + 30, 80);
+        if (state.crystalRevealPermanent > 0) {
+            state.permanentRevealBoost += state.crystalRevealPermanent;
+            addFloatingText(c.x, cy-30, '+TORCH', '251,191,36');
+            revealPulses.push({ x:c.x, y:cy, radius:0, maxRadius:240, speed:6 });
+        }
     }
 }
 
@@ -1012,7 +1074,8 @@ function updateReveal() {
     if (player.dead) return;
     const px = player.x + player.w/2;
     const py = player.y + player.h/2;
-    const radius = diff.revealRadius + player.revealBoost;
+    const baseRadius = state.revealOverride > 0 ? state.revealOverride : diff.revealRadius;
+    const radius = baseRadius + player.revealBoost + state.permanentRevealBoost;
 
     for (const pl of platforms) {
         if (pl.broken) continue;
@@ -1166,6 +1229,20 @@ function drawPlatform(pl) {
             const fl = pl.phantomTimer < 30 ? (0.5 + Math.sin(state.frames * 0.4) * 0.5) : 1;
             border = `rgba(236,72,153,${v * fl})`;
             fill   = `rgba(77,10,46,${v * fl * 0.3})`;
+            break;
+        }
+        case 'sun': {
+            const active = isSunPhase();
+            const a = active ? 1 : 0.25;
+            border = `rgba(251,191,36,${v * a})`;
+            fill   = `rgba(120,53,15,${v * a * 0.4})`;
+            break;
+        }
+        case 'moon': {
+            const active = !isSunPhase();
+            const a = active ? 1 : 0.25;
+            border = `rgba(148,196,236,${v * a})`;
+            fill   = `rgba(30,41,82,${v * a * 0.45})`;
             break;
         }
         default:
@@ -1388,6 +1465,84 @@ function drawFloatingTexts() {
         ctx.fillText(ft.text, ft.x, ft.y);
     }
     ctx.textAlign = 'left';
+}
+
+// ── Special-mechanic rendering ──────────────────────────────────
+function drawWindZones() {
+    for (const wz of state.windZones) {
+        const cl = wz.color;
+        // Subtle tinted backdrop so the zone reads even before particles spawn
+        ctx.fillStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},0.05)`;
+        ctx.fillRect(wz.x, wz.y, wz.w, wz.h);
+        ctx.strokeStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},0.18)`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(wz.x, wz.y, wz.w, wz.h);
+        // Streaming particle hatch — direction from (fx,fy)
+        const mag = Math.sqrt(wz.fx*wz.fx + wz.fy*wz.fy) || 1;
+        const dx = wz.fx / mag, dy = wz.fy / mag;
+        const speed = 1.4 + mag * 8;
+        const t = state.frames * speed;
+        const lineLen = 18;
+        ctx.strokeStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},0.55)`;
+        ctx.lineWidth = 1.2;
+        const cols = Math.max(2, Math.floor(wz.w / 28));
+        const rows = Math.max(2, Math.floor(wz.h / 28));
+        for (let cx = 0; cx < cols; cx++) {
+            for (let ry = 0; ry < rows; ry++) {
+                const baseX = wz.x + (cx + 0.5) * (wz.w / cols);
+                const baseY = wz.y + (ry + 0.5) * (wz.h / rows);
+                // Animate position along wind direction, wrap within zone
+                const phase = ((t * 0.6) + cx * 13 + ry * 7) % 60;
+                const ox = dx * (phase - 30) * 0.9;
+                const oy = dy * (phase - 30) * 0.9;
+                ctx.beginPath();
+                ctx.moveTo(baseX + ox, baseY + oy);
+                ctx.lineTo(baseX + ox + dx * lineLen, baseY + oy + dy * lineLen);
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+function drawChaseWall() {
+    const cw = state.chaseWall;
+    if (!cw) return;
+    // Dark fog body to the LEFT of cw.x
+    const grad = ctx.createLinearGradient(cw.x - 220, 0, cw.x + 12, 0);
+    grad.addColorStop(0,    'rgba(8,2,12,0.0)');
+    grad.addColorStop(0.55, 'rgba(20,4,30,0.85)');
+    grad.addColorStop(0.95, 'rgba(80,8,32,0.95)');
+    grad.addColorStop(1,    'rgba(220,38,38,1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(cw.x - 220, 0, 232, H);
+    // Pulsing red leading edge
+    const pulse = 0.65 + 0.35 * Math.sin(state.frames * 0.18);
+    ctx.fillStyle = `rgba(248,113,113,${pulse})`;
+    ctx.fillRect(cw.x - 1, 0, 3, H);
+    // Spiky teeth motif at the leading edge
+    ctx.fillStyle = `rgba(239,68,68,${0.85})`;
+    ctx.beginPath();
+    const teeth = 18;
+    for (let i = 0; i < teeth; i++) {
+        const yy = (i / teeth) * H;
+        const tx = cw.x + 2 + Math.sin(state.frames * 0.2 + i * 1.3) * 5;
+        ctx.moveTo(cw.x, yy);
+        ctx.lineTo(tx + 8, yy + H/teeth/2);
+        ctx.lineTo(cw.x, yy + H/teeth);
+    }
+    ctx.fill();
+}
+
+function drawPhaseTint() {
+    const sun = isSunPhase();
+    const t = (state.phaseT % state.phasePeriod) / state.phasePeriod; // 0..1 within current half
+    const intensity = 0.06 + (1 - Math.abs(t - 0.5) * 2) * 0.04;
+    if (sun) {
+        ctx.fillStyle = `rgba(251,191,36,${intensity})`;
+    } else {
+        ctx.fillStyle = `rgba(96,131,236,${intensity * 1.4})`;
+    }
+    ctx.fillRect(0, 0, W, H);
 }
 
 function drawHUD() {
@@ -1688,109 +1843,140 @@ const levels = [
         bonus: 15000
     },
 
-    // 16  Up & Away — vertical elevators
+    // 16  Upside Down — inverted gravity. Player walks on the underside of platforms.
     {
-        name: 'Up & Away',
+        name: 'Upside Down',
+        start: [60, 60], portal: [730, 60],
+        gravityDir: -1,
+        platforms: [
+            // Continuous ceiling — your "floor" is the underside of this
+            [20, 30, 760, 16, 'normal'],
+            // Mid-air "altars" — dive past them, then rise to land on their UNDERSIDE
+            [180, 200, 90, 14, 'normal'],
+            [360, 260, 90, 14, 'normal'],
+            [540, 200, 90, 14, 'normal'],
+            // Death floor below
+            [20, 555, 760, 25, 'spike']
+        ],
+        crystals: [
+            [225, 175], [405, 235], [585, 175],   // just above each altar (collect on the rebound)
+            [120, 120], [320, 130], [500, 130], [680, 120]   // shallow dives along the ceiling
+        ],
+        text: 'Gravity flipped. Walk the ceiling. Tap JUMP to dive — float back up before the spikes!',
+        bonus: 18000
+    },
+
+    // 17  Hunted — death wall chases the player; you cannot stop or backtrack.
+    {
+        name: 'Hunted',
         start: [40, 540], portal: [730, 60],
-        platforms: [
-            [20, 560, 100, 16, 'normal'],
-            [160, 470, 50, 14, 'moving', {my:70}],
-            [270, 380, 50, 14, 'moving', {my:90}],
-            [380, 350, 70, 16, 'normal'],
-            [490, 320, 50, 14, 'moving', {my:110}],
-            [600, 230, 50, 14, 'moving', {my:130, speed:0.03}],
-            [690, 80, 100, 16, 'normal']
-        ],
-        crystals: [[185,420],[295,330],[405,330],[515,260],[625,170],[750,60]],
-        text: 'New: vertical elevators. Step on as they rise.',
-        bonus: 13000
-    },
-
-    // 17  Pendulum — diagonal swings
-    {
-        name: 'Pendulum',
-        start: [40, 480], portal: [740, 480],
-        platforms: [
-            [20, 500, 90, 16, 'normal'],
-            [170, 460, 60, 14, 'moving', {mx:55, my:55}],
-            [320, 340, 70, 16, 'normal'],
-            [460, 380, 60, 14, 'moving', {mx:60, my:-60, speed:0.025}],
-            [600, 320, 60, 14, 'moving', {mx:50, my:50}],
-            [710, 500, 90, 16, 'normal'],
-            [380, 540, 80, 40, 'spike']
-        ],
-        crystals: [[200,415],[355,315],[490,330],[630,275],[745,475]],
-        text: 'New: diagonal swings. Two boarding moments per cycle.',
-        bonus: 14000
-    },
-
-    // 18  Crosswinds — variable conveyor speeds
-    {
-        name: 'Crosswinds',
-        start: [40, 510], portal: [730, 100],
-        platforms: [
-            [20, 530, 100, 16, 'normal'],
-            [150, 490, 130, 14, 'conveyor', {dir:1, cspeed:1}],
-            [310, 490, 50, 40, 'spike'],
-            [380, 430, 130, 14, 'conveyor', {dir:-1, cspeed:4.5}],
-            [540, 380, 80, 16, 'normal'],
-            [400, 300, 130, 14, 'conveyor', {dir:1, cspeed:3}],
-            [580, 240, 50, 40, 'spike'],
-            [580, 190, 80, 16, 'normal'],
-            [400, 140, 160, 14, 'conveyor', {dir:1, cspeed:4}],
-            [690, 100, 100, 16, 'normal']
-        ],
-        crystals: [[210,460],[440,400],[460,270],[470,110],[755,75]],
-        text: 'New: conveyor speeds vary. Some are a breeze, some are a gale.',
-        bonus: 15500
-    },
-
-    // 19  Out of Phase — anchor vs window phantoms
-    {
-        name: 'Out of Phase',
-        start: [40, 510], portal: [730, 80],
-        platforms: [
-            [20, 530, 100, 16, 'normal'],
-            [160, 470, 80, 14, 'phantom', {on:140, off:40}],
-            [290, 410, 70, 14, 'phantom', {on:40, off:80}],
-            [410, 350, 70, 14, 'phantom', {on:140, off:40}],
-            [540, 290, 70, 14, 'phantom', {on:30, off:90}],
-            [410, 220, 70, 14, 'phantom', {on:140, off:40}],
-            [280, 160, 70, 14, 'phantom', {on:30, off:90}],
-            [410, 100, 80, 14, 'normal'],
-            [560, 130, 60, 14, 'phantom', {on:60, off:60}],
-            [690, 100, 100, 16, 'normal']
-        ],
-        crystals: [[195,420],[325,360],[445,300],[575,240],[315,110],[745,75]],
-        text: 'New: anchors stay, windows blink. Watch first, then move.',
-        bonus: 17000
-    },
-
-    // 20  Glow Hop — finale combining all new mechanics
-    {
-        name: 'Glow Hop',
-        start: [40, 540], portal: [400, 20],
+        chaseWall: { speed: 1.4, startX: -120 },
         platforms: [
             [20, 560, 90, 16, 'normal'],
-            [120, 560, 130, 16, 'ice'],
-            [270, 540, 50, 14, 'moving', {my:80, speed:0.035}],
-            [350, 470, 110, 14, 'conveyor', {dir:1, cspeed:3}],
-            [490, 440, 50, 40, 'spike'],
-            [560, 410, 110, 14, 'conveyor', {dir:-1, cspeed:4}],
-            [690, 380, 90, 16, 'normal'],
-            [560, 320, 60, 14, 'moving', {mx:60, my:60}],
-            [400, 280, 80, 16, 'crumble'],
-            [240, 240, 60, 14, 'moving', {mx:55, my:-55}],
-            [120, 200, 70, 14, 'phantom', {on:120, off:40}],
-            [240, 150, 60, 14, 'phantom', {on:40, off:80}],
-            [340, 100, 50, 14, 'bounce'],
-            [380, 30, 80, 16, 'normal'],
-            [100, 30, 16, 180],
-            [680, 30, 16, 200]
+            [140, 510, 60, 14, 'crumble'],
+            [240, 470, 60, 14, 'crumble'],
+            [340, 420, 60, 14, 'bounce'],
+            [430, 350, 60, 14, 'crumble'],
+            [520, 300, 60, 14, 'crumble'],
+            [430, 230, 60, 14, 'bounce'],
+            [560, 190, 60, 14, 'crumble'],
+            [670, 150, 60, 14, 'crumble'],
+            [560, 90, 60, 14, 'normal'],
+            [690, 80, 100, 16, 'normal']
         ],
-        crystals: [[185,520],[290,470],[405,420],[515,370],[625,360],[590,260],[440,250],[270,180],[155,160],[365,60],[420,10]],
-        text: 'Glow Hop — every trick, all at once. You know what to do.',
+        crystals: [[170,475],[270,435],[370,360],[460,300],[550,260],[460,180],[600,150],[600,55],[745,55]],
+        text: 'A wall of dark hunger eats the world. RUN. Do not stop.',
+        bonus: 21000
+    },
+
+    // 18  Pitch Black — near-zero reveal; each crystal is a torch that PERMANENTLY grows your radius.
+    {
+        name: 'Pitch Black',
+        start: [40, 540], portal: [730, 60],
+        revealOverride: 30,
+        crystalRevealPermanent: 35,
+        platforms: [
+            [20, 560, 90, 16, 'normal'],
+            [170, 510, 60, 14, 'normal'],
+            [290, 460, 60, 14, 'normal'],
+            [180, 410, 60, 14, 'normal'],
+            [310, 350, 60, 14, 'normal'],
+            [440, 300, 60, 14, 'normal'],
+            [560, 360, 60, 14, 'bounce'],
+            [600, 230, 60, 14, 'normal'],
+            [470, 170, 60, 14, 'normal'],
+            [340, 120, 60, 14, 'normal'],
+            [200, 180, 60, 14, 'normal'],
+            [80, 240, 60, 14, 'normal'],
+            [690, 80, 100, 16, 'normal'],
+            [380, 575, 80, 25, 'spike'],
+            [200, 575, 80, 25, 'spike']
+        ],
+        crystals: [[200,485],[320,435],[210,385],[340,325],[470,275],[630,205],[500,145],[370,95],[230,155],[110,215]],
+        text: 'You can barely see your feet. Each crystal is a torch — collect to see further.',
+        bonus: 23000
+    },
+
+    // 19  Howling Winds — directional wind zones push the player in defined regions.
+    {
+        name: 'Howling Winds',
+        start: [40, 540], portal: [740, 80],
+        windZones: [
+            { x: 130, y: 350, w: 220, h: 220, fx: 0.18, fy: 0,  color: [56,189,248] },
+            { x: 380, y: 200, w: 200, h: 280, fx: 0,    fy:-0.16, color: [167,243,208] },
+            { x: 580, y: 80,  w: 200, h: 240, fx: -0.14, fy: 0,  color: [251,146,60] },
+            { x: 70,  y: 100, w: 200, h: 200, fx: 0,    fy: 0.20, color: [196,181,253] }
+        ],
+        platforms: [
+            [20, 560, 100, 16, 'normal'],
+            [150, 480, 70, 14, 'normal'],
+            [280, 480, 70, 14, 'normal'],
+            [395, 470, 60, 40, 'spike'],
+            [510, 470, 70, 14, 'normal'],
+            [620, 360, 70, 14, 'normal'],
+            [580, 250, 70, 14, 'normal'],
+            [430, 200, 70, 14, 'normal'],
+            [280, 240, 70, 14, 'normal'],
+            [120, 220, 70, 14, 'normal'],
+            [110, 80, 80, 14, 'normal'],
+            [700, 100, 90, 16, 'normal']
+        ],
+        crystals: [[185,440],[315,440],[545,430],[655,320],[615,210],[465,160],[315,200],[155,180],[155,40],[745,75]],
+        text: 'Four winds blow. Read their colors and ride them.',
         bonus: 22000
+    },
+
+    // 20  Eclipse — phase-shifting world. SUN and MOON platforms alternate solidity every 90 frames.
+    {
+        name: 'Eclipse',
+        start: [40, 560], portal: [400, 20],
+        phasePeriod: 90,
+        chaseWall: { speed: 0.85, startX: -120 },
+        gravityDir: 1,
+        platforms: [
+            [20, 575, 90, 16, 'normal'],
+            [130, 530, 80, 14, 'sun'],
+            [250, 530, 80, 14, 'moon'],
+            [370, 470, 80, 14, 'sun'],
+            [490, 470, 80, 14, 'moon'],
+            [600, 410, 80, 14, 'sun'],
+            [710, 410, 80, 14, 'moon'],
+            [600, 340, 80, 14, 'moon'],
+            [470, 290, 80, 14, 'sun'],
+            [340, 240, 80, 14, 'moon'],
+            [210, 200, 80, 14, 'sun'],
+            [80,  170, 80, 14, 'moon'],
+            [80,  100, 80, 14, 'bounce'],
+            [220, 60,  80, 14, 'sun'],
+            [360, 40,  100, 16, 'normal'],
+            [480, 80,  60, 14, 'moon'],
+            [620, 80,  60, 14, 'sun'],
+            [550, 250, 60, 40, 'spike'],
+            [340, 360, 60, 40, 'spike']
+        ],
+        crystals: [[170,490],[290,490],[410,430],[530,430],[640,370],[750,370],[640,300],[510,250],[380,200],[250,160],[120,130],[260,30],[400,5],[660,40]],
+        text: 'Eclipse: SUN and MOON trade solidity. Time your steps to the pulse — and outrun the dark.',
+        bonus: 30000
     }
 ];
 
@@ -1799,6 +1985,16 @@ function initLevel(idx) {
     if (idx >= levels.length) { showWinScreen(); return; }
     state.level = idx;
     const lvl = levels[idx];
+
+    // Reset per-level mechanic state
+    state.gravityDir = lvl.gravityDir || 1;
+    state.windZones = lvl.windZones || null;
+    state.chaseWall = lvl.chaseWall ? { x: lvl.chaseWall.startX, speed: lvl.chaseWall.speed } : null;
+    state.phasePeriod = lvl.phasePeriod || 0;
+    state.phaseT = 0;
+    state.revealOverride = lvl.revealOverride || 0;
+    state.crystalRevealPermanent = lvl.crystalRevealPermanent || 0;
+    state.permanentRevealBoost = 0;
 
     player = createPlayer(lvl.start[0], lvl.start[1]);
 
@@ -1860,6 +2056,10 @@ function gameLoop() {
     // Update platforms first (for moving platform deltas)
     for (const pl of platforms) updatePlatform(pl);
 
+    // Advance per-level dynamic state
+    if (state.phasePeriod) state.phaseT++;
+    if (state.chaseWall) state.chaseWall.x += state.chaseWall.speed;
+
     updatePlayer();
     for (const c of crystals) updateCrystal(c);
     updateReveal();
@@ -1876,10 +2076,12 @@ function gameLoop() {
 
     // ── Render ──
     drawBackground();
+    if (state.phasePeriod) drawPhaseTint();
 
     ctx.save();
     ctx.translate(shX, shY);
 
+    if (state.windZones) drawWindZones();
     drawRevealPulses();
     for (const pl of platforms) drawPlatform(pl);
     for (const c of crystals) drawCrystal(c);
@@ -1887,6 +2089,7 @@ function gameLoop() {
     drawParticles();
     drawPlayer();
     drawFloatingTexts();
+    if (state.chaseWall) drawChaseWall();
 
     ctx.restore();
 
