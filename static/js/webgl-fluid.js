@@ -142,6 +142,22 @@ const _texUnitBindings = [];
 // renders one fresh frame before stopping.
 let _renderDirty = true;
 
+/* ---------- Patch F: adaptive bloom/sunrays cadence ----------
+ * Bloom = ~17 fullscreen passes (1 prefilter + 8 down + 7 up + 1 final).
+ * Sunrays = 4 passes. On healthy hardware this fits inside a 16 ms budget
+ * and we update every frame. When the rolling 8-frame avg exceeds 22 ms
+ * (slow GPU, many splats, etc.) we update bloom/sunrays only every other
+ * frame and reuse the cached FBOs. Bloom is a low-frequency signal (already
+ * blurred 8× in a pyramid) so temporal reuse is invisible at default
+ * settings; the win is ~0.8–2.5 ms per slow frame, which often pushes us
+ * back below 16 ms.
+ */
+const _frameTimes = [16, 16, 16, 16, 16, 16, 16, 16];
+let _frameIdx = 0;
+let _frameTimeAvg = 16;
+let _bloomToggle = 0;
+let _bloomThisFrame = true;     // gates applyBloom + applySunrays in render()
+
 resizeCanvas();
 
 let config = {
@@ -204,7 +220,13 @@ if (!ext.supportLinearFiltering) {
 startGUI();
 
 function getWebGLContext (canvas) {
-    const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false };
+    // Patch F2: `desynchronized: true` skips the compositor frame-sync barrier
+    // (Chrome lets the canvas swap independent of the page repaint, reducing
+    // frame latency; tearing isn't visible on a continuous-motion fluid).
+    // `powerPreference: 'high-performance'` hints hybrid-GPU laptops to use the
+    // discrete GPU instead of integrated. Both attributes are silently ignored
+    // on browsers that don't honor them.
+    const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false, desynchronized: true, powerPreference: 'high-performance' };
 
     let gl = canvas.getContext('webgl2', params);
     const isWebGL2 = !!gl;
@@ -1008,12 +1030,22 @@ const gradientSubtractShader = compileShader(gl.FRAGMENT_SHADER, `
 `);
 
 const blit = (() => {
+    // Patch F1: wrap the static fullscreen quad in a VAO when WebGL2 is
+    // available. The buffers + attribute pointers haven't changed since module
+    // init, but each program switch in WebGL2 still incurs attribute-state
+    // revalidation per draw (browser bookkeeping, not GPU work). Binding a VAO
+    // once tells the driver/browser the attribute layout is fixed, eliminating
+    // that revalidation. ~5–15 µs per draw × ~30–60 draws/frame.
+    const _vao = gl.createVertexArray ? gl.createVertexArray() : null;
+    if (_vao) gl.bindVertexArray(_vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(0);
+    // VAO stays bound for the rest of the session — no other code path
+    // touches vertex attributes, so we never need to re-bind.
 
     return (target, clear = false) => {
         if (target == null)
@@ -1283,11 +1315,27 @@ updateKeywords();
 initFramebuffers();
 multipleSplats(parseInt(Math.random() * 20) + 5);
 
-let lastUpdateTime = Date.now();
+// Patch F5: performance.now() is monotonic (won't go backward on NTP/DST
+// adjust like Date.now() can) and µs-resolution. Slightly faster too.
+let lastUpdateTime = performance.now();
 let colorUpdateTimer = 0.0;
 update();
 
 function update () {
+    // Patch F3: rolling 8-frame avg to decide whether to skip bloom/sunrays.
+    // Measured at the *start* of the frame so we account for the previous
+    // frame's full render+browser-composite latency. >22 ms = ~45 fps, well
+    // below 60 fps target → engage bloom alternation.
+    const frameStart = performance.now();
+    _frameTimes[_frameIdx & 7] = frameStart - lastUpdateTime;
+    _frameIdx++;
+    if ((_frameIdx & 7) === 0) {
+        let s = 0;
+        for (let i = 0; i < 8; i++) s += _frameTimes[i];
+        _frameTimeAvg = s * 0.125;
+    }
+    _bloomThisFrame = _frameTimeAvg < 22 || (_bloomToggle++ & 1) === 0;
+
     const dt = calcDeltaTime();
     if (resizeCanvas())
         initFramebuffers();
@@ -1308,7 +1356,8 @@ function update () {
 }
 
 function calcDeltaTime () {
-    let now = Date.now();
+    // Patch F5: see lastUpdateTime init comment.
+    let now = performance.now();
     let dt = (now - lastUpdateTime) / 1000;
     dt = Math.min(dt, 0.016666);
     lastUpdateTime = now;
@@ -1423,9 +1472,15 @@ function step (dt) {
 }
 
 function render (target) {
-    if (config.BLOOM)
+    // Patch F3: when running below ~45 fps, alternate-frame the bloom +
+    // sunrays passes. The display pass below still samples the cached `bloom`
+    // and `sunrays` FBOs from the previous frame — bloom is a heavily blurred
+    // (8-level pyramid) low-frequency signal, so 30 Hz updates are visually
+    // indistinguishable from 60 Hz at default thresholds. Composite cost
+    // unchanged, generation cost halved on slow frames.
+    if (config.BLOOM && _bloomThisFrame)
         applyBloom(dye.read, bloom);
-    if (config.SUNRAYS) {
+    if (config.SUNRAYS && _bloomThisFrame) {
         applySunrays(dye.read, dye.write, sunrays);
         blur(sunrays, sunraysTemp, 1);
     }

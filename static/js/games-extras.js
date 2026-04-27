@@ -172,7 +172,6 @@
     // page is hidden.
     installInputTracking(cat);
     installCardWatchers(cat);
-    installFluidAutopause(cat);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) return;
       if (cat.state.bubble) cat.state.bubble.classList.remove('is-visible');
@@ -809,35 +808,6 @@
     window.addEventListener('keydown',     onActivity, { passive: true });
     window.addEventListener('touchstart',  onActivity, { passive: true });
     window.addEventListener('scroll',      onActivity, { passive: true });
-  }
-
-  // ----- Fluid autopause coordinator -----
-  // Tells the fluid sim to fully pause its render loop (skipping bloom +
-  // sunrays + display passes) when the cat is asleep AND the user has been
-  // idle for 4+ seconds. Velocity has decayed to near-zero by then anyway,
-  // so the freeze is on a quiet image. Any input wakes the fluid instantly
-  // (and also wakes the cat via installInputTracking above).
-  function installFluidAutopause(cat) {
-    var QUIESCENT_MS = 4000;
-    var lastInput = Date.now();
-    function bump() {
-      lastInput = Date.now();
-      if (typeof window.fluidSetActive === 'function')
-        window.fluidSetActive(true);
-    }
-    window.addEventListener('pointermove', bump, { passive: true });
-    window.addEventListener('pointerdown', bump, { passive: true });
-    window.addEventListener('keydown',     bump, { passive: true });
-    window.addEventListener('touchstart',  bump, { passive: true });
-    window.addEventListener('scroll',      bump, { passive: true });
-    window.addEventListener('wheel',       bump, { passive: true });
-    setInterval(function () {
-      if (document.hidden) return;
-      if (cat.state.isSleeping && Date.now() - lastInput > QUIESCENT_MS) {
-        if (typeof window.fluidSetActive === 'function')
-          window.fluidSetActive(false);
-      }
-    }, 1000);
   }
 
   // ----- Card-hover companion -----
