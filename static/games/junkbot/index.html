@@ -1678,6 +1678,11 @@ function endDrag(e) {
     const rot = ghostMesh.quaternion.clone();
     const type = draggingType;
 
+    // CAPTURE activeSnap BEFORE clearSnapIndicators() nulls it, otherwise
+    // every placement after the first reports "must connect" even when the
+    // user did snap onto a port.
+    const snapAtDrop = activeSnap;
+
     buildScene.remove(ghostMesh);
     ghostMesh.geometry.dispose();
     ghostMesh.material.dispose();
@@ -1691,7 +1696,7 @@ function endDrag(e) {
         return;
     }
 
-    if (buildState.parts.length > 0 && !activeSnap) {
+    if (buildState.parts.length > 0 && !snapAtDrop) {
         draggingType = null;
         const hint = document.getElementById('build-hint');
         hint.textContent = 'Parts must connect to existing parts! Drag onto a green snap point.';
@@ -1721,7 +1726,8 @@ function endDrag(e) {
     };
     buildState.parts.push(part);
 
-    if (activeSnap) {
+    if (snapAtDrop) {
+        const activeSnap = snapAtDrop; // shadow within this block to keep existing references valid
         const snap = activeSnap.snap;
         const wantsHinge = !!snap.hAxis && (def.isWheel || def.isLeg || def.isPropeller);
         const jointType = isShiftHeld ? (wantsHinge ? 'fixed' : 'hinge') : (wantsHinge ? 'hinge' : 'fixed');
@@ -1755,7 +1761,7 @@ function endDrag(e) {
             joint.oscPhase = (existingOscJoints % 2) * Math.PI;
         }
 
-        autoConnectExtraSnaps(part, partId, def, jointId);
+        autoConnectExtraSnaps(part, partId, def, activeSnap.partId);
     }
 
     draggingType = null;
