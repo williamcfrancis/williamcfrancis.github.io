@@ -123,6 +123,23 @@
             margin-top: 2px;
         }
 
+        #shield-indicator {
+            font-size: 14px;
+            margin-top: 4px;
+            color: #bae6fd;
+            background: rgba(14, 165, 233, 0.35);
+            padding: 3px 10px;
+            border-radius: 999px;
+            display: inline-block;
+            box-shadow: 0 0 12px rgba(186, 230, 253, 0.5);
+            animation: shieldPulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes shieldPulse {
+            0%, 100% { box-shadow: 0 0 8px rgba(186, 230, 253, 0.4); }
+            50%      { box-shadow: 0 0 16px rgba(186, 230, 253, 0.8); }
+        }
+
         #pause-overlay {
             position: absolute;
             top: 0;
@@ -296,6 +313,7 @@
                 <div id="score-display">0</div>
                 <div id="high-score">Best: 0</div>
                 <div id="friends-met">Friends: 0/45</div>
+                <div id="shield-indicator" class="hidden">🫧 Shielded</div>
             </div>
         </div>
     </div>
@@ -451,6 +469,7 @@ const GRAVITY = 0.5;
 const DRAG = 0.99;
 const MAX_POWER = 22;
 const MIN_POWER = 5;
+const MAX_PARTICLES = 250; // hard cap to prevent runaway particle counts
 
 // Inputs
 let dragStart = null;
@@ -471,6 +490,11 @@ let clouds = [];
  */
 function randomRange(min, max) { return Math.random() * (max - min) + min; }
 function dist(x1, y1, x2, y2) { return Math.sqrt((x2-x1)**2 + (y2-y1)**2); }
+// Push a particle only if we haven't hit the global cap. Big bursts use this
+// so a frantic moment can't spawn 50+ particles in one frame.
+function pushParticle(x, y, type) {
+    if (particles.length < MAX_PARTICLES) particles.push(new Particle(x, y, type));
+}
 function smoothstep(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
 function hexToRgb(hex) {
     const h = hex.replace('#', '');
@@ -612,9 +636,10 @@ class Squishmallow {
     update() {
         // Bobbing in water
         this.y = this.baseY + Math.sin(frameCount * 0.05 + this.bounceOffset) * 4;
-        
-        // Add occasional water ripple
-        if (Math.random() > 0.98) {
+
+        // Occasional water ripple — capped so spawning many Squishmallows
+        // doesn't multiply ripple cost. (Was 2% per Squishmallow per frame.)
+        if (particles.length < MAX_PARTICLES && Math.random() > 0.995) {
              particles.push(new Particle(this.x, this.y + 15, 'ripple'));
         }
     }
@@ -693,11 +718,13 @@ class Squishmallow {
         ctx.ellipse(12, 2, 3, 1.5, 0, 0, Math.PI*2);
         ctx.fill();
 
-        // Speech Bubble
+        // Speech Bubble — cache measureText per instance (it's ~15× the cost
+        // of a fillText, and the message is fixed for an instance).
         ctx.font = 'bold 12px "Nunito"';
-        const metrics = ctx.measureText(this.message);
-        const textWidth = metrics.width;
-        const bubbleWidth = textWidth + 16;
+        if (this._bubbleW === undefined) {
+            this._bubbleW = ctx.measureText(this.message).width + 16;
+        }
+        const bubbleWidth = this._bubbleW;
         const bubbleHeight = 24;
         
         ctx.translate(0, -35); // Move above head
@@ -894,9 +921,9 @@ class LilyPad {
         this.radius = radius;
         this.wobble = 0;
         this.rotation = randomRange(0, Math.PI * 2);
-        this.subtype = subtype; // 'green' | 'cloud' | 'heart'
+        this.subtype = subtype; // 'green' | 'cloud' | 'bubble'
         this.consumed = false;
-        // Only green pads can be moving; cloud/heart stay still
+        // Only green pads can be moving; cloud/bubble stay still
         this.type = (subtype === 'green' && Math.random() > 0.85) ? 'moving' : 'static';
         this.moveSpeed = randomRange(1.5, 3) * (Math.random() > 0.5 ? 1 : -1);
         this.moveRange = 120;
@@ -913,6 +940,13 @@ class LilyPad {
                 dx: randomRange(-radius * 0.7, radius * 0.7),
                 dy: randomRange(-radius * 0.25, radius * 0.15),
                 r: randomRange(radius * 0.45, radius * 0.7)
+            }));
+        }
+        // Bubble pad shimmer: a few orbiting highlights
+        if (subtype === 'bubble') {
+            this.shimmer = Array.from({ length: 4 }, (_, i) => ({
+                phase: (i / 4) * Math.PI * 2,
+                rOffset: randomRange(0.55, 0.75)
             }));
         }
     }
@@ -933,46 +967,73 @@ class LilyPad {
         ctx.translate(this.x, drawY + Math.sin(this.wobble) * 5);
 
         if (this.subtype === 'cloud') {
-            // Soft white puff cluster — no rotation, no veins, no shadow
+            // Soft white puff cluster — two-pass rendering avoids per-puff
+            // gradient creation (was 5 createRadialGradient calls per frame
+            // per cloud pad). Outer halo + bright cores look ~the same.
+            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.beginPath();
             this.puffs.forEach(puff => {
-                const grad = ctx.createRadialGradient(puff.dx - puff.r * 0.2, puff.dy - puff.r * 0.4, puff.r * 0.1, puff.dx, puff.dy, puff.r);
-                grad.addColorStop(0, 'rgba(255,255,255,0.98)');
-                grad.addColorStop(1, 'rgba(255,255,255,0)');
-                ctx.fillStyle = grad;
+                ctx.moveTo(puff.dx + puff.r * 1.15, puff.dy);
+                ctx.arc(puff.dx, puff.dy, puff.r * 1.15, 0, Math.PI * 2);
+            });
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ctx.beginPath();
+            this.puffs.forEach(puff => {
+                ctx.moveTo(puff.dx + puff.r * 0.7, puff.dy - puff.r * 0.15);
+                ctx.arc(puff.dx, puff.dy - puff.r * 0.15, puff.r * 0.7, 0, Math.PI * 2);
+            });
+            ctx.fill();
+        } else if (this.subtype === 'bubble') {
+            // Pearly translucent shield pad
+            const pulse = 1 + 0.05 * Math.sin(frameCount * 0.07 + this.x * 0.01);
+            const r = this.radius * pulse;
+
+            // Soft cyan glow underneath
+            ctx.fillStyle = 'rgba(125, 211, 252, 0.25)';
+            ctx.beginPath();
+            ctx.ellipse(0, 4, r * 1.15, r * 0.85, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Main bubble body — pearly gradient
+            const grad = ctx.createRadialGradient(-r * 0.35, -r * 0.45, r * 0.1, 0, 0, r);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            grad.addColorStop(0.5, 'rgba(186, 230, 253, 0.85)');
+            grad.addColorStop(1, 'rgba(125, 211, 252, 0.7)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Iridescent rim
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, r - 1, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Big highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.35, -r * 0.45, r * 0.22, r * 0.12, -0.45, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Small highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.beginPath();
+            ctx.arc(r * 0.35, r * 0.4, r * 0.07, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Orbiting shimmer dots
+            this.shimmer.forEach(s => {
+                const a = s.phase + frameCount * 0.04;
+                const sx = Math.cos(a) * r * s.rOffset;
+                const sy = Math.sin(a) * r * s.rOffset * 0.6;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                 ctx.beginPath();
-                ctx.arc(puff.dx, puff.dy, puff.r, 0, Math.PI * 2);
+                ctx.arc(sx, sy, 1.6, 0, Math.PI * 2);
                 ctx.fill();
             });
-        } else if (this.subtype === 'heart') {
-            // Pulsing pink heart
-            const pulse = 1 + 0.04 * Math.sin(frameCount * 0.08 + this.x * 0.01);
-            const r = this.radius * pulse;
-            // Soft shadow
-            ctx.fillStyle = 'rgba(0,0,0,0.12)';
-            ctx.beginPath();
-            ctx.ellipse(4, 6, r, r * 0.7, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            const colorMain = '#fb7185';
-            const colorDark = '#e11d48';
-            const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.4, r * 0.1, 0, 0, r);
-            grad.addColorStop(0, colorMain);
-            grad.addColorStop(1, colorDark);
-            ctx.fillStyle = grad;
-
-            // Heart shape: two arcs + bottom triangle, scaled by r
-            const s = r / 30; // base radius 30
-            ctx.beginPath();
-            ctx.moveTo(0, 8 * s);
-            ctx.bezierCurveTo(-22 * s, -8 * s, -16 * s, -22 * s, 0, -10 * s);
-            ctx.bezierCurveTo(16 * s, -22 * s, 22 * s, -8 * s, 0, 8 * s);
-            ctx.fill();
-
-            // Highlight
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
-            ctx.beginPath();
-            ctx.ellipse(-r * 0.35, -r * 0.45, r * 0.18, r * 0.1, -0.4, 0, Math.PI * 2);
-            ctx.fill();
         } else {
             // Green lily pad (original)
             ctx.rotate(this.rotation);
@@ -1013,11 +1074,12 @@ class LilyPad {
         this.wobble = 0.5;
         particles.push(new Particle(this.x, this.y, 'ripple'));
 
-        // Heart pad: spawn one bonus fly the first time the frog lands
-        if (this.subtype === 'heart' && !this.consumed) {
+        // Bubble pad: grant a one-time death-save shield to the frog
+        if (this.subtype === 'bubble' && !this.consumed && frog && !frog.hasBubble) {
             this.consumed = true;
-            flies.push(new Fly(this.x + randomRange(-40, 40), this.y - 60));
-            for (let i = 0; i < 6; i++) particles.push(new Particle(this.x, this.y - 10, 'sparkle'));
+            frog.hasBubble = true;
+            for (let i = 0; i < 14; i++) particles.push(new Particle(this.x, this.y - 10, 'sparkle'));
+            audio.playCollect('fly');
         }
     }
 }
@@ -1040,6 +1102,11 @@ class Frog {
         this.facing = 1;
         this.currentPad = pads[0];
         this.jetpackTimer = 0;
+        this.hasBubble = false;
+        this.bubblePulse = 0;
+        this.airTime = 0;
+        this.airSpin = 0; // accumulated spin angle while airborne
+        this.targetCharge = 0; // 0..1 based on drag length
     }
 
     jump(power, angle) {
@@ -1049,10 +1116,19 @@ class Frog {
         this.vy = Math.sin(angle) * power;
         this.state = 'AIRBORNE';
         this.currentPad = null;
-        this.stretch = 1.3;
-        this.squash = 0.7;
+
+        // Big anticipation → release: stretch hard along travel direction
+        const powerFrac = Math.min(1, (power - MIN_POWER) / (MAX_POWER - MIN_POWER));
+        this.stretch = 1.5 + powerFrac * 0.3;   // up to ~1.8
+        this.squash  = 0.55 - powerFrac * 0.1;  // down to ~0.45
         this.facing = this.vx > 0 ? 1 : -1;
+        this.airTime = 0;
+        this.airSpin = 0;
+        this.targetCharge = 0;
         audio.playJump();
+
+        // Take-off puff: a small burst of sparkles at the departing pad
+        for (let i = 0; i < 6; i++) particles.push(new Particle(departingPad.x, departingPad.y - 4, 'sparkle'));
 
         // Cloud puff pads poof on launch — sparkle and mark for removal
         if (departingPad && departingPad.subtype === 'cloud' && !departingPad.consumed) {
@@ -1071,8 +1147,9 @@ class Frog {
     }
 
     update() {
-        this.stretch += (1 - this.stretch) * 0.1;
-        this.squash += (1 - this.squash) * 0.1;
+        this.stretch += (1 - this.stretch) * 0.18;
+        this.squash += (1 - this.squash) * 0.18;
+        this.bubblePulse += 0.12;
 
         if (this.state === 'JETPACK') {
             this.jetpackTimer--;
@@ -1080,8 +1157,9 @@ class Frog {
             this.x += (canvas.width/2 - this.x) * 0.05; // Center frog
             this.y += this.vy;
             this.rotation = 0;
-            this.stretch = 1.2;
-            
+            this.stretch = 1.25;
+            this.squash = 0.85;
+
             // Particles
             if (frameCount % 2 === 0) {
                 particles.push(new Particle(this.x - 10, this.y + 15, 'jet_fire'));
@@ -1092,11 +1170,11 @@ class Frog {
             if (this.jetpackTimer <= 0) {
                 this.state = 'AIRBORNE';
                 this.vy = -2; // Gentle pop
-                
+
                 const safetyPad = new LilyPad(this.x, this.y + 150, 90); // Big pad
-                safetyPad.type = 'static'; 
+                safetyPad.type = 'static';
                 pads.push(safetyPad);
-                
+
                 // Add some sparkles
                 for(let i=0; i<10; i++) particles.push(new Particle(this.x, this.y + 150, 'sparkle'));
             }
@@ -1106,7 +1184,33 @@ class Frog {
             this.vx *= DRAG;
             this.x += this.vx;
             this.y += this.vy;
-            this.rotation = Math.atan2(this.vy, this.vx);
+            this.airTime++;
+
+            // Compute speed for animation feel
+            const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+
+            // Spin while ascending fast — gentle backflip feel
+            if (this.vy < 0) {
+                this.airSpin += this.facing * 0.18 * Math.min(1, speed / 14);
+            } else {
+                // While falling, drift toward facing-aligned forward dive
+                this.airSpin *= 0.92;
+            }
+            // Combine spin during rise with fall-direction tracking after apex
+            const fallRotation = Math.atan2(this.vy, Math.abs(this.vx) * this.facing);
+            const t = Math.min(1, Math.max(0, this.vy / 8));
+            this.rotation = (1 - t) * this.airSpin + t * fallRotation;
+
+            // Subtle in-air squash based on vertical velocity (stretch up, squish on apex)
+            const airStretchTarget = this.vy < 0 ? 1.18 - this.vy * 0.01 : Math.max(0.92, 1.05 - this.vy * 0.005);
+            this.stretch += (airStretchTarget - this.stretch) * 0.15;
+            this.squash += ((2 - airStretchTarget) * 0.5 - this.squash) * 0.15;
+
+            // Whoosh trail: faint sparkle behind the frog when moving fast.
+            // Throttled and capped to keep particle count reasonable.
+            if (speed > 14 && frameCount % 4 === 0 && particles.length < MAX_PARTICLES) {
+                particles.push(new Particle(this.x - this.vx * 0.4, this.y - this.vy * 0.4, 'sparkle'));
+            }
 
             // Collision with pads
             if (this.vy > 0) {
@@ -1122,9 +1226,24 @@ class Frog {
         } else if (this.state === 'GROUNDED' && this.currentPad) {
             this.x += (this.currentPad.x - this.x) * 0.2;
             this.y = this.currentPad.y;
-            this.vx = 0; 
+            this.vx = 0;
             this.vy = 0;
             this.rotation = 0;
+            this.airSpin = 0;
+
+            // Charge-up squash while dragging — coiled-spring anticipation
+            let chargeTarget = 0;
+            if (isDragging && dragStart && dragCurrent) {
+                const ddx = dragStart.x - dragCurrent.x;
+                const ddy = dragStart.y - dragCurrent.y;
+                const dragDist = Math.sqrt(ddx * ddx + ddy * ddy);
+                chargeTarget = Math.min(1, dragDist / 180);
+            }
+            this.targetCharge += (chargeTarget - this.targetCharge) * 0.25;
+            // Apply charge as squash (compress vertically, widen horizontally)
+            const c = this.targetCharge;
+            this.squash = 1 + c * 0.35;
+            this.stretch = 1 - c * 0.15;
         }
 
         // Walls
@@ -1136,16 +1255,25 @@ class Frog {
     }
 
     land(pad) {
+        // Bigger landing impact when arriving fast
+        const impact = Math.min(1, Math.abs(this.vy) / 18);
         this.state = 'GROUNDED';
         this.currentPad = pad;
         this.y = pad.y;
         this.vx = 0;
         this.vy = 0;
-        this.squash = 1.4;
-        this.stretch = 0.6;
+        this.squash = 1.4 + impact * 0.4;
+        this.stretch = 0.55 - impact * 0.15;
+        this.airSpin = 0;
         pad.triggerLand();
         audio.playLand();
-        
+
+        // Landing dust puff — splash particles for visual punch
+        const puffs = 3 + Math.floor(impact * 5);
+        for (let i = 0; i < puffs; i++) {
+            particles.push(new Particle(pad.x + randomRange(-pad.radius * 0.4, pad.radius * 0.4), pad.y, 'splash'));
+        }
+
         let distScore = Math.floor((initialPadY - pad.y) / 50);
         if(distScore > score) {
             score = distScore;
@@ -1155,6 +1283,32 @@ class Frog {
 
     die() {
         if (gameState === 'GAMEOVER') return;
+
+        // Bubble shield save: pop the bubble and bounce back up to a new pad
+        if (this.hasBubble) {
+            this.hasBubble = false;
+            // Bubble pop: lots of sparkles
+            for (let i = 0; i < 18; i++) particles.push(new Particle(this.x, this.y, 'sparkle'));
+            for (let i = 0; i < 8; i++) particles.push(new Particle(this.x, this.y, 'splash'));
+            audio.playCollect('fly');
+            audio.playJump();
+
+            // Drop a safety pad above the camera and bounce frog onto it
+            const safetyY = cameraY + canvas.height * 0.55;
+            const safetyX = Math.max(80, Math.min(canvas.width - 80, this.x));
+            const safetyPad = new LilyPad(safetyX, safetyY, 75);
+            safetyPad.type = 'static';
+            pads.push(safetyPad);
+
+            this.x = safetyX;
+            this.y = safetyY - 200;
+            this.vx = 0;
+            this.vy = -2;
+            this.state = 'AIRBORNE';
+            this.currentPad = null;
+            return;
+        }
+
         gameState = 'GAMEOVER';
         for(let i=0; i<15; i++) particles.push(new Particle(this.x, this.y, 'splash'));
         audio.playSplash();
@@ -1265,6 +1419,47 @@ class Frog {
         ctx.fill();
 
         ctx.restore();
+
+        // Bubble shield halo (drawn outside squash/stretch and rotation transforms so it stays a clean circle)
+        if (this.hasBubble) {
+            ctx.save();
+            ctx.translate(this.x, drawY);
+            const r = this.radius * (1.45 + 0.05 * Math.sin(this.bubblePulse));
+            // Outer glow
+            const glow = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 1.15);
+            glow.addColorStop(0, 'rgba(186, 230, 253, 0.0)');
+            glow.addColorStop(0.7, 'rgba(186, 230, 253, 0.25)');
+            glow.addColorStop(1, 'rgba(125, 211, 252, 0.0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+            // Bubble surface
+            const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.4, r * 0.1, 0, 0, r);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+            grad.addColorStop(0.6, 'rgba(186, 230, 253, 0.2)');
+            grad.addColorStop(1, 'rgba(125, 211, 252, 0.35)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fill();
+            // Iridescent rim
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, r - 0.5, 0, Math.PI * 2);
+            ctx.stroke();
+            // Highlights
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.4, -r * 0.45, r * 0.18, r * 0.08, -0.45, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+            ctx.beginPath();
+            ctx.arc(r * 0.45, r * 0.35, r * 0.05, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
     }
 }
 
@@ -1293,6 +1488,7 @@ function initGame() {
     isPaused = false;
     if (typeof pauseOverlay !== 'undefined' && pauseOverlay) pauseOverlay.classList.add('hidden');
     if (typeof pauseBtn !== 'undefined' && pauseBtn) pauseBtn.innerText = '⏸';
+    if (typeof shieldIndicator !== 'undefined' && shieldIndicator) shieldIndicator.classList.add('hidden');
     
     // Initial Pad
     pads.push(new LilyPad(canvas.width / 2, canvas.height - 150, 60));
@@ -1345,9 +1541,10 @@ function generateWorld(currentCameraY) {
         } else if (r < 0.20) {
             // Free fly above this pad (pad stays green)
             flies.push(new Fly(nextX, nextY - 60));
-        } else if (r < 0.27) {
-            subtype = 'heart';
-        } else if (r < 0.34) {
+        } else if (r < 0.24) {
+            // Bubble shield pad — rarer than other subtypes (4%) since it's a death-save
+            subtype = 'bubble';
+        } else if (r < 0.31) {
             subtype = 'cloud';
         }
 
@@ -1431,6 +1628,7 @@ const gameoverFriendsEl = document.getElementById('gameover-friends');
 const pauseOverlay = document.getElementById('pause-overlay');
 const pauseBtn = document.getElementById('pause-btn');
 const muteBtn = document.getElementById('mute-btn');
+const shieldIndicator = document.getElementById('shield-indicator');
 const TOTAL_FRIENDS = SQUISHMALLOW_MESSAGES.length;
 
 function updateFriendsUI() {
@@ -1446,6 +1644,11 @@ function updateMuteUI() {
     muteBtn.setAttribute('aria-label', audio.enabled ? 'Mute' : 'Unmute');
 }
 updateMuteUI();
+
+function updateShieldUI() {
+    const shielded = !!(typeof frog !== 'undefined' && frog && frog.hasBubble);
+    shieldIndicator.classList.toggle('hidden', !shielded);
+}
 
 function toggleMute() {
     audio.enabled = !audio.enabled;
@@ -1536,6 +1739,21 @@ function getSkyColors(altitude) {
     return { top: last.top, bottom: last.bottom };
 }
 
+// Precomputed star field — invalidated on resize.
+// Positions stored as normalized [0..1] floats; multiplied by canvas dims at draw time.
+const STAR_COUNT = 60;
+const STAR_FIELD = (() => {
+    const arr = [];
+    for (let i = 0; i < STAR_COUNT; i++) {
+        arr.push({
+            nx: Math.sin(i * 9301.3) * 0.5 + 0.5,
+            ny: (Math.sin(i * 4937.7) * 0.5 + 0.5) * 0.75,
+            r:  1.4 + (i % 3) * 0.4
+        });
+    }
+    return arr;
+})();
+
 function drawSky(ctx, altitude) {
     const { top, bottom } = getSkyColors(altitude);
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -1544,21 +1762,22 @@ function drawSky(ctx, altitude) {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Stars: fade in over 11000 → 14000, twinkle deterministic by index
+    // Stars: fade in over 11000 → 14000. Single global twinkle so we can batch
+    // every star into one beginPath/fill (was 60 individual fills/frame).
     if (altitude > 11000) {
         const fade = Math.min(1, (altitude - 11000) / 3000);
-        const count = 60;
-        for (let i = 0; i < count; i++) {
-            const sx = ((Math.sin(i * 9301.3) * 0.5 + 0.5) * canvas.width);
-            const sy = ((Math.sin(i * 4937.7) * 0.5 + 0.5) * canvas.height * 0.75);
-            const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(frameCount * 0.03 + i));
-            ctx.globalAlpha = fade * twinkle * 0.9;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(sx, sy, 1.4 + (i % 3) * 0.4, 0, Math.PI * 2);
-            ctx.fill();
+        const twinkle = 0.7 + 0.3 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(255,255,255,${fade * twinkle * 0.9})`;
+        ctx.beginPath();
+        const w = canvas.width, h = canvas.height;
+        for (let i = 0; i < STAR_COUNT; i++) {
+            const s = STAR_FIELD[i];
+            const sx = s.nx * w;
+            const sy = s.ny * h;
+            ctx.moveTo(sx + s.r, sy);
+            ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
         }
-        ctx.globalAlpha = 1;
+        ctx.fill();
     }
 }
 
@@ -1641,9 +1860,18 @@ function loop() {
             }
         });
 
-        // Cleanup
-        particles = particles.filter(p => p.life > 0);
-        particles.forEach(p => p.update());
+        // Particles: update + cull in one in-place compaction pass
+        // (replaces filter→forEach which did 2 walks + array allocation)
+        let writeIdx = 0;
+        for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            p.update();
+            if (p.life > 0) {
+                if (writeIdx !== i) particles[writeIdx] = p;
+                writeIdx++;
+            }
+        }
+        if (writeIdx !== particles.length) particles.length = writeIdx;
 
         // Camera
         let targetY = frog.y - canvas.height * 0.6;
@@ -1663,6 +1891,8 @@ function loop() {
         flies = flies.filter(f => f.y < killY);
         squishmallows = squishmallows.filter(s => s.y < killY);
         // Don't cull clouds based on Y, only X
+
+        updateShieldUI();
     }
 
     // Render

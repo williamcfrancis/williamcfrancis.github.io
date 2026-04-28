@@ -151,7 +151,10 @@ let wallRunTrailTimer = 0;
 async function init(): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   engine = new Engine(canvas, true, { stencil: true, antialias: true });
-  engine.setHardwareScalingLevel(1);
+  // Cap pixel ratio to 1 — full DPR + heavy post-processing tanks framerate on retina/4K displays.
+  // setHardwareScalingLevel(N) renders at 1/N native pixels, then upscales.
+  const dpr = window.devicePixelRatio || 1;
+  engine.setHardwareScalingLevel(Math.max(1, dpr));
 
   scene = new Scene(engine);
   scene.collisionsEnabled = true;
@@ -1001,6 +1004,7 @@ function fireHitscan(weapon: WeaponState, muzzlePos: Vector3, dmgMult: number): 
 }
 
 let rocketTrailTextureUrl: string | null = null;
+let rocketTrailTexture: Texture | null = null;
 
 function createRocketTrailTexture(): string {
   const c = document.createElement('canvas');
@@ -1013,6 +1017,13 @@ function createRocketTrailTexture(): string {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 32, 32);
   return c.toDataURL();
+}
+
+function getRocketTrailTexture(scene: Scene): Texture {
+  if (rocketTrailTexture && !rocketTrailTexture.isDisposed()) return rocketTrailTexture;
+  if (!rocketTrailTextureUrl) rocketTrailTextureUrl = createRocketTrailTexture();
+  rocketTrailTexture = new Texture(rocketTrailTextureUrl, scene);
+  return rocketTrailTexture;
 }
 
 function fireProjectile(weapon: WeaponState, muzzlePos: Vector3, dmgMult: number): void {
@@ -1032,9 +1043,8 @@ function fireProjectile(weapon: WeaponState, muzzlePos: Vector3, dmgMult: number
   rocket.checkCollisions = false;
   rocket.isPickable = false;
 
-  if (!rocketTrailTextureUrl) rocketTrailTextureUrl = createRocketTrailTexture();
   const trail = new ParticleSystem('rocketTrail', 60, scene);
-  trail.particleTexture = new Texture(rocketTrailTextureUrl, scene);
+  trail.particleTexture = getRocketTrailTexture(scene);
   trail.emitter = rocket;
   trail.minLifeTime = 0.15;
   trail.maxLifeTime = 0.4;

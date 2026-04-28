@@ -11,8 +11,10 @@ import {
 } from '@babylonjs/core';
 
 let particleTextureUrl: string | null = null;
+let cachedParticleTex: Texture | null = null;
+let cachedParticleScene: Scene | null = null;
 
-function getParticleTexture(): string {
+function getParticleTextureUrl(): string {
   if (particleTextureUrl) return particleTextureUrl;
   const c = document.createElement('canvas');
   c.width = 64;
@@ -29,9 +31,18 @@ function getParticleTexture(): string {
   return particleTextureUrl;
 }
 
+function getParticleTexture(scene: Scene): Texture {
+  if (cachedParticleTex && cachedParticleScene === scene && !cachedParticleTex.isDisposed()) {
+    return cachedParticleTex;
+  }
+  cachedParticleScene = scene;
+  cachedParticleTex = new Texture(getParticleTextureUrl(), scene);
+  return cachedParticleTex;
+}
+
 export function createMuzzleFlash(scene: Scene, position: Vector3, direction: Vector3, scale: number): void {
   const ps = new ParticleSystem('muzzle', 20, scene);
-  ps.particleTexture = new Texture(getParticleTexture(), scene);
+  ps.particleTexture = getParticleTexture(scene);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.03;
   ps.maxLifeTime = 0.08;
@@ -53,7 +64,7 @@ export function createMuzzleFlash(scene: Scene, position: Vector3, direction: Ve
 
 export function createBulletImpact(scene: Scene, position: Vector3, normal: Vector3): void {
   const ps = new ParticleSystem('impact', 15, scene);
-  ps.particleTexture = new Texture(getParticleTexture(), scene);
+  ps.particleTexture = getParticleTexture(scene);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.1;
   ps.maxLifeTime = 0.3;
@@ -76,7 +87,7 @@ export function createBulletImpact(scene: Scene, position: Vector3, normal: Vect
 
 export function createBloodEffect(scene: Scene, position: Vector3, direction: Vector3): void {
   const ps = new ParticleSystem('blood', 20, scene);
-  ps.particleTexture = new Texture(getParticleTexture(), scene);
+  ps.particleTexture = getParticleTexture(scene);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.15;
   ps.maxLifeTime = 0.4;
@@ -102,7 +113,7 @@ export function createExplosion(scene: Scene, position: Vector3, radius: number)
 
   // Core flash
   const flash = new ParticleSystem('expFlash', 30, scene);
-  flash.particleTexture = new Texture(getParticleTexture(), scene);
+  flash.particleTexture = getParticleTexture(scene);
   flash.emitter = position.clone();
   flash.minLifeTime = 0.08;
   flash.maxLifeTime = 0.2;
@@ -121,7 +132,7 @@ export function createExplosion(scene: Scene, position: Vector3, radius: number)
 
   // Outer debris
   const debris = new ParticleSystem('expDebris', 50, scene);
-  debris.particleTexture = new Texture(getParticleTexture(), scene);
+  debris.particleTexture = getParticleTexture(scene);
   debris.emitter = position.clone();
   debris.minLifeTime = 0.3;
   debris.maxLifeTime = 0.8;
@@ -143,7 +154,7 @@ export function createExplosion(scene: Scene, position: Vector3, radius: number)
 
   // Smoke ring
   const smoke = new ParticleSystem('expSmoke', 20, scene);
-  smoke.particleTexture = new Texture(getParticleTexture(), scene);
+  smoke.particleTexture = getParticleTexture(scene);
   smoke.emitter = position.clone();
   smoke.minLifeTime = 0.5;
   smoke.maxLifeTime = 1.2;
@@ -225,7 +236,7 @@ export function createEnemyTracer(scene: Scene, start: Vector3, end: Vector3): v
 
 export function createPickupGlow(scene: Scene, position: Vector3, color: Color3): void {
   const ps = new ParticleSystem('pickupGlow', 15, scene);
-  ps.particleTexture = new Texture(getParticleTexture(), scene);
+  ps.particleTexture = getParticleTexture(scene);
   ps.emitter = position;
   ps.minLifeTime = 0.5;
   ps.maxLifeTime = 1;
@@ -265,7 +276,7 @@ export function createGrappleBeam(scene: Scene, start: Vector3, end: Vector3): M
 
 export function createEMPBlast(scene: Scene, position: Vector3, radius: number): void {
   const ps = new ParticleSystem('emp', 80, scene);
-  ps.particleTexture = new Texture(getParticleTexture(), scene);
+  ps.particleTexture = getParticleTexture(scene);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.2;
   ps.maxLifeTime = 0.5;
@@ -331,7 +342,7 @@ export function createBeamEffect(scene: Scene, start: Vector3, end: Vector3): vo
 
 export function createWallRunTrail(scene: Scene, position: Vector3): void {
   const ps = new ParticleSystem('wrTrail', 10, scene);
-  ps.particleTexture = new Texture(getParticleTexture(), scene);
+  ps.particleTexture = getParticleTexture(scene);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.1;
   ps.maxLifeTime = 0.25;

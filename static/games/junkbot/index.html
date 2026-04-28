@@ -55,6 +55,13 @@ canvas{display:block}
 .toolbar-btn{background:#2a2624;border:1px solid #3a3530;color:#a89880;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;transition:all 0.15s}
 .toolbar-btn:hover{color:#e8dcc8;border-color:#5a5040}
 .toolbar-btn.active{color:#e8a849;border-color:#e8a849}
+.mode-toggle{display:inline-flex;background:#2a2624;border:1px solid #3a3530;border-radius:4px;overflow:hidden}
+.mode-opt{background:transparent;border:none;color:#8a7e6e;padding:6px 10px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.12s}
+.mode-opt.active{background:#e8a849;color:#1a1816;font-weight:700}
+.mode-opt:not(.active):hover{color:#e8dcc8}
+#enemy-select{background:#2a2624;color:#e8dcc8;border:1px solid #3a3530;padding:5px 6px;font-size:12px;border-radius:4px}
+#enemy-select:hover{border-color:#5a5040}
+#enemy-select.disabled{opacity:0.4;pointer-events:none}
 .build-main{flex:1;display:flex;overflow:hidden}
 
 /* Parts Palette */
@@ -96,6 +103,13 @@ canvas{display:block}
 .score-label{color:#8a7e6e}
 .score-value{color:#e8dcc8;font-weight:600}
 #test-controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:10}
+.hp-bar-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.hp-bar-label{font-size:11px;font-weight:700;letter-spacing:1px;color:#e8dcc8;width:42px;flex-shrink:0}
+.hp-bar{flex:1;height:14px;background:#1a1816;border:1px solid #3a3530;border-radius:7px;overflow:hidden;position:relative}
+.hp-bar-fill{height:100%;background:linear-gradient(90deg,#4CAF50,#7ed957);transition:width 0.25s ease-out, background 0.3s}
+.hp-bar-fill.enemy{background:linear-gradient(90deg,#e74c3c,#ff6b6b)}
+.hp-bar-fill.warn{background:linear-gradient(90deg,#e8a849,#f0c060)}
+.hp-bar-fill.crit{background:linear-gradient(90deg,#e74c3c,#ff4747)}
 #test-status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Lilita One',cursive;font-size:48px;color:#e8a849;text-shadow:0 2px 10px rgba(0,0,0,0.8);pointer-events:none;opacity:0;transition:opacity 0.5s;z-index:10}
 #test-status.show{opacity:1}
 
@@ -246,13 +260,22 @@ canvas{display:block}
         <button class="toolbar-btn" id="btn-clear">Clear All</button>
         <button class="toolbar-btn" id="btn-save-load">Save/Load</button>
         <button class="toolbar-btn" id="btn-back-landing">Menu</button>
+        <span class="mode-toggle" id="mode-toggle" title="Choose what happens on Launch">
+            <button class="mode-opt active" data-mode="battle">Battle</button>
+            <button class="mode-opt" data-mode="practice">Practice</button>
+        </span>
+        <select class="toolbar-btn" id="enemy-select" title="Pick your opponent">
+            <option value="rookie">Rookie</option>
+            <option value="brawler">Brawler</option>
+            <option value="tank">Tank</option>
+        </select>
         <button class="sound-toggle" id="btn-sound" title="Toggle Sound">&#x1f50a;</button>
         <button class="btn btn-launch btn-small" id="btn-launch">Launch!</button>
     </div>
     <div class="build-main">
         <div id="parts-palette"></div>
         <div id="viewport-container">
-            <div class="viewport-hint" id="build-hint">Drag parts from the palette. Hold Shift for hinge joints.</div>
+            <div class="viewport-hint" id="build-hint">Drag parts to connect. Wheels and propellers spin automatically.</div>
         </div>
         <div id="inspector">
             <h3>Inspector</h3>
@@ -265,12 +288,25 @@ canvas{display:block}
 <div id="test-screen">
     <div id="test-canvas-container"></div>
     <div id="score-panel">
-        <h3>Performance</h3>
-        <div class="score-row"><span class="score-label">Distance</span><span class="score-value" id="sc-dist">0.0 m</span></div>
-        <div class="score-row"><span class="score-label">Time</span><span class="score-value" id="sc-time">0.0 s</span></div>
-        <div class="score-row"><span class="score-label">Max Speed</span><span class="score-value" id="sc-speed">0.0 m/s</span></div>
-        <div class="score-row"><span class="score-label">Style</span><span class="score-value" id="sc-style">0</span></div>
-        <div class="pb-display" id="pb-display" style="display:none">Best: <span id="pb-value">0</span>m</div>
+        <h3 id="hud-title">Performance</h3>
+        <div id="practice-stats">
+            <div class="score-row"><span class="score-label">Distance</span><span class="score-value" id="sc-dist">0.0 m</span></div>
+            <div class="score-row"><span class="score-label">Time</span><span class="score-value" id="sc-time">0.0 s</span></div>
+            <div class="score-row"><span class="score-label">Max Speed</span><span class="score-value" id="sc-speed">0.0 m/s</span></div>
+            <div class="score-row"><span class="score-label">Style</span><span class="score-value" id="sc-style">0</span></div>
+            <div class="pb-display" id="pb-display" style="display:none">Best: <span id="pb-value">0</span>m</div>
+        </div>
+        <div id="battle-stats" style="display:none">
+            <div class="hp-bar-row">
+                <span class="hp-bar-label">YOU</span>
+                <div class="hp-bar"><div class="hp-bar-fill" id="hp-player" style="width:100%"></div></div>
+            </div>
+            <div class="hp-bar-row">
+                <span class="hp-bar-label" id="enemy-name-label">FOE</span>
+                <div class="hp-bar"><div class="hp-bar-fill enemy" id="hp-enemy" style="width:100%"></div></div>
+            </div>
+            <div class="score-row"><span class="score-label">Time</span><span class="score-value" id="bt-time">60s</span></div>
+        </div>
     </div>
     <div id="test-status"></div>
     <div id="test-controls">
@@ -654,6 +690,83 @@ const PART_DEFS = {
         ]
     },
 
+    // --- Weapons (deal extra damage on contact) ---
+    saw_blade: {
+        name: 'Saw Blade', category: 'Weapons', icon: '⚙', color: 0xc0c0c8,
+        mass: 0.6, dims: [0.12, 0.6, 0.6], isWheel: true, isWeapon: true, damageMult: 5, radius: 0.4,
+        desc: 'Spinning blade — slices on contact',
+        geom: () => {
+            const disc = new THREE.CylinderGeometry(0.4, 0.4, 0.06, 18);
+            disc.rotateZ(Math.PI / 2);
+            const teeth = [];
+            for (let i = 0; i < 8; i++) {
+                const t = new THREE.BoxGeometry(0.08, 0.12, 0.06);
+                const ang = (i / 8) * Math.PI * 2;
+                t.rotateX(ang);
+                t.translate(0, Math.cos(ang) * 0.42, Math.sin(ang) * 0.42);
+                teeth.push(t);
+            }
+            return mergeGeometries([disc, ...teeth]) || disc;
+        },
+        collider: () => {
+            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), Math.PI/2);
+            return RAPIER.ColliderDesc.cylinder(0.04, 0.42).setRotation(q).setFriction(1.6).setRestitution(0.05);
+        },
+        snaps: () => [
+            { off: [-0.06, 0, 0], norm: [-1,0,0], hAxis: [1,0,0] },
+            { off: [0.06, 0, 0], norm: [1,0,0], hAxis: [1,0,0] }
+        ]
+    },
+    hammer: {
+        name: 'Hammer', category: 'Weapons', icon: '🔨', color: 0x8c5a2a,
+        mass: 2.5, dims: [0.4, 0.8, 0.4], isWeapon: true, damageMult: 4,
+        desc: 'Heavy head — wreck on impact',
+        geom: () => {
+            const arm = new THREE.BoxGeometry(0.12, 0.55, 0.12);
+            arm.translate(0, 0.05, 0);
+            const head = new THREE.BoxGeometry(0.4, 0.32, 0.4);
+            head.translate(0, -0.3, 0);
+            return mergeGeometries([arm, head]) || arm;
+        },
+        collider: () => {
+            const arm = RAPIER.ColliderDesc.cuboid(0.06, 0.275, 0.06).setTranslation(0, 0.05, 0);
+            return arm; // primary collider; visual still includes head; head damage from arm impact OK
+        },
+        snaps: () => [
+            { off: [0, 0.4, 0], norm: [0,1,0], hAxis: [1,0,0] }
+        ]
+    },
+    spike: {
+        name: 'Spike', category: 'Weapons', icon: '⮝', color: 0xd0d0d8,
+        mass: 0.4, dims: [0.2, 0.5, 0.2], isWeapon: true, damageMult: 6,
+        desc: 'Sharp point — devastating ram',
+        geom: () => {
+            const cone = new THREE.ConeGeometry(0.12, 0.5, 10);
+            return cone;
+        },
+        collider: () => RAPIER.ColliderDesc.cone(0.25, 0.12).setFriction(0.9).setRestitution(0.1),
+        snaps: () => [
+            { off: [0, -0.25, 0], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    },
+    blaster: {
+        name: 'Blaster', category: 'Weapons', icon: '◉', color: 0x6a4a8a,
+        mass: 0.6, dims: [0.3, 0.3, 0.5], isWeapon: true, isBlaster: true, damageMult: 3,
+        desc: 'Fires shots every 1.6s',
+        geom: () => {
+            const body = new THREE.BoxGeometry(0.25, 0.25, 0.3);
+            body.translate(0, 0, -0.05);
+            const barrel = new THREE.CylinderGeometry(0.06, 0.06, 0.3, 10);
+            barrel.rotateX(Math.PI / 2);
+            barrel.translate(0, 0, 0.2);
+            return mergeGeometries([body, barrel]) || body;
+        },
+        collider: () => RAPIER.ColliderDesc.cuboid(0.125, 0.125, 0.2),
+        snaps: () => [
+            { off: [0, -0.125, 0], norm: [0,-1,0], hAxis: [1,0,0] }
+        ]
+    },
+
     // --- Sensors (decorative) ---
     googly_eyes: {
         name: 'Googly Eyes', category: 'Sensors', icon: '👀', color: 0xffffff,
@@ -766,6 +879,21 @@ let crashParticles = [];
 let dustParticles = [];
 let milestonesHit = new Set();
 let lastMilestoneTime = 0;
+
+// ── Combat / HP state ─────────────────────────────────────
+let gameMode = 'battle';                  // 'battle' or 'practice'
+let currentEnemyPreset = 'rookie';
+let eventQueue = null;                    // RAPIER.EventQueue
+const partHp = new Map();                 // partKey -> { current, max, team }
+const partKeyByCollider = new Map();      // collider.handle -> partKey
+const pendingDetach = new Set();          // Set<partKey>
+const detachedDebris = [];                // standalone debris bodies for cleanup
+let teamTotalHp = { player: 0, enemy: 0 };
+let battleEndedAt = 0;
+const BATTLE_DURATION = 60;               // seconds
+const DAMAGE_THRESHOLD = 250;             // ignore minor impacts (landing, scrapes)
+const DAMAGE_SCALE = 0.012;               // impulse magnitude → HP loss
+const DAMAGE_GRACE = 1.8;                 // seconds after launch before damage counts
 
 // ══════════════════════════════════════════════════════════
 // SOUND ENGINE (Web Audio API)
@@ -1404,8 +1532,10 @@ function startDragFromPalette(e, type) {
 
 function showSnapIndicators() {
     clearSnapIndicators();
-    const dotGeo = new THREE.SphereGeometry(0.06, 8, 6);
-    const dotMat = new THREE.MeshBasicMaterial({ color: COLORS.snap, transparent: true, opacity: 0.7 });
+    const dotGeo = new THREE.SphereGeometry(0.12, 12, 8);
+    const ringGeo = new THREE.RingGeometry(0.18, 0.24, 20);
+    const dotMat = new THREE.MeshBasicMaterial({ color: COLORS.snap, transparent: true, opacity: 0.85 });
+    const ringMat = new THREE.MeshBasicMaterial({ color: COLORS.snap, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
 
     for (const part of buildState.parts) {
         const def = PART_DEFS[part.type];
@@ -1416,20 +1546,45 @@ function showSnapIndicators() {
                 part.position.y + snap.off[1],
                 part.position.z + snap.off[2]
             );
+            const group = new THREE.Group();
+            group.position.copy(worldPos);
+
             const dot = new THREE.Mesh(dotGeo, dotMat.clone());
-            dot.position.copy(worldPos);
-            dot.userData = { partId: part.id, snap, worldPos };
-            buildScene.add(dot);
-            snapIndicators.push(dot);
+            const ring = new THREE.Mesh(ringGeo, ringMat.clone());
+            ring.userData.isRing = true;
+            group.add(dot);
+            group.add(ring);
+
+            // Orient ring to face the snap normal so it reads as a port.
+            if (snap.norm) {
+                const n = new THREE.Vector3(snap.norm[0], snap.norm[1], snap.norm[2]);
+                ring.lookAt(group.position.clone().add(n));
+            }
+
+            group.userData = { partId: part.id, snap, worldPos, dot, ring };
+            buildScene.add(group);
+            snapIndicators.push(group);
+        }
+    }
+}
+
+function pulseSnapIndicators(t) {
+    const pulse = 1 + 0.18 * Math.sin(t * 4);
+    for (const group of snapIndicators) {
+        if (group.userData && group.userData.dot) {
+            // Don't override hover scale set in updateDrag.
+            if (!group.userData.isHovered) group.scale.setScalar(pulse);
         }
     }
 }
 
 function clearSnapIndicators() {
-    for (const dot of snapIndicators) {
-        buildScene.remove(dot);
-        dot.geometry.dispose();
-        dot.material.dispose();
+    for (const group of snapIndicators) {
+        buildScene.remove(group);
+        group.traverse(o => {
+            if (o.geometry) o.geometry.dispose();
+            if (o.material) o.material.dispose();
+        });
     }
     snapIndicators = [];
     activeSnap = null;
@@ -1443,24 +1598,39 @@ function updateDrag(e) {
     let bestSnap = null;
     let bestDist = SNAP_DIST;
 
-    for (const dot of snapIndicators) {
-        const d = raycaster.ray.distanceToPoint(dot.userData.worldPos);
+    for (const group of snapIndicators) {
+        const d = raycaster.ray.distanceToPoint(group.userData.worldPos);
         if (d < bestDist) {
             bestDist = d;
-            bestSnap = dot;
+            bestSnap = group;
         }
     }
 
-    for (const dot of snapIndicators) {
-        dot.material.color.setHex(COLORS.snap);
-        dot.material.opacity = 0.7;
-        dot.scale.setScalar(1);
+    for (const group of snapIndicators) {
+        const ud = group.userData;
+        ud.isHovered = false;
+        if (ud.dot) {
+            ud.dot.material.color.setHex(COLORS.snap);
+            ud.dot.material.opacity = 0.85;
+        }
+        if (ud.ring) {
+            ud.ring.material.color.setHex(COLORS.snap);
+            ud.ring.material.opacity = 0.5;
+        }
     }
 
     if (bestSnap) {
-        bestSnap.material.color.setHex(COLORS.snapHover);
-        bestSnap.material.opacity = 1;
-        bestSnap.scale.setScalar(1.8);
+        const ud = bestSnap.userData;
+        ud.isHovered = true;
+        if (ud.dot) {
+            ud.dot.material.color.setHex(COLORS.snapHover);
+            ud.dot.material.opacity = 1;
+        }
+        if (ud.ring) {
+            ud.ring.material.color.setHex(COLORS.snapHover);
+            ud.ring.material.opacity = 0.95;
+        }
+        bestSnap.scale.setScalar(1.6);
         activeSnap = bestSnap.userData;
 
         const def = PART_DEFS[draggingType];
@@ -1527,7 +1697,7 @@ function endDrag(e) {
         hint.textContent = 'Parts must connect to existing parts! Drag onto a green snap point.';
         hint.style.opacity = '1';
         hint.style.color = '#e8a849';
-        setTimeout(() => { hint.style.opacity = '0.7'; hint.style.color = ''; hint.textContent = 'Drag parts from the palette. Hold Shift for hinge joints.'; }, 2500);
+        setTimeout(() => { hint.style.opacity = '0.7'; hint.style.color = ''; hint.textContent = 'Drag parts to connect. Wheels and propellers spin automatically.'; }, 2500);
         return;
     }
 
@@ -1552,9 +1722,10 @@ function endDrag(e) {
     buildState.parts.push(part);
 
     if (activeSnap) {
-        const jointType = isShiftHeld ? 'hinge' : 'fixed';
-        const jointId = buildState.nextJointId++;
         const snap = activeSnap.snap;
+        const wantsHinge = !!snap.hAxis && (def.isWheel || def.isLeg || def.isPropeller);
+        const jointType = isShiftHeld ? (wantsHinge ? 'fixed' : 'hinge') : (wantsHinge ? 'hinge' : 'fixed');
+        const jointId = buildState.nextJointId++;
         const anchorWorld = activeSnap.worldPos.clone();
 
         const parentPart = buildState.parts.find(p => p.id === activeSnap.partId);
@@ -1569,27 +1740,94 @@ function endDrag(e) {
             anchorA: { x: anchorA.x, y: anchorA.y, z: anchorA.z },
             anchorB: { x: anchorB.x, y: anchorB.y, z: anchorB.z },
             axis: snap.hAxis ? { x: snap.hAxis[0], y: snap.hAxis[1], z: snap.hAxis[2] } : { x: 0, y: 0, z: 1 },
-            motorEnabled: def.isWheel || def.isLeg,
-            motorSpeed: def.isWheel ? 5 : (def.isLeg ? 3 : 0),
-            motorForce: def.isWheel ? 50 : (def.isLeg ? 30 : 0),
+            motorEnabled: jointType === 'hinge' && (def.isWheel || def.isLeg || def.isPropeller),
+            motorSpeed: def.isWheel ? 6 : (def.isLeg ? 3 : (def.isPropeller ? 18 : 0)),
+            motorForce: def.isWheel ? 25 : (def.isLeg ? 18 : (def.isPropeller ? 8 : 0)),
             line: null
         };
         buildState.joints.push(joint);
 
         createJointLine(joint);
 
-        if (def.isLeg) {
-            joint.motorEnabled = true;
+        if (def.isLeg && jointType === 'hinge') {
             joint.oscillate = true;
             const existingOscJoints = buildState.joints.filter(j => j.oscillate && j.id !== joint.id).length;
             joint.oscPhase = (existingOscJoints % 2) * Math.PI;
         }
+
+        autoConnectExtraSnaps(part, partId, def, jointId);
     }
 
     draggingType = null;
     activeSnap = null;
     updatePartCounter();
     selectPart(partId);
+}
+
+function autoConnectExtraSnaps(newPart, newPartId, newDef, primaryParentId) {
+    // After the primary joint is created, scan all OTHER parts for snap-point
+    // pairs that line up with the new part's snap points. Add fixed joints to
+    // each such part so a plank dropped across two boxes welds to both.
+    // Dedupe by part-pair: never two joints between the same two parts.
+    const TOL = 0.28;
+    const MAX_EXTRA = 4;
+    const newSnaps = newDef.snaps();
+    const connectedIds = new Set([primaryParentId]);
+    let extras = 0;
+
+    for (const other of buildState.parts) {
+        if (other.id === newPartId) continue;
+        if (connectedIds.has(other.id)) continue;
+        if (extras >= MAX_EXTRA) break;
+
+        const otherDef = PART_DEFS[other.type];
+        const otherSnaps = otherDef.snaps();
+
+        let best = null;
+        let bestDist = TOL;
+        for (const ns of newSnaps) {
+            const nsWorld = new THREE.Vector3(
+                newPart.position.x + ns.off[0],
+                newPart.position.y + ns.off[1],
+                newPart.position.z + ns.off[2]
+            );
+            for (const os of otherSnaps) {
+                const osWorld = new THREE.Vector3(
+                    other.position.x + os.off[0],
+                    other.position.y + os.off[1],
+                    other.position.z + os.off[2]
+                );
+                const d = nsWorld.distanceTo(osWorld);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = { anchor: nsWorld.clone().lerp(osWorld, 0.5) };
+                }
+            }
+        }
+
+        if (!best) continue;
+
+        const jointId = buildState.nextJointId++;
+        const anchorA = best.anchor.clone().sub(other.position);
+        const anchorB = best.anchor.clone().sub(newPart.position);
+        const joint = {
+            id: jointId,
+            partAId: other.id,
+            partBId: newPartId,
+            type: 'fixed',
+            anchorA: { x: anchorA.x, y: anchorA.y, z: anchorA.z },
+            anchorB: { x: anchorB.x, y: anchorB.y, z: anchorB.z },
+            axis: { x: 0, y: 0, z: 1 },
+            motorEnabled: false,
+            motorSpeed: 0,
+            motorForce: 0,
+            line: null
+        };
+        buildState.joints.push(joint);
+        createJointLine(joint);
+        connectedIds.add(other.id);
+        extras++;
+    }
 }
 
 function createPartMesh(type, def) {
@@ -1792,6 +2030,209 @@ function isFullyConnected() {
     return visited.size === buildState.parts.length;
 }
 
+// ──────────────────────────────────────────────────────────
+// Bot physics builder — used for both the player and any enemy.
+// `state` is shaped like buildState ({parts, joints}). Returns the
+// `{compoundBodies, partToCompound, parts}` so callers can inspect.
+// ──────────────────────────────────────────────────────────
+function buildBotPhysics(state, opts) {
+    const { spawnX = 0, spawnZ = 0, facingZ = 1, team = 'player', keyPrefix = 'p' } = opts || {};
+    const yawY = facingZ < 0 ? Math.PI : 0; // simple 180° flip when facing -Z
+
+    const centerOfBuild = new THREE.Vector3();
+    for (const p of state.parts) centerOfBuild.add(new THREE.Vector3(p.position.x, p.position.y, p.position.z));
+    if (state.parts.length > 0) centerOfBuild.divideScalar(state.parts.length);
+
+    let minRelBottomY = Infinity;
+    for (const part of state.parts) {
+        const def = PART_DEFS[part.type];
+        if (!def) continue;
+        const relY = part.position.y - centerOfBuild.y;
+        const halfH = def.isWheel ? def.radius : def.dims[1] / 2;
+        const bottomY = relY - halfH;
+        if (bottomY < minRelBottomY) minRelBottomY = bottomY;
+    }
+    const spawnOffsetY = Math.max(0.5, -minRelBottomY + 0.15);
+
+    // Union-find groups parts connected by fixed joints into one compound body.
+    const ufParent = new Map();
+    for (const part of state.parts) ufParent.set(part.id, part.id);
+    function ufFind(x) {
+        while (ufParent.get(x) !== x) { ufParent.set(x, ufParent.get(ufParent.get(x))); x = ufParent.get(x); }
+        return x;
+    }
+    for (const joint of state.joints) {
+        if (joint.type === 'fixed') {
+            const ra = ufFind(joint.partAId), rb = ufFind(joint.partBId);
+            if (ra !== rb) ufParent.set(ra, rb);
+        }
+    }
+
+    const compoundGroups = new Map();
+    for (const part of state.parts) {
+        const root = ufFind(part.id);
+        if (!compoundGroups.has(root)) compoundGroups.set(root, []);
+        compoundGroups.get(root).push(part);
+    }
+
+    const compoundBodies = new Map();
+    const partToCompound = new Map();
+    const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), yawY);
+
+    for (const [rootId, parts] of compoundGroups) {
+        let totalMass = 0;
+        const com = new THREE.Vector3();
+        for (const part of parts) {
+            const def = PART_DEFS[part.type];
+            totalMass += def.mass;
+            com.add(new THREE.Vector3(part.position.x, part.position.y, part.position.z).multiplyScalar(def.mass));
+        }
+        com.divideScalar(totalMass);
+
+        // World-space body translation: shift COM so build is centered, lift to spawn offset, rotate around Y by yawQ around build center, then translate to spawn (x, z).
+        const bodyLocal = new THREE.Vector3(
+            com.x - centerOfBuild.x,
+            com.y - centerOfBuild.y + spawnOffsetY,
+            com.z - centerOfBuild.z
+        );
+        bodyLocal.applyQuaternion(yawQ);
+        const tx = spawnX + bodyLocal.x;
+        const ty = bodyLocal.y;
+        const tz = spawnZ + bodyLocal.z;
+
+        const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(tx, ty, tz)
+            .setRotation({ x: yawQ.x, y: yawQ.y, z: yawQ.z, w: yawQ.w })
+            .setLinearDamping(0.35)
+            .setAngularDamping(0.85)
+            .setCcdEnabled(true);
+        const body = physicsWorld.createRigidBody(bodyDesc);
+
+        for (const part of parts) {
+            const def = PART_DEFS[part.type];
+            const colliderDesc = def.collider();
+            const offset = new THREE.Vector3(part.position.x, part.position.y, part.position.z).sub(com);
+            colliderDesc.setTranslation(offset.x, offset.y, offset.z);
+            const vol = Math.max(0.01, (def.dims ? def.dims[0] * def.dims[1] * def.dims[2] : 1));
+            colliderDesc.setDensity(def.mass / vol);
+            if (!def.isWheel && !def.isLeg) colliderDesc.setFriction(0.7);
+            if (!def.isLeg) colliderDesc.setRestitution(def.isSpring ? 0.9 : 0.15);
+            colliderDesc.setCollisionGroups(0x00010002);
+            // HP-bearing colliders emit contact-force events for damage.
+            colliderDesc.setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS);
+            colliderDesc.setContactForceEventThreshold(DAMAGE_THRESHOLD);
+            const collider = physicsWorld.createCollider(colliderDesc, body);
+
+            const mesh = createPartMesh(part.type, def);
+            mesh.userData.partMesh = true;
+            mesh.userData.partId = part.id;
+            mesh.userData.partType = part.type;
+            mesh.userData.team = team;
+            // Tint enemy bots red-ish so the player can tell them apart at a glance.
+            if (team === 'enemy' && mesh.material && mesh.material.color) {
+                const c = mesh.material.color;
+                c.lerp(new THREE.Color(0xc04030), 0.45);
+            }
+            testRobotGroup.add(mesh);
+
+            const partKey = keyPrefix + ':' + part.id;
+            physicsBodies.set(partKey, { body, mesh, def, part, offset: offset.clone(), team, partKey, collider, alive: true });
+
+            // HP scales with mass — heavy parts soak more damage. Weapons get a bonus.
+            const baseHp = def.mass * 60;
+            const hp = def.isWeapon ? baseHp * 1.5 : baseHp;
+            partHp.set(partKey, { current: hp, max: hp, team });
+            partKeyByCollider.set(collider.handle, partKey);
+            teamTotalHp[team] += hp;
+        }
+
+        compoundBodies.set(rootId, { body, parts, com, totalMass });
+        for (const part of parts) partToCompound.set(part.id, rootId);
+    }
+
+    for (const joint of state.joints) {
+        if (joint.type !== 'hinge') continue;
+
+        const rootA = partToCompound.get(joint.partAId);
+        const rootB = partToCompound.get(joint.partBId);
+        if (rootA === undefined || rootB === undefined) continue;
+        if (rootA === rootB) continue;
+
+        const compA = compoundBodies.get(rootA);
+        const compB = compoundBodies.get(rootB);
+        const partA = state.parts.find(p => p.id === joint.partAId);
+        const partB = state.parts.find(p => p.id === joint.partBId);
+
+        const anchorAWorld = new THREE.Vector3(
+            partA.position.x + joint.anchorA.x,
+            partA.position.y + joint.anchorA.y,
+            partA.position.z + joint.anchorA.z
+        );
+        const anchorBWorld = new THREE.Vector3(
+            partB.position.x + joint.anchorB.x,
+            partB.position.y + joint.anchorB.y,
+            partB.position.z + joint.anchorB.z
+        );
+
+        const ancA = anchorAWorld.clone().sub(compA.com);
+        const ancB = anchorBWorld.clone().sub(compB.com);
+        // Flip motor direction for enemy team so they drive toward us, not away.
+        const motorSpeedSigned = (joint.motorSpeed || 0) * (facingZ < 0 ? -1 : 1);
+
+        try {
+            const jointData = RAPIER.JointData.revolute(
+                { x: ancA.x, y: ancA.y, z: ancA.z },
+                { x: ancB.x, y: ancB.y, z: ancB.z },
+                joint.axis
+            );
+            const impulseJoint = physicsWorld.createImpulseJoint(jointData, compA.body, compB.body, true);
+
+            if (typeof impulseJoint.setContactsEnabled === 'function') {
+                impulseJoint.setContactsEnabled(false);
+            }
+
+            if (joint.motorEnabled) {
+                impulseJoint.configureMotorVelocity(motorSpeedSigned, joint.motorForce);
+            }
+
+            physicsJoints.set(team + ':' + joint.id, { joint: impulseJoint, data: joint, team });
+        } catch (e) {
+            console.warn('Joint creation failed:', e);
+        }
+    }
+
+    return { compoundBodies, partToCompound, spawnOffsetY };
+}
+
+// ──────────────────────────────────────────────────────────
+// Arena bounding walls — keeps fights from rolling off into infinity
+// when in battle mode. Skipped in practice mode so the distance
+// scoring still works.
+// ──────────────────────────────────────────────────────────
+function createArenaWalls() {
+    const wallGeo = new THREE.BoxGeometry(1, 5, 1);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9, metalness: 0.05, transparent: true, opacity: 0.45 });
+
+    const walls = [
+        { pos: [0, 2, 22], dims: [22, 5, 1] },
+        { pos: [0, 2, -10], dims: [22, 5, 1] },
+        { pos: [11, 2, 6], dims: [1, 5, 32] },
+        { pos: [-11, 2, 6], dims: [1, 5, 32] }
+    ];
+    for (const w of walls) {
+        const wallDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(w.pos[0], w.pos[1], w.pos[2]);
+        const wallBody = physicsWorld.createRigidBody(wallDesc);
+        const colDesc = RAPIER.ColliderDesc.cuboid(w.dims[0]/2, w.dims[1]/2, w.dims[2]/2)
+            .setFriction(0.4)
+            .setRestitution(0.2);
+        physicsWorld.createCollider(colDesc, wallBody);
+
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.dims[0], w.dims[1], w.dims[2]), wallMat.clone());
+        mesh.position.set(w.pos[0], w.pos[1], w.pos[2]);
+        testArenaGroup.add(mesh);
+    }
+}
+
 function startSimulation() {
     if (buildState.parts.length === 0) return;
 
@@ -1799,7 +2240,7 @@ function startSimulation() {
         const hint = document.getElementById('build-hint');
         hint.textContent = 'Some parts are not connected! All parts must form one robot.';
         hint.style.opacity = '1'; hint.style.color = '#e74c3c';
-        setTimeout(() => { hint.style.opacity = '0.7'; hint.style.color = ''; hint.textContent = 'Drag parts from the palette. Hold Shift for hinge joints.'; }, 3000);
+        setTimeout(() => { hint.style.opacity = '0.7'; hint.style.color = ''; hint.textContent = 'Drag parts to connect. Wheels and propellers spin automatically.'; }, 3000);
         return;
     }
 
@@ -1817,163 +2258,94 @@ function startSimulation() {
 
     for (const p of thrusterParticles) { testScene.remove(p.mesh); }
     for (const p of crashParticles) { testScene.remove(p.mesh); }
+    for (const d of detachedDebris) { testScene.remove(d.mesh); }
 
     if (physicsWorld) { physicsWorld.free(); physicsWorld = null; }
     physicsWorld = new RAPIER.World(GRAVITY);
+    eventQueue = new RAPIER.EventQueue(true);
 
     createTestArena();
     createPhysicsArena();
+    if (gameMode === 'battle') createArenaWalls();
 
     physicsBodies.clear();
     physicsJoints.clear();
+    partHp.clear();
+    partKeyByCollider.clear();
+    pendingDetach.clear();
+    detachedDebris.length = 0;
+    teamTotalHp = { player: 0, enemy: 0 };
     thrusterParticles = [];
     crashParticles = [];
 
-    const centerOfBuild = new THREE.Vector3();
-    for (const p of buildState.parts) centerOfBuild.add(p.position);
-    if (buildState.parts.length > 0) centerOfBuild.divideScalar(buildState.parts.length);
+    // Player spawns at the south end of the arena, facing north.
+    const playerResult = buildBotPhysics(buildState, {
+        spawnX: 0,
+        spawnZ: gameMode === 'battle' ? -6 : 0,
+        facingZ: 1,
+        team: 'player',
+        keyPrefix: 'p'
+    });
 
-    let minRelBottomY = Infinity;
-    for (const part of buildState.parts) {
-        const def = PART_DEFS[part.type];
-        const relY = part.position.y - centerOfBuild.y;
-        const halfH = def.isWheel ? def.radius : def.dims[1] / 2;
-        const bottomY = relY - halfH;
-        if (bottomY < minRelBottomY) minRelBottomY = bottomY;
-    }
-    const spawnOffsetY = Math.max(0.5, -minRelBottomY + 0.15);
-
-    // === COMPOUND BODY SYSTEM ===
-    // Group parts connected by fixed joints into single rigid bodies.
-    // Only hinge joints create separate bodies.
-
-    const ufParent = new Map();
-    for (const part of buildState.parts) ufParent.set(part.id, part.id);
-    function ufFind(x) {
-        while (ufParent.get(x) !== x) { ufParent.set(x, ufParent.get(ufParent.get(x))); x = ufParent.get(x); }
-        return x;
-    }
-    for (const joint of buildState.joints) {
-        if (joint.type === 'fixed') {
-            const ra = ufFind(joint.partAId), rb = ufFind(joint.partBId);
-            if (ra !== rb) ufParent.set(ra, rb);
-        }
-    }
-
-    const compoundGroups = new Map();
-    for (const part of buildState.parts) {
-        const root = ufFind(part.id);
-        if (!compoundGroups.has(root)) compoundGroups.set(root, []);
-        compoundGroups.get(root).push(part);
-    }
-
-    const compoundBodies = new Map();
-    const partToCompound = new Map();
-
-    for (const [rootId, parts] of compoundGroups) {
-        let totalMass = 0;
-        const com = new THREE.Vector3();
-        for (const part of parts) {
-            const def = PART_DEFS[part.type];
-            totalMass += def.mass;
-            com.add(part.position.clone().multiplyScalar(def.mass));
-        }
-        com.divideScalar(totalMass);
-
-        const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(
-                com.x - centerOfBuild.x,
-                com.y - centerOfBuild.y + spawnOffsetY,
-                com.z - centerOfBuild.z
-            )
-            .setLinearDamping(0.3)
-            .setAngularDamping(0.5);
-        const body = physicsWorld.createRigidBody(bodyDesc);
-
-        for (const part of parts) {
-            const def = PART_DEFS[part.type];
-            const colliderDesc = def.collider();
-            const offset = part.position.clone().sub(com);
-            colliderDesc.setTranslation(offset.x, offset.y, offset.z);
-            colliderDesc.setMass(def.mass);
-            if (!def.isWheel && !def.isLeg) colliderDesc.setFriction(0.5);
-            if (!def.isLeg) colliderDesc.setRestitution(def.isSpring ? 0.9 : 0.2);
-            colliderDesc.setCollisionGroups(0x00010002);
-            physicsWorld.createCollider(colliderDesc, body);
-
-            const mesh = createPartMesh(part.type, def);
-            mesh.userData.partMesh = true;
-            mesh.userData.partId = part.id;
-            mesh.userData.partType = part.type;
-            testRobotGroup.add(mesh);
-
-            physicsBodies.set(part.id, { body, mesh, def, part, offset: offset.clone() });
-        }
-
-        compoundBodies.set(rootId, { body, parts, com, totalMass });
-        for (const part of parts) partToCompound.set(part.id, rootId);
+    let enemyResult = null;
+    if (gameMode === 'battle') {
+        const enemy = ENEMY_PRESETS[currentEnemyPreset] || ENEMY_PRESETS.rookie;
+        // Adapt the enemy preset (which uses the share-link compact form) into
+        // buildState shape so buildBotPhysics can consume it.
+        const enemyState = {
+            parts: enemy.parts.map(pd => ({
+                id: pd.id,
+                type: pd.type,
+                position: new THREE.Vector3(pd.pos[0], pd.pos[1], pd.pos[2]),
+                rotation: { x: pd.rot[0], y: pd.rot[1], z: pd.rot[2], w: pd.rot[3] }
+            })),
+            joints: enemy.joints.map(jd => ({
+                id: jd.id,
+                partAId: jd.a, partBId: jd.b,
+                type: jd.type,
+                anchorA: { x: jd.ancA[0], y: jd.ancA[1], z: jd.ancA[2] },
+                anchorB: { x: jd.ancB[0], y: jd.ancB[1], z: jd.ancB[2] },
+                axis: { x: jd.axis[0], y: jd.axis[1], z: jd.axis[2] },
+                motorEnabled: jd.me, motorSpeed: jd.ms, motorForce: jd.mf,
+                oscillate: jd.osc, oscPhase: jd.oscP || 0
+            }))
+        };
+        enemyResult = buildBotPhysics(enemyState, {
+            spawnX: 0,
+            spawnZ: 12,
+            facingZ: -1,
+            team: 'enemy',
+            keyPrefix: 'e'
+        });
     }
 
-    for (const joint of buildState.joints) {
-        if (joint.type !== 'hinge') continue;
-
-        const rootA = partToCompound.get(joint.partAId);
-        const rootB = partToCompound.get(joint.partBId);
-        if (rootA === undefined || rootB === undefined) continue;
-        if (rootA === rootB) continue;
-
-        const compA = compoundBodies.get(rootA);
-        const compB = compoundBodies.get(rootB);
-        const partA = buildState.parts.find(p => p.id === joint.partAId);
-        const partB = buildState.parts.find(p => p.id === joint.partBId);
-
-        const anchorAWorld = new THREE.Vector3(
-            partA.position.x + joint.anchorA.x,
-            partA.position.y + joint.anchorA.y,
-            partA.position.z + joint.anchorA.z
-        );
-        const anchorBWorld = new THREE.Vector3(
-            partB.position.x + joint.anchorB.x,
-            partB.position.y + joint.anchorB.y,
-            partB.position.z + joint.anchorB.z
-        );
-
-        const ancA = anchorAWorld.clone().sub(compA.com);
-        const ancB = anchorBWorld.clone().sub(compB.com);
-
-        try {
-            const jointData = RAPIER.JointData.revolute(
-                { x: ancA.x, y: ancA.y, z: ancA.z },
-                { x: ancB.x, y: ancB.y, z: ancB.z },
-                joint.axis
-            );
-            const impulseJoint = physicsWorld.createImpulseJoint(jointData, compA.body, compB.body, true);
-
-            if (joint.motorEnabled) {
-                impulseJoint.configureMotorVelocity(joint.motorSpeed, joint.motorForce);
-            }
-
-            physicsJoints.set(joint.id, { joint: impulseJoint, data: joint });
-        } catch (e) {
-            console.warn('Joint creation failed:', e);
-        }
-    }
-
-    testStartPos.set(0, spawnOffsetY, 0);
+    testStartPos.set(0, playerResult.spawnOffsetY, 0);
     testStartTime = performance.now();
     invertedTimer = 0;
     score = { distance: 0, time: 0, maxSpeed: 0, style: 0 };
     milestonesHit = new Set();
     lastMilestoneTime = 0;
     testRunning = true;
+    battleEndedAt = 0;
     dustParticles = [];
+
+    // Switch HUD to the right mode
+    const isBattle = gameMode === 'battle';
+    document.getElementById('practice-stats').style.display = isBattle ? 'none' : '';
+    document.getElementById('battle-stats').style.display = isBattle ? '' : 'none';
+    document.getElementById('hud-title').textContent = isBattle ? 'Battle' : 'Performance';
+    if (isBattle && enemyResult) {
+        const enemy = ENEMY_PRESETS[currentEnemyPreset] || ENEMY_PRESETS.rookie;
+        document.getElementById('enemy-name-label').textContent = (enemy.name || 'FOE').toUpperCase();
+    }
+    updateHpBars();
 
     document.getElementById('run-summary').classList.remove('active');
     document.getElementById('speed-overlay').style.opacity = '0';
 
     const pb = getPersonalBest();
     const pbEl = document.getElementById('pb-display');
-    if (pb > 0) { pbEl.style.display = 'block'; document.getElementById('pb-value').textContent = pb; }
+    if (!isBattle && pb > 0) { pbEl.style.display = 'block'; document.getElementById('pb-value').textContent = pb; }
     else { pbEl.style.display = 'none'; }
 
     sfx.startThruster();
@@ -1982,10 +2354,11 @@ function startSimulation() {
     showTestStatus('3', 500); sfx.countdown(3);
     setTimeout(() => { showTestStatus('2', 500); sfx.countdown(2); }, 500);
     setTimeout(() => { showTestStatus('1', 500); sfx.countdown(1); }, 1000);
-    setTimeout(() => { showTestStatus('GO!', 600); sfx.countdown(0); }, 1500);
+    setTimeout(() => { showTestStatus(isBattle ? 'FIGHT!' : 'GO!', 600); sfx.countdown(0); }, 1500);
 
     resizeTestRenderer();
     testLoop();
+    ensureTestTimerFallback();
 }
 
 function showTestStatus(text, duration) {
@@ -2007,23 +2380,185 @@ function testLoop() {
     lastPhysicsTime = now;
     physicsAccum += dt;
 
-    let stepped = false;
     while (physicsAccum >= PHYSICS_DT) {
-        physicsWorld.step();
+        physicsWorld.step(eventQueue || undefined);
         physicsAccum -= PHYSICS_DT;
-        stepped = true;
 
         applyThrusters();
         applyLegOscillation(now / 1000);
         applyPropellers(now / 1000);
+        applyBlasters();
+
+        if (gameMode === 'battle' && eventQueue) {
+            processContactEvents();
+        }
     }
 
+    if (pendingDetach.size > 0) processDetachQueue();
+    cleanupProjectiles();
+    clampBodyVelocities();
     syncTestMeshes();
+    syncDebrisMeshes();
     updateScore(now);
     updateTestCamera();
     updateParticles(dt);
 
+    if (gameMode === 'battle') updateHpBars();
+
     testRenderer.render(testScene, testCamera);
+}
+
+function processContactEvents() {
+    if (!eventQueue) return;
+    const elapsed = (performance.now() - testStartTime) / 1000;
+    eventQueue.drainContactForceEvents(event => {
+        if (elapsed < DAMAGE_GRACE) return; // ignore spawn/landing impacts
+        const mag = event.totalForceMagnitude();
+        if (mag < DAMAGE_THRESHOLD) return;
+        const h1 = event.collider1();
+        const h2 = event.collider2();
+        const k1 = partKeyByCollider.get(h1);
+        const k2 = partKeyByCollider.get(h2);
+        const damage = (mag - DAMAGE_THRESHOLD) * DAMAGE_SCALE;
+        applyDamage(k1, k2, damage);
+        applyDamage(k2, k1, damage);
+    });
+}
+
+function applyDamage(victimKey, attackerKey, dmg) {
+    if (!victimKey) return;
+    const hp = partHp.get(victimKey);
+    if (!hp || hp.current <= 0) return;
+    // Friendly-fire reduction: damage between same-team parts is much weaker.
+    const attackerHp = attackerKey ? partHp.get(attackerKey) : null;
+    let scaled = dmg;
+    if (attackerHp && attackerHp.team === hp.team) scaled *= 0.15;
+    // Weapons hit harder.
+    const attackerEnt = attackerKey ? physicsBodies.get(attackerKey) : null;
+    if (attackerEnt && attackerEnt.def && attackerEnt.def.isWeapon) {
+        scaled *= attackerEnt.def.damageMult || 3;
+    }
+    // Projectiles vaporize on impact (next cleanup pass removes them).
+    if (attackerEnt && attackerEnt.def && attackerEnt.def.isProjectile) {
+        attackerEnt.alive = false;
+    }
+    hp.current = Math.max(0, hp.current - scaled);
+    teamTotalHp[hp.team] = Math.max(0, teamTotalHp[hp.team] - scaled);
+    if (hp.current <= 0) pendingDetach.add(victimKey);
+
+    // Visual: brief red tint on the damaged part's mesh
+    const ent = physicsBodies.get(victimKey);
+    if (ent && ent.mesh && ent.mesh.material && ent.mesh.material.color && ent.alive) {
+        ent.mesh.material.color.lerp(new THREE.Color(0xff3030), Math.min(0.4, scaled * 0.02));
+    }
+}
+
+function processDetachQueue() {
+    for (const partKey of pendingDetach) {
+        const ent = physicsBodies.get(partKey);
+        if (!ent || !ent.alive) continue;
+        ent.alive = false;
+
+        // Pop the broken part off as standalone debris that can fall away.
+        const bodyPos = ent.body.translation();
+        const bodyRot = ent.body.rotation();
+        const bodyQ = new THREE.Quaternion(bodyRot.x, bodyRot.y, bodyRot.z, bodyRot.w);
+        const worldOffset = ent.offset ? ent.offset.clone().applyQuaternion(bodyQ) : new THREE.Vector3();
+        const wpos = new THREE.Vector3(bodyPos.x + worldOffset.x, bodyPos.y + worldOffset.y, bodyPos.z + worldOffset.z);
+
+        // Remove from the parent compound.
+        if (ent.collider && physicsWorld) {
+            try { physicsWorld.removeCollider(ent.collider, true); } catch (e) {}
+            partKeyByCollider.delete(ent.collider.handle);
+        }
+
+        // Spawn a small standalone dynamic body so the part visibly falls off.
+        try {
+            const debrisDesc = RAPIER.RigidBodyDesc.dynamic()
+                .setTranslation(wpos.x, wpos.y, wpos.z)
+                .setRotation({ x: bodyQ.x, y: bodyQ.y, z: bodyQ.z, w: bodyQ.w })
+                .setLinearDamping(0.4)
+                .setAngularDamping(0.6);
+            const debrisBody = physicsWorld.createRigidBody(debrisDesc);
+            const def = ent.def;
+            const colDesc = def.collider();
+            const vol = Math.max(0.01, (def.dims ? def.dims[0] * def.dims[1] * def.dims[2] : 1));
+            colDesc.setDensity(def.mass / vol);
+            physicsWorld.createCollider(colDesc, debrisBody);
+
+            // Outward kick so it visibly separates from the parent.
+            const ang = Math.random() * Math.PI * 2;
+            debrisBody.applyImpulse({ x: Math.cos(ang) * 1.5, y: 2, z: Math.sin(ang) * 1.5 }, true);
+            debrisBody.applyTorqueImpulse({ x: (Math.random()-0.5)*2, y: (Math.random()-0.5)*2, z: (Math.random()-0.5)*2 }, true);
+
+            // Keep the original mesh — just re-parent it from the bot to debris.
+            detachedDebris.push({ body: debrisBody, mesh: ent.mesh, lifetime: 6 });
+        } catch (e) { console.warn('detach spawn failed', e); }
+
+        spawnCrashParticles(wpos);
+        sfx.crash && sfx.crash();
+    }
+    pendingDetach.clear();
+}
+
+function syncDebrisMeshes() {
+    for (let i = detachedDebris.length - 1; i >= 0; i--) {
+        const d = detachedDebris[i];
+        d.lifetime -= 1/60;
+        if (d.lifetime <= 0) {
+            try { if (d.mesh.parent) d.mesh.parent.remove(d.mesh); } catch (e) {}
+            try { physicsWorld.removeRigidBody(d.body); } catch (e) {}
+            detachedDebris.splice(i, 1);
+            continue;
+        }
+        const p = d.body.translation();
+        const r = d.body.rotation();
+        d.mesh.position.set(p.x, p.y, p.z);
+        d.mesh.quaternion.set(r.x, r.y, r.z, r.w);
+        if (d.mesh.material) {
+            d.mesh.material.opacity = Math.min(1, d.lifetime / 2);
+            d.mesh.material.transparent = d.lifetime < 2;
+        }
+    }
+}
+
+function updateHpBars() {
+    if (gameMode !== 'battle') return;
+    const playerEl = document.getElementById('hp-player');
+    const enemyEl = document.getElementById('hp-enemy');
+    const timeEl = document.getElementById('bt-time');
+
+    let pCur = 0, pMax = 0, eCur = 0, eMax = 0;
+    for (const hp of partHp.values()) {
+        if (hp.team === 'player') { pCur += hp.current; pMax += hp.max; }
+        else { eCur += hp.current; eMax += hp.max; }
+    }
+    const pPct = pMax > 0 ? (pCur / pMax) * 100 : 0;
+    const ePct = eMax > 0 ? (eCur / eMax) * 100 : 0;
+    if (playerEl) {
+        playerEl.style.width = pPct + '%';
+        playerEl.classList.toggle('warn', pPct < 50 && pPct >= 25);
+        playerEl.classList.toggle('crit', pPct < 25);
+    }
+    if (enemyEl) enemyEl.style.width = ePct + '%';
+
+    const elapsed = (performance.now() - testStartTime) / 1000;
+    const remaining = Math.max(0, BATTLE_DURATION - elapsed);
+    if (timeEl) timeEl.textContent = remaining.toFixed(1) + 's';
+}
+
+// Headless / hidden-tab fallback: when requestAnimationFrame is paused (e.g.
+// the page is in a background tab in a CI/preview environment), the physics
+// loop would freeze. Run a setInterval ticker as a backup that only fires when
+// the document is hidden so production tabs are unaffected.
+let testIntervalId = null;
+function ensureTestTimerFallback() {
+    if (testIntervalId) clearInterval(testIntervalId);
+    testIntervalId = setInterval(() => {
+        if (!testRunning) { clearInterval(testIntervalId); testIntervalId = null; return; }
+        if (document.visibilityState === 'visible') return; // RAF will handle it
+        testLoop();
+    }, 16);
 }
 
 function applyThrusters() {
@@ -2032,6 +2567,7 @@ function applyThrusters() {
     let thrustActive = 0;
     for (const [id, ent] of physicsBodies) {
         if (!ent.def.isThruster) continue;
+        if (!ent.alive) continue;
         const part = ent.part;
         if (part.autoFire === false) continue;
         thrustActive++;
@@ -2069,20 +2605,144 @@ function applyLegOscillation(time) {
 function applyPropellers(time) {
     const elapsed = (performance.now() - testStartTime) / 1000;
     if (elapsed < 2.0) return;
+    const rampUp = Math.min(1, (elapsed - 2.0) / 0.6);
+    const seenBodies = new Set();
     for (const [id, ent] of physicsBodies) {
         if (!ent.def.isPropeller) continue;
+        if (!ent.alive) continue;
+        const bh = ent.body.handle;
+        if (seenBodies.has(bh)) continue;
+        seenBodies.add(bh);
         const bodyPos = ent.body.translation();
         const bodyRot = ent.body.rotation();
         const bodyQ = new THREE.Quaternion(bodyRot.x, bodyRot.y, bodyRot.z, bodyRot.w);
         const worldOffset = ent.offset ? ent.offset.clone().applyQuaternion(bodyQ) : new THREE.Vector3();
         const propPoint = { x: bodyPos.x + worldOffset.x, y: bodyPos.y + worldOffset.y, z: bodyPos.z + worldOffset.z };
-        ent.body.addForceAtPoint({ x: 0, y: 4, z: 0 }, propPoint, true);
-        ent.body.addTorque({ x: 0, y: 6, z: 0 }, true);
+        // Lift along the propeller's local +Y (its disc-up axis), not world up.
+        const localLift = new THREE.Vector3(0, 4 * rampUp, 0).applyQuaternion(bodyQ);
+        ent.body.addForceAtPoint({ x: localLift.x, y: localLift.y, z: localLift.z }, propPoint, true);
+        // Spin torque around the prop's local Y too — keeps it spinning even when bot tilts.
+        // (When prop is hinge-jointed, the hinge motor handles spin; this torque only matters
+        //  if the prop happens to be fixed to its parent.)
+        const localSpin = new THREE.Vector3(0, 1.5 * rampUp, 0).applyQuaternion(bodyQ);
+        ent.body.addTorque({ x: localSpin.x, y: localSpin.y, z: localSpin.z }, true);
+    }
+}
+
+// ──────────────────────────────────────────────────────────
+// Blasters: fire periodic projectiles in the body's local +Z direction.
+// Projectiles are their own dynamic bodies that damage on contact via the
+// same collision-event path used for melee weapons.
+// ──────────────────────────────────────────────────────────
+const BLASTER_INTERVAL = 1.6; // seconds between shots
+const PROJECTILE_LIFETIME = 2.5;
+const projectiles = [];
+
+function applyBlasters() {
+    if (!testRunning || !physicsWorld) return;
+    const elapsed = (performance.now() - testStartTime) / 1000;
+    if (elapsed < DAMAGE_GRACE + 0.3) return;
+    for (const [id, ent] of physicsBodies) {
+        if (!ent.def.isBlaster || !ent.alive) continue;
+        if (ent.part._lastFire === undefined) ent.part._lastFire = elapsed - Math.random() * BLASTER_INTERVAL * 0.8;
+        if (elapsed - ent.part._lastFire < BLASTER_INTERVAL) continue;
+        ent.part._lastFire = elapsed;
+
+        const bodyPos = ent.body.translation();
+        const bodyRot = ent.body.rotation();
+        const bodyQ = new THREE.Quaternion(bodyRot.x, bodyRot.y, bodyRot.z, bodyRot.w);
+        const worldOffset = ent.offset ? ent.offset.clone().applyQuaternion(bodyQ) : new THREE.Vector3();
+        const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(bodyQ);
+        const muzzle = new THREE.Vector3(bodyPos.x + worldOffset.x, bodyPos.y + worldOffset.y, bodyPos.z + worldOffset.z)
+            .add(fwd.clone().multiplyScalar(0.45));
+        const vel = fwd.clone().multiplyScalar(15);
+
+        try {
+            const desc = RAPIER.RigidBodyDesc.dynamic()
+                .setTranslation(muzzle.x, muzzle.y, muzzle.z)
+                .setLinvel(vel.x, vel.y, vel.z)
+                .setLinearDamping(0.0)
+                .setAngularDamping(0.0)
+                .setCcdEnabled(true);
+            const body = physicsWorld.createRigidBody(desc);
+            const colDesc = RAPIER.ColliderDesc.ball(0.09)
+                .setDensity(8)
+                .setRestitution(0.4)
+                .setFriction(0.3)
+                .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS)
+                .setContactForceEventThreshold(50);
+            const collider = physicsWorld.createCollider(colDesc, body);
+
+            // Visual ball
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff7733, emissive: 0xff5500, emissiveIntensity: 0.6 });
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), mat);
+            testScene.add(mesh);
+
+            // Register the projectile as a damage-dealer. Its "team" matches the
+            // shooter so friendly-fire is reduced (same logic as parts).
+            const projKey = 'proj:' + (++projectiles.length) + ':' + Math.random().toString(16).slice(2,6);
+            const projHp = { current: 999, max: 999, team: ent.team };
+            partHp.set(projKey, projHp);
+            partKeyByCollider.set(collider.handle, projKey);
+            // Synthetic part-body entry so damage logic can read the def for damageMult.
+            physicsBodies.set(projKey, {
+                body, mesh, collider, alive: true, team: ent.team, partKey: projKey,
+                offset: new THREE.Vector3(), part: { autoFire: false },
+                def: { isWeapon: true, damageMult: 3, isProjectile: true, mass: 0.1 }
+            });
+            projectiles.push({ key: projKey, body, mesh, collider, expires: elapsed + PROJECTILE_LIFETIME });
+        } catch (e) { console.warn('blaster shot failed', e); }
+    }
+}
+
+function cleanupProjectiles() {
+    if (!physicsWorld) return;
+    const elapsed = (performance.now() - testStartTime) / 1000;
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        const ent = physicsBodies.get(p.key);
+        if (!ent || !ent.alive || elapsed > p.expires) {
+            try { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); } catch (e) {}
+            try { if (p.collider) physicsWorld.removeCollider(p.collider, true); } catch (e) {}
+            try { if (p.body) physicsWorld.removeRigidBody(p.body); } catch (e) {}
+            partHp.delete(p.key);
+            partKeyByCollider.delete(p.collider.handle);
+            physicsBodies.delete(p.key);
+            projectiles.splice(i, 1);
+        }
+    }
+}
+
+// Cap absurd velocities. Without this, propeller + thruster builds can
+// numerically explode (linear vel into the thousands of m/s) which makes
+// the simulation feel buggy and wipes out the run instantly.
+const MAX_LINEAR_SPEED = 35;
+const MAX_ANGULAR_SPEED = 30;
+function clampBodyVelocities() {
+    const seen = new Set();
+    for (const [id, ent] of physicsBodies) {
+        if (!ent.alive) continue;
+        const bh = ent.body.handle;
+        if (seen.has(bh)) continue;
+        seen.add(bh);
+        const v = ent.body.linvel();
+        const speed = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+        if (speed > MAX_LINEAR_SPEED) {
+            const k = MAX_LINEAR_SPEED / speed;
+            ent.body.setLinvel({ x: v.x * k, y: v.y * k, z: v.z * k }, true);
+        }
+        const a = ent.body.angvel();
+        const angSpeed = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+        if (angSpeed > MAX_ANGULAR_SPEED) {
+            const k = MAX_ANGULAR_SPEED / angSpeed;
+            ent.body.setAngvel({ x: a.x * k, y: a.y * k, z: a.z * k }, true);
+        }
     }
 }
 
 function syncTestMeshes() {
     for (const [id, ent] of physicsBodies) {
+        if (!ent.alive) continue;
         const pos = ent.body.translation();
         const rot = ent.body.rotation();
         const bodyQ = new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w);
@@ -2101,17 +2761,21 @@ function updateScore(now) {
     const elapsed = (now - testStartTime) / 1000;
     score.time = elapsed;
 
+    // Player-only stats (camera, score, wipeout-orientation tracking).
     let avgPos = new THREE.Vector3();
     let avgVel = new THREE.Vector3();
     let totalAngVel = 0;
     let count = 0;
     let anyAboveGround = false;
+    let firstPlayerBody = null;
 
     const seenBodies = new Set();
     for (const [id, ent] of physicsBodies) {
+        if (ent.team !== 'player' || !ent.alive) continue;
         const bodyHandle = ent.body.handle;
         if (seenBodies.has(bodyHandle)) continue;
         seenBodies.add(bodyHandle);
+        if (!firstPlayerBody) firstPlayerBody = ent;
         const p = ent.body.translation();
         const v = ent.body.linvel();
         const av = ent.body.angvel();
@@ -2126,21 +2790,22 @@ function updateScore(now) {
         avgPos.divideScalar(count);
         avgVel.divideScalar(count);
 
-        score.distance = Math.max(score.distance, avgPos.z);
+        // In battle mode the player spawns at z=-6 — count distance from there.
+        const distOrigin = (gameMode === 'battle') ? -6 : 0;
+        score.distance = Math.max(score.distance, avgPos.z - distOrigin);
         const speed = avgVel.length();
         score.maxSpeed = Math.max(score.maxSpeed, speed);
 
         if (avgPos.y > 1) score.style += 0.02;
         if (totalAngVel / count > 5) score.style += 0.03;
 
-        checkMilestones(score.distance);
+        if (gameMode === 'practice') checkMilestones(score.distance);
         sfx.setWindVolume(Math.min(speed / 15, 0.1));
         document.getElementById('speed-overlay').style.opacity = Math.min(speed / 20, 0.6).toString();
 
         const upVec = new THREE.Vector3(0, 1, 0);
-        const firstBody = physicsBodies.values().next().value;
-        if (firstBody) {
-            const q = firstBody.body.rotation();
+        if (firstPlayerBody) {
+            const q = firstPlayerBody.body.rotation();
             const bodyUp = upVec.clone().applyQuaternion(new THREE.Quaternion(q.x, q.y, q.z, q.w));
             if (bodyUp.y < -0.3) {
                 invertedTimer += PHYSICS_DT;
@@ -2149,46 +2814,110 @@ function updateScore(now) {
             }
         }
 
-        if (!anyAboveGround || invertedTimer > 5 || avgPos.y < -5) {
-            endSimulation('Wipeout!');
-            return;
+        if (gameMode === 'practice') {
+            if (!anyAboveGround || invertedTimer > 5 || avgPos.y < -5) {
+                endSimulation('Wipeout!');
+                return;
+            }
         }
     }
 
-    document.getElementById('sc-dist').textContent = score.distance.toFixed(1) + ' m';
-    document.getElementById('sc-time').textContent = score.time.toFixed(1) + ' s';
-    document.getElementById('sc-speed').textContent = score.maxSpeed.toFixed(1) + ' m/s';
-    document.getElementById('sc-style').textContent = Math.floor(score.style);
+    if (gameMode === 'battle') {
+        // HP-based win/loss. Use a small grace period so initial spawn settling
+        // doesn't insta-end the round.
+        const elapsed = (now - testStartTime) / 1000;
+        if (elapsed > 2.0) {
+            const playerDead = teamTotalHp.player <= 0 || count === 0;
+            const enemyDead = teamTotalHp.enemy <= 0;
+            if (playerDead && enemyDead) endBattle('Draw — Mutual KO!');
+            else if (enemyDead) endBattle('Victory!');
+            else if (playerDead) endBattle('Defeat!');
+            else if (elapsed >= BATTLE_DURATION) {
+                // Highest fraction of remaining HP wins on timeout
+                const pFrac = teamTotalHp.player / Math.max(1, getTeamMaxHp('player'));
+                const eFrac = teamTotalHp.enemy / Math.max(1, getTeamMaxHp('enemy'));
+                if (pFrac > eFrac + 0.02) endBattle('Time! You won on HP.');
+                else if (eFrac > pFrac + 0.02) endBattle('Time! Enemy won on HP.');
+                else endBattle('Draw at the buzzer.');
+            }
+        }
+    } else {
+        document.getElementById('sc-dist').textContent = score.distance.toFixed(1) + ' m';
+        document.getElementById('sc-time').textContent = score.time.toFixed(1) + ' s';
+        document.getElementById('sc-speed').textContent = score.maxSpeed.toFixed(1) + ' m/s';
+        document.getElementById('sc-style').textContent = Math.floor(score.style);
+    }
 }
 
-function endSimulation(reason) {
+function getTeamMaxHp(team) {
+    let max = 0;
+    for (const hp of partHp.values()) if (hp.team === team) max += hp.max;
+    return max;
+}
+
+function endBattle(reasonText) {
+    if (battleEndedAt) return;
+    battleEndedAt = performance.now();
+    endSimulation(reasonText, true);
+}
+
+function endSimulation(reason, isBattle) {
     testRunning = false;
     sfx.stopThruster();
     sfx.stopWind();
     document.getElementById('speed-overlay').style.opacity = '0';
 
-    if (reason === 'Wipeout!') sfx.crash();
+    if (reason === 'Wipeout!' || (isBattle && /Defeat/.test(reason))) sfx.crash();
 
-    const stars = getStarsForDistance(score.distance);
-    const isPB = setPersonalBest(score.distance);
-    const quipList = stars >= 2 ? QUIPS_GOOD : (stars >= 1 ? QUIPS_MID : QUIPS_BAD);
-    const quip = quipList[Math.floor(Math.random() * quipList.length)];
+    const stars = isBattle ? getStarsForBattle(reason) : getStarsForDistance(score.distance);
+    const isPB = isBattle ? false : setPersonalBest(score.distance);
+    let quip;
+    if (isBattle) {
+        const isWin = /Victory/.test(reason) || /You won/.test(reason);
+        const isDraw = /Draw/.test(reason);
+        const list = isWin ? QUIPS_GOOD : (isDraw ? QUIPS_MID : QUIPS_BAD);
+        quip = list[Math.floor(Math.random() * list.length)];
+    } else {
+        const list = stars >= 2 ? QUIPS_GOOD : (stars >= 1 ? QUIPS_MID : QUIPS_BAD);
+        quip = list[Math.floor(Math.random() * list.length)];
+    }
 
     setTimeout(() => {
         const el = document.getElementById('run-summary');
         document.getElementById('summary-title').textContent = reason || 'Run Complete!';
-        document.getElementById('summary-title').style.color = reason === 'Wipeout!' ? '#e74c3c' : '#e8a849';
+        const isLoss = reason === 'Wipeout!' || /Defeat/.test(reason);
+        const isWin = isBattle && /Victory/.test(reason);
+        document.getElementById('summary-title').style.color = isLoss ? '#e74c3c' : (isWin ? '#4CAF50' : '#e8a849');
         document.getElementById('summary-subtitle').textContent = quip;
         document.getElementById('summary-stars').textContent = '\u2b50'.repeat(stars) + '\u2606'.repeat(3 - stars);
-        document.getElementById('sum-dist').textContent = score.distance.toFixed(1) + 'm';
-        document.getElementById('sum-time').textContent = score.time.toFixed(1) + 's';
-        document.getElementById('sum-speed').textContent = score.maxSpeed.toFixed(1) + ' m/s';
-        document.getElementById('sum-style').textContent = Math.floor(score.style);
+        if (isBattle) {
+            const pCur = teamTotalHp.player, pMax = getTeamMaxHp('player');
+            const eCur = teamTotalHp.enemy, eMax = getTeamMaxHp('enemy');
+            document.getElementById('sum-dist').textContent = Math.round((pCur/Math.max(1,pMax))*100) + '% HP';
+            document.getElementById('sum-time').textContent = score.time.toFixed(1) + 's';
+            document.getElementById('sum-speed').textContent = Math.round((eCur/Math.max(1,eMax))*100) + '% foe';
+            document.getElementById('sum-style').textContent = Math.floor(score.style);
+        } else {
+            document.getElementById('sum-dist').textContent = score.distance.toFixed(1) + 'm';
+            document.getElementById('sum-time').textContent = score.time.toFixed(1) + 's';
+            document.getElementById('sum-speed').textContent = score.maxSpeed.toFixed(1) + ' m/s';
+            document.getElementById('sum-style').textContent = Math.floor(score.style);
+        }
         const pbEl = document.getElementById('new-pb');
-        if (isPB && score.distance > 1) { pbEl.textContent = '\u{1f3c6} NEW PERSONAL BEST! \u{1f3c6}'; pbEl.classList.remove('hidden'); }
+        if (!isBattle && isPB && score.distance > 1) { pbEl.textContent = '\u{1f3c6} NEW PERSONAL BEST! \u{1f3c6}'; pbEl.classList.remove('hidden'); }
         else { pbEl.classList.add('hidden'); }
         el.classList.add('active');
-    }, reason === 'Wipeout!' ? 800 : 200);
+    }, isLoss(reason) ? 800 : 200);
+}
+
+function isLoss(reason) {
+    return reason === 'Wipeout!' || /Defeat/.test(reason || '');
+}
+
+function getStarsForBattle(reason) {
+    if (/Victory/.test(reason)) return 3;
+    if (/Draw/.test(reason)) return 1;
+    return 0;
 }
 
 function updateTestCamera() {
@@ -2197,6 +2926,9 @@ function updateTestCamera() {
     let count = 0;
     const seenCam = new Set();
     for (const [id, ent] of physicsBodies) {
+        // Camera follows the PLAYER bot only — averaging both teams in battle
+        // mode would put the camera in no-man's-land between them.
+        if (ent.team !== 'player' || !ent.alive) continue;
         const bh = ent.body.handle;
         if (seenCam.has(bh)) continue;
         seenCam.add(bh);
@@ -2215,15 +2947,38 @@ function updateTestCamera() {
     testCamera.fov += (baseFOV + speedFOV - testCamera.fov) * 0.05;
     testCamera.updateProjectionMatrix();
 
-    const pullBack = Math.min(avgSpeed * 0.3, 4);
-    const camOffset = new THREE.Vector3(5, 3 + pullBack * 0.2, -6 - pullBack);
-    const desiredPos = target.clone().add(camOffset);
-    testCamera.position.lerp(desiredPos, 0.04);
-    const lookTarget = target.clone();
-    lookTarget.y += 0.5;
-    lookTarget.z += avgSpeed * 0.3;
+    if (gameMode === 'battle') {
+        // In battle, frame both bots so the player can see the action.
+        let enemyPos = new THREE.Vector3();
+        let enemyCount = 0;
+        const seenEnemy = new Set();
+        for (const [id, ent] of physicsBodies) {
+            if (ent.team !== 'enemy' || !ent.alive) continue;
+            const bh = ent.body.handle;
+            if (seenEnemy.has(bh)) continue;
+            seenEnemy.add(bh);
+            const p = ent.body.translation();
+            enemyPos.add(new THREE.Vector3(p.x, p.y, p.z));
+            enemyCount++;
+        }
+        if (enemyCount > 0) enemyPos.divideScalar(enemyCount);
 
-    testCamera.lookAt(lookTarget);
+        const mid = enemyCount > 0 ? target.clone().lerp(enemyPos, 0.5) : target.clone();
+        const camOffset = new THREE.Vector3(7, 5, -8);
+        const desiredPos = mid.clone().add(camOffset);
+        testCamera.position.lerp(desiredPos, 0.05);
+        const lookTarget = mid.clone(); lookTarget.y += 0.5;
+        testCamera.lookAt(lookTarget);
+    } else {
+        const pullBack = Math.min(avgSpeed * 0.3, 4);
+        const camOffset = new THREE.Vector3(5, 3 + pullBack * 0.2, -6 - pullBack);
+        const desiredPos = target.clone().add(camOffset);
+        testCamera.position.lerp(desiredPos, 0.04);
+        const lookTarget = target.clone();
+        lookTarget.y += 0.5;
+        lookTarget.z += avgSpeed * 0.3;
+        testCamera.lookAt(lookTarget);
+    }
 }
 
 function stopSimulation() {
@@ -2236,8 +2991,15 @@ function stopSimulation() {
         physicsWorld.free();
         physicsWorld = null;
     }
+    eventQueue = null;
     physicsBodies.clear();
     physicsJoints.clear();
+    partHp.clear();
+    partKeyByCollider.clear();
+    pendingDetach.clear();
+    teamTotalHp = { player: 0, enemy: 0 };
+    for (const d of detachedDebris) { if (d.mesh.parent) d.mesh.parent.remove(d.mesh); }
+    detachedDebris.length = 0;
     for (const p of thrusterParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
     for (const p of crashParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
     for (const p of dustParticles) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); }
@@ -2532,6 +3294,73 @@ function loadPreset(name) {
 }
 
 // ══════════════════════════════════════════════════════════
+// ENEMY BOTS  — three difficulty tiers for the arena
+// ══════════════════════════════════════════════════════════
+const ENEMY_PRESETS = {
+    rookie: {
+        name: 'Rookie',
+        parts: [
+            { id: 1, type: 'box_chassis', pos: [0, 0.6, 0], rot: [0, 0, 0, 1] },
+            { id: 2, type: 'small_wheel', pos: [-0.5, 0.6, 0.575], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'small_wheel', pos: [-0.5, 0.6, -0.575], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'small_wheel', pos: [0.5, 0.6, 0.575], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'small_wheel', pos: [0.5, 0.6, -0.575], rot: [0, 0, 0, 1] },
+            { id: 6, type: 'googly_eyes', pos: [0, 0.95, 0.5], rot: [0, 0, 0, 1] }
+        ],
+        joints: [
+            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [-0.5, 0, 0.5], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 30, osc: false },
+            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [-0.5, 0, -0.5], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 30, osc: false },
+            { id: 3, a: 1, b: 4, type: 'hinge', ancA: [0.5, 0, 0.5], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 30, osc: false },
+            { id: 4, a: 1, b: 5, type: 'hinge', ancA: [0.5, 0, -0.5], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 6, mf: 30, osc: false },
+            { id: 5, a: 1, b: 6, type: 'fixed', ancA: [0, 0.25, 0.5], ancB: [0, -0.1, -0.1], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
+        ],
+        npi: 7, nji: 6
+    },
+    brawler: {
+        name: 'Brawler',
+        parts: [
+            { id: 1, type: 'long_plank', pos: [0, 0.7, 0], rot: [0, 0, 0, 1] },
+            { id: 2, type: 'big_wheel', pos: [-1.2, 0.6, 0.35], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'big_wheel', pos: [-1.2, 0.6, -0.35], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'big_wheel', pos: [1.2, 0.6, 0.35], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'big_wheel', pos: [1.2, 0.6, -0.35], rot: [0, 0, 0, 1] },
+            { id: 6, type: 'weight_block', pos: [0, 1.15, 0], rot: [0, 0, 0, 1] },
+            { id: 7, type: 'saw_blade', pos: [1.6, 0.7, 0], rot: [0, 0, 0, 1] }
+        ],
+        joints: [
+            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [-1.2, 0, 0.25], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 7, mf: 50, osc: false },
+            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [-1.2, 0, -0.25], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 7, mf: 50, osc: false },
+            { id: 3, a: 1, b: 4, type: 'hinge', ancA: [1.2, 0, 0.25], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 7, mf: 50, osc: false },
+            { id: 4, a: 1, b: 5, type: 'hinge', ancA: [1.2, 0, -0.25], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 7, mf: 50, osc: false },
+            { id: 5, a: 1, b: 6, type: 'fixed', ancA: [0, 0.25, 0], ancB: [0, -0.2, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 6, a: 1, b: 7, type: 'hinge', ancA: [1.5, 0, 0], ancB: [-0.06, 0, 0], axis: [1, 0, 0], me: true, ms: 22, mf: 80, osc: false }
+        ],
+        npi: 8, nji: 7
+    },
+    tank: {
+        name: 'Tank',
+        parts: [
+            { id: 1, type: 'platform', pos: [0, 0.65, 0], rot: [0, 0, 0, 1] },
+            { id: 2, type: 'big_wheel', pos: [-0.85, 0.55, 0.85], rot: [0, 0, 0, 1] },
+            { id: 3, type: 'big_wheel', pos: [-0.85, 0.55, -0.85], rot: [0, 0, 0, 1] },
+            { id: 4, type: 'big_wheel', pos: [0.85, 0.55, 0.85], rot: [0, 0, 0, 1] },
+            { id: 5, type: 'big_wheel', pos: [0.85, 0.55, -0.85], rot: [0, 0, 0, 1] },
+            { id: 6, type: 'weight_block', pos: [0, 1.0, 0], rot: [0, 0, 0, 1] },
+            { id: 7, type: 'weight_block', pos: [0, 1.4, 0], rot: [0, 0, 0, 1] }
+        ],
+        joints: [
+            { id: 1, a: 1, b: 2, type: 'hinge', ancA: [-0.85, -0.1, 0.85], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 5, mf: 70, osc: false },
+            { id: 2, a: 1, b: 3, type: 'hinge', ancA: [-0.85, -0.1, -0.85], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 5, mf: 70, osc: false },
+            { id: 3, a: 1, b: 4, type: 'hinge', ancA: [0.85, -0.1, 0.85], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 5, mf: 70, osc: false },
+            { id: 4, a: 1, b: 5, type: 'hinge', ancA: [0.85, -0.1, -0.85], ancB: [0, 0, 0], axis: [1, 0, 0], me: true, ms: 5, mf: 70, osc: false },
+            { id: 5, a: 1, b: 6, type: 'fixed', ancA: [0, 0.15, 0], ancB: [0, -0.2, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false },
+            { id: 6, a: 6, b: 7, type: 'fixed', ancA: [0, 0.2, 0], ancB: [0, -0.2, 0], axis: [0, 0, 1], me: false, ms: 0, mf: 0, osc: false }
+        ],
+        npi: 8, nji: 7
+    }
+};
+
+// ══════════════════════════════════════════════════════════
 // BUILD LOOP
 // ══════════════════════════════════════════════════════════
 function startBuildLoop() {
@@ -2541,9 +3370,8 @@ function startBuildLoop() {
         buildAnimId = requestAnimationFrame(loop);
         buildControls.update();
 
-        for (const dot of snapIndicators) {
-            dot.rotation.y += 0.02;
-        }
+        const t = performance.now() / 1000;
+        pulseSnapIndicators(t);
 
         buildRenderer.render(buildScene, buildCamera);
     }
@@ -2579,6 +3407,22 @@ function initEvents() {
     });
 
     document.getElementById('btn-launch').addEventListener('click', () => { sfx.launch(); startSimulation(); });
+
+    // Practice / Battle mode toggle and enemy picker.
+    document.querySelectorAll('#mode-toggle .mode-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#mode-toggle .mode-opt').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            gameMode = btn.dataset.mode;
+            const select = document.getElementById('enemy-select');
+            if (select) select.classList.toggle('disabled', gameMode !== 'battle');
+        });
+    });
+    const enemySel = document.getElementById('enemy-select');
+    if (enemySel) {
+        enemySel.value = currentEnemyPreset;
+        enemySel.addEventListener('change', () => { currentEnemyPreset = enemySel.value; });
+    }
     document.getElementById('btn-back-workshop').addEventListener('click', backToWorkshop);
     document.getElementById('btn-replay').addEventListener('click', () => { document.getElementById('run-summary').classList.remove('active'); replay(); });
     document.getElementById('btn-share').addEventListener('click', shareLink);

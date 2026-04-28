@@ -7,36 +7,29 @@ import {
 } from '@babylonjs/core';
 
 export function setupPostProcessing(scene: Scene, camera: Camera): DefaultRenderingPipeline {
-  const pipeline = new DefaultRenderingPipeline('default', true, scene, [camera]);
+  const pipeline = new DefaultRenderingPipeline('default', false, scene, [camera]);
 
   pipeline.bloomEnabled = true;
-  pipeline.bloomThreshold = 0.3;
-  pipeline.bloomWeight = 0.5;
-  pipeline.bloomKernel = 32;
-  pipeline.bloomScale = 0.3;
+  pipeline.bloomThreshold = 0.5;
+  pipeline.bloomWeight = 0.4;
+  pipeline.bloomKernel = 24;
+  pipeline.bloomScale = 0.25;
 
-  pipeline.chromaticAberrationEnabled = true;
-  pipeline.chromaticAberration.aberrationAmount = 3;
-  pipeline.chromaticAberration.radialIntensity = 0.3;
-
-  pipeline.grainEnabled = true;
-  pipeline.grain.intensity = 3;
-  pipeline.grain.animated = true;
-
-  pipeline.sharpenEnabled = true;
-  pipeline.sharpen.edgeAmount = 0.2;
+  pipeline.chromaticAberrationEnabled = false;
+  pipeline.grainEnabled = false;
+  pipeline.sharpenEnabled = false;
 
   pipeline.fxaaEnabled = true;
 
   if (pipeline.imageProcessing) {
-    pipeline.imageProcessing.contrast = 1.2;
-    pipeline.imageProcessing.exposure = 1.2;
+    pipeline.imageProcessing.contrast = 1.15;
+    pipeline.imageProcessing.exposure = 1.1;
     pipeline.imageProcessing.toneMappingEnabled = true;
     pipeline.imageProcessing.vignetteEnabled = true;
-    pipeline.imageProcessing.vignetteWeight = 1.5;
-    pipeline.imageProcessing.vignetteCentreX = 0;
-    pipeline.imageProcessing.vignetteCentreY = 0;
-    pipeline.imageProcessing.vignetteStretch = 0.5;
+    pipeline.imageProcessing.vignetteWeight = 0.6;
+    pipeline.imageProcessing.vignetteCentreX = 0.5;
+    pipeline.imageProcessing.vignetteCentreY = 0.5;
+    pipeline.imageProcessing.vignetteStretch = 0.4;
   }
 
   return pipeline;
@@ -55,6 +48,11 @@ export function createDamagePostProcess(scene: Scene, camera: Camera): { setDama
     void main(void) {
       vec4 color = texture2D(textureSampler, vUV);
 
+      if (intensity < 0.01) {
+        gl_FragColor = color;
+        return;
+      }
+
       vec2 center = vUV - 0.5;
       float dist = length(center);
 
@@ -66,9 +64,6 @@ export function createDamagePostProcess(scene: Scene, camera: Camera): { setDama
       float b = texture2D(textureSampler, vUV - center * aberration).b;
       color.r = mix(color.r, r, intensity * 0.5);
       color.b = mix(color.b, b, intensity * 0.5);
-
-      float scanline = sin(vUV.y * 800.0 + time * 10.0) * 0.02 * intensity;
-      color.rgb += scanline;
 
       gl_FragColor = color;
     }
@@ -92,38 +87,30 @@ export function createBulletTimePostProcess(scene: Scene, camera: Camera): { set
     precision highp float;
     varying vec2 vUV;
     uniform sampler2D textureSampler;
-    uniform float active;
+    uniform float enabled;
     uniform float time;
 
     void main(void) {
       vec4 color = texture2D(textureSampler, vUV);
 
-      if (active > 0.5) {
-        float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-        color.rgb = mix(color.rgb, vec3(gray * 0.6, gray * 0.8, gray * 1.2), 0.35);
-
-        vec2 center = vUV - 0.5;
-        float dist = length(center);
-        float radialBlur = dist * 0.003;
-        vec4 blurred = vec4(0.0);
-        for (int i = 0; i < 4; i++) {
-          float t = float(i) / 4.0;
-          blurred += texture2D(textureSampler, vUV + center * radialBlur * t);
-        }
-        blurred /= 4.0;
-        color = mix(color, blurred, 0.3);
-
-        float scan = sin(vUV.y * 400.0 + time * 2.0) * 0.015;
-        color.rgb += scan;
+      if (enabled < 0.5) {
+        gl_FragColor = color;
+        return;
       }
+
+      float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+      color.rgb = mix(color.rgb, vec3(gray * 0.6, gray * 0.8, gray * 1.2), 0.35);
+
+      float scan = sin(vUV.y * 400.0 + time * 2.0) * 0.015;
+      color.rgb += scan;
 
       gl_FragColor = color;
     }
   `;
 
-  const pp = new PostProcess('btime', 'btime', ['active', 'time'], null, 1.0, camera);
+  const pp = new PostProcess('btime', 'btime', ['enabled', 'time'], null, 1.0, camera);
   pp.onApply = (effect) => {
-    effect.setFloat('active', active ? 1.0 : 0.0);
+    effect.setFloat('enabled', active ? 1.0 : 0.0);
     effect.setFloat('time', performance.now() * 0.001);
   };
 

@@ -10,16 +10,13 @@ import {
   HemisphericLight,
   DirectionalLight,
   PointLight,
-  ShadowGenerator,
-  CascadedShadowGenerator,
-  GlowLayer,
 } from '@babylonjs/core';
 import type { Platform } from './types';
 
 export interface MapData {
   spawnPoints: Vector3[];
   pickupLocations: Vector3[];
-  shadowGenerator: CascadedShadowGenerator | null;
+  shadowGenerator: null;
   platforms: Platform[];
   wallRunSurfaces: Mesh[];
   grapplePoints: Vector3[];
@@ -27,38 +24,24 @@ export interface MapData {
 }
 
 export function buildMap(scene: Scene): MapData {
-  scene.clearColor = new Color4(0.01, 0.01, 0.04, 1);
-  scene.ambientColor = new Color3(0.05, 0.03, 0.08);
+  scene.clearColor = new Color4(0.04, 0.03, 0.08, 1);
+  scene.ambientColor = new Color3(0.15, 0.12, 0.2);
   scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = 0.004;
-  scene.fogColor = new Color3(0.02, 0.01, 0.05);
-
-  const glow = new GlowLayer('glow', scene, { mainTextureSamples: 1 });
-  glow.intensity = 0.8;
+  scene.fogDensity = 0.003;
+  scene.fogColor = new Color3(0.05, 0.03, 0.1);
 
   // Lights
   const hemi = new HemisphericLight('hemi', new Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.6;
-  hemi.diffuse = new Color3(0.5, 0.4, 0.7);
-  hemi.groundColor = new Color3(0.1, 0.06, 0.15);
+  hemi.intensity = 1.0;
+  hemi.diffuse = new Color3(0.6, 0.5, 0.8);
+  hemi.groundColor = new Color3(0.2, 0.15, 0.25);
 
   const dirLight = new DirectionalLight('dir', new Vector3(-0.5, -1, 0.5), scene);
-  dirLight.intensity = 1.0;
-  dirLight.diffuse = new Color3(0.6, 0.5, 0.9);
+  dirLight.intensity = 1.2;
+  dirLight.diffuse = new Color3(0.7, 0.6, 1.0);
   dirLight.position = new Vector3(0, 80, 0);
 
-  let shadowGen: CascadedShadowGenerator | null = null;
-  try {
-    shadowGen = new CascadedShadowGenerator(512, dirLight);
-    shadowGen.bias = 0.005;
-    shadowGen.normalBias = 0.02;
-    shadowGen.lambda = 0.9;
-    shadowGen.cascadeBlendPercentage = 0.1;
-    shadowGen.depthClamp = true;
-    shadowGen.shadowMaxZ = 200;
-  } catch {
-    // Shadows not supported
-  }
+  const shadowGen: { addShadowCaster: (m: Mesh) => void } | null = null;
 
   // Materials
   const floorMat = new PBRMaterial('floor', scene);
@@ -384,21 +367,11 @@ export function buildMap(scene: Scene): MapData {
     });
   });
 
-  // Point lights for atmosphere
-  const lightColors: [number, number, number, Color3][] = [
-    [-50, 6, -50, new Color3(0, 0.8, 1)],
-    [50, 6, -50, new Color3(1, 0, 0.6)],
-    [-50, 6, 50, new Color3(0.5, 0.1, 1)],
-    [50, 6, 50, new Color3(1, 0.4, 0)],
-    [0, 8, 0, new Color3(0, 1, 0.8)],
-  ];
-
-  lightColors.forEach(([x, y, z, color], i) => {
-    const pl = new PointLight(`pLight_${i}`, new Vector3(x, y, z), scene);
-    pl.diffuse = color;
-    pl.intensity = 20;
-    pl.range = 45;
-  });
+  // Single accent light at center (cheap atmosphere). Other corner colors come from emissive trims.
+  const centerLight = new PointLight('pLightCenter', new Vector3(0, 8, 0), scene);
+  centerLight.diffuse = new Color3(0, 1, 0.8);
+  centerLight.intensity = 8;
+  centerLight.range = 30;
 
   // Grapple points (visible orbs at strategic locations)
   const grapplePoints: Vector3[] = [

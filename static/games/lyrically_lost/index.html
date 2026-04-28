@@ -355,6 +355,76 @@ button:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px;b
 .foot svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .hidden{display:none!important}
+
+/* Back to games link (matches sibling games) */
+.back-to-games{
+  position:fixed;top:12px;left:12px;z-index:50;
+  display:inline-flex;align-items:center;gap:.35rem;
+  padding:.4rem .8rem;
+  background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);
+  border-radius:.5rem;color:rgba(255,255,255,.65);
+  font-size:.72rem;font-weight:600;letter-spacing:.04em;
+  text-decoration:none;transition:all .2s;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+}
+.back-to-games:hover{color:#fff;border-color:rgba(255,255,255,.25);background:rgba(0,0,0,.55)}
+.back-to-games span{font-size:.85rem;line-height:1}
+
+/* In-game control bar (pause + menu) */
+.g-controls{
+  position:absolute;top:12px;right:12px;z-index:5;
+  display:flex;gap:.4rem;
+}
+.g-ctrl{
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);
+  border-radius:.5rem;color:rgba(255,255,255,.7);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  transition:all .2s;cursor:pointer;
+}
+.g-ctrl:hover{color:#fff;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2)}
+.g-ctrl svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#game{position:relative;padding-top:3rem}
+
+/* Pause overlay */
+.pause-overlay{
+  position:fixed;inset:0;z-index:400;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(10,10,20,.78);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  animation:fadeIn .25s ease-out;
+}
+.pause-modal{
+  padding:2rem 2.25rem;text-align:center;max-width:340px;
+  border-radius:var(--r-xl);
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+}
+.pause-modal h2{font-size:1.6rem;font-weight:900;margin-bottom:.4rem;letter-spacing:-.02em}
+.pause-modal p{font-size:.85rem;color:rgba(255,255,255,.55);margin-bottom:1.4rem}
+.pause-btns{display:flex;flex-direction:column;gap:.5rem}
+.pause-btns .btn-p,.pause-btns .btn-s{padding:.75rem 1.2rem;font-size:.92rem}
+
+/* Slow replay button */
+.slow-b{
+  margin-top:.65rem;padding:.35rem .85rem;border-radius:999px;
+  font-size:.7rem;font-weight:700;letter-spacing:.04em;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  color:rgba(255,255,255,.55);transition:all .2s;
+  display:inline-flex;align-items:center;gap:.3rem;
+}
+.slow-b:hover{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.18)}
+.slow-b svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important;
+  }
+  .vinyl.on .vinyl-grooves,.vinyl.on .rings,.streak-fire,
+  .e-trophy svg,.hs-badge,.timer-num.urgent,.bar{animation:none!important}
+}
+
 @media(max-width:400px){
   .wrap{padding:1rem .75rem}
   .g-head{padding:.7rem .85rem;gap:.3rem}
@@ -363,10 +433,16 @@ button:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px;b
   .vinyl svg{width:42px;height:42px}
   .cats{grid-template-columns:1fr}
   .cat{padding:1.35rem}
+  .back-to-games{font-size:.65rem;padding:.32rem .6rem}
+  .g-controls{top:8px;right:8px}
+  .g-ctrl{width:32px;height:32px}
+  #game{padding-top:2.6rem}
 }
 </style>
 </head>
 <body>
+
+<a class="back-to-games" href="/games/" aria-label="Back to games"><span>&larr;</span> Back to games</a>
 
 <div class="wrap">
   <!-- ===== MENU ===== -->
@@ -417,6 +493,14 @@ button:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px;b
 
   <!-- ===== GAME ===== -->
   <div id="game" class="screen">
+    <div class="g-controls">
+      <button class="g-ctrl" id="pauseBtn" onclick="G.pause()" aria-label="Pause game" title="Pause (P)">
+        <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <button class="g-ctrl" onclick="G.confirmQuit()" aria-label="Back to menu" title="Back to menu">
+        <svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
+      </button>
+    </div>
     <div class="g-head">
       <div class="st">
         <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
@@ -451,6 +535,10 @@ button:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px;b
       </div>
       <div class="p-label" id="pLbl">Tap to Listen</div>
       <div class="p-sub" id="pSub">Press Space or tap the circle</div>
+      <button class="slow-b" id="slowB" onclick="G.slowReplay()" aria-label="Replay at slower speed" title="Replay slowly (no penalty)">
+        <svg viewBox="0 0 24 24"><polygon points="11 19 2 12 11 5 11 19"/><polygon points="22 19 13 12 22 5 22 19"/></svg>
+        Replay 0.7&times;
+      </button>
     </div>
 
     <div class="info-r">
@@ -464,7 +552,7 @@ button:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px;b
 
     <div class="opts" id="optsG" role="group" aria-label="Song options"></div>
     <div class="tout-msg hidden" id="toutM"></div>
-    <button class="skip-b hidden" id="skipB" onclick="G.skip()">Next Round &rarr;</button>
+    <button class="skip-b hidden" id="skipB" onclick="G.skip()">Next Round &rarr; <span style="opacity:.5;font-size:.65rem;margin-left:.3rem;letter-spacing:.06em">N</span></button>
   </div>
 
   <!-- ===== END ===== -->
@@ -509,6 +597,23 @@ button:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px;b
 
 <div class="confetti-c hidden" id="confC"></div>
 <div id="toast" class="share-toast hidden"></div>
+
+<div class="pause-overlay hidden" id="pauseOverlay" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+  <div class="pause-modal glass">
+    <h2 id="pauseTitle">Paused</h2>
+    <p>Take a breather. Your timer is frozen.</p>
+    <div class="pause-btns">
+      <button class="btn-p" onclick="G.resume()" aria-label="Resume game">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+        Resume
+      </button>
+      <button class="btn-s" onclick="G.quitToMenu()" aria-label="Quit to menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Quit to menu
+      </button>
+    </div>
+  </div>
+</div>
 
 <footer class="foot">
   <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
@@ -824,7 +929,7 @@ const G = {
   },
 
   _autoPlay(){
-    if(S.sel) return;
+    if(S.sel||S.paused) return;
     this.speakLyrics();
   },
 
@@ -879,12 +984,9 @@ const G = {
     S.hintUsed=true; S.hints++;
     $("hintB").disabled=true;
     const q=S.qs[S.qi];
-    const t=q.song.title;
-    const pattern=t.split(" ").map((w,i)=>{
-      if(!w) return w;
-      return (i===0?w.charAt(0):"_")+w.slice(1).replace(/[A-Za-z\u0900-\u097F]/g,"_");
-    }).join(" ");
-    $("hintR").innerHTML='Artist: <strong>'+esc(q.song.artist)+'</strong> &middot; Title: <strong style="letter-spacing:.15em;font-family:ui-monospace,monospace">'+esc(pattern)+'</strong> <span style="color:rgba(253,230,138,.4);margin-left:.4rem;font-weight:500">(-5 pts if correct)</span>';
+    const wc=q.song.title.trim().split(/\s+/).filter(Boolean).length;
+    const wordLbl=wc===1?"one-word":wc+"-word";
+    $("hintR").innerHTML='Artist: <strong>'+esc(q.song.artist)+'</strong> &middot; <strong>'+wordLbl+' title</strong> <span style="color:rgba(253,230,138,.4);margin-left:.4rem;font-weight:500">(-5 pts if correct)</span>';
     $("hintR").classList.remove("hidden");
   },
 
@@ -946,6 +1048,45 @@ const G = {
     clearTimeout(advanceTimer);
     this._advance();
   },
+
+  pause(){
+    if(S.paused) return;
+    if(document.querySelector(".screen.active")?.id!=="game") return;
+    S.paused=true;
+    SFX.click();
+    clearInterval(timerIv); timerIv=null;
+    clearTimeout(advanceTimer);
+    S.pauseSpeechWasOn=S.speaking;
+    speechSynthesis.cancel(); S.speaking=false; this._speakUI(false);
+    $("pauseOverlay").classList.remove("hidden");
+  },
+  resume(){
+    if(!S.paused) return;
+    S.paused=false;
+    SFX.click();
+    $("pauseOverlay").classList.add("hidden");
+    if(S.sel){
+      // Mid-feedback (post-answer/timeout): restart the advance timer
+      advanceTimer=setTimeout(()=>this._advance(),1500);
+    } else if(S.timer>0){
+      this._startTimerFromCurrent();
+    }
+  },
+  _startTimerFromCurrent(){
+    clearInterval(timerIv);
+    this._drawTimer();
+    timerIv=setInterval(()=>{
+      S.timer--;this._drawTimer();
+      if(S.timer<=5&&S.timer>0) SFX.tick();
+      if(S.timer<=0){clearInterval(timerIv);this._timeout()}
+    },1000);
+  },
+  quitToMenu(){
+    S.paused=false;
+    $("pauseOverlay").classList.add("hidden");
+    this.toMenu();
+  },
+  confirmQuit(){ this.pause(); },
 
   _advance(){
     clearTimeout(advanceTimer);
@@ -1070,9 +1211,21 @@ document.addEventListener("keydown",e=>{
   if(!scr) return;
   const sid=scr.id;
 
+  if(S.paused){
+    if(e.key==="Escape"||e.key==="p"||e.key==="P"||e.key===" "||e.key==="Enter"){
+      e.preventDefault();G.resume();return;
+    }
+    if(e.key==="m"||e.key==="M"||e.key==="q"||e.key==="Q"){
+      e.preventDefault();G.quitToMenu();return;
+    }
+    return;
+  }
+
   if(sid==="game"){
+    if(e.key==="p"||e.key==="P"||e.key==="Escape"){e.preventDefault();G.pause();return}
     if(e.key===" "||e.key==="Spacebar"){e.preventDefault();G.toggleSpeak();return}
     if(e.key==="h"||e.key==="H"){G.hint();return}
+    if(e.key==="r"||e.key==="R"){G.slowReplay();return}
     if(e.key==="n"||e.key==="N"||e.key==="Enter"){if(S.sel){G.skip();return}}
     const n=parseInt(e.key);
     if(n>=1&&n<=6){
@@ -1098,7 +1251,10 @@ $("vinyl").addEventListener("keydown",e=>{
 });
 
 /* ===== INIT ===== */
-function loadVoices(){voices=speechSynthesis.getVoices()}
+function loadVoices(){
+  voices=speechSynthesis.getVoices()||[];
+  if(voices.length>0) voicesReady=true;
+}
 loadVoices();
 speechSynthesis.onvoiceschanged=loadVoices;
 window.addEventListener("beforeunload",()=>speechSynthesis.cancel());

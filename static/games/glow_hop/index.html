@@ -1437,6 +1437,7 @@ function updateCrystal(c) {
         player.revealBoost = Math.min(player.revealBoost + 30, 80);
         if (state.crystalRevealPermanent > 0) {
             state.permanentRevealBoost += state.crystalRevealPermanent;
+            state.torchesCollected++;
             addFloatingText(c.x, cy-30, '+TORCH', '251,191,36');
             spawnRevealPulse(c.x, cy, 240, 6);
         }
@@ -1691,7 +1692,7 @@ function drawCrystal(c) {
     const alpha = Math.min(1, (1 - d/r) * 2);
     const cy = c.y + Math.sin(c.bob) * 4;
 
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = lowFx ? 0 : 8;
     ctx.shadowColor = `rgba(56,189,248,${alpha*0.6})`;
 
     ctx.fillStyle = `rgba(56,189,248,${alpha*0.8})`;
@@ -1719,7 +1720,7 @@ function drawPortal() {
     portal.pulse += 0.06;
     const glow = 0.4 + Math.sin(portal.pulse) * 0.15;
 
-    ctx.shadowBlur = 25;
+    ctx.shadowBlur = lowFx ? 0 : 25;
     ctx.shadowColor = `rgba(251,191,36,${glow})`;
 
     ctx.fillStyle = `rgba(251,191,36,${glow*0.5})`;
@@ -1768,7 +1769,7 @@ function drawPlayer() {
     ctx.translate(p.x+p.w/2, p.y+p.h/2);
     ctx.scale(sx, sy);
 
-    ctx.shadowBlur = 15 + getBeatPulse() * 10;
+    ctx.shadowBlur = lowFx ? 0 : 15 + getBeatPulse() * 10;
     ctx.shadowColor = '#fbbf24';
     ctx.fillStyle = '#fef3c7';
     ctx.beginPath();
@@ -1943,6 +1944,13 @@ function drawHUD() {
         ctx.fillText(`Deaths: ${state.deathCount}`, 15, 62);
     }
 
+    // Pitch Black: torch counter
+    if (state.crystalRevealPermanent > 0) {
+        ctx.fillStyle = 'rgba(251,191,36,0.85)';
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        ctx.fillText(`\u2728 Torches: ${state.torchesCollected}`, 15, state.deathCount > 0 ? 80 : 64);
+    }
+
     if (state.comboTimer > 0 && state.combo > 1) {
         const ca = Math.min(1, state.comboTimer / 30);
         ctx.fillStyle = `rgba(251,191,36,${ca})`;
@@ -1950,6 +1958,28 @@ function drawHUD() {
         ctx.textAlign = 'center';
         ctx.fillText(`${state.combo}x COMBO`, W/2, 35);
         ctx.textAlign = 'left';
+    }
+
+    // Eclipse: SUN/MOON phase badge with progress bar
+    if (state.phasePeriod > 0) {
+        const sun = isSunPhase();
+        const phaseProg = (state.phaseT % state.phasePeriod) / state.phasePeriod;
+        const label = sun ? 'SUN' : 'MOON';
+        const c = sun ? '251,191,36' : '148,196,236';
+        const x = W - 90, y = 18;
+        ctx.fillStyle = `rgba(${c},0.18)`;
+        ctx.fillRect(x, y, 75, 26);
+        ctx.strokeStyle = `rgba(${c},0.7)`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, 75, 26);
+        ctx.fillStyle = `rgba(${c},0.95)`;
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x + 38, y + 16);
+        ctx.textAlign = 'left';
+        // Progress bar inside
+        ctx.fillStyle = `rgba(${c},0.55)`;
+        ctx.fillRect(x + 4, y + 21, 67 * (1 - phaseProg), 2);
     }
 
     ctx.fillStyle = 'rgba(148,163,184,0.45)';
@@ -1964,6 +1994,28 @@ function drawHUD() {
         ctx.textAlign = 'center';
         ctx.fillText(tutorialText, W/2, H-40);
         ctx.textAlign = 'left';
+    }
+
+    // Level start splash (level name fade-in/out)
+    if (state.levelIntroT > 0) {
+        const t = state.levelIntroT;
+        // Curve: fade in 0→1 over first 18 frames, hold, fade out final 30
+        let alpha;
+        if (t > 90 - 18) alpha = (90 - t) / 18;
+        else if (t < 30) alpha = t / 30;
+        else alpha = 1;
+        alpha = Math.max(0, Math.min(1, alpha));
+        const lvl = levels[state.level];
+        if (lvl) {
+            ctx.fillStyle = `rgba(251,191,36,${alpha * 0.95})`;
+            ctx.font = 'bold 32px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(lvl.name, W/2, H/2 - 30);
+            ctx.fillStyle = `rgba(156,163,175,${alpha * 0.7})`;
+            ctx.font = '12px system-ui, sans-serif';
+            ctx.fillText(`Level ${state.level + 1} / ${levels.length}`, W/2, H/2 - 8);
+            ctx.textAlign = 'left';
+        }
     }
 
     if (player && !player.dead && player.dashCooldown <= 0) {
@@ -2050,7 +2102,7 @@ const levels = [
             [400,200,80,16,'normal'], [370,75,90,16,'normal']
         ],
         crystals: [[240,400],[400,290],[220,250],[430,140]],
-        text: 'Green platforms bounce you way up!',
+        text: 'Green platforms bounce you up — hold JUMP (or UP) to fly higher!',
         bonus: 5000
     },
     // 7  Moving Targets
@@ -2222,7 +2274,7 @@ const levels = [
             [370,40,80,16,'normal']
         ],
         crystals: [[200,530],[320,530],[290,400],[460,350],[580,290],[420,230],[310,170],[430,10]],
-        text: 'Every trick in the book. Ice, conveyors, ghosts, spikes, and more. Go!',
+        text: 'One last familiar level. Light the way through.',
         bonus: 15000
     },
 
@@ -2332,7 +2384,7 @@ const levels = [
     // 20  Eclipse — phase-shifting world. SUN and MOON platforms alternate solidity every 90 frames.
     {
         name: 'Eclipse',
-        start: [40, 560], portal: [400, 20],
+        start: [40, 540], portal: [400, 20],
         phasePeriod: 90,
         chaseWall: { speed: 0.85, startX: -120 },
         gravityDir: 1,
@@ -2378,6 +2430,8 @@ function initLevel(idx) {
     state.revealOverride = lvl.revealOverride || 0;
     state.crystalRevealPermanent = lvl.crystalRevealPermanent || 0;
     state.permanentRevealBoost = 0;
+    state.torchesCollected = 0;
+    state.levelIntroT = 90;
 
     player = createPlayer(lvl.start[0], lvl.start[1]);
 
@@ -2429,6 +2483,8 @@ function gameLoop() {
     }
 
     if (state.frames > 300 && tutorialAlpha > 0) tutorialAlpha -= 0.005;
+
+    if (state.levelIntroT > 0) state.levelIntroT--;
 
     // Edge detection
     jumpJustPressed = input.jump && !jumpWas;
@@ -2506,6 +2562,7 @@ function startGame(key) {
     state.deathCount = 0;
     startMusic();
     initLevel(0);
+    updateTouchControlsVisibility();
 }
 
 function showMainMenu() {
@@ -2527,12 +2584,14 @@ function togglePause() {
     state.paused = !state.paused;
     document.getElementById('pause-screen').style.display = state.paused ? 'flex' : 'none';
     if (!state.paused) clearInput();
+    updateTouchControlsVisibility();
 }
 
 function resumeGame() {
     state.paused = false;
     document.getElementById('pause-screen').style.display = 'none';
     clearInput();
+    updateTouchControlsVisibility();
 }
 
 function resumeAndRestart() {
@@ -2557,6 +2616,7 @@ function showWinScreen() {
     document.getElementById('win-score').innerHTML = isNew
         ? `\u2605 NEW HIGHSCORE: ${state.totalScore} \u2605`
         : `SCORE: ${state.totalScore}<br>BEST: ${best}`;
+    updateTouchControlsVisibility();
 }
 
 function restartLevel() {
@@ -2567,6 +2627,7 @@ function restartLevel() {
     state.paused = false;
     state.running = true;
     initLevel(state.level);
+    updateTouchControlsVisibility();
 }
 
 function checkAndSaveHighscore() {
