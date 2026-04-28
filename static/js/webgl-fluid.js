@@ -34,6 +34,165 @@ SOFTWARE.
 
 'use strict';
 
+/* ---------- Patch F10: optional OffscreenCanvas + Web Worker mode ----------
+ * Set `window.FLUID_USE_WORKER = true` BEFORE this script loads to move the
+ * fluid sim into a dedicated worker. On a busy page this saves 5–15 ms/frame
+ * by isolating WebGL render work from the main thread (Hugo, Bootstrap, the
+ * cat companion's DOM updates). When the flag is off (default), this block
+ * is a no-op and the existing main-thread code below runs unchanged.
+ *
+ * Implementation: webgl-fluid-worker.js stubs the DOM/window APIs we touch,
+ * then importScripts() this file inside the worker so there's a single
+ * source of truth. The flag-check below ALSO short-circuits the bootstrap
+ * inside that imported context (`typeof importScripts !== 'function'`) — we
+ * only want to spawn a worker from the main thread.
+ *
+ * Browser support: Chrome 69+, Firefox 105+, Safari 16.4+. Falls back
+ * silently to main-thread mode on browsers without OffscreenCanvas. */
+if (typeof window !== 'undefined'
+    && window.FLUID_USE_WORKER === true
+    && typeof importScripts !== 'function'
+    && typeof OffscreenCanvas !== 'undefined'
+    && typeof HTMLCanvasElement !== 'undefined'
+    && 'transferControlToOffscreen' in HTMLCanvasElement.prototype) {
+    (function _bootFluidWorker () {
+        const _canvas = document.getElementsByTagName('canvas')[0];
+        if (!_canvas) return;
+        let offscreen;
+        try { offscreen = _canvas.transferControlToOffscreen(); }
+        catch (err) {
+            console.warn('[fluid] transferControlToOffscreen failed; falling back to main-thread', err);
+            return;
+        }
+        // From here on, the canvas is dead to the main thread (you can't
+        // create a new context on a transferred canvas). Commit to worker
+        // mode regardless of subsequent failures — never let main-thread try
+        // to claim a dead canvas, which would throw later in getWebGLContext.
+        window.__fluidWorkerEngaged = true;
+        // Discover this script's URL so we can resolve the worker URL alongside
+        // it. With <script defer> document.currentScript is null at execution
+        // time — fall back to a query selector for any script tag mentioning us.
+        let scriptUrl = '';
+        try { scriptUrl = (document.currentScript && document.currentScript.src) || ''; } catch (_) {}
+        if (!scriptUrl) {
+            const scripts = document.querySelectorAll('script[src*="webgl-fluid"]');
+            // Prefer non-worker entries (filter out webgl-fluid-worker.js if present)
+            for (let i = 0; i < scripts.length; i++) {
+                if (scripts[i].src && scripts[i].src.indexOf('webgl-fluid-worker') === -1) {
+                    scriptUrl = scripts[i].src; break;
+                }
+            }
+            if (!scriptUrl && scripts.length) scriptUrl = scripts[scripts.length - 1].src;
+        }
+        if (!scriptUrl) {
+            console.warn('[fluid] could not locate own script URL; aborting worker bootstrap');
+            return;
+        }
+        const workerUrl = scriptUrl.replace(/webgl-fluid\.js(\?.*)?$/, 'webgl-fluid-worker.js$1');
+
+        let worker;
+        try { worker = new Worker(workerUrl); }
+        catch (err) {
+            console.warn('[fluid] worker creation failed; falling back to main-thread', err);
+            return;
+        }
+        worker.addEventListener('error', function (err) {
+            console.warn('[fluid] worker error', (err && err.message) || err);
+        });
+        worker.addEventListener('message', function (ev) {
+            if (ev.data && ev.data.type === 'error') console.warn('[fluid] worker init error', ev.data.message);
+        });
+
+        const send = function (msg, transfers) { worker.postMessage(msg, transfers || []); };
+        send({
+            type: 'init',
+            canvas: offscreen,
+            scriptUrl: scriptUrl,
+            dpr: window.devicePixelRatio || 1,
+            maxDPR: window.FLUID_MAX_DPR || 2.0,
+            clientW: _canvas.clientWidth,
+            clientH: _canvas.clientHeight,
+            reducedMotion: window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)').matches : false,
+            isMobile: /Mobi|Android/i.test(navigator.userAgent),
+        }, [offscreen]);
+
+        // DPR / reduced-motion change forwarding
+        if (window.matchMedia) {
+            const rm = matchMedia('(prefers-reduced-motion: reduce)');
+            rm.addEventListener('change', function () { send({ type: 'reducedmotion', value: rm.matches }); });
+            (function _watchDPR () {
+                matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')
+                    .addEventListener('change', function () {
+                        send({ type: 'dpr', value: window.devicePixelRatio || 1 });
+                        _watchDPR();
+                    }, { once: true });
+            })();
+        }
+
+        // Resize observer (main thread observes; worker can't see DOM layout)
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(function (es) {
+                const e = es[0];
+                const box = e.contentBoxSize
+                    ? (Array.isArray(e.contentBoxSize) ? e.contentBoxSize[0] : e.contentBoxSize)
+                    : null;
+                send({
+                    type: 'resize',
+                    clientW: box ? box.inlineSize : e.contentRect.width,
+                    clientH: box ? box.blockSize  : e.contentRect.height,
+                });
+            }).observe(_canvas);
+        } else {
+            window.addEventListener('resize', function () {
+                send({ type: 'resize', clientW: _canvas.clientWidth, clientH: _canvas.clientHeight });
+            });
+        }
+
+        // Visibility (worker rAF still throttled by browser when hidden, but we
+        // explicitly pause too — same behavior as main-thread Patch D).
+        document.addEventListener('visibilitychange', function () {
+            send({ type: 'visibility', hidden: document.hidden });
+        });
+
+        // Input forwarding — mirrors Patch C: window listeners (not canvas) so
+        // pointer-events:none on the canvas doesn't swallow events.
+        window.addEventListener('mousedown', function (e) { send({ type: 'mousedown', x: e.clientX, y: e.clientY, button: e.button }); });
+        window.addEventListener('mousemove', function (e) { send({ type: 'mousemove', x: e.clientX, y: e.clientY }); });
+        window.addEventListener('mouseup',   function ()  { send({ type: 'mouseup' }); });
+        window.addEventListener('touchstart', function (e) {
+            const t = [];
+            for (let i = 0; i < e.targetTouches.length; i++) t.push({ id: e.targetTouches[i].identifier, x: e.targetTouches[i].pageX, y: e.targetTouches[i].pageY });
+            send({ type: 'touchstart', touches: t });
+        }, { passive: true });
+        window.addEventListener('touchmove', function (e) {
+            const t = [];
+            for (let i = 0; i < e.targetTouches.length; i++) t.push({ id: e.targetTouches[i].identifier, x: e.targetTouches[i].pageX, y: e.targetTouches[i].pageY });
+            send({ type: 'touchmove', touches: t });
+        }, { passive: true });
+        window.addEventListener('touchend', function (e) {
+            const t = [];
+            for (let i = 0; i < e.changedTouches.length; i++) t.push({ id: e.changedTouches[i].identifier });
+            send({ type: 'touchend', touches: t });
+        });
+        window.addEventListener('keydown', function (e) { send({ type: 'keydown', code: e.code, key: e.key }); });
+
+        // Public API — same shape as the main-thread implementations defined
+        // toward the bottom of _runFluidMain. games-extras.js calls these.
+        window.fluidSplatScreen = function (clientX, clientY, prevClientX, prevClientY) {
+            send({ type: 'splatScreen', clientX: clientX, clientY: clientY, prevClientX: prevClientX, prevClientY: prevClientY });
+        };
+        window.fluidSetActive = function (active) {
+            send({ type: 'setActive', active: !!active });
+        };
+        window.__fluidWorker = worker;
+        // (__fluidWorkerEngaged was set right after transferControlToOffscreen
+        // — see comment above; it must stay true even if listener registration
+        // partially fails, otherwise main-thread would try to use a dead canvas.)
+    })();
+}
+
+function _runFluidMain () {
+
 // Stub analytics so ga() calls are silent no-ops on our site.
 if (typeof window !== 'undefined' && typeof window.ga !== 'function') {
     window.ga = function () {};
@@ -114,6 +273,10 @@ function _refreshDPR () {
         matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
             .addEventListener('change', _refreshDPR, { once: true });
 }
+// Patch F10: expose for the worker harness — DPR matchMedia change events
+// don't fire inside a worker, so the harness pokes us when main posts a 'dpr'
+// update (after the user zooms / drags between monitors).
+if (typeof window !== 'undefined') window.__fluidPokeDPR = _refreshDPR;
 if (window.matchMedia)
     matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
         .addEventListener('change', _refreshDPR, { once: true });
@@ -250,9 +413,13 @@ if (!ext.supportLinearFiltering) {
 // win — drops ~22 fullscreen passes/frame, often >5 ms on integrated GPUs.
 // SHADING (the directional lighting on dye edges) stays — it's a subtle look
 // cue, not "motion." Re-evaluated live via the media-query change listener.
+// Patch F10: hoist _applyReducedMotion to function scope so the worker
+// harness can poke it via window.__fluidPokeReducedMotion when main posts
+// a 'reducedmotion' update (matchMedia 'change' doesn't fire in workers).
+let _applyReducedMotion = function () {};
 if (window.matchMedia) {
     const _reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-    const _applyReducedMotion = () => {
+    _applyReducedMotion = function () {
         if (_reducedMotion.matches) {
             config.BLOOM = false;
             config.SUNRAYS = false;
@@ -261,6 +428,7 @@ if (window.matchMedia) {
     _applyReducedMotion();
     _reducedMotion.addEventListener('change', _applyReducedMotion);
 }
+if (typeof window !== 'undefined') window.__fluidPokeReducedMotion = function () { _applyReducedMotion(); };
 
 startGUI();
 
@@ -1959,3 +2127,12 @@ window.fluidSplatScreen = function (clientX, clientY, prevClientX, prevClientY) 
         splat(texcoordX, texcoordY, dx, dy, color);
     } catch (e) { /* silent — sim may not have initialized (no WebGL) */ }
 };
+
+} // end _runFluidMain
+
+// Patch F10: skip main-thread setup if the worker bootstrap above engaged.
+// In all other contexts (flag off, browser unsupported, transfer failed,
+// or running inside the worker via importScripts), run the sim normally.
+if (typeof window === 'undefined' || !window.__fluidWorkerEngaged) {
+    _runFluidMain();
+}

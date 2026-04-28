@@ -1,5 +1,18 @@
 {{ define "header" }}
   <link rel="stylesheet" href="{{ "/css/games-page.css" | relURL }}">
+  <script>
+    // Patch F10: opt into OffscreenCanvas + Web Worker mode for the fluid sim.
+    // Default OFF so we can A/B test before flipping. Two ways to enable:
+    //   1. Append `?fluid=worker` to the URL (per-session)
+    //   2. Run `localStorage.setItem('FLUID_USE_WORKER','1')` once (sticky)
+    // Disable with `?fluid=main` or `localStorage.removeItem('FLUID_USE_WORKER')`.
+    try {
+      var qs = location.search || '';
+      var ls = (window.localStorage && localStorage.getItem('FLUID_USE_WORKER')) || '';
+      if (qs.indexOf('fluid=main') !== -1) { window.FLUID_USE_WORKER = false; }
+      else if (qs.indexOf('fluid=worker') !== -1 || ls === '1') { window.FLUID_USE_WORKER = true; }
+    } catch (e) {}
+  </script>
   <script defer src="{{ "/js/dat.gui.min.js" | relURL }}"></script>
   <script defer src="{{ "/js/webgl-fluid.js" | relURL }}"></script>
   <script defer src="{{ "/js/games-extras.js" | relURL }}"></script>
