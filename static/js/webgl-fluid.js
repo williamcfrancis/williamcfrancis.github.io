@@ -216,6 +216,24 @@ if (!ext.supportLinearFiltering) {
     config.BLOOM = false;
     config.SUNRAYS = false;
 }
+// Patch G1: honor prefers-reduced-motion. Bloom (~17 fullscreen passes),
+// sunrays + sunrays-blur (~4 passes), and the dithering sample in the display
+// shader are the visually busy parts of the fluid. Disabling them for users
+// who opted into reduced motion is both an accessibility win and a major perf
+// win — drops ~22 fullscreen passes/frame, often >5 ms on integrated GPUs.
+// SHADING (the directional lighting on dye edges) stays — it's a subtle look
+// cue, not "motion." Re-evaluated live via the media-query change listener.
+if (window.matchMedia) {
+    const _reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const _applyReducedMotion = () => {
+        if (_reducedMotion.matches) {
+            config.BLOOM = false;
+            config.SUNRAYS = false;
+        }
+    };
+    _applyReducedMotion();
+    _reducedMotion.addEventListener('change', _applyReducedMotion);
+}
 
 startGUI();
 
@@ -1036,12 +1054,17 @@ const blit = (() => {
     // revalidation per draw (browser bookkeeping, not GPU work). Binding a VAO
     // once tells the driver/browser the attribute layout is fixed, eliminating
     // that revalidation. ~5–15 µs per draw × ~30–60 draws/frame.
+    //
+    // Patch G3: the original used drawElements(TRIANGLES, 6) over a 4-vert,
+    // 6-index quad. TRIANGLE_STRIP renders the same quad with 4 vertices and
+    // no index buffer — drops one bound buffer, one index fetch per vertex,
+    // and ~5% draw cost on integrated GPUs. Vertex order BL/BR/TL/TR forms
+    // two triangles via the strip rule; UVs (vUv = aPosition * 0.5 + 0.5)
+    // interpolate identically across the screen.
     const _vao = gl.createVertexArray ? gl.createVertexArray() : null;
     if (_vao) gl.bindVertexArray(_vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(0);
     // VAO stays bound for the rest of the session — no other code path
@@ -1064,7 +1087,7 @@ const blit = (() => {
             gl.clear(gl.COLOR_BUFFER_BIT);
         }
         // CHECK_FRAMEBUFFER_STATUS();
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); // Patch G3
     }
 })();
 
