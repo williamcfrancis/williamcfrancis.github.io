@@ -45,10 +45,6 @@
   z-index: 0;
   display: block;
   pointer-events: none;
-  /* Perf: canvas is fixed-size, aria-hidden, never affects sibling layout.
-     `contain: strict` lets the browser fully isolate it so the fluid's frequent
-     repaints don't trigger layout/paint work for the rest of the page. */
-  contain: strict;
 }
 
 /* Shell */
@@ -225,18 +221,6 @@
     transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
     box-shadow 0.3s ease,
     border-color 0.3s ease;
-  /* Perf: tells the browser this card cannot affect outside layout/paint, so
-     when the fluid repaints behind it the browser doesn't have to consider
-     re-laying out the rest of the page. No visual change. */
-  contain: layout paint style;
-}
-
-/* Perf: `will-change` permanently allocates a compositor layer per card. With
-   ~13 cards, always-on `will-change: transform` keeps 13 GPU layers alive at
-   all times. Scope it to imminent interaction so the browser only allocates
-   the layer when the user is about to hover/focus. */
-.games-cabinet:hover,
-.games-cabinet:focus-visible {
   will-change: transform;
 }
 

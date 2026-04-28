@@ -34,165 +34,6 @@ SOFTWARE.
 
 'use strict';
 
-/* ---------- Patch F10: optional OffscreenCanvas + Web Worker mode ----------
- * Set `window.FLUID_USE_WORKER = true` BEFORE this script loads to move the
- * fluid sim into a dedicated worker. On a busy page this saves 5–15 ms/frame
- * by isolating WebGL render work from the main thread (Hugo, Bootstrap, the
- * cat companion's DOM updates). When the flag is off (default), this block
- * is a no-op and the existing main-thread code below runs unchanged.
- *
- * Implementation: webgl-fluid-worker.js stubs the DOM/window APIs we touch,
- * then importScripts() this file inside the worker so there's a single
- * source of truth. The flag-check below ALSO short-circuits the bootstrap
- * inside that imported context (`typeof importScripts !== 'function'`) — we
- * only want to spawn a worker from the main thread.
- *
- * Browser support: Chrome 69+, Firefox 105+, Safari 16.4+. Falls back
- * silently to main-thread mode on browsers without OffscreenCanvas. */
-if (typeof window !== 'undefined'
-    && window.FLUID_USE_WORKER === true
-    && typeof importScripts !== 'function'
-    && typeof OffscreenCanvas !== 'undefined'
-    && typeof HTMLCanvasElement !== 'undefined'
-    && 'transferControlToOffscreen' in HTMLCanvasElement.prototype) {
-    (function _bootFluidWorker () {
-        const _canvas = document.getElementsByTagName('canvas')[0];
-        if (!_canvas) return;
-        let offscreen;
-        try { offscreen = _canvas.transferControlToOffscreen(); }
-        catch (err) {
-            console.warn('[fluid] transferControlToOffscreen failed; falling back to main-thread', err);
-            return;
-        }
-        // From here on, the canvas is dead to the main thread (you can't
-        // create a new context on a transferred canvas). Commit to worker
-        // mode regardless of subsequent failures — never let main-thread try
-        // to claim a dead canvas, which would throw later in getWebGLContext.
-        window.__fluidWorkerEngaged = true;
-        // Discover this script's URL so we can resolve the worker URL alongside
-        // it. With <script defer> document.currentScript is null at execution
-        // time — fall back to a query selector for any script tag mentioning us.
-        let scriptUrl = '';
-        try { scriptUrl = (document.currentScript && document.currentScript.src) || ''; } catch (_) {}
-        if (!scriptUrl) {
-            const scripts = document.querySelectorAll('script[src*="webgl-fluid"]');
-            // Prefer non-worker entries (filter out webgl-fluid-worker.js if present)
-            for (let i = 0; i < scripts.length; i++) {
-                if (scripts[i].src && scripts[i].src.indexOf('webgl-fluid-worker') === -1) {
-                    scriptUrl = scripts[i].src; break;
-                }
-            }
-            if (!scriptUrl && scripts.length) scriptUrl = scripts[scripts.length - 1].src;
-        }
-        if (!scriptUrl) {
-            console.warn('[fluid] could not locate own script URL; aborting worker bootstrap');
-            return;
-        }
-        const workerUrl = scriptUrl.replace(/webgl-fluid\.js(\?.*)?$/, 'webgl-fluid-worker.js$1');
-
-        let worker;
-        try { worker = new Worker(workerUrl); }
-        catch (err) {
-            console.warn('[fluid] worker creation failed; falling back to main-thread', err);
-            return;
-        }
-        worker.addEventListener('error', function (err) {
-            console.warn('[fluid] worker error', (err && err.message) || err);
-        });
-        worker.addEventListener('message', function (ev) {
-            if (ev.data && ev.data.type === 'error') console.warn('[fluid] worker init error', ev.data.message);
-        });
-
-        const send = function (msg, transfers) { worker.postMessage(msg, transfers || []); };
-        send({
-            type: 'init',
-            canvas: offscreen,
-            scriptUrl: scriptUrl,
-            dpr: window.devicePixelRatio || 1,
-            maxDPR: window.FLUID_MAX_DPR || 2.0,
-            clientW: _canvas.clientWidth,
-            clientH: _canvas.clientHeight,
-            reducedMotion: window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)').matches : false,
-            isMobile: /Mobi|Android/i.test(navigator.userAgent),
-        }, [offscreen]);
-
-        // DPR / reduced-motion change forwarding
-        if (window.matchMedia) {
-            const rm = matchMedia('(prefers-reduced-motion: reduce)');
-            rm.addEventListener('change', function () { send({ type: 'reducedmotion', value: rm.matches }); });
-            (function _watchDPR () {
-                matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)')
-                    .addEventListener('change', function () {
-                        send({ type: 'dpr', value: window.devicePixelRatio || 1 });
-                        _watchDPR();
-                    }, { once: true });
-            })();
-        }
-
-        // Resize observer (main thread observes; worker can't see DOM layout)
-        if (typeof ResizeObserver !== 'undefined') {
-            new ResizeObserver(function (es) {
-                const e = es[0];
-                const box = e.contentBoxSize
-                    ? (Array.isArray(e.contentBoxSize) ? e.contentBoxSize[0] : e.contentBoxSize)
-                    : null;
-                send({
-                    type: 'resize',
-                    clientW: box ? box.inlineSize : e.contentRect.width,
-                    clientH: box ? box.blockSize  : e.contentRect.height,
-                });
-            }).observe(_canvas);
-        } else {
-            window.addEventListener('resize', function () {
-                send({ type: 'resize', clientW: _canvas.clientWidth, clientH: _canvas.clientHeight });
-            });
-        }
-
-        // Visibility (worker rAF still throttled by browser when hidden, but we
-        // explicitly pause too — same behavior as main-thread Patch D).
-        document.addEventListener('visibilitychange', function () {
-            send({ type: 'visibility', hidden: document.hidden });
-        });
-
-        // Input forwarding — mirrors Patch C: window listeners (not canvas) so
-        // pointer-events:none on the canvas doesn't swallow events.
-        window.addEventListener('mousedown', function (e) { send({ type: 'mousedown', x: e.clientX, y: e.clientY, button: e.button }); });
-        window.addEventListener('mousemove', function (e) { send({ type: 'mousemove', x: e.clientX, y: e.clientY }); });
-        window.addEventListener('mouseup',   function ()  { send({ type: 'mouseup' }); });
-        window.addEventListener('touchstart', function (e) {
-            const t = [];
-            for (let i = 0; i < e.targetTouches.length; i++) t.push({ id: e.targetTouches[i].identifier, x: e.targetTouches[i].pageX, y: e.targetTouches[i].pageY });
-            send({ type: 'touchstart', touches: t });
-        }, { passive: true });
-        window.addEventListener('touchmove', function (e) {
-            const t = [];
-            for (let i = 0; i < e.targetTouches.length; i++) t.push({ id: e.targetTouches[i].identifier, x: e.targetTouches[i].pageX, y: e.targetTouches[i].pageY });
-            send({ type: 'touchmove', touches: t });
-        }, { passive: true });
-        window.addEventListener('touchend', function (e) {
-            const t = [];
-            for (let i = 0; i < e.changedTouches.length; i++) t.push({ id: e.changedTouches[i].identifier });
-            send({ type: 'touchend', touches: t });
-        });
-        window.addEventListener('keydown', function (e) { send({ type: 'keydown', code: e.code, key: e.key }); });
-
-        // Public API — same shape as the main-thread implementations defined
-        // toward the bottom of _runFluidMain. games-extras.js calls these.
-        window.fluidSplatScreen = function (clientX, clientY, prevClientX, prevClientY) {
-            send({ type: 'splatScreen', clientX: clientX, clientY: clientY, prevClientX: prevClientX, prevClientY: prevClientY });
-        };
-        window.fluidSetActive = function (active) {
-            send({ type: 'setActive', active: !!active });
-        };
-        window.__fluidWorker = worker;
-        // (__fluidWorkerEngaged was set right after transferControlToOffscreen
-        // — see comment above; it must stay true even if listener registration
-        // partially fails, otherwise main-thread would try to use a dead canvas.)
-    })();
-}
-
-function _runFluidMain () {
-
 // Stub analytics so ga() calls are silent no-ops on our site.
 if (typeof window !== 'undefined' && typeof window.ga !== 'function') {
     window.ga = function () {};
@@ -234,120 +75,6 @@ if (googleLink) {
 // Simulation section
 
 const canvas = document.getElementsByTagName('canvas')[0];
-
-/* ---------- Patch E: per-frame allocation + reflow elimination ----------
- * Caches DPR / client dimensions / aspect ratio so the per-frame update loop
- * never reads layout-dependent DOM properties (which force a style flush) and
- * never recomputes values that change only on resize / monitor change.
- *
- * DPR is clamped to FLUID_MAX_DPR (default 2.0). On DPR=3 displays this drops
- * the composite/bloom/sunrays render area from 9× to 4× CSS pixels — a 2.25×
- * cut to display-pass GPU cost. The actual sim quality (DYE_RESOLUTION=1024)
- * is unaffected; the upsample 1024→screen is a hardware bilinear filter and
- * indistinguishable to the eye above DPR=2. Set window.FLUID_MAX_DPR =
- * Infinity before this script loads to opt out.
- *
- * Critical correctness invariant: pointer.texcoordX = posX / canvas.width.
- * Both numerator (posX) and denominator (canvas.width) come from
- * scaleByPixelRatio, so the DPR factor cancels — splat alignment is preserved
- * regardless of clamp value. */
-window.FLUID_MAX_DPR = window.FLUID_MAX_DPR || 2.0;
-// _targetDPR is the ceiling (device DPR clamped to FLUID_MAX_DPR).
-// _cachedDPR is the *currently effective* DPR — Patch F8 (below) may pull it
-// down toward 1.0 when the GPU can't keep up, then step it back toward the
-// ceiling when frames are healthy again.
-let _targetDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
-let _cachedDPR = _targetDPR;
-let pendingResize = true;
-let cachedClientW = canvas.clientWidth;
-let cachedClientH = canvas.clientHeight;
-let cachedAspectRatio = 1;
-function _refreshDPR () {
-    // Page zoom / monitor change: reset both ceiling and current. Adaptive
-    // state restarts from a clean slate at the new device DPR.
-    _targetDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
-    _cachedDPR = _targetDPR;
-    pendingResize = true;
-    // matchMedia DPR queries are one-shot per breakpoint — re-arm after each fire.
-    if (window.matchMedia)
-        matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
-            .addEventListener('change', _refreshDPR, { once: true });
-}
-// Patch F10: expose for the worker harness — DPR matchMedia change events
-// don't fire inside a worker, so the harness pokes us when main posts a 'dpr'
-// update (after the user zooms / drags between monitors).
-if (typeof window !== 'undefined') window.__fluidPokeDPR = _refreshDPR;
-if (window.matchMedia)
-    matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
-        .addEventListener('change', _refreshDPR, { once: true });
-
-if (typeof ResizeObserver !== 'undefined') {
-    new ResizeObserver(es => {
-        const e = es[0];
-        const box = e.contentBoxSize
-            ? (Array.isArray(e.contentBoxSize) ? e.contentBoxSize[0] : e.contentBoxSize)
-            : null;
-        cachedClientW = box ? box.inlineSize : e.contentRect.width;
-        cachedClientH = box ? box.blockSize  : e.contentRect.height;
-        pendingResize = true;
-    }).observe(canvas);
-} else {
-    // Fallback: keep the old behavior on ancient browsers (no ResizeObserver).
-    window.addEventListener('resize', () => {
-        cachedClientW = canvas.clientWidth;
-        cachedClientH = canvas.clientHeight;
-        pendingResize = true;
-    });
-}
-
-// Active-program + texture-unit binding caches. Avoid redundant gl.useProgram
-// (called twice per splat) and gl.activeTexture+bindTexture (called 20× in
-// the pressure solver loop). Invalidated in initFramebuffers and resizeFBO
-// because those create fresh GL textures that may reuse old GPU object slots.
-let _activeGLProgram = null;
-const _texUnitBindings = [];
-
-// Render-dirty flag: when PAUSED, skip render() to avoid running bloom +
-// sunrays + display passes for a frozen frame. Set true on pause→active
-// transitions and on visibilitychange→visible so the next paused frame still
-// renders one fresh frame before stopping.
-let _renderDirty = true;
-
-/* ---------- Patch F: adaptive bloom/sunrays cadence ----------
- * Bloom = ~17 fullscreen passes (1 prefilter + 8 down + 7 up + 1 final).
- * Sunrays = 4 passes. On healthy hardware this fits inside a 16 ms budget
- * and we update every frame. When the rolling 8-frame avg exceeds 22 ms
- * (slow GPU, many splats, etc.) we update bloom/sunrays only every other
- * frame and reuse the cached FBOs. Bloom is a low-frequency signal (already
- * blurred 8× in a pyramid) so temporal reuse is invisible at default
- * settings; the win is ~0.8–2.5 ms per slow frame, which often pushes us
- * back below 16 ms.
- */
-const _frameTimes = [16, 16, 16, 16, 16, 16, 16, 16];
-let _frameIdx = 0;
-let _frameTimeAvg = 16;
-let _bloomToggle = 0;
-let _bloomThisFrame = true;     // gates applyBloom + applySunrays in render()
-
-/* ---------- Patch F8: adaptive DPR fallback ----------
- * If frame time stays high after Patch F's bloom dimming, the GPU has
- * sustained pressure that temporal tricks can't hide. Drop the canvas backing
- * resolution in 0.25 DPR steps (never below 1.0) until frames recover. When
- * we're back below 14 ms avg sustained, step DPR back up toward the original
- * ceiling. Asymmetric thresholds (drop at 25 ms, raise at 14 ms) plus a 3 s
- * cooldown create the hysteresis needed to avoid oscillation between two
- * close DPR values. Each step triggers framebuffer reinit on the next frame
- * via the existing pendingResize plumbing in resizeCanvas().
- *
- * On DPR=1 displays this is a no-op (_targetDPR=1.0, no headroom to drop).
- * Only kicks in when the device has retina pixels AND the GPU can't afford
- * them — exactly the failure mode we want to catch. */
-const _F8_MIN_DPR = 1.0;
-const _F8_DROP_THRESHOLD_MS = 25;   // > 40 fps avg → hold; < 40 fps avg → drop
-const _F8_RAISE_THRESHOLD_MS = 14;  // > 71 fps avg → step DPR back up
-const _F8_COOLDOWN_MS = 3000;
-let _f8LastChange = 0;
-
 resizeCanvas();
 
 let config = {
@@ -406,40 +133,11 @@ if (!ext.supportLinearFiltering) {
     config.BLOOM = false;
     config.SUNRAYS = false;
 }
-// Patch G1: honor prefers-reduced-motion. Bloom (~17 fullscreen passes),
-// sunrays + sunrays-blur (~4 passes), and the dithering sample in the display
-// shader are the visually busy parts of the fluid. Disabling them for users
-// who opted into reduced motion is both an accessibility win and a major perf
-// win — drops ~22 fullscreen passes/frame, often >5 ms on integrated GPUs.
-// SHADING (the directional lighting on dye edges) stays — it's a subtle look
-// cue, not "motion." Re-evaluated live via the media-query change listener.
-// Patch F10: hoist _applyReducedMotion to function scope so the worker
-// harness can poke it via window.__fluidPokeReducedMotion when main posts
-// a 'reducedmotion' update (matchMedia 'change' doesn't fire in workers).
-let _applyReducedMotion = function () {};
-if (window.matchMedia) {
-    const _reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-    _applyReducedMotion = function () {
-        if (_reducedMotion.matches) {
-            config.BLOOM = false;
-            config.SUNRAYS = false;
-        }
-    };
-    _applyReducedMotion();
-    _reducedMotion.addEventListener('change', _applyReducedMotion);
-}
-if (typeof window !== 'undefined') window.__fluidPokeReducedMotion = function () { _applyReducedMotion(); };
 
 startGUI();
 
 function getWebGLContext (canvas) {
-    // Patch F2: `desynchronized: true` skips the compositor frame-sync barrier
-    // (Chrome lets the canvas swap independent of the page repaint, reducing
-    // frame latency; tearing isn't visible on a continuous-motion fluid).
-    // `powerPreference: 'high-performance'` hints hybrid-GPU laptops to use the
-    // discrete GPU instead of integrated. Both attributes are silently ignored
-    // on browsers that don't honor them.
-    const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false, desynchronized: true, powerPreference: 'high-performance' };
+    const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false };
 
     let gl = canvas.getContext('webgl2', params);
     const isWebGL2 = !!gl;
@@ -700,11 +398,7 @@ class Material {
     }
 
     bind () {
-        // Patch E: skip redundant gl.useProgram. _activeGLProgram is module-level
-        // and only mutated here + in Program.bind below (audited: no other callers).
-        if (_activeGLProgram === this.activeProgram) return;
         gl.useProgram(this.activeProgram);
-        _activeGLProgram = this.activeProgram;
     }
 }
 
@@ -716,10 +410,7 @@ class Program {
     }
 
     bind () {
-        // Patch E: skip redundant gl.useProgram. See Material.bind comment above.
-        if (_activeGLProgram === this.program) return;
         gl.useProgram(this.program);
-        _activeGLProgram = this.program;
     }
 }
 
@@ -1243,27 +934,12 @@ const gradientSubtractShader = compileShader(gl.FRAGMENT_SHADER, `
 `);
 
 const blit = (() => {
-    // Patch F1: wrap the static fullscreen quad in a VAO when WebGL2 is
-    // available. The buffers + attribute pointers haven't changed since module
-    // init, but each program switch in WebGL2 still incurs attribute-state
-    // revalidation per draw (browser bookkeeping, not GPU work). Binding a VAO
-    // once tells the driver/browser the attribute layout is fixed, eliminating
-    // that revalidation. ~5–15 µs per draw × ~30–60 draws/frame.
-    //
-    // Patch G3: the original used drawElements(TRIANGLES, 6) over a 4-vert,
-    // 6-index quad. TRIANGLE_STRIP renders the same quad with 4 vertices and
-    // no index buffer — drops one bound buffer, one index fetch per vertex,
-    // and ~5% draw cost on integrated GPUs. Vertex order BL/BR/TL/TR forms
-    // two triangles via the strip rule; UVs (vUv = aPosition * 0.5 + 0.5)
-    // interpolate identically across the screen.
-    const _vao = gl.createVertexArray ? gl.createVertexArray() : null;
-    if (_vao) gl.bindVertexArray(_vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(0);
-    // VAO stays bound for the rest of the session — no other code path
-    // touches vertex attributes, so we never need to re-bind.
 
     return (target, clear = false) => {
         if (target == null)
@@ -1282,7 +958,7 @@ const blit = (() => {
             gl.clear(gl.COLOR_BUFFER_BIT);
         }
         // CHECK_FRAMEBUFFER_STATUS();
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); // Patch G3
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     }
 })();
 
@@ -1325,11 +1001,6 @@ const gradienSubtractProgram = new Program(baseVertexShader, gradientSubtractSha
 const displayMaterial = new Material(baseVertexShader, displayShaderSource);
 
 function initFramebuffers () {
-    // Patch E: any/all FBO textures may be replaced below; invalidate the
-    // texture-unit binding cache so stale entries don't suppress re-binding
-    // of a fresh texture that happens to land on the same JS object slot.
-    _texUnitBindings.length = 0;
-
     let simRes = getResolution(config.SIM_RESOLUTION);
     let dyeRes = getResolution(config.DYE_RESOLUTION);
 
@@ -1419,15 +1090,8 @@ function createFBO (w, h, internalFormat, format, type, param) {
         texelSizeX,
         texelSizeY,
         attach (id) {
-            // Patch E: skip redundant activeTexture+bindTexture. The pressure
-            // solver loop calls attach(1) 20× per frame; this drops 40 GL calls.
-            // After pressure.swap() the texture pointer changes, so the cache
-            // correctly misses and re-binds — no special-casing needed.
-            if (_texUnitBindings[id] !== texture) {
-                gl.activeTexture(gl.TEXTURE0 + id);
-                gl.bindTexture(gl.TEXTURE_2D, texture);
-                _texUnitBindings[id] = texture;
-            }
+            gl.activeTexture(gl.TEXTURE0 + id);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
             return id;
         }
     };
@@ -1463,9 +1127,6 @@ function createDoubleFBO (w, h, internalFormat, format, type, param) {
 }
 
 function resizeFBO (target, w, h, internalFormat, format, type, param) {
-    // Patch E: a fresh texture is about to be created; invalidate the
-    // texture-unit cache so the old reference doesn't suppress re-binding.
-    _texUnitBindings.length = 0;
     let newFBO = createFBO(w, h, internalFormat, format, type, param);
     copyProgram.bind();
     gl.uniform1i(copyProgram.uniforms.uTexture, target.attach(0));
@@ -1499,12 +1160,8 @@ function createTextureAsync (url) {
         width: 1,
         height: 1,
         attach (id) {
-            // Patch E: see createFBO.attach comment.
-            if (_texUnitBindings[id] !== texture) {
-                gl.activeTexture(gl.TEXTURE0 + id);
-                gl.bindTexture(gl.TEXTURE_2D, texture);
-                _texUnitBindings[id] = texture;
-            }
+            gl.activeTexture(gl.TEXTURE0 + id);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
             return id;
         }
     };
@@ -1533,64 +1190,24 @@ updateKeywords();
 initFramebuffers();
 multipleSplats(parseInt(Math.random() * 20) + 5);
 
-// Patch F5: performance.now() is monotonic (won't go backward on NTP/DST
-// adjust like Date.now() can) and µs-resolution. Slightly faster too.
-let lastUpdateTime = performance.now();
+let lastUpdateTime = Date.now();
 let colorUpdateTimer = 0.0;
 update();
 
 function update () {
-    // Patch F3: rolling 8-frame avg to decide whether to skip bloom/sunrays.
-    // Measured at the *start* of the frame so we account for the previous
-    // frame's full render+browser-composite latency. >22 ms = ~45 fps, well
-    // below 60 fps target → engage bloom alternation.
-    const frameStart = performance.now();
-    _frameTimes[_frameIdx & 7] = frameStart - lastUpdateTime;
-    _frameIdx++;
-    if ((_frameIdx & 7) === 0) {
-        let s = 0;
-        for (let i = 0; i < 8; i++) s += _frameTimes[i];
-        _frameTimeAvg = s * 0.125;
-
-        // Patch F8: adaptive DPR adjustment. Only on the every-8-frame tick
-        // so the cooldown is checked at most ~7 times/sec — cheap. The actual
-        // resize takes effect on the *next* frame via pendingResize.
-        if (frameStart - _f8LastChange > _F8_COOLDOWN_MS) {
-            if (_frameTimeAvg > _F8_DROP_THRESHOLD_MS && _cachedDPR > _F8_MIN_DPR) {
-                _cachedDPR = Math.max(_F8_MIN_DPR, _cachedDPR - 0.25);
-                pendingResize = true;
-                _f8LastChange = frameStart;
-            } else if (_frameTimeAvg < _F8_RAISE_THRESHOLD_MS && _cachedDPR < _targetDPR) {
-                _cachedDPR = Math.min(_targetDPR, _cachedDPR + 0.25);
-                pendingResize = true;
-                _f8LastChange = frameStart;
-            }
-        }
-    }
-    _bloomThisFrame = _frameTimeAvg < 22 || (_bloomToggle++ & 1) === 0;
-
     const dt = calcDeltaTime();
     if (resizeCanvas())
         initFramebuffers();
     updateColors(dt);
     applyInputs();
-    if (!config.PAUSED) {
+    if (!config.PAUSED)
         step(dt);
-        render(null);
-    } else if (_renderDirty) {
-        // Patch E: when paused, skip the bloom + sunrays + display passes
-        // (saves 0.5–3 ms/frame on integrated GPUs). Render exactly one final
-        // frame on a pause→active transition so the canvas reflects the most
-        // recent state instead of a stale framebuffer.
-        render(null);
-        _renderDirty = false;
-    }
+    render(null);
     requestAnimationFrame(update);
 }
 
 function calcDeltaTime () {
-    // Patch F5: see lastUpdateTime init comment.
-    let now = performance.now();
+    let now = Date.now();
     let dt = (now - lastUpdateTime) / 1000;
     dt = Math.min(dt, 0.016666);
     lastUpdateTime = now;
@@ -1598,18 +1215,11 @@ function calcDeltaTime () {
 }
 
 function resizeCanvas () {
-    // Patch E: previous version read canvas.clientWidth/Height every frame,
-    // which forces a layout flush. ResizeObserver (set up at module init)
-    // toggles pendingResize when the canvas actually changes size, so the
-    // common case is a single boolean check.
-    if (!pendingResize) return false;
-    pendingResize = false;
-    let width  = scaleByPixelRatio(cachedClientW);
-    let height = scaleByPixelRatio(cachedClientH);
+    let width = scaleByPixelRatio(canvas.clientWidth);
+    let height = scaleByPixelRatio(canvas.clientHeight);
     if (canvas.width != width || canvas.height != height) {
         canvas.width = width;
         canvas.height = height;
-        cachedAspectRatio = canvas.width / canvas.height;
         return true;
     }
     return false;
@@ -1705,15 +1315,9 @@ function step (dt) {
 }
 
 function render (target) {
-    // Patch F3: when running below ~45 fps, alternate-frame the bloom +
-    // sunrays passes. The display pass below still samples the cached `bloom`
-    // and `sunrays` FBOs from the previous frame — bloom is a heavily blurred
-    // (8-level pyramid) low-frequency signal, so 30 Hz updates are visually
-    // indistinguishable from 60 Hz at default thresholds. Composite cost
-    // unchanged, generation cost halved on slow frames.
-    if (config.BLOOM && _bloomThisFrame)
+    if (config.BLOOM)
         applyBloom(dye.read, bloom);
-    if (config.SUNRAYS && _bloomThisFrame) {
+    if (config.SUNRAYS) {
         applySunrays(dye.read, dye.write, sunrays);
         blur(sunrays, sunraysTemp, 1);
     }
@@ -1741,7 +1345,7 @@ function drawColor (target, color) {
 
 function drawCheckerboard (target) {
     checkerboardProgram.bind();
-    gl.uniform1f(checkerboardProgram.uniforms.aspectRatio, cachedAspectRatio); // Patch E
+    gl.uniform1f(checkerboardProgram.uniforms.aspectRatio, canvas.width / canvas.height);
     blit(target);
 }
 
@@ -1858,7 +1462,7 @@ function multipleSplats (amount) {
 function splat (x, y, dx, dy, color) {
     splatProgram.bind();
     gl.uniform1i(splatProgram.uniforms.uTarget, velocity.read.attach(0));
-    gl.uniform1f(splatProgram.uniforms.aspectRatio, cachedAspectRatio); // Patch E
+    gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width / canvas.height);
     gl.uniform2f(splatProgram.uniforms.point, x, y);
     gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0.0);
     gl.uniform1f(splatProgram.uniforms.radius, correctRadius(config.SPLAT_RADIUS / 100.0));
@@ -1872,9 +1476,9 @@ function splat (x, y, dx, dy, color) {
 }
 
 function correctRadius (radius) {
-    // Patch E: cachedAspectRatio is updated on resize.
-    if (cachedAspectRatio > 1)
-        radius *= cachedAspectRatio;
+    let aspectRatio = canvas.width / canvas.height;
+    if (aspectRatio > 1)
+        radius *= aspectRatio;
     return radius;
 }
 
@@ -1885,11 +1489,9 @@ function correctRadius (radius) {
 window.addEventListener('mousedown', e => {
     let posX = scaleByPixelRatio(e.clientX);
     let posY = scaleByPixelRatio(e.clientY);
-    // Patch E: pointers[0] is created at module init (line ~123) with id=-1
-    // and nothing in this file ever mutates pointers[0].id away from -1.
-    // Touch handlers use pointers[i+1], so pointers[0] is reserved for mouse.
-    // (Keep .find() for touchend below — touch ids are arbitrary integers.)
-    let pointer = pointers[0];
+    let pointer = pointers.find(p => p.id == -1);
+    if (pointer == null)
+        pointer = new pointerPrototype();
     updatePointerDownData(pointer, -1, posX, posY);
 });
 
@@ -1972,14 +1574,14 @@ function updatePointerUpData (pointer) {
 }
 
 function correctDeltaX (delta) {
-    // Patch E: cached at canvas resize, see Patch E header comment.
-    if (cachedAspectRatio < 1) delta *= cachedAspectRatio;
+    let aspectRatio = canvas.width / canvas.height;
+    if (aspectRatio < 1) delta *= aspectRatio;
     return delta;
 }
 
 function correctDeltaY (delta) {
-    // Patch E.
-    if (cachedAspectRatio > 1) delta /= cachedAspectRatio;
+    let aspectRatio = canvas.width / canvas.height;
+    if (aspectRatio > 1) delta /= aspectRatio;
     return delta;
 }
 
@@ -2052,10 +1654,8 @@ function getTextureScale (texture, width, height) {
 }
 
 function scaleByPixelRatio (input) {
-    // Patch E: DPR is cached at module init and refreshed by a matchMedia
-    // listener on monitor / zoom change. Reads here are hot — every pointer
-    // event and every resize check calls in.
-    return Math.floor(input * _cachedDPR);
+    let pixelRatio = window.devicePixelRatio || 1;
+    return Math.floor(input * pixelRatio);
 }
 
 function hashCode (s) {
@@ -2074,18 +1674,7 @@ function hashCode (s) {
 // for hidden tabs, but explicitly pausing the sim also zeroes shader dispatch.
 document.addEventListener('visibilitychange', () => {
     config.PAUSED = document.hidden;
-    // Patch E: on visible-again, force one render so the user sees the last
-    // simulation state immediately rather than a (possibly cleared) buffer.
-    if (!document.hidden) _renderDirty = true;
 });
-
-// Patch E: external pause control used by games-extras.js to auto-pause when
-// the cat is sleeping AND the user has been idle. Wakes back up on any input.
-window.fluidSetActive = function (active) {
-    const wasPaused = config.PAUSED;
-    config.PAUSED = !active;
-    if (active && wasPaused) _renderDirty = true;
-};
 
 // Scale simulation resolution down on small screens so phones stay smooth.
 // Desktop keeps the upstream defaults so the look matches the source demo.
@@ -2127,12 +1716,3 @@ window.fluidSplatScreen = function (clientX, clientY, prevClientX, prevClientY) 
         splat(texcoordX, texcoordY, dx, dy, color);
     } catch (e) { /* silent — sim may not have initialized (no WebGL) */ }
 };
-
-} // end _runFluidMain
-
-// Patch F10: skip main-thread setup if the worker bootstrap above engaged.
-// In all other contexts (flag off, browser unsupported, transfer failed,
-// or running inside the worker via importScripts), run the sim normally.
-if (typeof window === 'undefined' || !window.__fluidWorkerEngaged) {
-    _runFluidMain();
-}
