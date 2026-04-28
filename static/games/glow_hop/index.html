@@ -16,6 +16,8 @@
             overflow: hidden;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             user-select: none;
+            -webkit-user-select: none;
+            overscroll-behavior: none;
         }
 
         #game-container {
@@ -23,6 +25,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
+            touch-action: none;
         }
 
         canvas {
@@ -31,6 +34,53 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            touch-action: none;
+        }
+
+        #touch-controls {
+            position: absolute;
+            inset: 0;
+            display: none;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .touch-btn {
+            position: absolute;
+            bottom: 16px;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(251, 191, 36, 0.10);
+            border: 2px solid rgba(251, 191, 36, 0.45);
+            color: #fbbf24;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            transition: background 60ms, transform 60ms;
+        }
+        .touch-btn.pressed {
+            background: rgba(251, 191, 36, 0.32);
+            transform: scale(0.93);
+        }
+        #dpad-left  { left: 16px; }
+        #dpad-right { left: 102px; }
+        #btn-jump   { right: 102px; }
+        #btn-dash   { right: 16px; border-color: rgba(56, 189, 248, 0.45); color: #38bdf8; background: rgba(56,189,248,0.10); }
+        #btn-dash.pressed { background: rgba(56, 189, 248, 0.32); }
+        @media (max-height: 480px) {
+            .touch-btn { width: 64px; height: 64px; bottom: 10px; }
+            #dpad-right { left: 90px; }
+            #btn-jump { right: 90px; }
         }
 
         .overlay {
@@ -218,13 +268,21 @@
         </div>
         <div class="controls-hint" style="margin-top:16px;">Press ESC to resume</div>
     </div>
+
+    <!-- On-screen touch controls (auto-shown on touch devices) -->
+    <div id="touch-controls">
+        <button class="touch-btn" id="dpad-left"  aria-label="Move left">&#9664;</button>
+        <button class="touch-btn" id="dpad-right" aria-label="Move right">&#9654;</button>
+        <button class="touch-btn" id="btn-jump"   aria-label="Jump">JUMP</button>
+        <button class="touch-btn" id="btn-dash"   aria-label="Dash">DASH</button>
+    </div>
 </div>
 
 <script>
 // ================================================================
-//  GLOW HOP  —  v6.0
+//  GLOW HOP  —  v6.1
 //  Proximity-reveal platformer with dash, wall-jump, double-jump,
-//  collectible crystals, combo system, and 15 hand-crafted levels.
+//  collectible crystals, combo system, and 20 hand-crafted levels.
 // ================================================================
 
 const canvas = document.getElementById('gameCanvas');
@@ -299,6 +357,9 @@ let state = {
     totalScore: 0, levelBonus: 0,
     combo: 0, comboTimer: 0,
     deathCount: 0,
+    retryQueued: false,
+    levelIntroT: 0,
+    torchesCollected: 0,
     // Per-level mechanic state (reset by initLevel)
     gravityDir: 1,
     windZones: null,
@@ -358,237 +419,491 @@ window.addEventListener('keyup', e => {
     if (gameKeys.has(e.key)) e.preventDefault();
 });
 
-// ── Audio System ────────────────────────────────────────────────
+// ── Auto-pause on tab blur / visibility change ──
+function autoPauseIfPlaying() {
+    if (state.running && !state.paused && player && !player.dead) {
+        togglePause();
+    }
+    clearInput();
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        autoPauseIfPlaying();
+    } else {
+        if (audio.state === 'suspended') audio.resume();
+        // Re-anchor music scheduler so we don't burst-queue catch-up notes
+        if (musicPlaying) nextStepTime = audio.currentTime + STEP_SEC;
+    }
+});
+
+window.addEventListener('blur', autoPauseIfPlaying);
+
+// ── Touch controls (mobile) ──────────────────────────────────────
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+let lowFx = isTouchDevice; // disable expensive shadow blur on touch devices by default
+
+function bindTouchButton(id, key) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const press = (e) => {
+        e.preventDefault();
+        rawKeys[key] = true;
+        el.classList.add('pressed');
+        syncInput();
+        if (audio.state === 'suspended') audio.resume();
+    };
+    const release = (e) => {
+        e.preventDefault();
+        delete rawKeys[key];
+        el.classList.remove('pressed');
+        syncInput();
+    };
+    el.addEventListener('touchstart', press, { passive: false });
+    el.addEventListener('touchend', release, { passive: false });
+    el.addEventListener('touchcancel', release, { passive: false });
+    // Also support mouse for desktop testing
+    el.addEventListener('mousedown', press);
+    el.addEventListener('mouseup', release);
+    el.addEventListener('mouseleave', release);
+    // Don't let buttons keep keyboard focus (would block keys)
+    el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+bindTouchButton('dpad-left',  'ArrowLeft');
+bindTouchButton('dpad-right', 'ArrowRight');
+bindTouchButton('btn-jump',   ' ');
+bindTouchButton('btn-dash',   'Shift');
+
+function updateTouchControlsVisibility() {
+    const el = document.getElementById('touch-controls');
+    if (!el) return;
+    if (!isTouchDevice) { el.style.display = 'none'; return; }
+    const overlayVisible =
+        document.getElementById('main-menu').style.display !== 'none' ||
+        document.getElementById('pause-screen').style.display === 'flex' ||
+        document.getElementById('death-screen').style.display === 'flex' ||
+        document.getElementById('win-screen').style.display === 'flex';
+    el.style.display = (state.running && !overlayVisible) ? 'block' : 'none';
+}
+
+// ── Audio System (lo-fi chillwave, reverb-soaked) ────────────────
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 const audio = new AudioCtx();
 
-function sfx(type, pitch) {
-    if (audio.state === 'suspended') audio.resume();
-    const p = pitch || 1;
-    const now = audio.currentTime;
-    const osc = audio.createOscillator();
-    const gain = audio.createGain();
-    osc.connect(gain); gain.connect(audio.destination);
+// Master bus
+const masterGain = audio.createGain();
+masterGain.gain.value = 0.85;
+masterGain.connect(audio.destination);
 
-    switch (type) {
-        case 'jump':
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(280*p, now);
-            osc.frequency.exponentialRampToValueAtTime(560*p, now+0.08);
-            gain.gain.setValueAtTime(0.11, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.1);
-            osc.start(now); osc.stop(now+0.1); break;
-        case 'doubleJump':
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(500*p, now);
-            osc.frequency.exponentialRampToValueAtTime(1000*p, now+0.07);
-            gain.gain.setValueAtTime(0.1, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.1);
-            osc.start(now); osc.stop(now+0.1); break;
-        case 'land':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(80, now);
-            gain.gain.setValueAtTime(0.05, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.06);
-            osc.start(now); osc.stop(now+0.06); break;
-        case 'dash':
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200, now);
-            osc.frequency.exponentialRampToValueAtTime(80, now+0.15);
-            gain.gain.setValueAtTime(0.07, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.15);
-            osc.start(now); osc.stop(now+0.15); break;
-        case 'crystal':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(800*p, now);
-            osc.frequency.exponentialRampToValueAtTime(1200*p, now+0.1);
-            gain.gain.setValueAtTime(0.13, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.25);
-            osc.start(now); osc.stop(now+0.25); break;
-        case 'bounce':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(200, now);
-            osc.frequency.exponentialRampToValueAtTime(800, now+0.1);
-            osc.frequency.exponentialRampToValueAtTime(400, now+0.2);
-            gain.gain.setValueAtTime(0.1, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.2);
-            osc.start(now); osc.stop(now+0.2); break;
-        case 'crumble':
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(55, now);
-            gain.gain.setValueAtTime(0.04, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.15);
-            osc.start(now); osc.stop(now+0.15); break;
-        case 'levelComplete':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, now);
-            osc.frequency.setValueAtTime(554, now+0.15);
-            osc.frequency.setValueAtTime(659, now+0.3);
-            osc.frequency.setValueAtTime(880, now+0.45);
-            gain.gain.setValueAtTime(0.14, now);
-            gain.gain.linearRampToValueAtTime(0.001, now+0.7);
-            osc.start(now); osc.stop(now+0.7); break;
-        case 'death':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(400, now);
-            osc.frequency.exponentialRampToValueAtTime(80, now+0.5);
-            gain.gain.setValueAtTime(0.1, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.5);
-            osc.start(now); osc.stop(now+0.5); break;
-        case 'pulse':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(150, now);
-            osc.frequency.exponentialRampToValueAtTime(350, now+0.15);
-            gain.gain.setValueAtTime(0.05, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.2);
-            osc.start(now); osc.stop(now+0.2); break;
-        case 'wallSlide':
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(40, now);
-            gain.gain.setValueAtTime(0.015, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.05);
-            osc.start(now); osc.stop(now+0.05); break;
-        case 'phantomToggle':
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(500, now);
-            osc.frequency.exponentialRampToValueAtTime(200, now+0.12);
-            gain.gain.setValueAtTime(0.04, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.12);
-            osc.start(now); osc.stop(now+0.12); break;
-        case 'spikeHit':
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(300, now);
-            osc.frequency.exponentialRampToValueAtTime(60, now+0.3);
-            gain.gain.setValueAtTime(0.12, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now+0.3);
-            osc.start(now); osc.stop(now+0.3); break;
+// Convolver reverb with synthetic exponential-decay impulse
+const reverb = audio.createConvolver();
+(function buildReverbImpulse() {
+    const sr = audio.sampleRate;
+    const len = Math.floor(sr * 2.4);
+    const impulse = audio.createBuffer(2, len, sr);
+    for (let ch = 0; ch < 2; ch++) {
+        const d = impulse.getChannelData(ch);
+        for (let i = 0; i < len; i++) {
+            const t = i / len;
+            d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.6) * 0.6;
+        }
     }
-}
+    reverb.buffer = impulse;
+})();
+const reverbReturn = audio.createGain();
+reverbReturn.gain.value = 0.55;
+reverb.connect(reverbReturn);
+reverbReturn.connect(masterGain);
 
-// ── Groovy Background Music ─────────────────────────────────────
-const MUSIC_BPM = 112;
-const BEAT_SEC = 60 / MUSIC_BPM;
-const STEP_SEC = BEAT_SEC / 4;
-let musicPlaying = false;
-let musicStartTime = 0;
-let nextStepTime = 0;
-let currentMusicStep = 0;
-const PATTERN_STEPS = 32;
+// SFX bus + reverb send
+const sfxBus = audio.createGain();
+sfxBus.gain.value = 1.0;
+sfxBus.connect(masterGain);
+const sfxReverbSend = audio.createGain();
+sfxReverbSend.gain.value = 0.3;
+sfxBus.connect(sfxReverbSend);
+sfxReverbSend.connect(reverb);
 
+// Music bus + reverb send
 const musicGain = audio.createGain();
-musicGain.gain.value = 0.25;
-musicGain.connect(audio.destination);
+musicGain.gain.value = 0.32;
+musicGain.connect(masterGain);
+const musicReverbSend = audio.createGain();
+musicReverbSend.gain.value = 0.45;
+musicGain.connect(musicReverbSend);
+musicReverbSend.connect(reverb);
 
+// Pre-baked white noise buffer (used by hats, vinyl noise, crumble)
 const noiseBuffer = (() => {
-    const len = audio.sampleRate;
+    const len = Math.floor(audio.sampleRate);
     const buf = audio.createBuffer(1, len, audio.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     return buf;
 })();
 
-const bassNotes = [
-    82.41, 0, 82.41, 0,   98, 0, 110, 82.41,
-    82.41, 0, 98, 0,      123.47, 0, 110, 98,
-    110, 0, 110, 0,       123.47, 0, 146.83, 0,
-    123.47, 0, 110, 98,   82.41, 0, 0, 82.41
-];
-
-function musicBass(freq, time) {
-    if (!freq) return;
-    const osc = audio.createOscillator();
-    const g = audio.createGain();
+// Continuous vinyl crackle — runs whenever music is playing
+let vinylNoiseSource = null;
+function startVinylNoise() {
+    if (vinylNoiseSource) return;
+    const src = audio.createBufferSource();
+    src.buffer = noiseBuffer;
+    src.loop = true;
     const filt = audio.createBiquadFilter();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(freq, time);
+    filt.type = 'bandpass';
+    filt.frequency.value = 1800;
+    filt.Q.value = 0.6;
+    const g = audio.createGain();
+    g.gain.value = 0.011;
+    src.connect(filt); filt.connect(g); g.connect(masterGain);
+    src.start(0);
+    vinylNoiseSource = src;
+}
+function stopVinylNoise() {
+    if (!vinylNoiseSource) return;
+    try { vinylNoiseSource.stop(); } catch (_) {}
+    vinylNoiseSource = null;
+}
+
+function sfx(type, pitch) {
+    if (audio.state === 'suspended') audio.resume();
+    const p = pitch || 1;
+    const now = audio.currentTime;
+    const dest = sfxBus;
+
+    switch (type) {
+        case 'jump': {
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(280*p, now);
+            osc.frequency.exponentialRampToValueAtTime(540*p, now+0.12);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.085, now+0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now+0.18);
+            osc.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.2);
+            break;
+        }
+        case 'doubleJump': {
+            for (const det of [0, 5]) {
+                const osc = audio.createOscillator();
+                const gain = audio.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime((600 + det) * p, now);
+                osc.frequency.exponentialRampToValueAtTime((1100 + det) * p, now+0.08);
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(0.06, now+0.005);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now+0.32);
+                osc.connect(gain); gain.connect(dest);
+                osc.start(now); osc.stop(now+0.34);
+            }
+            break;
+        }
+        case 'land': {
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(70, now);
+            osc.frequency.exponentialRampToValueAtTime(45, now+0.08);
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.1);
+            osc.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.12);
+            break;
+        }
+        case 'dash': {
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            const filt = audio.createBiquadFilter();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(70, now+0.2);
+            filt.type = 'lowpass';
+            filt.frequency.setValueAtTime(1800, now);
+            filt.frequency.exponentialRampToValueAtTime(400, now+0.2);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.22);
+            osc.connect(filt); filt.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.25);
+            break;
+        }
+        case 'crystal': {
+            // Wind-chime / bell with three detuned partials
+            const partials = [
+                { mul: 1,    vol: 1.0,  decay: 0.85 },
+                { mul: 2.01, vol: 0.42, decay: 0.55 },
+                { mul: 3.97, vol: 0.18, decay: 0.4 }
+            ];
+            const f0 = 880 * p;
+            for (const part of partials) {
+                const osc = audio.createOscillator();
+                const gain = audio.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = f0 * part.mul;
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(0.07 * part.vol, now+0.005);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + part.decay);
+                osc.connect(gain); gain.connect(dest);
+                osc.start(now); osc.stop(now + part.decay + 0.05);
+            }
+            break;
+        }
+        case 'bounce': {
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.exponentialRampToValueAtTime(640, now+0.08);
+            osc.frequency.exponentialRampToValueAtTime(380, now+0.18);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.085, now+0.005);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now+0.25);
+            osc.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.27);
+            break;
+        }
+        case 'crumble': {
+            // Soft rumble — low-passed noise burst
+            const src = audio.createBufferSource();
+            src.buffer = noiseBuffer;
+            const filt = audio.createBiquadFilter();
+            filt.type = 'lowpass';
+            filt.frequency.value = 240;
+            const gain = audio.createGain();
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.18);
+            src.connect(filt); filt.connect(gain); gain.connect(dest);
+            src.start(now, Math.random() * 0.5); src.stop(now+0.2);
+            break;
+        }
+        case 'levelComplete': {
+            // Ascending C-major-pentatonic bell arpeggio
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, i) => {
+                const t0 = now + i * 0.13;
+                for (const det of [0, 6]) {
+                    const osc = audio.createOscillator();
+                    const gain = audio.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq + det;
+                    gain.gain.setValueAtTime(0.0001, t0);
+                    gain.gain.exponentialRampToValueAtTime(0.09, t0+0.005);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.6);
+                    osc.connect(gain); gain.connect(dest);
+                    osc.start(t0); osc.stop(t0+0.62);
+                }
+            });
+            break;
+        }
+        case 'death': {
+            // Soft descending sine, low-pass — much gentler than before
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            const filt = audio.createBiquadFilter();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(360, now);
+            osc.frequency.exponentialRampToValueAtTime(70, now+0.6);
+            filt.type = 'lowpass';
+            filt.frequency.setValueAtTime(1200, now);
+            filt.frequency.exponentialRampToValueAtTime(280, now+0.6);
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.7);
+            osc.connect(filt); filt.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.75);
+            break;
+        }
+        case 'pulse': {
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.exponentialRampToValueAtTime(360, now+0.18);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.04, now+0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now+0.25);
+            osc.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.27);
+            break;
+        }
+        case 'wallSlide': {
+            const src = audio.createBufferSource();
+            src.buffer = noiseBuffer;
+            const filt = audio.createBiquadFilter();
+            filt.type = 'bandpass';
+            filt.frequency.value = 900;
+            filt.Q.value = 1;
+            const gain = audio.createGain();
+            gain.gain.setValueAtTime(0.012, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.06);
+            src.connect(filt); filt.connect(gain); gain.connect(dest);
+            src.start(now, Math.random() * 0.5); src.stop(now+0.07);
+            break;
+        }
+        case 'phantomToggle': {
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(540, now);
+            osc.frequency.exponentialRampToValueAtTime(220, now+0.15);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.035, now+0.005);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now+0.18);
+            osc.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.2);
+            break;
+        }
+        case 'spikeHit': {
+            // Softer than the original sawtooth — still impact-y but not harsh
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            const filt = audio.createBiquadFilter();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(260, now);
+            osc.frequency.exponentialRampToValueAtTime(60, now+0.35);
+            filt.type = 'lowpass';
+            filt.frequency.setValueAtTime(1500, now);
+            filt.frequency.exponentialRampToValueAtTime(380, now+0.35);
+            gain.gain.setValueAtTime(0.085, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now+0.4);
+            osc.connect(filt); filt.connect(gain); gain.connect(dest);
+            osc.start(now); osc.stop(now+0.42);
+            break;
+        }
+    }
+}
+
+// ── Lo-fi Chillwave Background Music ────────────────────────────
+const MUSIC_BPM = 78;
+const BEAT_SEC = 60 / MUSIC_BPM;
+const STEP_SEC = BEAT_SEC / 4;
+let musicPlaying = false;
+let musicStartTime = 0;
+let nextStepTime = 0;
+let currentMusicStep = 0;
+const PATTERN_STEPS = 64; // 4 bars × 16 steps
+
+// Chord progression in A minor: i - VI - iv - V (Am, F, Dm, E)
+const PROG_ROOTS = [55.00, 43.65, 36.71, 41.20];
+const PROG_PADS = [
+    [55.00, 130.81, 164.81, 220.00], // Am: A2 C4 E4 A4
+    [43.65, 130.81, 174.61, 220.00], // F:  F2 C4 F4 A4
+    [36.71, 110.00, 146.83, 174.61], // Dm: D2 A3 D4 F4
+    [41.20, 123.47, 164.81, 207.65]  // E:  E2 B3 E4 G#4
+];
+const MELODY_NOTES = [440.00, 523.25, 587.33, 659.25, 783.99, 880.00]; // A4 C5 D5 E5 G5 A5
+
+function musicBass(rootFreq, time, duration) {
+    const osc = audio.createOscillator();
+    const sub = audio.createOscillator();
+    const filt = audio.createBiquadFilter();
+    const g = audio.createGain();
+    osc.type = 'triangle';
+    sub.type = 'sine';
+    osc.frequency.setValueAtTime(rootFreq, time);
+    sub.frequency.setValueAtTime(rootFreq / 2, time);
     filt.type = 'lowpass';
-    filt.frequency.setValueAtTime(500, time);
-    filt.frequency.exponentialRampToValueAtTime(180, time + STEP_SEC * 1.5);
-    filt.Q.value = 6;
-    g.gain.setValueAtTime(0.25, time);
-    g.gain.setValueAtTime(0.20, time + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.001, time + STEP_SEC * 1.8);
-    osc.connect(filt); filt.connect(g); g.connect(musicGain);
-    osc.start(time); osc.stop(time + STEP_SEC * 2);
+    filt.frequency.setValueAtTime(380, time);
+    filt.Q.value = 1.5;
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(0.18, time + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    osc.connect(filt); sub.connect(filt); filt.connect(g); g.connect(musicGain);
+    osc.start(time); sub.start(time);
+    osc.stop(time + duration + 0.1); sub.stop(time + duration + 0.1);
+}
+
+function musicPad(notes, time, duration) {
+    notes.forEach((freq, i) => {
+        const osc = audio.createOscillator();
+        const filt = audio.createBiquadFilter();
+        const g = audio.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, time);
+        osc.detune.setValueAtTime(i % 2 === 0 ? -5 : 5, time);
+        filt.type = 'lowpass';
+        filt.frequency.setValueAtTime(700, time);
+        filt.frequency.linearRampToValueAtTime(1300, time + duration * 0.4);
+        filt.frequency.linearRampToValueAtTime(650, time + duration);
+        filt.Q.value = 1.2;
+        g.gain.setValueAtTime(0.0001, time);
+        g.gain.linearRampToValueAtTime(0.016, time + 0.7);
+        g.gain.linearRampToValueAtTime(0.016, time + Math.max(0.8, duration - 0.5));
+        g.gain.linearRampToValueAtTime(0.0001, time + duration);
+        osc.connect(filt); filt.connect(g); g.connect(musicGain);
+        osc.start(time); osc.stop(time + duration + 0.1);
+    });
 }
 
 function musicKick(time) {
     const osc = audio.createOscillator();
     const g = audio.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(160, time);
-    osc.frequency.exponentialRampToValueAtTime(35, time + 0.12);
-    g.gain.setValueAtTime(0.45, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+    osc.frequency.setValueAtTime(120, time);
+    osc.frequency.exponentialRampToValueAtTime(38, time + 0.18);
+    g.gain.setValueAtTime(0.25, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
     osc.connect(g); g.connect(musicGain);
-    osc.start(time); osc.stop(time + 0.25);
-}
-
-function musicSnare(time) {
-    const src = audio.createBufferSource();
-    src.buffer = noiseBuffer;
-    const filt = audio.createBiquadFilter();
-    filt.type = 'bandpass'; filt.frequency.value = 3500; filt.Q.value = 1;
-    const g = audio.createGain();
-    g.gain.setValueAtTime(0.12, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-    src.connect(filt); filt.connect(g); g.connect(musicGain);
-    src.start(time, Math.random() * 0.5); src.stop(time + 0.12);
-    const osc = audio.createOscillator();
-    const g2 = audio.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(200, time);
-    osc.frequency.exponentialRampToValueAtTime(80, time + 0.04);
-    g2.gain.setValueAtTime(0.1, time);
-    g2.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
-    osc.connect(g2); g2.connect(musicGain);
-    osc.start(time); osc.stop(time + 0.06);
+    osc.start(time); osc.stop(time + 0.35);
 }
 
 function musicHat(time, vol) {
     const src = audio.createBufferSource();
     src.buffer = noiseBuffer;
     const filt = audio.createBiquadFilter();
-    filt.type = 'highpass'; filt.frequency.value = 9000;
+    filt.type = 'highpass'; filt.frequency.value = 7000;
     const g = audio.createGain();
-    g.gain.setValueAtTime(vol * 0.1, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
+    g.gain.setValueAtTime(vol * 0.04, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
     src.connect(filt); filt.connect(g); g.connect(musicGain);
-    src.start(time, Math.random() * 0.5); src.stop(time + 0.04);
+    src.start(time, Math.random() * 0.5); src.stop(time + 0.06);
 }
 
-function musicChord(time) {
-    [164.81, 196, 246.94].forEach(freq => {
+function musicBell(freq, time) {
+    for (const part of [{ mul: 1, vol: 1, decay: 1.4 }, { mul: 2.01, vol: 0.32, decay: 0.7 }]) {
         const osc = audio.createOscillator();
         const g = audio.createGain();
-        const filt = audio.createBiquadFilter();
-        osc.type = 'square';
-        osc.frequency.value = freq;
-        filt.type = 'bandpass';
-        filt.frequency.setValueAtTime(2500, time);
-        filt.frequency.exponentialRampToValueAtTime(350, time + 0.12);
-        filt.Q.value = 1.5;
-        g.gain.setValueAtTime(0.035, time);
-        g.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
-        osc.connect(filt); filt.connect(g); g.connect(musicGain);
-        osc.start(time); osc.stop(time + 0.15);
-    });
+        osc.type = 'sine';
+        osc.frequency.value = freq * part.mul;
+        g.gain.setValueAtTime(0.0001, time);
+        g.gain.exponentialRampToValueAtTime(0.045 * part.vol, time + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, time + part.decay);
+        osc.connect(g); g.connect(musicGain);
+        osc.start(time); osc.stop(time + part.decay + 0.05);
+    }
 }
 
+// Sparse pentatonic melody. Per-bar map: { stepInBar -> melody note index }
+const MELODY_MAP = [
+    { 2: 4, 6: 3, 11: 5 },     // Am
+    { 2: 3, 6: 2, 11: 4 },     // F
+    { 0: 2, 7: 1, 12: 3 },     // Dm
+    { 4: 4, 9: 3, 13: 0 }      // E
+];
+
 function scheduleMusicStep(step, time) {
-    const s = step % 16;
-    musicBass(bassNotes[step % bassNotes.length], time);
-    if (s === 0 || s === 6 || s === 8 || s === 14) musicKick(time);
-    if (s === 4 || s === 12) musicSnare(time);
-    if (s % 2 === 0) musicHat(time, s % 4 === 0 ? 1.0 : 0.6);
-    if (s === 3 || s === 7 || s === 11 || s === 15) musicHat(time, 0.3);
-    if (s === 2 || s === 10) musicChord(time);
+    const bar = Math.floor(step / 16) % 4;
+    const sub = step % 16;
+
+    // Bass on beats 1 and 3
+    if (sub === 0 || sub === 8) musicBass(PROG_ROOTS[bar], time, BEAT_SEC * 1.6);
+    // Pad: full bar on beat 1
+    if (sub === 0) musicPad(PROG_PADS[bar], time, BEAT_SEC * 4);
+    // Soft kick on beats 1 and 3
+    if (sub === 0 || sub === 8) musicKick(time);
+    // Subtle hat on the e-and-of-2 / e-and-of-4
+    if (sub === 4 || sub === 12) musicHat(time, 0.55);
+    if (sub === 6 || sub === 14) musicHat(time, 0.28);
+    // Sparse melody
+    const melodyIdx = MELODY_MAP[bar][sub];
+    if (melodyIdx !== undefined) musicBell(MELODY_NOTES[melodyIdx], time);
 }
 
 let musicTimer = null;
 function musicSchedulerTick() {
     if (!musicPlaying) return;
-    while (nextStepTime < audio.currentTime + 0.1) {
+    while (nextStepTime < audio.currentTime + 0.12) {
         scheduleMusicStep(currentMusicStep, nextStepTime);
         nextStepTime += STEP_SEC;
         currentMusicStep = (currentMusicStep + 1) % PATTERN_STEPS;
@@ -602,12 +917,14 @@ function startMusic() {
     musicStartTime = audio.currentTime;
     nextStepTime = audio.currentTime + 0.05;
     currentMusicStep = 0;
+    startVinylNoise();
     musicTimer = setInterval(musicSchedulerTick, 25);
 }
 
 function stopMusic() {
     musicPlaying = false;
     if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+    stopVinylNoise();
 }
 
 function getBeatPulse() {
@@ -618,23 +935,62 @@ function getBeatPulse() {
 }
 
 // ── Particles & Effects ─────────────────────────────────────────
-let particles = [];
+// Object pools (avoid GC churn). Drop new spawns when pool is full.
+function makePool(size, factory) {
+    const arr = new Array(size);
+    for (let i = 0; i < size; i++) {
+        const o = factory();
+        o.active = false;
+        arr[i] = o;
+    }
+    arr._cursor = 0;
+    return arr;
+}
+
+function poolAcquire(pool) {
+    const n = pool.length;
+    const start = pool._cursor;
+    for (let k = 0; k < n; k++) {
+        const i = (start + k) % n;
+        if (!pool[i].active) {
+            pool._cursor = (i + 1) % n;
+            pool[i].active = true;
+            return pool[i];
+        }
+    }
+    return null;
+}
+
+function poolClear(pool) {
+    for (let i = 0; i < pool.length; i++) pool[i].active = false;
+    pool._cursor = 0;
+}
+
+const particles = makePool(256, () => ({
+    x:0, y:0, vx:0, vy:0, color:null, size:2, life:1, decay:0.03
+}));
+const floatingTexts = makePool(32, () => ({
+    x:0, y:0, text:'', color:'', alpha:1, vy:-1.2
+}));
+const revealPulses = makePool(32, () => ({
+    x:0, y:0, radius:0, maxRadius:0, speed:0
+}));
+
 let ambientParticles = [];
-let floatingTexts = [];
-let revealPulses = [];
 let screenShake = 0;
 let deathFlash = 0;
 
 function spawnParticle(x, y, color, speed, size, life) {
-    if (particles.length > 160) return;
+    const p = poolAcquire(particles);
+    if (!p) return;
     const a = Math.random() * Math.PI * 2;
-    particles.push({
-        x, y,
-        vx: Math.cos(a) * speed * (0.5 + Math.random()),
-        vy: Math.sin(a) * speed * (0.5 + Math.random()),
-        color, size: size || 2, life: life || 1,
-        decay: 0.02 + Math.random() * 0.03
-    });
+    p.x = x; p.y = y;
+    p.vx = Math.cos(a) * speed * (0.5 + Math.random());
+    p.vy = Math.sin(a) * speed * (0.5 + Math.random());
+    p.color = color;
+    p.size = size || 2;
+    p.life = life || 1;
+    p.decay = 0.02 + Math.random() * 0.03;
 }
 
 function spawnBurst(x, y, color, count, speed, size) {
@@ -642,7 +998,17 @@ function spawnBurst(x, y, color, count, speed, size) {
 }
 
 function addFloatingText(x, y, text, color) {
-    floatingTexts.push({ x, y, text, color, alpha: 1, vy: -1.2 });
+    const ft = poolAcquire(floatingTexts);
+    if (!ft) return;
+    ft.x = x; ft.y = y; ft.text = text; ft.color = color;
+    ft.alpha = 1; ft.vy = -1.2;
+}
+
+function spawnRevealPulse(x, y, maxRadius, speed) {
+    const rp = poolAcquire(revealPulses);
+    if (!rp) return;
+    rp.x = x; rp.y = y; rp.radius = 0;
+    rp.maxRadius = maxRadius; rp.speed = speed;
 }
 
 function initAmbient() {
@@ -700,7 +1066,7 @@ function updatePlayer() {
         p.dashDirX /= mag; p.dashDirY /= mag;
         sfx('dash');
         screenShake = 4;
-        revealPulses.push({ x: p.x+p.w/2, y: p.y+p.h/2, radius: 0, maxRadius: 280, speed: 10 });
+        spawnRevealPulse(p.x+p.w/2, p.y+p.h/2, 280, 10);
         spawnBurst(p.x+p.w/2, p.y+p.h/2, [251,191,36], 12, 3, 2);
     }
 
@@ -780,7 +1146,7 @@ function updatePlayer() {
             p.canDoubleJump = true;
             sfx('jump', 1.2);
             spawnBurst(p.x+p.w/2, p.y+p.h/2, [200,200,220], 6, 2);
-            revealPulses.push({ x:p.x+p.w/2, y:p.y+p.h/2, radius:0, maxRadius:160, speed:7 });
+            spawnRevealPulse(p.x+p.w/2, p.y+p.h/2, 160, 7);
         } else if (p.coyoteTimer > 0) {
             p.vy = diff.jumpForce * gDir;
             p.grounded = false;
@@ -795,7 +1161,7 @@ function updatePlayer() {
             p.squash = -3;
             sfx('doubleJump');
             spawnBurst(p.x+p.w/2, p.y+p.h/2, [251,191,36], 8, 2, 2);
-            revealPulses.push({ x:p.x+p.w/2, y:p.y+p.h/2, radius:0, maxRadius:140, speed:6 });
+            spawnRevealPulse(p.x+p.w/2, p.y+p.h/2, 140, 6);
         }
     }
 
@@ -846,7 +1212,7 @@ function updatePlayer() {
             deathFlash = 1;
             state.deathCount++;
             spawnBurst(p.x+p.w/2, p.y+p.h/2, [239,68,68], 18, 3, 3);
-            setTimeout(autoRetry, 700);
+            queueAutoRetry();
             return;
         }
     }
@@ -861,7 +1227,7 @@ function updatePlayer() {
         state.deathCount++;
         const burstY = state.gravityDir > 0 ? H - 20 : 20;
         spawnBurst(p.x+p.w/2, burstY, [239,68,68], 15, 3, 3);
-        setTimeout(autoRetry, 700);
+        queueAutoRetry();
         return;
     }
 
@@ -873,8 +1239,18 @@ function updatePlayer() {
         deathFlash = 1;
         state.deathCount++;
         spawnBurst(p.x+p.w/2, p.y+p.h/2, [239,68,68], 18, 3, 3);
-        setTimeout(autoRetry, 700);
+        queueAutoRetry();
     }
+}
+
+function queueAutoRetry() {
+    if (state.retryQueued) return;
+    state.retryQueued = true;
+    setTimeout(() => {
+        if (!state.retryQueued) return; // cancelled by manual restart or menu
+        state.retryQueued = false;
+        autoRetry();
+    }, 700);
 }
 
 // ── Collisions ──────────────────────────────────────────────────
@@ -942,7 +1318,7 @@ function resolveCollisionsY() {
                 sfx('land');
                 spawnBurst(p.x+p.w/2, p.y + (gDir > 0 ? p.h : 0), [180,170,160], 4, 1, 2);
                 p.squash = 3;
-                revealPulses.push({ x:p.x+p.w/2, y:p.y+p.h/2, radius:0, maxRadius:200, speed:7 });
+                spawnRevealPulse(p.x+p.w/2, p.y+p.h/2, 200, 7);
                 sfx('pulse');
             }
             // Crumble trigger
@@ -970,9 +1346,24 @@ function resolveCollisionsY() {
 // ── Platforms ────────────────────────────────────────────────────
 let platforms = [];
 
+const PLATFORM_COLORS = {
+    normal:   { border: [148,163,184], fill: [51,65,85],   fillAlphaMul: 0.25 },
+    crumble:  { border: [180,83,9],    fill: [120,53,15],  fillAlphaMul: 0.25 },
+    bounce:   { border: [34,197,94],   fill: [5,46,22],    fillAlphaMul: 0.30 },
+    moving:   { border: [59,130,246],  fill: [23,37,84],   fillAlphaMul: 0.30 },
+    ice:      { border: [56,189,248],  fill: [8,47,73],    fillAlphaMul: 0.30 },
+    conveyor: { border: [168,85,247],  fill: [59,7,100],   fillAlphaMul: 0.30 },
+    phantom:  { border: [236,72,153],  fill: [77,10,46],   fillAlphaMul: 0.30 },
+    sun:      { border: [251,191,36],  fill: [120,53,15],  fillAlphaMul: 0.40 },
+    moon:     { border: [148,196,236], fill: [30,41,82],   fillAlphaMul: 0.45 },
+    spike:    { border: [252,165,165], fill: [239,68,68],  fillAlphaMul: 0.70 }
+};
+
 function createPlatform(x, y, w, h, type, extra) {
+    const t = type || 'normal';
     return {
-        x, y, w, h, type: type || 'normal',
+        x, y, w, h, type: t,
+        colors: PLATFORM_COLORS[t] || PLATFORM_COLORS.normal,
         visibility: 0,
         crumbling: false, crumbleTimer: 0, broken: false,
         startX: x, startY: y, dx: 0, dy: 0,
@@ -1047,7 +1438,7 @@ function updateCrystal(c) {
         if (state.crystalRevealPermanent > 0) {
             state.permanentRevealBoost += state.crystalRevealPermanent;
             addFloatingText(c.x, cy-30, '+TORCH', '251,191,36');
-            revealPulses.push({ x:c.x, y:cy, radius:0, maxRadius:240, speed:6 });
+            spawnRevealPulse(c.x, cy, 240, 6);
         }
     }
 }
@@ -1070,12 +1461,16 @@ function checkPortal() {
 }
 
 // ── Reveal System ───────────────────────────────────────────────
+function currentRevealRadius() {
+    const base = state.revealOverride > 0 ? state.revealOverride : diff.revealRadius;
+    return base + (player ? player.revealBoost : 0) + state.permanentRevealBoost;
+}
+
 function updateReveal() {
     if (player.dead) return;
     const px = player.x + player.w/2;
     const py = player.y + player.h/2;
-    const baseRadius = state.revealOverride > 0 ? state.revealOverride : diff.revealRadius;
-    const radius = baseRadius + player.revealBoost + state.permanentRevealBoost;
+    const radius = currentRevealRadius();
 
     for (const pl of platforms) {
         if (pl.broken) continue;
@@ -1083,12 +1478,13 @@ function updateReveal() {
         const cy = Math.max(pl.y, Math.min(py, pl.y + pl.h));
         const d = Math.sqrt((px-cx)**2 + (py-cy)**2);
         if (d < radius) {
-            pl.visibility = Math.max(pl.visibility, (1 - d / radius) * 1.3);
+            pl.visibility = Math.max(pl.visibility, Math.min(1, (1 - d / radius) * 1.3));
         }
     }
 
-    for (let i = revealPulses.length - 1; i >= 0; i--) {
+    for (let i = 0; i < revealPulses.length; i++) {
         const rp = revealPulses[i];
+        if (!rp.active) continue;
         rp.radius += rp.speed;
         for (const pl of platforms) {
             if (pl.broken) continue;
@@ -1099,17 +1495,27 @@ function updateReveal() {
                 pl.visibility = Math.max(pl.visibility, 0.85);
             }
         }
-        if (rp.radius > rp.maxRadius) revealPulses.splice(i, 1);
+        if (rp.radius > rp.maxRadius) rp.active = false;
     }
 }
 
 // ── Drawing ─────────────────────────────────────────────────────
+// Cached gradients — built once, since they live in virtual (W,H) space
+let bgGradient = null;
+let vignetteGradient = null;
+function buildCachedGradients() {
+    bgGradient = ctx.createLinearGradient(0, 0, 0, H);
+    bgGradient.addColorStop(0,   '#0c1222');
+    bgGradient.addColorStop(0.5, '#111827');
+    bgGradient.addColorStop(1,   '#1a1028');
+    vignetteGradient = ctx.createRadialGradient(W/2, H/2, H*0.4, W/2, H/2, H*0.85);
+    vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.35)');
+}
+buildCachedGradients();
+
 function drawBackground() {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0,   '#0c1222');
-    g.addColorStop(0.5, '#111827');
-    g.addColorStop(1,   '#1a1028');
-    ctx.fillStyle = g;
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, W, H);
 
     // Beat pulse overlay
@@ -1130,7 +1536,7 @@ function drawBackground() {
 
     // Warm glow around player
     if (player && !player.dead) {
-        const r = diff.revealRadius + player.revealBoost + getBeatPulse() * 15;
+        const r = currentRevealRadius() + getBeatPulse() * 15;
         const g2 = ctx.createRadialGradient(
             player.x+player.w/2, player.y+player.h/2, 20,
             player.x+player.w/2, player.y+player.h/2, r
@@ -1146,11 +1552,13 @@ function drawBackground() {
 function drawPlatform(pl) {
     if (pl.broken) return;
     const v = Math.min(1, pl.visibility);
+    const c = pl.colors;
 
     // Phantom invisible state: faint dashed hint
     if (pl.type === 'phantom' && !pl.phantomVisible) {
         if (v > 0.1) {
-            ctx.strokeStyle = `rgba(236,72,153,${v*0.15})`;
+            const [pr, pg, pb] = c.border;
+            ctx.strokeStyle = `rgba(${pr},${pg},${pb},${v*0.15})`;
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
             ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
@@ -1171,8 +1579,10 @@ function drawPlatform(pl) {
         if (v < 0.1) return;
         const spCount = Math.max(2, Math.floor(pl.w / 14));
         const spW = pl.w / spCount;
-        ctx.fillStyle = `rgba(239,68,68,${v * 0.7})`;
-        ctx.strokeStyle = `rgba(252,165,165,${v})`;
+        const [fr, fg, fb] = c.fill;
+        const [br, bg, bb] = c.border;
+        ctx.fillStyle = `rgba(${fr},${fg},${fb},${v * c.fillAlphaMul})`;
+        ctx.strokeStyle = `rgba(${br},${bg},${bb},${v})`;
         ctx.lineWidth = 1;
         for (let i = 0; i < spCount; i++) {
             ctx.beginPath();
@@ -1186,78 +1596,47 @@ function drawPlatform(pl) {
         return;
     }
 
-    let border, fill;
-    switch (pl.type) {
-        case 'crumble':
-            if (pl.crumbling) {
-                const sh = pl.crumbleTimer < 15 ? (Math.random()-0.5)*3 : 0;
-                ctx.fillStyle = `rgba(127,29,29,${v*0.3})`;
-                ctx.fillRect(pl.x+sh, pl.y, pl.w, pl.h);
-                ctx.strokeStyle = `rgba(220,38,38,${v})`;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(pl.x+sh, pl.y, pl.w, pl.h);
-                ctx.strokeStyle = `rgba(220,38,38,${v*0.5})`;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(pl.x+pl.w*0.3+sh, pl.y);
-                ctx.lineTo(pl.x+pl.w*0.5+sh, pl.y+pl.h);
-                ctx.moveTo(pl.x+pl.w*0.7+sh, pl.y);
-                ctx.lineTo(pl.x+pl.w*0.4+sh, pl.y+pl.h);
-                ctx.stroke();
-                return;
-            }
-            border = `rgba(180,83,9,${v})`;
-            fill   = `rgba(120,53,15,${v*0.25})`;
-            break;
-        case 'bounce':
-            border = `rgba(34,197,94,${v})`;
-            fill   = `rgba(5,46,22,${v*0.3})`;
-            break;
-        case 'moving':
-            border = `rgba(59,130,246,${v})`;
-            fill   = `rgba(23,37,84,${v*0.3})`;
-            break;
-        case 'ice':
-            border = `rgba(56,189,248,${v})`;
-            fill   = `rgba(8,47,73,${v*0.3})`;
-            break;
-        case 'conveyor':
-            border = `rgba(168,85,247,${v})`;
-            fill   = `rgba(59,7,100,${v*0.3})`;
-            break;
-        case 'phantom': {
-            const fl = pl.phantomTimer < 30 ? (0.5 + Math.sin(state.frames * 0.4) * 0.5) : 1;
-            border = `rgba(236,72,153,${v * fl})`;
-            fill   = `rgba(77,10,46,${v * fl * 0.3})`;
-            break;
-        }
-        case 'sun': {
-            const active = isSunPhase();
-            const a = active ? 1 : 0.25;
-            border = `rgba(251,191,36,${v * a})`;
-            fill   = `rgba(120,53,15,${v * a * 0.4})`;
-            break;
-        }
-        case 'moon': {
-            const active = !isSunPhase();
-            const a = active ? 1 : 0.25;
-            border = `rgba(148,196,236,${v * a})`;
-            fill   = `rgba(30,41,82,${v * a * 0.45})`;
-            break;
-        }
-        default:
-            border = `rgba(148,163,184,${v})`;
-            fill   = `rgba(51,65,85,${v*0.25})`;
+    // Crumbling state has its own dramatic styling
+    if (pl.type === 'crumble' && pl.crumbling) {
+        const sh = pl.crumbleTimer < 15 ? (Math.random()-0.5)*3 : 0;
+        ctx.fillStyle = `rgba(127,29,29,${v*0.3})`;
+        ctx.fillRect(pl.x+sh, pl.y, pl.w, pl.h);
+        ctx.strokeStyle = `rgba(220,38,38,${v})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(pl.x+sh, pl.y, pl.w, pl.h);
+        ctx.strokeStyle = `rgba(220,38,38,${v*0.5})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pl.x+pl.w*0.3+sh, pl.y);
+        ctx.lineTo(pl.x+pl.w*0.5+sh, pl.y+pl.h);
+        ctx.moveTo(pl.x+pl.w*0.7+sh, pl.y);
+        ctx.lineTo(pl.x+pl.w*0.4+sh, pl.y+pl.h);
+        ctx.stroke();
+        return;
     }
 
-    ctx.fillStyle = fill;
+    // Per-type dynamic alpha multipliers (phantom flicker, sun/moon active state)
+    let dynMul = 1;
+    if (pl.type === 'phantom' && pl.phantomTimer < 30) {
+        dynMul = 0.5 + Math.sin(state.frames * 0.4) * 0.5;
+    } else if (pl.type === 'sun') {
+        dynMul = isSunPhase() ? 1 : 0.25;
+    } else if (pl.type === 'moon') {
+        dynMul = !isSunPhase() ? 1 : 0.25;
+    }
+
+    const va = v * dynMul;
+    const [br, bg, bb] = c.border;
+    const [fr, fg, fb] = c.fill;
+
+    ctx.fillStyle = `rgba(${fr},${fg},${fb},${va * c.fillAlphaMul})`;
     ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
-    ctx.strokeStyle = border;
+    ctx.strokeStyle = `rgba(${br},${bg},${bb},${va})`;
     ctx.lineWidth = 2;
     ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
 
-    // Top-edge highlight
-    ctx.strokeStyle = border.replace(v+')', Math.min(1,v*1.5)+')');
+    // Top-edge highlight (brighter line on top)
+    ctx.strokeStyle = `rgba(${br},${bg},${bb},${Math.min(1, va * 1.5)})`;
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pl.x, pl.y); ctx.lineTo(pl.x+pl.w, pl.y); ctx.stroke();
 
@@ -1306,7 +1685,7 @@ function drawCrystal(c) {
     const px = player.x + player.w/2;
     const py = player.y + player.h/2;
     const d = Math.sqrt((px-c.x)**2 + (py-c.y)**2);
-    const r = diff.revealRadius + player.revealBoost + 30;
+    const r = currentRevealRadius() + 30;
     if (d > r) return;
 
     const alpha = Math.min(1, (1 - d/r) * 2);
@@ -1434,7 +1813,9 @@ function drawPlayer() {
 }
 
 function drawRevealPulses() {
-    for (const rp of revealPulses) {
+    for (let i = 0; i < revealPulses.length; i++) {
+        const rp = revealPulses[i];
+        if (!rp.active) continue;
         const a = Math.max(0, 1 - rp.radius/rp.maxRadius) * 0.25;
         ctx.strokeStyle = `rgba(251,191,36,${a})`;
         ctx.lineWidth = 2;
@@ -1445,23 +1826,25 @@ function drawRevealPulses() {
 }
 
 function drawParticles() {
-    for (let i = particles.length - 1; i >= 0; i--) {
+    for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
+        if (!p.active) continue;
         p.x += p.vx; p.y += p.vy; p.life -= p.decay;
-        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        if (p.life <= 0) { p.active = false; continue; }
         ctx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${p.life})`;
         ctx.fillRect(p.x-p.size/2, p.y-p.size/2, p.size, p.size);
     }
 }
 
 function drawFloatingTexts() {
-    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < floatingTexts.length; i++) {
         const ft = floatingTexts[i];
+        if (!ft.active) continue;
         ft.y += ft.vy; ft.alpha -= 0.015;
-        if (ft.alpha <= 0) { floatingTexts.splice(i, 1); continue; }
+        if (ft.alpha <= 0) { ft.active = false; continue; }
         ctx.fillStyle = `rgba(${ft.color},${ft.alpha})`;
-        ctx.font = 'bold 14px system-ui, sans-serif';
-        ctx.textAlign = 'center';
         ctx.fillText(ft.text, ft.x, ft.y);
     }
     ctx.textAlign = 'left';
@@ -2011,7 +2394,7 @@ function initLevel(idx) {
 
     portal = createPortal(lvl.portal[0], lvl.portal[1]);
 
-    particles = []; floatingTexts = []; revealPulses = [];
+    poolClear(particles); poolClear(floatingTexts); poolClear(revealPulses);
     screenShake = 0;
     state.levelBonus = lvl.bonus;
     state.combo = 0; state.comboTimer = 0;
@@ -2022,7 +2405,7 @@ function initLevel(idx) {
 
     setTimeout(() => {
         if (player) {
-            revealPulses.push({ x:player.x+player.w/2, y:player.y+player.h/2, radius:0, maxRadius:260, speed:6 });
+            spawnRevealPulse(player.x+player.w/2, player.y+player.h/2, 260, 6);
             sfx('pulse');
         }
     }, 200);
@@ -2095,11 +2478,8 @@ function gameLoop() {
 
     drawHUD();
 
-    // Vignette
-    const vig = ctx.createRadialGradient(W/2, H/2, H*0.4, W/2, H/2, H*0.85);
-    vig.addColorStop(0, 'rgba(0,0,0,0)');
-    vig.addColorStop(1, 'rgba(0,0,0,0.35)');
-    ctx.fillStyle = vig;
+    // Vignette (cached gradient)
+    ctx.fillStyle = vignetteGradient;
     ctx.fillRect(0, 0, W, H);
 
     // Death flash overlay
@@ -2135,9 +2515,11 @@ function showMainMenu() {
     document.getElementById('pause-screen').style.display = 'none';
     state.running = false;
     state.paused = false;
+    state.retryQueued = false;
     stopMusic();
     clearInput();
     updateHighscoreDisplay();
+    updateTouchControlsVisibility();
 }
 
 function togglePause() {
@@ -2160,6 +2542,7 @@ function resumeAndRestart() {
 }
 
 function autoRetry() {
+    state.retryQueued = false;
     checkAndSaveHighscore();
     clearInput();
     initLevel(state.level);
@@ -2177,6 +2560,7 @@ function showWinScreen() {
 }
 
 function restartLevel() {
+    state.retryQueued = false;
     document.getElementById('death-screen').style.display = 'none';
     document.getElementById('pause-screen').style.display = 'none';
     clearInput();

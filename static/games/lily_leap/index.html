@@ -75,13 +75,95 @@
             display: flex;
             justify-content: flex-end;
             align-items: flex-start;
+            gap: 12px;
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         }
 
+        .hud-buttons {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 999px;
+            border: none;
+            background: rgba(0, 0, 0, 0.45);
+            color: #ffffff;
+            font-size: 18px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            transition: transform 120ms ease, background 120ms ease;
+            padding: 0;
+        }
+
+        .icon-btn:hover {
+            background: rgba(0, 0, 0, 0.65);
+            transform: translateY(-1px);
+        }
+
+        .icon-btn:active {
+            transform: translateY(0);
+        }
+
         .score-panel {
             text-align: right;
-            margin-left: auto;
+        }
+
+        #friends-met {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+
+        #pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 9;
+            color: white;
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+        }
+
+        #pause-overlay .pause-title {
+            font-size: 64px;
+            color: #fde68a;
+            text-shadow: 3px 3px 0px #b45309, 6px 6px 10px rgba(0,0,0,0.3);
+            letter-spacing: 4px;
+            margin: 0;
+        }
+
+        #pause-overlay .pause-hint {
+            font-family: 'Nunito', sans-serif;
+            font-size: 18px;
+            margin-top: 12px;
+            opacity: 0.9;
+        }
+
+        .friends-line {
+            color: #fbcfe8;
+            font-size: 18px;
+            font-family: 'Nunito', sans-serif;
+            margin-top: -10px;
+            margin-bottom: 20px;
+            opacity: 0.95;
         }
 
         #score-display {
@@ -206,11 +288,21 @@
 
     <div id="ui-layer">
         <div class="hud">
+            <div class="hud-buttons">
+                <button class="icon-btn" id="pause-btn" type="button" aria-label="Pause" title="Pause (P)">⏸</button>
+                <button class="icon-btn" id="mute-btn" type="button" aria-label="Mute" title="Mute (M)">🔊</button>
+            </div>
             <div class="score-panel">
                 <div id="score-display">0</div>
                 <div id="high-score">Best: 0</div>
+                <div id="friends-met">Friends: 0/45</div>
             </div>
         </div>
+    </div>
+
+    <div id="pause-overlay" class="hidden">
+        <div class="pause-title">PAUSED</div>
+        <div class="pause-hint">Tap or press P to resume</div>
     </div>
 
     <div id="start-screen">
@@ -230,6 +322,7 @@
                 <span>Spot Floating Squishmallows</span>
             </div>
         </div>
+        <div class="friends-line" id="start-friends">Friends met: 0 / 45</div>
         <button class="btn" id="start-btn">PLAY</button>
     </div>
 
@@ -238,6 +331,7 @@
         <h1>SPLASH!</h1>
         <p>You fell into the water.<br>Better luck next time!</p>
         <div id="final-score" style="font-size: 32px; color: white; margin-bottom: 20px; font-family: 'Fredoka One';">Score: 0</div>
+        <div class="friends-line" id="gameover-friends">Friends met: 0 / 45</div>
         <button class="btn" id="restart-btn">TRY AGAIN</button>
     </div>
 </div>
@@ -250,7 +344,7 @@
 class SoundEngine {
     constructor() {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        this.enabled = true;
+        this.enabled = localStorage.getItem('lilyLeapMuted') !== '1';
     }
 
     playJump() {
@@ -347,6 +441,9 @@ let score = 0;
 let highScore = localStorage.getItem('lilyLeapHighScore') || 0;
 let cameraY = 0;
 let frameCount = 0;
+let initialPadY = 0;
+let isPaused = false;
+let friendsMet = new Set(JSON.parse(localStorage.getItem('lilyLeapFriendsMet') || '[]'));
 highScoreEl.innerText = `Best: ${highScore}`;
 
 // Constants
@@ -366,14 +463,77 @@ let pads = [];
 let particles = [];
 let collectibles = [];
 let flies = [];
-let squishmallows = []; 
-let clouds = []; // New background element
+let squishmallows = [];
+let clouds = [];
 
 /**
  * UTILITIES
  */
 function randomRange(min, max) { return Math.random() * (max - min) + min; }
 function dist(x1, y1, x2, y2) { return Math.sqrt((x2-x1)**2 + (y2-y1)**2); }
+function smoothstep(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
+function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+function lerpColor(hexA, hexB, t) {
+    const a = hexToRgb(hexA), b = hexToRgb(hexB);
+    const r = Math.round(a[0] + (b[0]-a[0])*t);
+    const g = Math.round(a[1] + (b[1]-a[1])*t);
+    const bl = Math.round(a[2] + (b[2]-a[2])*t);
+    return `rgb(${r},${g},${bl})`;
+}
+
+const SQUISHMALLOW_MESSAGES = [
+    // --- Motivation & Comfort ---
+    "Believe in the leap!",
+    "Just keep hopping.",
+    "Hop now, nap later.",
+    "Moon said you’re cute.",
+    "Sprinkle glitter on fear.",
+    "Tiny hops are still hops.",
+    "Snack break = power-up.",
+    "Breathe in the lily smell.",
+    "You sparkle when you rest.",
+    "Ribbit and carry on.",
+    "Frogs don’t rush; neither do you.",
+    "Look! The clouds clap for you.",
+    "Soft hearts make strong waves.",
+    "Hold my hand, keep floating.",
+    "You’re the cozy in cozy pond.",
+    "Let’s count the stars together.",
+    "Your legs are magic springs.",
+    "Big pond, brave you.",
+    "Sunbeams feel like hugs.",
+    "Every pad is a high-five.",
+    "It’s okay to float for a bit.",
+    "My cheeks are squishy with pride.",
+    "The lilies are saving a seat.",
+    "I saved a dewdrop for you.",
+    "Safe landing, soft heart.",
+
+    // --- Simple, Funny & Random ---
+    "I have zero bones.",
+    "Boing is my favorite word.",
+    "Do bugs have birthdays?",
+    "I’m cheering in lowercase (yay).",
+    "That cloud looks like my cousin.",
+    "Oopsies are just practice hops.",
+    "I’m sticky. Are you sticky?",
+    "Gravity is just a suggestion.",
+    "Thinking about round things.",
+    "Please don’t put me in cocoa.",
+    "I saw a fish smile at you.",
+    "Bloop.",
+    "Your shadow dances when you jump.",
+    "I am dangerously fluffy.",
+    "Did I just blink? I missed it.",
+    "Sticky sweet on your team.",
+    "Hi. Just wanted to say hi.",
+    "I’m 90% air, 10% magic.",
+    "Is it Tuesday? Feels squishy.",
+    "Let’s find the perfect puddle."
+];
 
 /**
  * CLASSES
@@ -435,66 +595,17 @@ class Cloud {
 }
 
 class Squishmallow {
-    constructor(x, y) {
+    constructor(x, y, messageIndex = Math.floor(Math.random() * SQUISHMALLOW_MESSAGES.length)) {
         this.x = x;
         this.y = y;
         this.baseY = y;
         // Equal probability of Pink vs White
-        this.color = Math.random() > 0.5 ? '#ffffff' : '#fbcfe8'; 
+        this.color = Math.random() > 0.5 ? '#ffffff' : '#fbcfe8';
         this.isPink = this.color === '#fbcfe8';
-        
-        this.messages = [
-        // --- Motivation & Comfort ---
-        "Believe in the leap!",
-        "Just keep hopping.",
-        "Hop now, nap later.",
-        "Moon said you’re cute.",
-        "Sprinkle glitter on fear.",
-        "Tiny hops are still hops.",
-        "Snack break = power-up.",
-        "Breathe in the lily smell.",
-        "You sparkle when you rest.",
-        "Ribbit and carry on.",
-        "Frogs don’t rush; neither do you.",
-        "Look! The clouds clap for you.",
-        "Soft hearts make strong waves.",
-        "Hold my hand, keep floating.",
-        "You’re the cozy in cozy pond.",
-        "Let’s count the stars together.",
-        "Your legs are magic springs.",
-        "Big pond, brave you.",
-        "Sunbeams feel like hugs.",
-        "Every pad is a high-five.",
-        "It’s okay to float for a bit.",
-        "My cheeks are squishy with pride.",
-        "The lilies are saving a seat.",
-        "I saved a dewdrop for you.",
-        "Safe landing, soft heart.",
-    
-        // --- Simple, Funny & Random ---
-        "I have zero bones.",
-        "Boing is my favorite word.",
-        "Do bugs have birthdays?",
-        "I’m cheering in lowercase (yay).",
-        "That cloud looks like my cousin.",
-        "Oopsies are just practice hops.",
-        "I’m sticky. Are you sticky?",
-        "Gravity is just a suggestion.",
-        "Thinking about round things.",
-        "Please don’t put me in cocoa.",
-        "I saw a fish smile at you.",
-        "Bloop.",
-        "Your shadow dances when you jump.",
-        "I am dangerously fluffy.",
-        "Did I just blink? I missed it.",
-        "Sticky sweet on your team.",
-        "Hi. Just wanted to say hi.",
-        "I’m 90% air, 10% magic.",
-        "Is it Tuesday? Feels squishy.",
-        "Let’s find the perfect puddle."
-        ];
-        
-        this.message = this.messages[Math.floor(Math.random() * this.messages.length)];
+
+        this.messageIndex = messageIndex;
+        this.message = SQUISHMALLOW_MESSAGES[messageIndex];
+        this.met = false;
         this.bounceOffset = randomRange(0, Math.PI * 2);
     }
 
@@ -777,23 +888,33 @@ class Collectible {
 }
 
 class LilyPad {
-    constructor(x, y, radius) {
+    constructor(x, y, radius, subtype = 'green') {
         this.x = x;
         this.y = y;
         this.radius = radius;
         this.wobble = 0;
         this.rotation = randomRange(0, Math.PI * 2);
-        this.type = Math.random() > 0.85 ? 'moving' : 'static';
+        this.subtype = subtype; // 'green' | 'cloud' | 'heart'
+        this.consumed = false;
+        // Only green pads can be moving; cloud/heart stay still
+        this.type = (subtype === 'green' && Math.random() > 0.85) ? 'moving' : 'static';
         this.moveSpeed = randomRange(1.5, 3) * (Math.random() > 0.5 ? 1 : -1);
         this.moveRange = 120;
         this.startX = x;
-        
-        // Color variation
+
+        // Color variation (used for green pads)
         const hue = randomRange(100, 140);
         this.colorMain = `hsl(${hue}, 70%, 50%)`;
         this.colorDark = `hsl(${hue}, 70%, 40%)`;
-        
-        // Decorations handled in main loop now (Squishmallows are entities)
+
+        // Cloud puff layout (precomputed so it's stable per pad)
+        if (subtype === 'cloud') {
+            this.puffs = Array.from({ length: 5 }, () => ({
+                dx: randomRange(-radius * 0.7, radius * 0.7),
+                dy: randomRange(-radius * 0.25, radius * 0.15),
+                r: randomRange(radius * 0.45, radius * 0.7)
+            }));
+        }
     }
 
     update() {
@@ -810,35 +931,80 @@ class LilyPad {
         const drawY = this.y - camY;
         ctx.save();
         ctx.translate(this.x, drawY + Math.sin(this.wobble) * 5);
-        ctx.rotate(this.rotation);
 
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
-        ctx.beginPath();
-        ctx.ellipse(5, 5, this.radius, this.radius * 0.8, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if (this.subtype === 'cloud') {
+            // Soft white puff cluster — no rotation, no veins, no shadow
+            this.puffs.forEach(puff => {
+                const grad = ctx.createRadialGradient(puff.dx - puff.r * 0.2, puff.dy - puff.r * 0.4, puff.r * 0.1, puff.dx, puff.dy, puff.r);
+                grad.addColorStop(0, 'rgba(255,255,255,0.98)');
+                grad.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(puff.dx, puff.dy, puff.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        } else if (this.subtype === 'heart') {
+            // Pulsing pink heart
+            const pulse = 1 + 0.04 * Math.sin(frameCount * 0.08 + this.x * 0.01);
+            const r = this.radius * pulse;
+            // Soft shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            ctx.beginPath();
+            ctx.ellipse(4, 6, r, r * 0.7, 0, 0, Math.PI * 2);
+            ctx.fill();
 
-        // Body
-        const gradient = ctx.createRadialGradient(-10, -10, 5, 0, 0, this.radius);
-        gradient.addColorStop(0, this.colorMain);
-        gradient.addColorStop(1, this.colorDark);
-        ctx.fillStyle = gradient;
-        
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0.2, Math.PI * 1.94); // Pacman
-        ctx.fill();
+            const colorMain = '#fb7185';
+            const colorDark = '#e11d48';
+            const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.4, r * 0.1, 0, 0, r);
+            grad.addColorStop(0, colorMain);
+            grad.addColorStop(1, colorDark);
+            ctx.fillStyle = grad;
 
-        // Veins
-        ctx.strokeStyle = this.colorDark;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.5;
-        ctx.beginPath();
-        for(let i=0; i<5; i++) {
-            const angle = 0.5 + (i * 1.2);
-            ctx.moveTo(0, 0);
-            ctx.lineTo(Math.cos(angle) * (this.radius - 5), Math.sin(angle) * (this.radius - 5));
+            // Heart shape: two arcs + bottom triangle, scaled by r
+            const s = r / 30; // base radius 30
+            ctx.beginPath();
+            ctx.moveTo(0, 8 * s);
+            ctx.bezierCurveTo(-22 * s, -8 * s, -16 * s, -22 * s, 0, -10 * s);
+            ctx.bezierCurveTo(16 * s, -22 * s, 22 * s, -8 * s, 0, 8 * s);
+            ctx.fill();
+
+            // Highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.35, -r * 0.45, r * 0.18, r * 0.1, -0.4, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Green lily pad (original)
+            ctx.rotate(this.rotation);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.beginPath();
+            ctx.ellipse(5, 5, this.radius, this.radius * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body
+            const gradient = ctx.createRadialGradient(-10, -10, 5, 0, 0, this.radius);
+            gradient.addColorStop(0, this.colorMain);
+            gradient.addColorStop(1, this.colorDark);
+            ctx.fillStyle = gradient;
+
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius, 0.2, Math.PI * 1.94); // Pacman
+            ctx.fill();
+
+            // Veins
+            ctx.strokeStyle = this.colorDark;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            for(let i=0; i<5; i++) {
+                const angle = 0.5 + (i * 1.2);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(angle) * (this.radius - 5), Math.sin(angle) * (this.radius - 5));
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
 
         ctx.restore();
     }
@@ -846,6 +1012,13 @@ class LilyPad {
     triggerLand() {
         this.wobble = 0.5;
         particles.push(new Particle(this.x, this.y, 'ripple'));
+
+        // Heart pad: spawn one bonus fly the first time the frog lands
+        if (this.subtype === 'heart' && !this.consumed) {
+            this.consumed = true;
+            flies.push(new Fly(this.x + randomRange(-40, 40), this.y - 60));
+            for (let i = 0; i < 6; i++) particles.push(new Particle(this.x, this.y - 10, 'sparkle'));
+        }
     }
 }
 
@@ -871,6 +1044,7 @@ class Frog {
 
     jump(power, angle) {
         if (this.state !== 'GROUNDED') return;
+        const departingPad = this.currentPad;
         this.vx = Math.cos(angle) * power;
         this.vy = Math.sin(angle) * power;
         this.state = 'AIRBORNE';
@@ -879,6 +1053,12 @@ class Frog {
         this.squash = 0.7;
         this.facing = this.vx > 0 ? 1 : -1;
         audio.playJump();
+
+        // Cloud puff pads poof on launch — sparkle and mark for removal
+        if (departingPad && departingPad.subtype === 'cloud' && !departingPad.consumed) {
+            departingPad.consumed = true;
+            for (let i = 0; i < 12; i++) particles.push(new Particle(departingPad.x, departingPad.y, 'sparkle'));
+        }
     }
 
     activateJetpack() {
@@ -966,7 +1146,7 @@ class Frog {
         pad.triggerLand();
         audio.playLand();
         
-        let distScore = Math.floor((pads[0].y - pad.y) / 50);
+        let distScore = Math.floor((initialPadY - pad.y) / 50);
         if(distScore > score) {
             score = distScore;
             scoreEl.innerText = score;
@@ -985,6 +1165,7 @@ class Frog {
             highScoreEl.innerText = `Best: ${highScore}`;
         }
         finalScoreEl.innerText = `Score: ${score}`;
+        updateFriendsUI();
         setTimeout(() => gameOverScreen.classList.remove('hidden'), 500);
     }
 
@@ -1109,9 +1290,13 @@ function initGame() {
     score = 0;
     scoreEl.innerText = '0';
     gameState = 'PLAYING';
+    isPaused = false;
+    if (typeof pauseOverlay !== 'undefined' && pauseOverlay) pauseOverlay.classList.add('hidden');
+    if (typeof pauseBtn !== 'undefined' && pauseBtn) pauseBtn.innerText = '⏸';
     
     // Initial Pad
     pads.push(new LilyPad(canvas.width / 2, canvas.height - 150, 60));
+    initialPadY = pads[0].y;
     frog.y = pads[0].y;
     frog.x = pads[0].x;
     frog.currentPad = pads[0];
@@ -1150,22 +1335,30 @@ function generateWorld(currentCameraY) {
 
         const heightFactor = Math.max(0.4, Math.min(1, 1 - Math.abs(nextY) / 12000));
         const size = randomRange(40, 70) * heightFactor;
-        
-        pads.push(new LilyPad(nextX, nextY, size));
-        
-        // Spawn Logic
+
+        // Decide pad subtype + collectibles from a single roll
         const r = Math.random();
-        if (r > 0.93) {
+        let subtype = 'green';
+        if (r < 0.07) {
+            // Jetpack collectible (pad stays green)
             collectibles.push(new Collectible(nextX, nextY - 50, 'jetpack'));
-        } else if (r > 0.8) {
+        } else if (r < 0.20) {
+            // Free fly above this pad (pad stays green)
             flies.push(new Fly(nextX, nextY - 60));
+        } else if (r < 0.27) {
+            subtype = 'heart';
+        } else if (r < 0.34) {
+            subtype = 'cloud';
         }
+
+        pads.push(new LilyPad(nextX, nextY, size, subtype));
 
         // Independent Squishmallow Spawn (Very Rare, Floating in Water)
         if (Math.random() > 0.95) {
              const squishX = randomRange(50, canvas.width - 50);
              const squishY = nextY + spacing / 2; // In between pad rows
-             squishmallows.push(new Squishmallow(squishX, squishY));
+             const idx = Math.floor(Math.random() * SQUISHMALLOW_MESSAGES.length);
+             squishmallows.push(new Squishmallow(squishX, squishY, idx));
         }
 
         lastPad = pads[pads.length - 1];
@@ -1181,7 +1374,7 @@ function getPointerPos(e) {
 }
 
 function handleStart(e) {
-    if (gameState !== 'PLAYING' || frog.state !== 'GROUNDED') return;
+    if (gameState !== 'PLAYING' || frog.state !== 'GROUNDED' || isPaused) return;
     isDragging = true;
     dragStart = getPointerPos(e);
     dragCurrent = dragStart;
@@ -1230,6 +1423,57 @@ document.getElementById('restart-btn').addEventListener('click', () => {
 });
 
 /**
+ * UI HELPERS — friends counter, pause overlay, mute toggle
+ */
+const friendsMetEl = document.getElementById('friends-met');
+const startFriendsEl = document.getElementById('start-friends');
+const gameoverFriendsEl = document.getElementById('gameover-friends');
+const pauseOverlay = document.getElementById('pause-overlay');
+const pauseBtn = document.getElementById('pause-btn');
+const muteBtn = document.getElementById('mute-btn');
+const TOTAL_FRIENDS = SQUISHMALLOW_MESSAGES.length;
+
+function updateFriendsUI() {
+    const text = `Friends met: ${friendsMet.size} / ${TOTAL_FRIENDS}`;
+    friendsMetEl.innerText = `Friends: ${friendsMet.size}/${TOTAL_FRIENDS}`;
+    startFriendsEl.innerText = text;
+    gameoverFriendsEl.innerText = text;
+}
+updateFriendsUI();
+
+function updateMuteUI() {
+    muteBtn.innerText = audio.enabled ? '🔊' : '🔇';
+    muteBtn.setAttribute('aria-label', audio.enabled ? 'Mute' : 'Unmute');
+}
+updateMuteUI();
+
+function toggleMute() {
+    audio.enabled = !audio.enabled;
+    localStorage.setItem('lilyLeapMuted', audio.enabled ? '0' : '1');
+    updateMuteUI();
+}
+
+function setPaused(paused) {
+    if (gameState !== 'PLAYING') return;
+    isPaused = paused;
+    pauseOverlay.classList.toggle('hidden', !isPaused);
+    pauseBtn.innerText = isPaused ? '▶' : '⏸';
+}
+
+function togglePause() {
+    setPaused(!isPaused);
+}
+
+pauseBtn.addEventListener('click', togglePause);
+muteBtn.addEventListener('click', toggleMute);
+pauseOverlay.addEventListener('click', () => setPaused(false));
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    else if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') togglePause();
+});
+
+/**
  * DRAWING
  */
 function drawTrajectory(ctx) {
@@ -1269,22 +1513,67 @@ function drawTrajectory(ctx) {
     ctx.stroke();
 }
 
+// Sky keyframes: altitude (px climbed) → top/bottom gradient hex
+const SKY_BANDS = [
+    { alt: 0,     top: '#fbcfe8', bottom: '#fcd34d' }, // dawn
+    { alt: 2000,  top: '#4facfe', bottom: '#00f2fe' }, // noon (default)
+    { alt: 5000,  top: '#fb923c', bottom: '#fbbf24' }, // golden hour
+    { alt: 9000,  top: '#7c3aed', bottom: '#ec4899' }, // dusk
+    { alt: 14000, top: '#0f172a', bottom: '#1e3a8a' }  // starry night
+];
+
+function getSkyColors(altitude) {
+    if (altitude <= SKY_BANDS[0].alt) return { top: SKY_BANDS[0].top, bottom: SKY_BANDS[0].bottom };
+    const last = SKY_BANDS[SKY_BANDS.length - 1];
+    if (altitude >= last.alt) return { top: last.top, bottom: last.bottom };
+    for (let i = 0; i < SKY_BANDS.length - 1; i++) {
+        const a = SKY_BANDS[i], b = SKY_BANDS[i + 1];
+        if (altitude >= a.alt && altitude < b.alt) {
+            const t = smoothstep((altitude - a.alt) / (b.alt - a.alt));
+            return { top: lerpColor(a.top, b.top, t), bottom: lerpColor(a.bottom, b.bottom, t) };
+        }
+    }
+    return { top: last.top, bottom: last.bottom };
+}
+
+function drawSky(ctx, altitude) {
+    const { top, bottom } = getSkyColors(altitude);
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, top);
+    grad.addColorStop(1, bottom);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Stars: fade in over 11000 → 14000, twinkle deterministic by index
+    if (altitude > 11000) {
+        const fade = Math.min(1, (altitude - 11000) / 3000);
+        const count = 60;
+        for (let i = 0; i < count; i++) {
+            const sx = ((Math.sin(i * 9301.3) * 0.5 + 0.5) * canvas.width);
+            const sy = ((Math.sin(i * 4937.7) * 0.5 + 0.5) * canvas.height * 0.75);
+            const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(frameCount * 0.03 + i));
+            ctx.globalAlpha = fade * twinkle * 0.9;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1.4 + (i % 3) * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
 function drawBackground(ctx) {
     const time = frameCount * 0.02;
+    const altitude = -cameraY;
     ctx.save();
-    
-    // Deep water gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, '#0ea5e9');
-    grad.addColorStop(1, '#0284c7');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0,0, canvas.width, canvas.height);
 
-    // Draw Clouds (Background Layer)
+    drawSky(ctx, altitude);
+
+    // Draw Clouds (Background Layer) — clouds occlude stars
     clouds.forEach(c => c.draw(ctx, cameraY));
 
-    ctx.translate(0, -cameraY * 0.2); 
-    
+    ctx.translate(0, -cameraY * 0.2);
+
     // Animated waves
     for (let i = 0; i < 4; i++) {
         const yOffset = (i * 250) + (Math.sin(time + i) * 20);
@@ -1307,14 +1596,14 @@ function drawBackground(ctx) {
 function loop() {
     if (gameState !== 'PLAYING' && gameState !== 'GAMEOVER') return;
 
-    if (gameState === 'PLAYING') {
+    if (gameState === 'PLAYING' && !isPaused) {
         frameCount++;
         frog.update();
         pads.forEach(p => p.update());
         collectibles.forEach(c => c.update());
         flies.forEach(f => f.update());
         squishmallows.forEach(s => s.update());
-        
+
         // Update clouds
         clouds.forEach(c => c.update());
         clouds = clouds.filter(c => c.x > -250 && c.x < canvas.width + 250);
@@ -1337,14 +1626,29 @@ function loop() {
             }
         });
 
+        // Squishmallow proximity — meet & remember
+        squishmallows.forEach(s => {
+            if (!s.met && dist(frog.x, frog.y, s.x, s.y) < 80) {
+                s.met = true;
+                if (!friendsMet.has(s.messageIndex)) {
+                    friendsMet.add(s.messageIndex);
+                    localStorage.setItem('lilyLeapFriendsMet', JSON.stringify([...friendsMet]));
+                    score += 5;
+                    scoreEl.innerText = score;
+                    for (let i = 0; i < 8; i++) particles.push(new Particle(s.x, s.y, 'sparkle'));
+                    audio.playCollect('fly');
+                }
+            }
+        });
+
         // Cleanup
         particles = particles.filter(p => p.life > 0);
         particles.forEach(p => p.update());
 
         // Camera
         let targetY = frog.y - canvas.height * 0.6;
-        if (frog.state === 'JETPACK') targetY = frog.y - canvas.height * 0.5; 
-        
+        if (frog.state === 'JETPACK') targetY = frog.y - canvas.height * 0.5;
+
         if (targetY < cameraY) {
             const lerp = frog.state === 'JETPACK' ? 0.2 : 0.1;
             cameraY += (targetY - cameraY) * lerp;
@@ -1352,9 +1656,9 @@ function loop() {
 
         generateWorld(cameraY);
 
-        // Cull objects way below screen
+        // Cull objects way below screen + consumed cloud puffs
         const killY = cameraY + canvas.height + 300;
-        pads = pads.filter(p => p.y < killY);
+        pads = pads.filter(p => p.y < killY && !(p.subtype === 'cloud' && p.consumed));
         collectibles = collectibles.filter(c => c.y < killY);
         flies = flies.filter(f => f.y < killY);
         squishmallows = squishmallows.filter(s => s.y < killY);

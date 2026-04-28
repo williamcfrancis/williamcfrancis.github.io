@@ -667,13 +667,18 @@ const SONGS = {
   ]
 };
 
-const CFG = { ROUNDS:10, OPTS:6, TIMER:20, MEMORY:35 };
+const CFG = { ROUNDS:10, OPTS:6, TIMER:18, MEMORY:35 };
+const REDUCED = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) || false;
 const CAT_NAMES = { hi:"Hindi", en:"English", mix:"Mixed" };
 
 /* ===== AUDIO ENGINE ===== */
 const SFX = (() => {
   let ctx;
-  function getCtx() { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; }
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") { try { ctx.resume(); } catch(e) {} }
+    return ctx;
+  }
   function tone(freq, dur, type, vol) {
     try {
       const c = getCtx(), o = c.createOscillator(), g = c.createGain();
@@ -701,7 +706,7 @@ const S = {
   correct:0, hints:0, fast:0, results:[], speaking:false,
   recent:[], skipTimer:null
 };
-let timerIv = null, voices = [], advanceTimer = null;
+let timerIv = null, voices = [], advanceTimer = null, voicesReady = false, voiceRetryT = null, errToastShown = false;
 
 /* ===== HELPERS ===== */
 const $=id=>document.getElementById(id);
@@ -732,7 +737,8 @@ function showScreen(id){
 const G = {
   toMenu(){
     speechSynthesis.cancel(); S.speaking=false;
-    clearInterval(timerIv); clearTimeout(advanceTimer); clearTimeout(S.skipTimer);
+    clearInterval(timerIv); clearTimeout(advanceTimer); clearTimeout(S.skipTimer); clearTimeout(voiceRetryT);
+    if(S.countRaf){ cancelAnimationFrame(S.countRaf); S.countRaf=null; }
     document.body.className="";
     showScreen("menu");
     const best=bestHS();
@@ -742,6 +748,8 @@ const G = {
 
   start(cat){
     SFX.click();
+    if(S.countRaf){ cancelAnimationFrame(S.countRaf); S.countRaf=null; }
+    clearTimeout(voiceRetryT);
     S.cat=cat;
     const p=pool(cat);
     const fresh=shuffle(p.filter(s=>!S.recent.includes(s.id)));
@@ -823,17 +831,35 @@ const G = {
   toggleSpeak(){
     if(S.speaking) this.stopSpeak(); else this.speakLyrics();
   },
-  speakLyrics(){
+  speakLyrics(rate){
     speechSynthesis.cancel();
     const q=S.qs[S.qi]; if(!q)return;
+    if(!voicesReady){
+      loadVoices();
+      if(voices.length===0){
+        clearTimeout(voiceRetryT);
+        voiceRetryT=setTimeout(()=>{ if(!S.sel) this.speakLyrics(rate); },300);
+        return;
+      }
+    }
     const u=new SpeechSynthesisUtterance(q.prompt);
     const v=voices.find(v=>v.lang===q.song.tts)||voices.find(v=>v.lang.startsWith(q.song.tts.split("-")[0]));
     if(v) u.voice=v; else u.lang=q.song.tts;
-    u.rate=.82+Math.random()*.18; u.pitch=.95+Math.random()*.22;
+    u.rate=typeof rate==="number"?rate:(.82+Math.random()*.18);
+    u.pitch=.95+Math.random()*.22;
     u.onstart=()=>this._speakUI(true);
     u.onend=()=>this._speakUI(false);
-    u.onerror=()=>this._speakUI(false);
+    u.onerror=()=>{this._speakUI(false);this._showSpeechErr();};
     speechSynthesis.speak(u);
+  },
+  slowReplay(){ SFX.click(); this.speakLyrics(0.7); },
+  _showSpeechErr(){
+    if(errToastShown) return;
+    errToastShown=true;
+    const t=$("toast"); if(!t) return;
+    t.textContent="Voice playback failed — tap the disc to retry.";
+    t.classList.remove("hidden");
+    setTimeout(()=>t.classList.add("hidden"),3500);
   },
   stopSpeak(){speechSynthesis.cancel();this._speakUI(false)},
   _speakUI(on){
@@ -853,7 +879,12 @@ const G = {
     S.hintUsed=true; S.hints++;
     $("hintB").disabled=true;
     const q=S.qs[S.qi];
-    $("hintR").innerHTML='Artist: <strong>'+esc(q.song.artist)+'</strong> <span style="color:rgba(253,230,138,.4);margin-left:.4rem;font-weight:500">(-5 pts if correct)</span>';
+    const t=q.song.title;
+    const pattern=t.split(" ").map((w,i)=>{
+      if(!w) return w;
+      return (i===0?w.charAt(0):"_")+w.slice(1).replace(/[A-Za-z\u0900-\u097F]/g,"_");
+    }).join(" ");
+    $("hintR").innerHTML='Artist: <strong>'+esc(q.song.artist)+'</strong> &middot; Title: <strong style="letter-spacing:.15em;font-family:ui-monospace,monospace">'+esc(pattern)+'</strong> <span style="color:rgba(253,230,138,.4);margin-left:.4rem;font-weight:500">(-5 pts if correct)</span>';
     $("hintR").classList.remove("hidden");
   },
 
@@ -939,6 +970,7 @@ const G = {
   },
 
   _confetti(){
+    if(REDUCED) return;
     const c=$("confC");c.classList.remove("hidden");c.innerHTML="";
     const cols=["#FCD34D","#F87171","#60A5FA","#34D399","#A78BFA","#FB923C","#F472B6","#38BDF8"];
     for(let i=0;i<55;i++){
@@ -958,6 +990,7 @@ const G = {
   },
 
   _showEnd(){
+    speechSynthesis.cancel(); S.speaking=false;
     showScreen("end");
     const mx=S.qs.length*36, pct=mx>0?(S.score/mx)*100:0;
     const hs=getHS(S.cat), isNew=S.score>0&&S.score>=hs;
@@ -993,14 +1026,17 @@ const G = {
   },
 
   _countUp(el,target,dur){
+    if(S.countRaf) cancelAnimationFrame(S.countRaf);
+    if(REDUCED){ el.textContent=String(target); return; }
     const start=performance.now();el.textContent="0";
     function step(now){
       const p=Math.min((now-start)/dur,1);
       const eased=1-Math.pow(1-p,3);
       el.textContent=Math.round(eased*target);
-      if(p<1) requestAnimationFrame(step);
+      if(p<1) S.countRaf=requestAnimationFrame(step);
+      else S.countRaf=null;
     }
-    requestAnimationFrame(step);
+    S.countRaf=requestAnimationFrame(step);
   },
 
   share(){

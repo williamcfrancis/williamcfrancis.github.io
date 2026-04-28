@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Abyss</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -11,6 +11,8 @@
             background: #001e36;
             font-family: 'Segoe UI', Tahoma, sans-serif;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
         }
         canvas { display: block; }
 
@@ -77,6 +79,7 @@
         #depth-display { font-size: 13px; color: rgba(170, 255, 255, 0.7); margin-top: 4px; }
         #combo-display { font-size: 13px; color: #ffcc00; margin-top: 4px; opacity: 0; transition: opacity 0.3s; }
         #multiplier-display { font-size: 11px; color: rgba(255,180,80,0.8); margin-top: 2px; }
+        #best-display { font-size: 11px; color: rgba(170,255,255,0.5); margin-top: 4px; }
 
         #biome-display {
             position: absolute;
@@ -107,26 +110,69 @@
         }
         #compass-text { text-align: center; font-size: 9px; margin-top: 24px; color: #0ff; letter-spacing: 1px; }
 
-        #center-msg {
+        #title-screen {
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            background: linear-gradient(rgba(0, 10, 30, 0.6), rgba(0, 5, 20, 0.85));
+            width: 100%; height: 100%;
             position: absolute;
-            top: 38%; left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.4s;
-            pointer-events: none;
+            top: 0; left: 0;
+            justify-content: center;
+            align-items: center;
+            z-index: 11;
+            cursor: pointer;
         }
-        #center-msg h1 {
-            font-size: 64px;
+        #title-screen h1 {
+            font-size: 96px;
             color: #f0ffff;
-            letter-spacing: 8px;
-            text-shadow: 0 0 30px #00aaff;
+            letter-spacing: 12px;
+            text-shadow: 0 0 30px #00aaff, 0 0 60px #0066cc;
             font-weight: 300;
+            margin-bottom: 24px;
         }
-        #center-msg p {
-            font-size: 16px;
+        #title-screen p {
+            font-size: 14px;
             color: #aaddff;
             letter-spacing: 2px;
+            margin: 6px 0;
+            text-align: center;
+        }
+        #title-screen .click-hint {
+            margin-top: 36px;
+            font-size: 18px;
+            color: #00ffff;
+            letter-spacing: 4px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        #title-screen .controls-grid {
+            margin-top: 28px;
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 8px 20px;
+            font-size: 13px;
+            color: #88ccee;
+            letter-spacing: 1px;
+        }
+        #title-screen .controls-grid .key {
+            color: #fff;
+            background: rgba(0, 100, 150, 0.3);
+            border: 1px solid rgba(100, 200, 255, 0.4);
+            padding: 2px 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-family: monospace;
+        }
+        #title-screen .best-record {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #ffcc00;
+            letter-spacing: 3px;
+            min-height: 18px;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; text-shadow: 0 0 20px #00ffff; }
         }
 
         #feedback-msg {
@@ -151,7 +197,7 @@
             transition: opacity 0.15s;
         }
 
-        #game-over-screen {
+        #pause-screen, #game-over-screen {
             display: none;
             flex-direction: column;
             pointer-events: auto;
@@ -161,7 +207,8 @@
             top: 0; left: 0;
             justify-content: center;
             align-items: center;
-            z-index: 10;
+            z-index: 12;
+            padding: 24px;
         }
         #game-over-screen h1 {
             font-size: 52px; color: #f0ffff; letter-spacing: 6px;
@@ -169,6 +216,11 @@
         }
         #game-over-screen p {
             font-size: 16px; color: #aaddff; margin-top: 12px; letter-spacing: 1px;
+        }
+        #pause-screen h2 {
+            font-size: 36px; color: #f0ffff; letter-spacing: 8px;
+            text-shadow: 0 0 16px #00aaff; font-weight: 300;
+            margin-bottom: 24px;
         }
         #stats-grid {
             display: grid;
@@ -179,6 +231,95 @@
             color: #8cf;
         }
         #stats-grid .stat-val { color: #fff; font-weight: bold; text-align: right; }
+        .new-record {
+            color: #ffcc00 !important;
+            font-size: 20px !important;
+            letter-spacing: 4px !important;
+            margin-top: 14px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .settings-block {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 320px;
+            max-width: 380px;
+        }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            color: #aef;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        .setting-row label { flex: 0 0 110px; }
+        .setting-row input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: rgba(0, 200, 255, 0.2);
+            outline: none;
+            border-radius: 2px;
+        }
+        .setting-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px; height: 14px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 6px #0ff;
+        }
+        .setting-row input[type="range"]::-moz-range-thumb {
+            width: 14px; height: 14px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 6px #0ff;
+        }
+        .setting-row .val {
+            flex: 0 0 50px;
+            text-align: right;
+            color: #fff;
+            font-family: monospace;
+        }
+        .setting-row.toggle {
+            cursor: pointer;
+        }
+        .setting-row.toggle .switch {
+            width: 36px;
+            height: 18px;
+            background: rgba(0, 50, 80, 0.6);
+            border: 1px solid rgba(100, 200, 255, 0.4);
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.2s;
+        }
+        .setting-row.toggle .switch::after {
+            content: '';
+            position: absolute;
+            width: 12px; height: 12px;
+            background: #aef;
+            border-radius: 50%;
+            top: 2px; left: 2px;
+            transition: left 0.2s, background 0.2s;
+        }
+        .setting-row.toggle.on .switch { background: rgba(0, 200, 255, 0.4); }
+        .setting-row.toggle.on .switch::after { left: 20px; background: #0ff; }
+
+        .button-row {
+            margin-top: 28px;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
 
         .back-to-games {
             position: absolute;
@@ -205,19 +346,22 @@
             background: rgba(0, 255, 255, 0.1);
             color: #0ff;
             border: 1px solid #0ff;
-            padding: 14px 44px;
-            font-size: 16px;
+            padding: 12px 28px;
+            font-size: 14px;
             font-family: inherit;
             cursor: pointer;
-            margin-top: 28px;
             transition: all 0.3s;
             text-transform: uppercase;
             letter-spacing: 2px;
-            border-radius: 28px;
+            border-radius: 24px;
         }
         button:hover {
             background: rgba(0, 255, 255, 0.25);
             box-shadow: 0 0 20px #0ff;
+        }
+        button.primary {
+            padding: 14px 44px;
+            font-size: 16px;
         }
 
         #vignette {
@@ -230,12 +374,22 @@
 
         #reticle {
             position: absolute;
+            top: 50%; left: 50%;
             width: 36px; height: 36px;
             border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 50%;
             pointer-events: none;
             transform: translate(-50%, -50%);
             z-index: 5;
+        }
+        #reticle::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 4px; height: 4px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
         }
         #reticle.locked {
             border-color: #ffcc00;
@@ -247,6 +401,7 @@
             border-color: #44ff88;
             box-shadow: 0 0 12px #44ff88;
         }
+        #reticle.hidden { display: none; }
 
         #near-miss-indicator {
             position: absolute;
@@ -261,12 +416,60 @@
             transition: opacity 0.2s;
             letter-spacing: 2px;
         }
+
+        #pressure-warning {
+            position: absolute;
+            top: 30%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff66aa;
+            opacity: 0;
+            pointer-events: none;
+            text-shadow: 0 0 12px #ff0066;
+            transition: opacity 0.2s;
+            letter-spacing: 3px;
+        }
+
+        #mute-btn {
+            position: absolute;
+            top: 16px; right: 16px;
+            z-index: 15;
+            padding: 7px 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.35);
+            color: #0ff;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        #mute-btn:hover { background: rgba(0, 255, 255, 0.12); }
+
+        #mobile-pause-btn {
+            display: none;
+            position: absolute;
+            top: 16px; right: 70px;
+            z-index: 15;
+            padding: 7px 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.35);
+            color: #0ff;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        body.touch #mobile-pause-btn { display: block; }
+
+        body.touch #title-screen .controls-grid.desktop-only { display: none; }
+        body:not(.touch) #title-screen .controls-grid.touch-only { display: none; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <div id="vignette"></div>
-    <div id="reticle"></div>
+    <div id="reticle" class="hidden"></div>
     <div id="screen-flash"></div>
 
     <div id="ui-layer">
@@ -294,22 +497,79 @@
                 <div id="depth-display">DEPTH: 0m</div>
                 <div id="combo-display">COMBO x1</div>
                 <div id="multiplier-display">DEPTH x1.0</div>
+                <div id="best-display"></div>
             </div>
         </div>
 
         <div id="biome-display">The Shallows</div>
-
-        <div id="center-msg">
-            <h1>ABYSS</h1>
-            <p>Move Mouse to Swim. Hold Space/Click to Dash.<br>Dash into mines to destroy them. Collect artifacts to score.</p>
-        </div>
     </div>
 
     <div id="feedback-msg"></div>
     <div id="near-miss-indicator">NEAR MISS!</div>
+    <div id="pressure-warning">PRESSURE WAVE</div>
+
+    <a class="back-to-games" href="/games/"><span>&#8592;</span> Back to games</a>
+    <button id="mute-btn" type="button">SOUND ON</button>
+    <button id="mobile-pause-btn" type="button">II</button>
+
+    <div id="title-screen">
+        <h1>ABYSS</h1>
+        <p>Manage oxygen. Dash mines. Descend to the void.</p>
+        <div class="best-record" id="title-best"></div>
+        <div class="controls-grid desktop-only">
+            <span class="key">Mouse</span><span>Look</span>
+            <span class="key">W A S D</span><span>Boost / Strafe / Brake</span>
+            <span class="key">Space / LMB</span><span>Dash</span>
+            <span class="key">M</span><span>Mute</span>
+            <span class="key">Esc</span><span>Pause</span>
+        </div>
+        <div class="controls-grid touch-only">
+            <span class="key">Tilt</span><span>Steer</span>
+            <span class="key">Tap</span><span>Dash</span>
+            <span class="key">2-finger</span><span>Brake</span>
+        </div>
+        <div class="click-hint" id="click-hint">CLICK TO DIVE</div>
+    </div>
+
+    <div id="pause-screen">
+        <h2>PAUSED</h2>
+        <div class="settings-block">
+            <div class="setting-row">
+                <label>Mouse Sens.</label>
+                <input id="set-sens" type="range" min="0.0008" max="0.005" step="0.0001">
+                <span class="val" id="set-sens-val"></span>
+            </div>
+            <div class="setting-row">
+                <label>Master</label>
+                <input id="set-vol-master" type="range" min="0" max="1" step="0.01">
+                <span class="val" id="set-vol-master-val"></span>
+            </div>
+            <div class="setting-row">
+                <label>SFX</label>
+                <input id="set-vol-sfx" type="range" min="0" max="1" step="0.01">
+                <span class="val" id="set-vol-sfx-val"></span>
+            </div>
+            <div class="setting-row">
+                <label>Ambient</label>
+                <input id="set-vol-ambient" type="range" min="0" max="1" step="0.01">
+                <span class="val" id="set-vol-ambient-val"></span>
+            </div>
+            <div class="setting-row toggle" id="set-mute-toggle">
+                <label>Mute</label>
+                <div class="switch"></div>
+            </div>
+            <div class="setting-row toggle" id="set-invert-toggle">
+                <label>Invert Y</label>
+                <div class="switch"></div>
+            </div>
+        </div>
+        <div class="button-row">
+            <button class="primary" id="resume-btn" type="button">Resume</button>
+            <button id="restart-btn" type="button">Restart</button>
+        </div>
+    </div>
 
     <div id="game-over-screen">
-        <a class="back-to-games" href="/games/"><span>&#8592;</span> Back to games</a>
         <h1>SYSTEM OFFLINE</h1>
         <div id="stats-grid">
             <span>Depth</span><span class="stat-val" id="stat-depth">0m</span>
@@ -318,16 +578,19 @@
             <span>Mines Destroyed</span><span class="stat-val" id="stat-mines">0</span>
             <span>Near Misses</span><span class="stat-val" id="stat-nearmiss">0</span>
         </div>
-        <button onclick="resetGame()">Initialize Dive</button>
+        <div id="record-banner" style="display:none" class="new-record">NEW RECORD</div>
+        <div class="button-row">
+            <button class="primary" onclick="startGame()" type="button">Initialize Dive</button>
+        </div>
     </div>
 
     <script>
     // ============================================================
-    //  ABYSS: DEEP BLUE — Performance-Optimized
+    //  ABYSS — Free-look + WASD + auto-thrust
     // ============================================================
     'use strict';
 
-    // --- Cached DOM refs ---
+    // === Cached DOM refs ===
     const dom = {
         oxyFill: document.getElementById('oxygen-fill'),
         oxyText: document.getElementById('oxy-text'),
@@ -338,80 +601,114 @@
         depthTxt: document.getElementById('depth-display'),
         comboTxt: document.getElementById('combo-display'),
         multTxt: document.getElementById('multiplier-display'),
+        bestTxt: document.getElementById('best-display'),
         biomeTxt: document.getElementById('biome-display'),
-        centerMsg: document.getElementById('center-msg'),
         feedbackMsg: document.getElementById('feedback-msg'),
         nearMiss: document.getElementById('near-miss-indicator'),
+        pressureWarn: document.getElementById('pressure-warning'),
         compass: document.getElementById('compass-arrow'),
         reticle: document.getElementById('reticle'),
         flash: document.getElementById('screen-flash'),
+        title: document.getElementById('title-screen'),
+        titleBest: document.getElementById('title-best'),
+        clickHint: document.getElementById('click-hint'),
+        pause: document.getElementById('pause-screen'),
         gameOver: document.getElementById('game-over-screen'),
         statDepth: document.getElementById('stat-depth'),
         statScore: document.getElementById('stat-score'),
         statCombo: document.getElementById('stat-combo'),
         statMines: document.getElementById('stat-mines'),
         statNearMiss: document.getElementById('stat-nearmiss'),
+        recordBanner: document.getElementById('record-banner'),
+        muteBtn: document.getElementById('mute-btn'),
+        mobilePauseBtn: document.getElementById('mobile-pause-btn'),
+        backLink: document.querySelector('.back-to-games'),
     };
 
-    // --- Configuration ---
+    // === Touch device detection ===
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouch) document.body.classList.add('touch');
+
+    // === Persistence ===
+    const LS = {
+        bestDepth: 'abyss_bestDepth',
+        bestScore: 'abyss_bestScore',
+        muted: 'abyss_muted',
+        volumes: 'abyss_volumes',
+        sens: 'abyss_sens',
+        invertY: 'abyss_invertY',
+    };
+    function lsGetNum(key, def) {
+        const v = parseFloat(localStorage.getItem(key));
+        return isFinite(v) ? v : def;
+    }
+    function lsGetBool(key) { return localStorage.getItem(key) === '1'; }
+    function lsSetNum(key, v) { localStorage.setItem(key, String(v)); }
+    function lsSetBool(key, v) { localStorage.setItem(key, v ? '1' : '0'); }
+
+    // === Configuration ===
     const cfg = {
-        baseSpeed: 0.6,
-        dashSpeed: 2.0,
-        dashDrain: 1.2,
+        baseSpeed: 0.55,
+        boostMult: 1.85,
+        brakeMult: 0.35,
+        strafeSpeed: 0.45,
+        dashMult: 2.4,
+        dashDrain: 1.1,
         energyRecharge: 0.18,
-        boundsX: 36, boundsY: 22,
-        spawnDist: 120,
-        despawnDist: 28,
-        oxyDrainBase: 0.065,
+        spawnDist: 90,
+        despawnDist: 120,
+        oxyDrainBase: 0.06,
         oxyRestore: 22,
-        floorY: -22,
-        surfaceY: 28,
         nearMissDist: 5.5,
         hitRadiusOxy: 2.2,
         hitRadiusMine: 3.2,
         hitRadiusArtifact: 2.0,
         hitRadiusShield: 2.5,
+        hitRadiusJelly: 3.0,
+        hitRadiusAngler: 4.0,
         comboWindow: 2.0,
         magnetRange: 18,
-        magnetStr: 0.12,
-        maxEntities: 55,
+        magnetStr: 0.14,
+        maxEntities: 60,
+        mouseSens: lsGetNum(LS.sens, 0.0022),
+        invertY: lsGetBool(LS.invertY),
+        pitchLimit: 1.484, // ~85°
+        clusterChainRange: 6,
+        knockbackDecay: 0.85,
     };
 
-    // Pre-compute squared radii (avoid sqrt in collision checks)
     const HR2_OXY = cfg.hitRadiusOxy * cfg.hitRadiusOxy;
     const HR2_MINE = cfg.hitRadiusMine * cfg.hitRadiusMine;
     const HR2_ART = cfg.hitRadiusArtifact * cfg.hitRadiusArtifact;
     const HR2_SHIELD = cfg.hitRadiusShield * cfg.hitRadiusShield;
+    const HR2_JELLY = cfg.hitRadiusJelly * cfg.hitRadiusJelly;
+    const HR2_ANGLER = cfg.hitRadiusAngler * cfg.hitRadiusAngler;
     const HR2_NEAR = cfg.nearMissDist * cfg.nearMissDist;
     const HR2_MAGNET = cfg.magnetRange * cfg.magnetRange;
+    const HR2_DESPAWN = cfg.despawnDist * cfg.despawnDist;
+    const HR2_CLUSTER = cfg.clusterChainRange * cfg.clusterChainRange;
 
     const biomes = [
-        { limit: 800, name: "The Shallows", color: 0x004466, fog: 0x004466, density: 0.0018, light: 0x44eeff },
-        { limit: 2200, name: "The Midnight Zone", color: 0x110022, fog: 0x110022, density: 0.004, light: 0xaa00ff },
-        { limit: 4000, name: "The Abyssal Rift", color: 0x1a0000, fog: 0x1a0000, density: 0.006, light: 0xff0000 },
-        { limit: Infinity, name: "The Void", color: 0x050005, fog: 0x050005, density: 0.008, light: 0x440044 }
+        { limit: 800, name: "The Shallows", color: 0x004466, fog: 0x004466, density: 0.0018, light: 0x44eeff, ambient: 'ambient_shallows' },
+        { limit: 2200, name: "The Midnight Zone", color: 0x110022, fog: 0x110022, density: 0.004, light: 0xaa00ff, ambient: 'ambient_midnight' },
+        { limit: 4000, name: "The Abyssal Rift", color: 0x1a0000, fog: 0x1a0000, density: 0.006, light: 0xff0000, ambient: 'ambient_rift' },
+        { limit: Infinity, name: "The Void", color: 0x050005, fog: 0x050005, density: 0.008, light: 0x440044, ambient: 'ambient_void' }
     ];
-
-    // Pre-build biome THREE.Color objects (avoids allocation during transitions)
     for (const b of biomes) {
         b._fogCol = new THREE.Color(b.fog);
         b._bgCol = new THREE.Color(b.color);
         b._lightCol = new THREE.Color(b.light);
     }
 
-    // --- Game State ---
+    // === Game State ===
     const state = {
-        playing: false,
-        started: false,
+        mode: 'title',  // 'title' | 'playing' | 'paused' | 'gameover'
+        firstRun: true,
         score: 0,
-        depth: 0,
-        absDepth: 0,
         oxygen: 100,
         energy: 100,
         shield: 0,
         dashing: false,
-        mouseX: 0, mouseY: 0,
-        targetX: 0, targetY: 0,
         speed: cfg.baseSpeed,
         biomeIdx: 0,
         shakeAmt: 0,
@@ -421,41 +718,63 @@
         minesDestroyed: 0,
         nearMisses: 0,
         nearMissTimer: 0,
-        fovTarget: 65,
+        fovTarget: 70,
         lastTime: 0,
-        hudFrame: 0,          // throttle HUD text updates
-        prevShieldVis: false,  // track shield visibility to avoid redundant DOM writes
-        prevDashing: false,    // track dash state to avoid redundant classList ops
+        hudFrame: 0,
+        prevShieldVis: false,
+        prevDashing: false,
+        // Camera/aim
+        yaw: 0, pitch: 0, bankRoll: 0,
+        // Velocity / depth
+        kbVx: 0, kbVy: 0, kbVz: 0,
+        curDepth: 0,
+        maxDepth: 0,
+        minY: 0,
+        // Mobile
+        baseBeta: null, baseGamma: null,
+        tiltCalibrated: false,
+        twoFingerBraking: false,
+        // Anglerfish
+        anglerSpawnedThisBiome: false,
+        // Pointer lock
+        pointerLocked: false,
+        // Persisted bests
+        bestDepth: lsGetNum(LS.bestDepth, 0),
+        bestScore: lsGetNum(LS.bestScore, 0),
     };
 
-    // --- Pre-allocated temp objects (zero GC) ---
+    // === Pre-allocated temp objects ===
+    const _fwd = new THREE.Vector3();
+    const _right = new THREE.Vector3();
     const _tmpVec = new THREE.Vector3();
+    const _tmpQuat = new THREE.Quaternion();
+    const _unitZ = new THREE.Vector3(0, 0, 1);
+    const _unitY = new THREE.Vector3(0, 1, 0);
 
-    // --- Renderer ---
+    // === Renderer / Scene / Camera ===
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     document.body.prepend(renderer.domElement);
+    const canvas = renderer.domElement;
 
-    // --- Scene ---
     const scene = new THREE.Scene();
     const b0 = biomes[0];
     scene.fog = new THREE.FogExp2(b0.fog, b0.density);
     scene.background = new THREE.Color(b0.color);
 
-    // Tighter far plane — nothing spawns beyond 140
-    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.5, 180);
-    camera.position.z = 5;
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.5, 200);
+    camera.rotation.order = 'YXZ';
+    camera.position.set(0, 0, 0);
 
-    // --- Lighting (no shadows, minimal lights) ---
+    // === Lighting ===
     const hemiLight = new THREE.HemisphereLight(b0.light, 0x000000, 0.9);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
     dirLight.position.set(0, 40, 20);
     scene.add(dirLight);
 
-    // Spotlight follows camera
     const spotLight = new THREE.SpotLight(0xffffff, 2.5);
     spotLight.angle = 0.85;
     spotLight.penumbra = 0.4;
@@ -464,37 +783,39 @@
     scene.add(spotLight);
     scene.add(spotLight.target);
 
-    // --- Shared Geometries (created once, reused everywhere) ---
+    // === Shared geometries / materials ===
     const geoSphere = new THREE.SphereGeometry(1, 8, 8);
     const geoArtifact = new THREE.IcosahedronGeometry(0.8, 0);
-    const geoMine = new THREE.IcosahedronGeometry(1.3, 0);  // Single mesh per mine (was 7 meshes!)
+    const geoMine = new THREE.IcosahedronGeometry(1.3, 0);
     const geoBox = new THREE.BoxGeometry(0.5, 7, 0.5);
     const geoRock = new THREE.DodecahedronGeometry(2, 0);
     const geoShield = new THREE.OctahedronGeometry(0.7, 0);
+    const geoFish = new THREE.ConeGeometry(0.25, 0.8, 4);
+    const geoJellyBell = new THREE.SphereGeometry(1.5, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6);
+    const geoJellyTendril = new THREE.CylinderGeometry(0.04, 0.02, 2.5, 4);
+    const geoAnglerBody = new THREE.IcosahedronGeometry(2.0, 0);
+    const geoLure = new THREE.SphereGeometry(0.3, 6, 6);
+    const geoTorus = new THREE.TorusGeometry(2, 0.2, 6, 24);
 
-    // --- Materials (downgraded for performance) ---
-    // O2 & Shield: MeshBasicMaterial (no lighting calc needed — they glow)
-    const matOxygen = new THREE.MeshBasicMaterial({
-        color: 0x33ddff, transparent: true, opacity: 0.8
-    });
-    const matShield = new THREE.MeshBasicMaterial({
-        color: 0x55ffaa, transparent: true, opacity: 0.75
-    });
-    // Mines & Rocks: MeshLambertMaterial (cheap diffuse shading, no PBR)
-    const matMine = new THREE.MeshLambertMaterial({
-        color: 0x444444, emissive: 0x111111, flatShading: true
-    });
-    const matRock = new THREE.MeshLambertMaterial({
-        color: 0x112233, flatShading: true
-    });
-    // Artifacts keep MeshStandardMaterial for the metallic gold look
+    const matOxygen = new THREE.MeshBasicMaterial({ color: 0x33ddff, transparent: true, opacity: 0.8 });
+    const matShield = new THREE.MeshBasicMaterial({ color: 0x55ffaa, transparent: true, opacity: 0.75 });
+    const matMine = new THREE.MeshLambertMaterial({ color: 0x444444, emissive: 0x111111 });
+    const matMineDrift = new THREE.MeshLambertMaterial({ color: 0x553311, emissive: 0x331100 });
+    const matMineCluster = new THREE.MeshLambertMaterial({ color: 0x442266, emissive: 0x220033 });
+    const matRock = new THREE.MeshLambertMaterial({ color: 0x112233 });
     const matGold = new THREE.MeshStandardMaterial({
         color: 0xffcc00, emissive: 0xff8800, emissiveIntensity: 0.5,
         roughness: 0.2, metalness: 0.9
     });
     const matSeaweed = new THREE.MeshBasicMaterial({ color: 0x005522, transparent: true, opacity: 0.35 });
+    const matFish = new THREE.MeshLambertMaterial({ color: 0x88aacc });
+    const matJellyBell = new THREE.MeshBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+    const matJellyTendril = new THREE.MeshBasicMaterial({ color: 0xff44aa, transparent: true, opacity: 0.6 });
+    const matAngler = new THREE.MeshLambertMaterial({ color: 0x110008, emissive: 0x110011 });
+    const matLure = new THREE.MeshBasicMaterial({ color: 0xffeeaa });
+    const matWave = new THREE.MeshBasicMaterial({ color: 0xff66aa, transparent: true, opacity: 0.6 });
 
-    // --- Environment ---
+    // === Environment ===
     const floorGeo = new THREE.PlaneGeometry(280, 280, 20, 20);
     {
         const pos = floorGeo.attributes.position;
@@ -503,11 +824,9 @@
         }
         floorGeo.computeVertexNormals();
     }
-    const seaBed = new THREE.Mesh(floorGeo, new THREE.MeshLambertMaterial({
-        color: 0x001122, flatShading: true
-    }));
+    const seaBed = new THREE.Mesh(floorGeo, new THREE.MeshLambertMaterial({ color: 0x001122 }));
     seaBed.rotation.x = -Math.PI / 2;
-    seaBed.position.y = cfg.floorY;
+    seaBed.position.y = -120;
     scene.add(seaBed);
 
     const surface = new THREE.Mesh(
@@ -515,17 +834,17 @@
         new THREE.MeshBasicMaterial({ color: 0x006688, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
     );
     surface.rotation.x = Math.PI / 2;
-    surface.position.y = cfg.surfaceY;
+    surface.position.y = 30;
     scene.add(surface);
 
-    // --- Particles: Marine Snow (reduced) ---
+    // === Particles: marine snow ===
     const snowCount = 800;
     const snowGeo = new THREE.BufferGeometry();
     const snowArr = new Float32Array(snowCount * 3);
     for (let i = 0; i < snowCount; i++) {
-        snowArr[i * 3] = (Math.random() - 0.5) * 90;
-        snowArr[i * 3 + 1] = (Math.random() - 0.5) * 50;
-        snowArr[i * 3 + 2] = (Math.random() - 0.5) * 220;
+        snowArr[i * 3]     = (Math.random() - 0.5) * 90;
+        snowArr[i * 3 + 1] = (Math.random() - 0.5) * 90;
+        snowArr[i * 3 + 2] = (Math.random() - 0.5) * 90;
     }
     snowGeo.setAttribute('position', new THREE.BufferAttribute(snowArr, 3));
     const snowSystem = new THREE.Points(snowGeo, new THREE.PointsMaterial({
@@ -533,7 +852,7 @@
     }));
     scene.add(snowSystem);
 
-    // --- Explosion Particles (reduced) ---
+    // === Explosion particles ===
     const explCount = 80;
     const explGeo = new THREE.BufferGeometry();
     const explArr = new Float32Array(explCount * 3);
@@ -545,8 +864,6 @@
     scene.add(explSystem);
     let explActive = false, explTime = 0;
     const explCenter = new THREE.Vector3();
-
-    // Pre-compute sin/cos lookup for explosion (avoids trig per particle per frame)
     const explSinT = new Float32Array(explCount);
     const explCosT = new Float32Array(explCount);
     const explSinP = new Float32Array(explCount);
@@ -557,101 +874,12 @@
         explSinP[i] = Math.sin(phi);   explCosP[i] = Math.cos(phi);
     }
 
-    // ===========================================================
-    //  Entity System — Separate interactable vs decor
-    // ===========================================================
-    const entities = [];  // Only oxygen, artifact, mine, shield
-    const decorArr = [];  // Seaweed, rocks (no collision, no animation)
-
-    function setRandPos(obj, z) {
-        obj.position.x = (Math.random() - 0.5) * cfg.boundsX * 2;
-        obj.position.y = (Math.random() - 0.5) * cfg.boundsY * 2;
-        obj.position.z = z;
-    }
-
-    // --- Spawn functions ---
-    function spawnOxygen(z) {
-        const m = new THREE.Mesh(geoSphere, matOxygen);
-        setRandPos(m, z);
-        m.userData.type = 'oxygen';
-        scene.add(m);
-        entities.push(m);
-    }
-
-    function spawnMine(z) {
-        // Single mesh! Was previously a Group with 7 children = 7 draw calls.
-        const m = new THREE.Mesh(geoMine, matMine);
-        setRandPos(m, z);
-        m.scale.setScalar(1.3 + Math.random() * 0.8);
-        m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-        m.userData.type = 'mine';
-        m.userData.rotSpd = 0.015 + Math.random() * 0.01;
-        scene.add(m);
-        entities.push(m);
-    }
-
-    function spawnArtifact(z) {
-        const m = new THREE.Mesh(geoArtifact, matGold);
-        setRandPos(m, z);
-        m.userData.type = 'artifact';
-        m.userData.rotSpd = 0.04;
-        scene.add(m);
-        entities.push(m);
-    }
-
-    function spawnShield(z) {
-        const m = new THREE.Mesh(geoShield, matShield);
-        setRandPos(m, z);
-        m.userData.type = 'shield';
-        m.userData.rotSpd = 0.03;
-        scene.add(m);
-        entities.push(m);
-    }
-
-    function spawnDecor(z) {
-        const isWeed = Math.random() > 0.35;
-        let m;
-        if (isWeed) {
-            m = new THREE.Mesh(geoBox, matSeaweed);
-            m.scale.y = 1 + Math.random() * 2;
-            m.rotation.z = (Math.random() - 0.5) * 0.5;
-        } else {
-            m = new THREE.Mesh(geoRock, matRock);
-            m.scale.set(1.2, 0.6, 1.2);
-        }
-        m.position.x = (Math.random() - 0.5) * cfg.boundsX * 3;
-        m.position.y = cfg.floorY + (isWeed ? 3.5 : 0.8);
-        m.position.z = z;
-        // Decor is static — disable per-frame matrix recalc
-        m.matrixAutoUpdate = false;
-        m.updateMatrix();
-        scene.add(m);
-        decorArr.push(m);
-    }
-
-    // --- Swap-and-pop removal (O(1) instead of splice O(n)) ---
-    function removeEntity(i) {
-        scene.remove(entities[i]);
-        const last = entities.length - 1;
-        if (i !== last) entities[i] = entities[last];
-        entities.length = last;
-    }
-
-    function removeDecor(i) {
-        scene.remove(decorArr[i]);
-        const last = decorArr.length - 1;
-        if (i !== last) decorArr[i] = decorArr[last];
-        decorArr.length = last;
-    }
-
-    // --- Explosion ---
     function triggerExplosion(pos) {
         explActive = true;
         explTime = 0;
         explCenter.copy(pos);
         explSystem.material.opacity = 1;
     }
-
     function updateExplosion(dt) {
         if (!explActive) return;
         explTime += dt * 2.5;
@@ -674,7 +902,583 @@
         explGeo.attributes.position.needsUpdate = true;
     }
 
-    // --- Screen Flash ---
+    // ==========================================================
+    //  AUDIO ENGINE — external files + WebAudio synth fallback
+    // ==========================================================
+    const Audio = (function() {
+        const audioFiles = {
+            ambient_shallows:  { loop: true,  ambient: true },
+            ambient_midnight:  { loop: true,  ambient: true },
+            ambient_rift:      { loop: true,  ambient: true },
+            ambient_void:      { loop: true,  ambient: true },
+            dash:              {},
+            o2_pickup:         {},
+            artifact_pickup:   {},
+            shield_pickup:     {},
+            mine_explode:      {},
+            hull_breach:       {},
+            near_miss:         {},
+            biome_transition:  {},
+            creature_call:     {},
+            jellyfish_zap:     {},
+            angler_attack:     {},
+            pressure_wave:     {},
+            game_over:         {},
+        };
+
+        let ctx = null, masterG, sfxG, ambientG;
+        const buffers = {};
+        const triedLoad = {};
+        let activeAmbient = null;
+        let activeAmbientName = null;
+
+        let muted = lsGetBool(LS.muted);
+        let vols;
+        try { vols = JSON.parse(localStorage.getItem(LS.volumes)) || {}; } catch (e) { vols = {}; }
+        if (vols.master == null) vols.master = 0.7;
+        if (vols.sfx == null) vols.sfx = 1.0;
+        if (vols.ambient == null) vols.ambient = 0.45;
+
+        function init() {
+            if (ctx) return;
+            const Ctor = window.AudioContext || window.webkitAudioContext;
+            if (!Ctor) return;
+            try { ctx = new Ctor(); } catch (e) { return; }
+            masterG = ctx.createGain();
+            sfxG = ctx.createGain();
+            ambientG = ctx.createGain();
+            sfxG.connect(masterG);
+            ambientG.connect(masterG);
+            masterG.connect(ctx.destination);
+            applyVolumes();
+            for (const name in audioFiles) preload(name);
+        }
+
+        function preload(name) {
+            if (!ctx || triedLoad[name]) return;
+            triedLoad[name] = true;
+            fetch('audio/' + name + '.ogg')
+                .then(function(r) { if (!r.ok) throw new Error('not found'); return r.arrayBuffer(); })
+                .then(function(buf) { return ctx.decodeAudioData(buf); })
+                .then(function(decoded) { buffers[name] = decoded; })
+                .catch(function() { /* missing — synth fallback used */ });
+        }
+
+        function play(name, opts) {
+            if (!ctx) return null;
+            if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+            opts = opts || {};
+            const meta = audioFiles[name] || {};
+            const isAmbient = meta.ambient || opts.ambient;
+            const dest = isAmbient ? ambientG : sfxG;
+
+            if (buffers[name]) {
+                const src = ctx.createBufferSource();
+                src.buffer = buffers[name];
+                src.loop = !!(meta.loop || opts.loop);
+                const g = ctx.createGain();
+                g.gain.value = (opts.volume != null) ? opts.volume : 1;
+                src.connect(g); g.connect(dest);
+                try { src.start(); } catch (e) {}
+                return { source: src, gain: g, isFile: true };
+            }
+            const fn = synth[name];
+            if (fn) return fn(dest, opts);
+            return null;
+        }
+
+        function setAmbient(name) {
+            if (activeAmbientName === name) return;
+            stopAmbient();
+            activeAmbientName = name;
+            activeAmbient = play(name);
+        }
+        function stopAmbient() {
+            if (activeAmbient) {
+                if (activeAmbient.cleanup) activeAmbient.cleanup();
+                else if (activeAmbient.source) {
+                    try { activeAmbient.source.stop(); } catch (e) {}
+                }
+            }
+            activeAmbient = null;
+            activeAmbientName = null;
+        }
+
+        function setMuted(m) {
+            muted = m;
+            lsSetBool(LS.muted, m);
+            applyVolumes();
+        }
+        function setVolume(bus, v) {
+            vols[bus] = v;
+            try { localStorage.setItem(LS.volumes, JSON.stringify(vols)); } catch (e) {}
+            applyVolumes();
+        }
+        function applyVolumes() {
+            if (!ctx) return;
+            const t = ctx.currentTime;
+            masterG.gain.setTargetAtTime(muted ? 0 : vols.master, t, 0.05);
+            sfxG.gain.setTargetAtTime(vols.sfx, t, 0.05);
+            ambientG.gain.setTargetAtTime(vols.ambient, t, 0.05);
+        }
+
+        // === Synth helpers ===
+        function envOsc(dest, type, fStart, fEnd, duration, volume) {
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(fStart, now);
+            if (fEnd !== fStart) {
+                osc.frequency.exponentialRampToValueAtTime(Math.max(fEnd, 0.001), now + duration);
+            }
+            g.gain.setValueAtTime(volume, now);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.connect(g); g.connect(dest);
+            try { osc.start(now); osc.stop(now + duration + 0.05); } catch (e) {}
+        }
+        function envNoise(dest, duration, volume, filterFreq, type) {
+            const now = ctx.currentTime;
+            const bufSize = Math.floor(ctx.sampleRate * duration);
+            if (bufSize <= 0) return;
+            const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = ctx.createBufferSource();
+            noise.buffer = buf;
+            const filt = ctx.createBiquadFilter();
+            filt.type = type || 'lowpass';
+            filt.frequency.value = filterFreq || 4000;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(volume, now);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            noise.connect(filt); filt.connect(g); g.connect(dest);
+            try { noise.start(now); } catch (e) {}
+        }
+
+        // === Persistent ambient pad (loop-able) ===
+        function makeAmbient(dest, baseFreq, modRate, modDepth, brightness) {
+            const now = ctx.currentTime;
+            const osc1 = ctx.createOscillator();
+            const osc2 = ctx.createOscillator();
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            const filt = ctx.createBiquadFilter();
+            const g = ctx.createGain();
+            osc1.type = 'sine';     osc1.frequency.value = baseFreq;
+            osc2.type = 'sine';     osc2.frequency.value = baseFreq * 1.5;
+            lfo.type = 'sine';      lfo.frequency.value = modRate;
+            lfoGain.gain.value = modDepth;
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc1.frequency);
+            filt.type = 'lowpass';
+            filt.frequency.value = brightness || 600;
+            g.gain.setValueAtTime(0, now);
+            g.gain.linearRampToValueAtTime(0.5, now + 1.2);
+            osc1.connect(filt); osc2.connect(filt);
+            filt.connect(g); g.connect(dest);
+            try { osc1.start(now); osc2.start(now); lfo.start(now); } catch (e) {}
+            return {
+                source: osc1,
+                gain: g,
+                cleanup: function() {
+                    const t = ctx.currentTime;
+                    g.gain.cancelScheduledValues(t);
+                    g.gain.setValueAtTime(g.gain.value, t);
+                    g.gain.linearRampToValueAtTime(0, t + 0.4);
+                    setTimeout(function() {
+                        try { osc1.stop(); osc2.stop(); lfo.stop(); } catch (e) {}
+                    }, 500);
+                }
+            };
+        }
+
+        const synth = {
+            ambient_shallows: function(dest) { return makeAmbient(dest, 80, 0.08, 4, 700); },
+            ambient_midnight: function(dest) { return makeAmbient(dest, 60, 0.06, 6, 500); },
+            ambient_rift:     function(dest) { return makeAmbient(dest, 50, 0.04, 8, 400); },
+            ambient_void:     function(dest) { return makeAmbient(dest, 38, 0.03, 10, 320); },
+            dash: function(dest) {
+                envOsc(dest, 'sawtooth', 800, 200, 0.35, 0.18);
+                envNoise(dest, 0.35, 0.13, 1500);
+            },
+            o2_pickup: function(dest) {
+                envOsc(dest, 'sine', 800, 1600, 0.18, 0.3);
+                envOsc(dest, 'sine', 1200, 2400, 0.18, 0.18);
+            },
+            artifact_pickup: function(dest) {
+                envOsc(dest, 'triangle', 1200, 2400, 0.22, 0.25);
+                envOsc(dest, 'sine', 600, 1200, 0.22, 0.18);
+                envOsc(dest, 'sine', 1800, 3600, 0.18, 0.12);
+            },
+            shield_pickup: function(dest) {
+                envOsc(dest, 'sine', 400, 800, 0.45, 0.28);
+                envOsc(dest, 'sine', 600, 1200, 0.45, 0.18);
+            },
+            mine_explode: function(dest) {
+                envNoise(dest, 0.55, 0.55, 800);
+                envOsc(dest, 'square', 110, 28, 0.55, 0.3);
+                envOsc(dest, 'sawtooth', 220, 60, 0.4, 0.2);
+            },
+            hull_breach: function(dest) {
+                envOsc(dest, 'sawtooth', 200, 50, 0.5, 0.4);
+                envNoise(dest, 0.5, 0.3, 600);
+                envOsc(dest, 'square', 440, 110, 0.4, 0.18);
+            },
+            near_miss: function(dest) {
+                envOsc(dest, 'sine', 1500, 800, 0.13, 0.18);
+            },
+            biome_transition: function(dest) {
+                envOsc(dest, 'sine', 100, 60, 1.8, 0.4);
+                envOsc(dest, 'sine', 150, 90, 1.8, 0.25);
+                envOsc(dest, 'sine', 220, 130, 1.5, 0.15);
+            },
+            creature_call: function(dest) {
+                envOsc(dest, 'sine', 80, 60, 1.4, 0.35);
+                envOsc(dest, 'sine', 120, 90, 1.4, 0.2);
+            },
+            jellyfish_zap: function(dest) {
+                envOsc(dest, 'square', 600, 1800, 0.12, 0.15);
+                envNoise(dest, 0.15, 0.1, 3000, 'highpass');
+            },
+            angler_attack: function(dest) {
+                envOsc(dest, 'sawtooth', 130, 40, 0.5, 0.4);
+                envNoise(dest, 0.5, 0.3, 500);
+            },
+            pressure_wave: function(dest) {
+                envOsc(dest, 'sine', 60, 40, 1.0, 0.4);
+                envNoise(dest, 0.8, 0.2, 400);
+            },
+            game_over: function(dest) {
+                envOsc(dest, 'sine', 200, 60, 1.5, 0.4);
+                envOsc(dest, 'sine', 300, 90, 1.5, 0.25);
+                envNoise(dest, 0.8, 0.15, 300);
+            },
+        };
+
+        return {
+            init: init,
+            play: play,
+            setAmbient: setAmbient,
+            stopAmbient: stopAmbient,
+            setMuted: setMuted,
+            setVolume: setVolume,
+            isMuted: function() { return muted; },
+            getVols: function() { return vols; },
+        };
+    })();
+
+    // ==========================================================
+    //  Entity system
+    // ==========================================================
+    const entities = [];
+    const decorArr = [];
+
+    function randomDirection() {
+        const theta = Math.random() * Math.PI * 2;
+        const cosPhi = 2 * Math.random() - 1;
+        const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
+        return new THREE.Vector3(sinPhi * Math.cos(theta), sinPhi * Math.sin(theta), cosPhi);
+    }
+
+    function pickSpawnPos(dist) {
+        const fwd = _tmpVec.set(0, 0, -1).applyEuler(camera.rotation);
+        let dir;
+        if (Math.random() < 0.7) {
+            // forward-biased: forward + random offset
+            const off = randomDirection();
+            dir = new THREE.Vector3(
+                fwd.x + off.x * 0.85,
+                fwd.y + off.y * 0.85,
+                fwd.z + off.z * 0.85
+            ).normalize();
+        } else {
+            dir = randomDirection();
+        }
+        return new THREE.Vector3(
+            camera.position.x + dir.x * dist,
+            camera.position.y + dir.y * dist,
+            camera.position.z + dir.z * dist
+        );
+    }
+
+    function spawnOxygen() {
+        const m = new THREE.Mesh(geoSphere, matOxygen);
+        const p = pickSpawnPos(cfg.spawnDist - Math.random() * 20);
+        m.position.copy(p);
+        m.userData = { type: 'oxygen', rotSpd: 0 };
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnMine(driftBias) {
+        const m = new THREE.Mesh(geoMine, driftBias > 0 ? matMineDrift : matMine);
+        const p = pickSpawnPos(cfg.spawnDist - Math.random() * 20);
+        m.position.copy(p);
+        m.scale.setScalar(1.3 + Math.random() * 0.8);
+        m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+        const drift = driftBias > 0 ? randomDirection().multiplyScalar(0.05 + Math.random() * 0.08) : null;
+        m.userData = {
+            type: 'mine',
+            rotSpd: 0.015 + Math.random() * 0.01,
+            driftX: drift ? drift.x : 0,
+            driftY: drift ? drift.y : 0,
+            driftZ: drift ? drift.z : 0,
+        };
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnMineCluster() {
+        const center = pickSpawnPos(cfg.spawnDist - Math.random() * 20);
+        const count = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+            const m = new THREE.Mesh(geoMine, matMineCluster);
+            const off = randomDirection().multiplyScalar(2 + Math.random() * 3);
+            m.position.set(center.x + off.x, center.y + off.y, center.z + off.z);
+            m.scale.setScalar(1.1 + Math.random() * 0.5);
+            m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+            m.userData = {
+                type: 'mine',
+                cluster: true,
+                rotSpd: 0.02 + Math.random() * 0.015,
+                driftX: 0, driftY: 0, driftZ: 0,
+            };
+            scene.add(m);
+            entities.push(m);
+        }
+    }
+
+    function spawnArtifact() {
+        const m = new THREE.Mesh(geoArtifact, matGold);
+        const p = pickSpawnPos(cfg.spawnDist - Math.random() * 20);
+        m.position.copy(p);
+        m.userData = { type: 'artifact', rotSpd: 0.04 };
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnShield() {
+        const m = new THREE.Mesh(geoShield, matShield);
+        const p = pickSpawnPos(cfg.spawnDist - Math.random() * 20);
+        m.position.copy(p);
+        m.userData = { type: 'shield', rotSpd: 0.03 };
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnFishSchool() {
+        const center = pickSpawnPos(cfg.spawnDist - Math.random() * 30);
+        const count = 8 + Math.floor(Math.random() * 5);
+        const dir = randomDirection().multiplyScalar(0.06);
+        for (let i = 0; i < count; i++) {
+            const m = new THREE.Mesh(geoFish, matFish);
+            const off = randomDirection().multiplyScalar(1.5 + Math.random() * 1.5);
+            m.position.set(center.x + off.x, center.y + off.y, center.z + off.z);
+            m.userData = {
+                type: 'fish',
+                vx: dir.x + (Math.random() - 0.5) * 0.02,
+                vy: dir.y + (Math.random() - 0.5) * 0.02,
+                vz: dir.z + (Math.random() - 0.5) * 0.02,
+                phaseOff: Math.random() * 6.28,
+            };
+            // orient cone toward velocity
+            const head = new THREE.Vector3(m.userData.vx, m.userData.vy, m.userData.vz).normalize();
+            const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), head);
+            m.setRotationFromQuaternion(q);
+            scene.add(m);
+            entities.push(m);
+        }
+    }
+
+    function spawnJellyfish() {
+        const group = new THREE.Group();
+        const bell = new THREE.Mesh(geoJellyBell, matJellyBell);
+        group.add(bell);
+        const tendrilCount = 5;
+        for (let i = 0; i < tendrilCount; i++) {
+            const t = new THREE.Mesh(geoJellyTendril, matJellyTendril);
+            const a = (i / tendrilCount) * Math.PI * 2;
+            t.position.set(Math.cos(a) * 0.8, -1.4, Math.sin(a) * 0.8);
+            group.add(t);
+        }
+        const p = pickSpawnPos(cfg.spawnDist - Math.random() * 25);
+        group.position.copy(p);
+        group.userData = {
+            type: 'jellyfish',
+            rotSpd: 0,
+            phaseOff: Math.random() * 6.28,
+            originY: p.y,
+        };
+        scene.add(group);
+        entities.push(group);
+    }
+
+    function spawnAnglerfish() {
+        // spawn 30-50 units behind camera (opposite of forward)
+        const fwd = _tmpVec.set(0, 0, -1).applyEuler(camera.rotation);
+        const behindDist = 35 + Math.random() * 15;
+        const off = randomDirection().multiplyScalar(8);
+        const p = new THREE.Vector3(
+            camera.position.x - fwd.x * behindDist + off.x,
+            camera.position.y - fwd.y * behindDist + off.y,
+            camera.position.z - fwd.z * behindDist + off.z
+        );
+        const group = new THREE.Group();
+        const body = new THREE.Mesh(geoAnglerBody, matAngler);
+        body.scale.set(1.2, 0.9, 1.5);
+        group.add(body);
+        const lure = new THREE.Mesh(geoLure, matLure);
+        lure.position.set(0, 1.2, 1.5);
+        group.add(lure);
+        const lurePoint = new THREE.PointLight(0xffeeaa, 1.5, 12);
+        lurePoint.position.copy(lure.position);
+        group.add(lurePoint);
+        group.position.copy(p);
+        group.userData = {
+            type: 'anglerfish',
+            speed: 0.42,
+            attackCooldown: 0,
+            lureLight: lurePoint,
+        };
+        scene.add(group);
+        entities.push(group);
+        Audio.play('creature_call', { volume: 0.7 });
+    }
+
+    function spawnPressureWave() {
+        const center = pickSpawnPos(40 + Math.random() * 30);
+        const m = new THREE.Mesh(geoTorus, matWave.clone());
+        m.position.copy(center);
+        // random orientation
+        m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+        m.scale.setScalar(0.5);
+        m.userData = {
+            type: 'pressureWave',
+            life: 0,
+            maxLife: 3.5,
+            growRate: 12,
+            origin: center.clone(),
+            normal: new THREE.Vector3(0, 1, 0).applyEuler(m.rotation),
+            warned: false,
+        };
+        scene.add(m);
+        entities.push(m);
+    }
+
+    function spawnDecor() {
+        const isWeed = Math.random() > 0.35;
+        let m;
+        if (isWeed) {
+            m = new THREE.Mesh(geoBox, matSeaweed);
+            m.scale.y = 1 + Math.random() * 2;
+            m.rotation.z = (Math.random() - 0.5) * 0.5;
+        } else {
+            m = new THREE.Mesh(geoRock, matRock);
+            m.scale.set(1.2, 0.6, 1.2);
+        }
+        const p = pickSpawnPos(cfg.spawnDist - Math.random() * 20);
+        // anchor decor to seabed plane (y = -120)
+        m.position.set(p.x, -120 + (isWeed ? 3.5 : 0.8), p.z);
+        m.matrixAutoUpdate = false;
+        m.updateMatrix();
+        scene.add(m);
+        decorArr.push(m);
+    }
+
+    function removeEntity(i) {
+        const e = entities[i];
+        // Cleanup any pointlights inside groups
+        if (e.userData && e.userData.lureLight) {
+            try { e.remove(e.userData.lureLight); } catch (er) {}
+        }
+        scene.remove(e);
+        const last = entities.length - 1;
+        if (i !== last) entities[i] = entities[last];
+        entities.length = last;
+    }
+
+    function removeDecor(i) {
+        scene.remove(decorArr[i]);
+        const last = decorArr.length - 1;
+        if (i !== last) decorArr[i] = decorArr[last];
+        decorArr.length = last;
+    }
+
+    // ==========================================================
+    //  Spawning + despawning
+    // ==========================================================
+    function manageSpawning() {
+        // Despawn far entities by Euclidean distance
+        for (let i = entities.length - 1; i >= 0; i--) {
+            const e = entities[i];
+            const dx = camera.position.x - e.position.x;
+            const dy = camera.position.y - e.position.y;
+            const dz = camera.position.z - e.position.z;
+            // pressure waves expire on their own life timer (handled in processEntities)
+            if (e.userData.type === 'pressureWave') continue;
+            // anglerfish despawns by distance only when very far (lets it follow)
+            if (e.userData.type === 'anglerfish') {
+                if (dx * dx + dy * dy + dz * dz > 90 * 90) removeEntity(i);
+                continue;
+            }
+            if (dx * dx + dy * dy + dz * dz > HR2_DESPAWN) removeEntity(i);
+        }
+        for (let i = decorArr.length - 1; i >= 0; i--) {
+            const d = decorArr[i];
+            const dx = camera.position.x - d.position.x;
+            const dz = camera.position.z - d.position.z;
+            if (dx * dx + dz * dz > HR2_DESPAWN) removeDecor(i);
+        }
+
+        const diff = Math.min(getDiff(), 1.5);
+        const cap = cfg.maxEntities + (diff * 15 | 0);
+        if (entities.length + decorArr.length >= cap) return;
+
+        const r = Math.random();
+        const biome = state.biomeIdx;
+
+        // Pressure waves in Rift+Void
+        if (biome >= 2 && r < 0.012) { spawnPressureWave(); return; }
+        // Mine cluster: 4% chance
+        if (r < 0.04 + diff * 0.02) { spawnMineCluster(); return; }
+        // Anglerfish (Rift+Void): rare, only if not currently present
+        if (biome >= 2 && r < 0.045 + diff * 0.01 && !state.anglerSpawnedThisBiome) {
+            spawnAnglerfish();
+            state.anglerSpawnedThisBiome = true;
+            return;
+        }
+        // Jellyfish (Midnight+Rift): light hazard
+        if (biome >= 1 && biome <= 2 && r < 0.07) { spawnJellyfish(); return; }
+        // Fish school (Shallows + Midnight)
+        if (biome <= 1 && r < 0.085) { spawnFishSchool(); return; }
+        // Oxygen
+        if (r < 0.16) { spawnOxygen(); return; }
+        // Artifact
+        if (r < 0.22) { spawnArtifact(); return; }
+        // Shield (rare-ish)
+        if (r < 0.245 && Math.random() < 0.3 + diff * 0.1) { spawnShield(); return; }
+        // Mines — drift at higher difficulty
+        if (r < 0.42 + diff * 0.2) { spawnMine(diff > 0.3 ? 1 : 0); return; }
+        // Decor
+        if (r < 0.78) { spawnDecor(); return; }
+    }
+
+    // ==========================================================
+    //  Combo / score helpers
+    // ==========================================================
+    function getComboMult() { return 1 + (state.combo / 3 | 0) * 0.5; }
+    function getDepthMult() { return 1 + (state.maxDepth / 500 | 0) * 0.5; }
+    function getDiff() { return state.maxDepth / 3000; }
+
+    function bumpCombo() {
+        state.combo++;
+        state.comboTimer = cfg.comboWindow;
+        if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+        dom.comboTxt.style.opacity = '1';
+        dom.comboTxt.textContent = 'COMBO x' + state.combo;
+    }
+
     let flashTimer = 0;
     function screenFlash(color, duration) {
         dom.flash.style.background = color;
@@ -682,7 +1486,6 @@
         flashTimer = duration || 0.2;
     }
 
-    // --- Feedback Text ---
     let feedbackTimer = 0;
     function showFeedback(text, color) {
         dom.feedbackMsg.textContent = text;
@@ -692,100 +1495,80 @@
         feedbackTimer = 0.7;
     }
 
-    // --- Near Miss ---
     function showNearMiss() {
         state.nearMisses++;
-        state.nearMissTimer = 0.6;
+        state.nearMissTimer = 0.5;
         dom.nearMiss.style.opacity = '1';
         const bonus = Math.ceil(getDepthMult());
         state.score += bonus;
         bumpCombo();
+        Audio.play('near_miss', { volume: 0.6 });
     }
 
-    // --- Combo ---
-    function bumpCombo() {
-        state.combo++;
-        state.comboTimer = cfg.comboWindow;
-        if (state.combo > state.bestCombo) state.bestCombo = state.combo;
-        dom.comboTxt.style.opacity = '1';
-        dom.comboTxt.textContent = 'COMBO x' + state.combo;
-    }
-
-    function getComboMult() {
-        return 1 + (state.combo / 3 | 0) * 0.5;
-    }
-    function getDepthMult() {
-        return 1 + (state.absDepth / 500 | 0) * 0.5;
-    }
-    function getDiff() {
-        return state.absDepth / 3000;  // unclamped — used with Math.min where needed
-    }
-
-    // --- Biome Transition ---
-    function updateBiome() {
-        const dist = state.absDepth;
-        const curB = biomes[state.biomeIdx];
-        if (biomes[state.biomeIdx + 1] && dist > curB.limit) {
-            state.biomeIdx++;
-            const b = biomes[state.biomeIdx];
-            dom.biomeTxt.textContent = b.name;
-            dom.biomeTxt.style.color = '#fff';
-            dom.biomeTxt.style.textShadow = '0 0 16px ' + b._lightCol.getStyle();
-            setTimeout(function() { dom.biomeTxt.style.color = 'rgba(255,255,255,0.3)'; }, 2500);
+    function applyKnockback(dx, dy, dz, mag) {
+        const len = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+        state.kbVx += (dx / len) * mag;
+        state.kbVy += (dy / len) * mag;
+        state.kbVz += (dz / len) * mag;
+        // cap knockback velocity to prevent insane speeds
+        const kbMag = Math.sqrt(state.kbVx*state.kbVx + state.kbVy*state.kbVy + state.kbVz*state.kbVz);
+        const KB_CAP = 4.0;
+        if (kbMag > KB_CAP) {
+            const s = KB_CAP / kbMag;
+            state.kbVx *= s; state.kbVy *= s; state.kbVz *= s;
         }
-        const tb = biomes[state.biomeIdx];
-        scene.fog.color.lerp(tb._fogCol, 0.008);
-        scene.background.lerp(tb._bgCol, 0.008);
-        hemiLight.color.lerp(tb._lightCol, 0.008);
-        scene.fog.density += (tb.density - scene.fog.density) * 0.008;
     }
 
-    // --- Spawning & Despawning ---
-    function manageSpawning() {
-        const camZ = camera.position.z;
-        const spawnZ = camZ - cfg.spawnDist;
-        const deleteZ = camZ + cfg.despawnDist;
-
-        // Despawn decor (swap-and-pop, reverse iteration)
-        for (let i = decorArr.length - 1; i >= 0; i--) {
-            if (decorArr[i].position.z > deleteZ) removeDecor(i);
-        }
-
-        // Despawn entities (swap-and-pop, reverse iteration)
+    // ==========================================================
+    //  Cluster chain detonation
+    // ==========================================================
+    function chainDetonate(originPos, originIdx) {
+        // Find other cluster mines within range; remove and explode them recursively
+        let chained = 0;
         for (let i = entities.length - 1; i >= 0; i--) {
-            if (entities[i].position.z > deleteZ) removeEntity(i);
+            if (i === originIdx) continue;
+            const e = entities[i];
+            if (!(e.userData && e.userData.type === 'mine' && e.userData.cluster)) continue;
+            const dx = originPos.x - e.position.x;
+            const dy = originPos.y - e.position.y;
+            const dz = originPos.z - e.position.z;
+            if (dx*dx + dy*dy + dz*dz < HR2_CLUSTER * 4) {
+                triggerExplosion(e.position);
+                state.minesDestroyed++;
+                bumpCombo();
+                const pts = Math.ceil(8 * getComboMult() * getDepthMult());
+                state.score += pts;
+                chained++;
+                removeEntity(i);
+                if (i < originIdx) originIdx--;
+            }
         }
-
-        const diff = Math.min(getDiff(), 1.5);
-        const cap = cfg.maxEntities + (diff * 15 | 0);
-
-        if (entities.length + decorArr.length < cap) {
-            const r = Math.random();
-            const pz = spawnZ - Math.random() * 20;
-
-            if (r < 0.08) spawnOxygen(pz);
-            else if (r < 0.16) spawnArtifact(pz);
-            else if (r < 0.18 && Math.random() < 0.3 + diff * 0.1) spawnShield(pz);
-            else if (r < 0.35 + diff * 0.2) spawnMine(pz);
-            else if (r < 0.75) spawnDecor(pz);
+        if (chained > 0) {
+            showFeedback('CHAIN x' + (chained + 1) + '!', '#ff66cc');
+            screenFlash('rgba(255,100,200,0.4)', 0.25);
+            state.shakeAmt = Math.max(state.shakeAmt, 0.6);
+            Audio.play('mine_explode', { volume: 0.8 });
         }
+        return originIdx;
     }
 
-    // ===========================================================
-    //  Unified Entity Loop — animate + collide + compass + magnet
-    //  Single iteration over entities[] per frame
-    // ===========================================================
+    // ==========================================================
+    //  Process entities (animate + collide + AI + magnet)
+    // ==========================================================
     let nearOxyObj = null;
     let nearOxyDistSq = 0;
 
-    function processEntities(timeSec) {
+    function processEntities(timeSec, dt) {
         const px = camera.position.x;
         const py = camera.position.y;
-        const pz = camera.position.z - 1;
-        const camZ = camera.position.z;
+        const pz = camera.position.z;
         const isDash = state.dashing;
         const sinT3 = 1 + Math.sin(timeSec * 3) * 0.15;
         const sinT4 = 0.8 + Math.sin(timeSec * 4) * 0.15;
+        const dt60 = dt * 60;
+
+        const fwd = _tmpVec.set(0, 0, -1).applyEuler(camera.rotation);
+        const fx = fwd.x, fy = fwd.y, fz = fwd.z;
 
         nearOxyObj = null;
         nearOxyDistSq = Infinity;
@@ -796,16 +1579,106 @@
             const t = ud.type;
             const ep = e.position;
 
-            // --- Animation ---
             if (ud.rotSpd) {
                 e.rotation.x += ud.rotSpd;
                 e.rotation.y += ud.rotSpd;
             }
+
             if (t === 'oxygen') e.scale.setScalar(sinT3);
             else if (t === 'shield') e.scale.setScalar(sinT4);
 
-            // --- Magnet (dash pulls collectibles) ---
-            if (isDash && t !== 'mine') {
+            // Drifting mines
+            if (t === 'mine' && (ud.driftX || ud.driftY || ud.driftZ)) {
+                ep.x += ud.driftX * dt60;
+                ep.y += ud.driftY * dt60;
+                ep.z += ud.driftZ * dt60;
+            }
+
+            // Fish movement
+            if (t === 'fish') {
+                ep.x += ud.vx * dt60;
+                ep.y += ud.vy * dt60;
+                ep.z += ud.vz * dt60;
+                // gentle bobbing
+                ep.y += Math.sin(timeSec * 3 + ud.phaseOff) * 0.01 * dt60;
+            }
+
+            // Jellyfish bob
+            if (t === 'jellyfish') {
+                const bob = Math.sin(timeSec * 1.2 + ud.phaseOff) * 0.6;
+                ep.y = ud.originY + bob;
+                e.rotation.y += 0.005;
+            }
+
+            // Anglerfish AI: chase player
+            if (t === 'anglerfish') {
+                const adx = px - ep.x;
+                const ady = py - ep.y;
+                const adz = pz - ep.z;
+                const aLen = Math.sqrt(adx*adx + ady*ady + adz*adz) || 1;
+                const sp = ud.speed * dt60;
+                ep.x += (adx / aLen) * sp;
+                ep.y += (ady / aLen) * sp;
+                ep.z += (adz / aLen) * sp;
+                // face player
+                _tmpVec.set(adx / aLen, ady / aLen, adz / aLen);
+                _tmpQuat.setFromUnitVectors(_unitZ, _tmpVec);
+                e.quaternion.slerp(_tmpQuat, 0.1);
+                if (ud.attackCooldown > 0) ud.attackCooldown -= dt;
+            }
+
+            // Pressure wave growth
+            if (t === 'pressureWave') {
+                ud.life += dt;
+                const newR = 0.5 + ud.life * ud.growRate;
+                e.scale.setScalar(newR);
+                e.material.opacity = Math.max(0, 0.6 * (1 - ud.life / ud.maxLife));
+                // proximity warning when player is near and ring is approaching
+                if (!ud.warned) {
+                    const wdx = px - ep.x;
+                    const wdy = py - ep.y;
+                    const wdz = pz - ep.z;
+                    const playerDist = Math.sqrt(wdx*wdx + wdy*wdy + wdz*wdz);
+                    if (Math.abs(playerDist - newR) < 8) {
+                        ud.warned = true;
+                        dom.pressureWarn.style.opacity = '1';
+                        Audio.play('pressure_wave', { volume: 0.6 });
+                        setTimeout(function() { dom.pressureWarn.style.opacity = '0'; }, 1200);
+                    }
+                }
+                // collision with player when ring radius crosses player distance
+                const wdx = px - ep.x;
+                const wdy = py - ep.y;
+                const wdz = pz - ep.z;
+                const playerDist = Math.sqrt(wdx*wdx + wdy*wdy + wdz*wdz);
+                if (Math.abs(playerDist - newR) < 1.5 && !ud.hitPlayer) {
+                    ud.hitPlayer = true;
+                    if (state.shield > 0) {
+                        state.shield = Math.max(0, state.shield - 30);
+                        showFeedback('SHIELD ABSORBED', '#44ff88');
+                        screenFlash('rgba(68,255,136,0.3)', 0.2);
+                    } else {
+                        // push player perpendicular to wave normal — simple: away from origin
+                        applyKnockback(wdx, wdy, wdz, 2.5);
+                        state.oxygen -= 6;
+                        showFeedback('PRESSURE HIT', '#ff66aa');
+                        screenFlash('rgba(255,100,200,0.3)', 0.25);
+                        state.shakeAmt = Math.max(state.shakeAmt, 0.5);
+                    }
+                }
+                if (ud.life > ud.maxLife) {
+                    scene.remove(e);
+                    const last = entities.length - 1;
+                    if (i !== last) entities[i] = entities[last];
+                    entities.length = last;
+                    continue;
+                }
+                i++;
+                continue;
+            }
+
+            // Magnet (dash pulls collectibles)
+            if (isDash && (t === 'oxygen' || t === 'artifact' || t === 'shield')) {
                 const mdx = px - ep.x, mdy = py - ep.y, mdz = pz - ep.z;
                 const mdsq = mdx * mdx + mdy * mdy + mdz * mdz;
                 if (mdsq < HR2_MAGNET && mdsq > 1) {
@@ -815,24 +1688,27 @@
                 }
             }
 
-            // --- Distance for collision ---
             const dx = px - ep.x, dy = py - ep.y, dz = pz - ep.z;
             const dsq = dx * dx + dy * dy + dz * dz;
 
             let removed = false;
 
-            // --- Collision ---
             if (t === 'oxygen') {
                 if (dsq < HR2_OXY) {
                     state.oxygen = Math.min(state.oxygen + cfg.oxyRestore, 100);
                     showFeedback('O2 REPLENISHED', '#0ff');
                     screenFlash('rgba(0,255,255,0.4)', 0.15);
+                    Audio.play('o2_pickup');
                     removed = true;
-                } else if (ep.z < camZ) {
-                    // Compass: track nearest O2 ahead
-                    const cdist = (camZ - ep.z); // rough forward distance
-                    const cd2 = dx * dx + dy * dy + cdist * cdist;
-                    if (cd2 < nearOxyDistSq) { nearOxyDistSq = cd2; nearOxyObj = e; }
+                } else {
+                    // Compass: track nearest oxygen IN FRONT of player
+                    // dot product with forward
+                    const odx = ep.x - px, ody = ep.y - py, odz = ep.z - pz;
+                    const dotF = odx * fx + ody * fy + odz * fz;
+                    if (dotF > 0 && dsq < nearOxyDistSq) {
+                        nearOxyDistSq = dsq;
+                        nearOxyObj = e;
+                    }
                 }
             }
             else if (t === 'artifact' && dsq < HR2_ART) {
@@ -842,13 +1718,47 @@
                 dom.scoreTxt.textContent = state.score;
                 showFeedback(state.combo > 2 ? 'COMBO x' + state.combo + '! +' + pts : '+' + pts, '#fb0');
                 screenFlash('rgba(255,200,0,0.3)', 0.12);
+                Audio.play('artifact_pickup');
                 removed = true;
             }
             else if (t === 'shield' && dsq < HR2_SHIELD) {
                 state.shield = Math.min(state.shield + 50, 100);
                 showFeedback('SHIELD ACTIVE', '#44ff88');
                 screenFlash('rgba(68,255,136,0.3)', 0.15);
+                Audio.play('shield_pickup');
                 removed = true;
+            }
+            else if (t === 'jellyfish' && dsq < HR2_JELLY) {
+                state.oxygen -= 8;
+                screenFlash('rgba(255,100,200,0.35)', 0.3);
+                showFeedback('JELLYFISH STING', '#ff66cc');
+                Audio.play('jellyfish_zap', { volume: 0.7 });
+                applyKnockback(-dx, -dy, -dz, 0.8);
+                removed = true;
+            }
+            else if (t === 'anglerfish') {
+                if (dsq < HR2_ANGLER && ud.attackCooldown <= 0) {
+                    if (isDash) {
+                        // player dashed into it — scare off
+                        showFeedback('PREDATOR REPELLED', '#fb0');
+                        screenFlash('rgba(255,200,0,0.3)', 0.2);
+                        Audio.play('mine_explode', { volume: 0.5 });
+                        bumpCombo();
+                        const pts = Math.ceil(20 * getComboMult() * getDepthMult());
+                        state.score += pts;
+                        removed = true;
+                    } else {
+                        state.oxygen -= 25;
+                        showFeedback('PREDATOR ATTACK', '#ff0044');
+                        screenFlash('rgba(255,0,68,0.5)', 0.4);
+                        applyKnockback(-fx, -fy, -fz, 3.0);
+                        state.shakeAmt = Math.max(state.shakeAmt, 0.7);
+                        Audio.play('angler_attack');
+                        ud.attackCooldown = 1.2;
+                        // anglerfish backs off slightly after attacking
+                        ep.x -= fx * 6; ep.y -= fy * 6; ep.z -= fz * 6;
+                    }
+                }
             }
             else if (t === 'mine') {
                 if (dsq < HR2_MINE) {
@@ -856,66 +1766,170 @@
                         triggerExplosion(ep);
                         state.minesDestroyed++;
                         bumpCombo();
-                        const pts = Math.ceil(5 * getComboMult() * getDepthMult());
+                        const basePts = ud.cluster ? 8 : 5;
+                        const pts = Math.ceil(basePts * getComboMult() * getDepthMult());
                         state.score += pts;
                         dom.scoreTxt.textContent = state.score;
                         showFeedback('MINE DESTROYED! +' + pts, '#ff4400');
                         screenFlash('rgba(255,100,0,0.3)', 0.15);
+                        Audio.play('mine_explode');
+                        // chain detonation for cluster mines
+                        if (ud.cluster) {
+                            const newI = chainDetonate(ep, i);
+                            // i may shift; we'll recompute since 'removed' will set i
+                        }
                     } else if (state.shield > 0) {
                         state.shield = Math.max(state.shield - 40, 0);
                         showFeedback('SHIELD HIT!', '#44ff88');
                         screenFlash('rgba(68,255,136,0.4)', 0.2);
+                        Audio.play('shield_pickup', { volume: 0.5 });
                     } else {
                         state.oxygen -= 25;
                         showFeedback('HULL BREACH!', '#f33');
                         screenFlash('rgba(255,0,0,0.4)', 0.3);
-                        camera.position.z += 4;
+                        applyKnockback(-fx, -fy, -fz, 3.5);
+                        state.shakeAmt = Math.max(state.shakeAmt, 0.8);
+                        Audio.play('hull_breach');
                     }
                     removed = true;
                 }
-                else if (dsq < HR2_NEAR && ep.z > pz && state.nearMissTimer <= 0) {
-                    showNearMiss();
+                else if (dsq < HR2_NEAR && state.nearMissTimer <= 0) {
+                    // near miss only counts if mine is in front
+                    const odx = ep.x - px, ody = ep.y - py, odz = ep.z - pz;
+                    const dotF = odx * fx + ody * fy + odz * fz;
+                    if (dotF > 0) showNearMiss();
                 }
             }
 
             if (removed) {
-                // Swap-and-pop: O(1) removal
                 scene.remove(e);
                 const last = entities.length - 1;
                 if (i !== last) entities[i] = entities[last];
                 entities.length = last;
-                // Don't increment — re-check swapped element at index i
             } else {
                 i++;
             }
         }
     }
 
-    // --- Update Compass ---
+    // ==========================================================
+    //  Movement (forward auto-thrust + WASD + knockback)
+    // ==========================================================
+    const keys = { w: false, a: false, s: false, d: false };
+
+    function applyCameraRotation() {
+        camera.rotation.x = state.pitch;
+        camera.rotation.y = state.yaw;
+        camera.rotation.z = state.bankRoll;
+    }
+
+    function updateMovement(dt) {
+        const dt60 = dt * 60;
+
+        // Direction basis
+        _fwd.set(0, 0, -1).applyEuler(camera.rotation);
+        _right.set(1, 0, 0).applyEuler(camera.rotation);
+
+        // Determine speed mult
+        let fwdMult = 1;
+        if (keys.w) fwdMult = cfg.boostMult;
+        else if (keys.s || state.twoFingerBraking) fwdMult = cfg.brakeMult;
+        if (state.dashing) fwdMult *= cfg.dashMult;
+
+        const fwdSpeed = cfg.baseSpeed * fwdMult;
+
+        let strafeAmt = 0;
+        if (keys.a) strafeAmt -= cfg.strafeSpeed;
+        if (keys.d) strafeAmt += cfg.strafeSpeed;
+
+        // Knockback decay
+        state.kbVx *= cfg.knockbackDecay;
+        state.kbVy *= cfg.knockbackDecay;
+        state.kbVz *= cfg.knockbackDecay;
+        if (Math.abs(state.kbVx) < 0.005) state.kbVx = 0;
+        if (Math.abs(state.kbVy) < 0.005) state.kbVy = 0;
+        if (Math.abs(state.kbVz) < 0.005) state.kbVz = 0;
+
+        camera.position.x += (_fwd.x * fwdSpeed + _right.x * strafeAmt + state.kbVx) * dt60;
+        camera.position.y += (_fwd.y * fwdSpeed + _right.y * strafeAmt + state.kbVy) * dt60;
+        camera.position.z += (_fwd.z * fwdSpeed + _right.z * strafeAmt + state.kbVz) * dt60;
+
+        // Constrain Y so you can't fly above the surface
+        if (camera.position.y > 25) {
+            camera.position.y = 25;
+            // damp upward velocity
+            if (state.kbVy > 0) state.kbVy = 0;
+        }
+        // Constrain Y so you can't fly below the seabed
+        if (camera.position.y < -118) {
+            camera.position.y = -118;
+            if (state.kbVy < 0) state.kbVy = 0;
+        }
+
+        // Track depth
+        state.curDepth = -camera.position.y;
+        if (camera.position.y < state.minY) state.minY = camera.position.y;
+        state.maxDepth = -state.minY;
+
+        // Body roll for strafe
+        const rollTarget = strafeAmt * -0.04;
+        state.bankRoll += (rollTarget - state.bankRoll) * 0.1;
+
+        applyCameraRotation();
+    }
+
+    // ==========================================================
+    //  Compass
+    // ==========================================================
     function updateCompass() {
         if (nearOxyObj && nearOxyDistSq < 40000) {
             dom.compass.style.opacity = '1';
             _tmpVec.copy(nearOxyObj.position).applyMatrix4(camera.matrixWorldInverse);
             const ang = Math.atan2(_tmpVec.y, _tmpVec.x);
-            dom.compass.style.transform = 'rotate(' + ((ang * 57.2958) - 90) + 'deg)'; // 180/PI = 57.2958
+            dom.compass.style.transform = 'rotate(' + ((ang * 57.2958) - 90) + 'deg)';
         } else {
             dom.compass.style.opacity = '0.2';
             dom.compass.style.transform = 'rotate(0deg)';
         }
     }
 
-    // --- Update HUD (some text throttled to every 3rd frame) ---
+    // ==========================================================
+    //  Biome transitions
+    // ==========================================================
+    function updateBiome() {
+        const dist = state.maxDepth;
+        const curB = biomes[state.biomeIdx];
+        if (biomes[state.biomeIdx + 1] && dist > curB.limit) {
+            state.biomeIdx++;
+            const b = biomes[state.biomeIdx];
+            dom.biomeTxt.textContent = b.name;
+            dom.biomeTxt.style.color = '#fff';
+            dom.biomeTxt.style.textShadow = '0 0 16px ' + b._lightCol.getStyle();
+            setTimeout(function() { dom.biomeTxt.style.color = 'rgba(255,255,255,0.3)'; }, 2500);
+            Audio.play('biome_transition');
+            Audio.setAmbient(b.ambient);
+            state.anglerSpawnedThisBiome = false;
+        }
+        const tb = biomes[state.biomeIdx];
+        scene.fog.color.lerp(tb._fogCol, 0.008);
+        scene.background.lerp(tb._bgCol, 0.008);
+        hemiLight.color.lerp(tb._lightCol, 0.008);
+        scene.fog.density += (tb.density - scene.fog.density) * 0.008;
+    }
+
+    // ==========================================================
+    //  HUD
+    // ==========================================================
     function updateHUD(dt) {
         const diff = Math.min(getDiff(), 1.5);
         const dt60 = dt * 60;
+
         state.oxygen -= (cfg.oxyDrainBase + diff * 0.04) * dt60;
         if (state.oxygen <= 0) { state.oxygen = 0; gameOver(); return; }
 
-        // Bar widths — cheap style writes
         dom.oxyFill.style.width = state.oxygen + '%';
         dom.energyFill.style.width = state.energy + '%';
 
-        // Shield visibility — only write DOM when state changes
         const showShield = state.shield > 0;
         if (showShield !== state.prevShieldVis) {
             state.prevShieldVis = showShield;
@@ -925,35 +1939,40 @@
         }
         if (showShield) dom.shieldFill.style.width = state.shield + '%';
 
-        // Dash state
         if (state.dashing) {
             state.energy -= cfg.dashDrain * dt60;
-            state.speed = cfg.dashSpeed;
-            state.shakeAmt = 0.35;
-            state.fovTarget = 85;
+            state.shakeAmt = Math.max(state.shakeAmt, 0.35);
+            state.fovTarget = 90;
             if (state.energy <= 0) { state.energy = 0; state.dashing = false; }
         } else {
-            state.speed = cfg.baseSpeed + diff * 0.25;
             state.energy = Math.min(state.energy + cfg.energyRecharge * dt60, 100);
-            state.shakeAmt = 0;
-            state.fovTarget = 65;
+            // shake decays
+            state.shakeAmt *= 0.9;
+            if (state.shakeAmt < 0.02) state.shakeAmt = 0;
+            // FOV: boost = +5, brake = -3, base = 70
+            let fovT = 70;
+            if (keys.w) fovT = 78;
+            else if (keys.s) fovT = 67;
+            state.fovTarget = fovT;
         }
 
-        // Dash reticle class — only toggle on change
         if (state.dashing !== state.prevDashing) {
             state.prevDashing = state.dashing;
-            if (state.dashing) dom.reticle.classList.add('locked');
-            else dom.reticle.classList.remove('locked');
+            if (state.dashing) {
+                dom.reticle.classList.add('locked');
+                Audio.play('dash');
+            } else {
+                dom.reticle.classList.remove('locked');
+            }
         }
 
-        // FOV — only update projection matrix when actually changing
+        // FOV converge to target — improved deadband
         const fovDelta = state.fovTarget - camera.fov;
-        if (fovDelta * fovDelta > 0.25) { // abs > 0.5
+        if (Math.abs(fovDelta) > 0.05) {
             camera.fov += fovDelta * 0.08;
             camera.updateProjectionMatrix();
         }
 
-        // Combo timer
         if (state.comboTimer > 0) {
             state.comboTimer -= dt;
             if (state.comboTimer <= 0) {
@@ -962,49 +1981,74 @@
             }
         }
 
-        // Flash / feedback timers
         if (flashTimer > 0) { flashTimer -= dt; if (flashTimer <= 0) dom.flash.style.opacity = '0'; }
         if (feedbackTimer > 0) { feedbackTimer -= dt; if (feedbackTimer <= 0) dom.feedbackMsg.style.opacity = '0'; }
         if (state.nearMissTimer > 0) { state.nearMissTimer -= dt; if (state.nearMissTimer <= 0) dom.nearMiss.style.opacity = '0'; }
 
-        // Camera shake
         if (state.shakeAmt > 0) {
             camera.position.x += (Math.random() - 0.5) * state.shakeAmt;
             camera.position.y += (Math.random() - 0.5) * state.shakeAmt;
         }
 
-        // Throttle text DOM updates to every 3rd frame (~20fps text, still smooth visually)
         state.hudFrame++;
         if (state.hudFrame % 3 === 0) {
             dom.oxyText.textContent = (state.oxygen | 0) + '%';
-            dom.depthTxt.textContent = 'DEPTH: ' + (state.absDepth | 0) + 'm';
+            dom.depthTxt.textContent = 'DEPTH: ' + (state.maxDepth | 0) + 'm';
             dom.multTxt.textContent = 'DEPTH x' + getDepthMult().toFixed(1);
         }
     }
 
-    // --- Game Over ---
+    // ==========================================================
+    //  Game over / start / pause / reset
+    // ==========================================================
     function gameOver() {
-        state.playing = false;
-        dom.statDepth.textContent = (state.absDepth | 0) + 'm';
+        state.mode = 'gameover';
+        Audio.stopAmbient();
+        Audio.play('game_over');
+
+        const newDepthBest = state.maxDepth > state.bestDepth;
+        const newScoreBest = state.score > state.bestScore;
+        if (newDepthBest) { state.bestDepth = state.maxDepth; lsSetNum(LS.bestDepth, state.maxDepth | 0); }
+        if (newScoreBest) { state.bestScore = state.score; lsSetNum(LS.bestScore, state.score | 0); }
+
+        dom.statDepth.textContent = (state.maxDepth | 0) + 'm';
         dom.statScore.textContent = state.score;
         dom.statCombo.textContent = 'x' + state.bestCombo;
         dom.statMines.textContent = state.minesDestroyed;
         dom.statNearMiss.textContent = state.nearMisses;
+        dom.recordBanner.style.display = (newDepthBest || newScoreBest) ? 'block' : 'none';
+
         dom.gameOver.style.display = 'flex';
+        dom.reticle.classList.add('hidden');
+        // release pointer lock
+        if (document.pointerLockElement) document.exitPointerLock();
     }
 
-    // --- Reset ---
-    window.resetGame = function () {
-        state.score = 0; state.oxygen = 100; state.depth = 0; state.absDepth = 0;
-        state.energy = 100; state.shield = 0; state.combo = 0; state.comboTimer = 0;
-        state.bestCombo = 0; state.minesDestroyed = 0; state.nearMisses = 0;
-        state.nearMissTimer = 0; state.playing = true; state.started = true;
-        state.biomeIdx = 0; state.dashing = false; state.prevDashing = false;
-        state.fovTarget = 65; state.lastTime = 0; state.hudFrame = 0;
+    window.startGame = function() {
+        // Reset state
+        state.score = 0;
+        state.oxygen = 100;
+        state.energy = 100;
+        state.shield = 0;
+        state.combo = 0; state.comboTimer = 0; state.bestCombo = 0;
+        state.minesDestroyed = 0; state.nearMisses = 0; state.nearMissTimer = 0;
+        state.biomeIdx = 0;
+        state.dashing = false; state.prevDashing = false;
         state.prevShieldVis = false;
+        state.fovTarget = 70;
+        state.lastTime = 0;
+        state.hudFrame = 0;
+        state.yaw = 0; state.pitch = 0; state.bankRoll = 0;
+        state.kbVx = 0; state.kbVy = 0; state.kbVz = 0;
+        state.minY = 0; state.maxDepth = 0; state.curDepth = 0;
+        state.tiltCalibrated = false;
+        state.twoFingerBraking = false;
+        state.anglerSpawnedThisBiome = false;
+        state.shakeAmt = 0;
+
         camera.position.set(0, 0, 5);
         camera.rotation.set(0, 0, 0);
-        camera.fov = 65;
+        camera.fov = 70;
         camera.updateProjectionMatrix();
 
         for (let i = entities.length - 1; i >= 0; i--) scene.remove(entities[i]);
@@ -1017,6 +2061,8 @@
         scene.background.set(b0.color);
         hemiLight.color.set(b0.light);
 
+        dom.title.style.display = 'none';
+        dom.pause.style.display = 'none';
         dom.gameOver.style.display = 'none';
         dom.scoreTxt.textContent = '0';
         dom.biomeTxt.textContent = 'The Shallows';
@@ -1026,118 +2072,406 @@
         dom.feedbackMsg.style.opacity = '0';
         dom.nearMiss.style.opacity = '0';
         dom.shieldRow.style.display = 'none';
-        dom.reticle.classList.remove('locked', 'shielded');
+        dom.reticle.classList.remove('locked', 'shielded', 'hidden');
+        flashTimer = feedbackTimer = 0;
 
-        for (let i = 0; i < 12; i++) {
-            spawnOxygen(-18 - i * 10);
-            spawnDecor(-18 - i * 10);
+        // Initial scatter
+        for (let i = 0; i < 14; i++) {
+            spawnOxygen();
+            spawnDecor();
         }
+        for (let i = 0; i < 4; i++) spawnArtifact();
+
+        state.firstRun = false;
+        state.mode = 'playing';
+        Audio.init();
+        Audio.setAmbient(biomes[0].ambient);
+
+        // request pointer lock on desktop
+        if (!isTouch) requestPointerLockSafe();
     };
 
-    // --- Input ---
-    document.addEventListener('mousemove', function (e) {
-        if (!state.playing) return;
-        dom.reticle.style.left = e.clientX + 'px';
-        dom.reticle.style.top = e.clientY + 'px';
-        state.mouseX = (e.clientX / window.innerWidth) * 2 - 1;
-        state.mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+    function pauseGame() {
+        if (state.mode !== 'playing') return;
+        state.mode = 'paused';
+        // release any held keys
+        keys.w = keys.a = keys.s = keys.d = false;
+        state.dashing = false;
+        state.twoFingerBraking = false;
+        dom.pause.style.display = 'flex';
+        dom.reticle.classList.add('hidden');
+        if (document.pointerLockElement) document.exitPointerLock();
+    }
+
+    function resumeGame() {
+        if (state.mode !== 'paused') return;
+        state.mode = 'playing';
+        dom.pause.style.display = 'none';
+        dom.reticle.classList.remove('hidden');
+        state.lastTime = 0;
+        if (!isTouch) requestPointerLockSafe();
+    }
+
+    function showTitle() {
+        state.mode = 'title';
+        updateTitleBest();
+        dom.title.style.display = 'flex';
+        dom.reticle.classList.add('hidden');
+    }
+
+    function updateTitleBest() {
+        if (state.bestDepth > 0 || state.bestScore > 0) {
+            dom.titleBest.textContent = 'BEST · ' + (state.bestDepth | 0) + 'm · ' + (state.bestScore | 0);
+        } else {
+            dom.titleBest.textContent = '';
+        }
+        if (state.bestDepth > 0) {
+            dom.bestTxt.textContent = 'BEST: ' + (state.bestDepth | 0) + 'm';
+        }
+    }
+
+    // ==========================================================
+    //  Pointer lock
+    // ==========================================================
+    function requestPointerLockSafe() {
+        try {
+            const p = canvas.requestPointerLock();
+            if (p && typeof p.catch === 'function') p.catch(function() {});
+        } catch (e) {}
+    }
+
+    document.addEventListener('pointerlockchange', function() {
+        state.pointerLocked = (document.pointerLockElement === canvas);
+        if (state.pointerLocked) {
+            // pointer is locked
+        } else {
+            // lost lock — pause if playing
+            if (state.mode === 'playing' && !isTouch) pauseGame();
+        }
+    });
+    document.addEventListener('pointerlockerror', function() {
+        // ignore
     });
 
-    function dashOn() { if (state.energy > 15 && state.playing) state.dashing = true; }
-    function dashOff() { state.dashing = false; }
-
-    document.addEventListener('mousedown', function (e) {
-        if (!state.started) { resetGame(); return; }
-        if (e.button === 0 || e.button === 2) dashOn();
+    // ==========================================================
+    //  Mouse input
+    // ==========================================================
+    document.addEventListener('mousemove', function(e) {
+        if (state.mode !== 'playing') return;
+        if (!state.pointerLocked && !isTouch) return;
+        const sens = cfg.mouseSens;
+        state.yaw -= e.movementX * sens;
+        const pitchSign = cfg.invertY ? 1 : -1;
+        state.pitch += e.movementY * sens * pitchSign;
+        state.pitch = Math.max(-cfg.pitchLimit, Math.min(cfg.pitchLimit, state.pitch));
+        // wrap yaw to keep numbers sane
+        if (state.yaw > Math.PI * 4 || state.yaw < -Math.PI * 4) {
+            state.yaw = state.yaw % (Math.PI * 2);
+        }
     });
-    document.addEventListener('mouseup', dashOff);
-    document.addEventListener('keydown', function (e) {
-        if (e.code === 'Space') {
-            e.preventDefault();
-            if (!state.started) { resetGame(); return; }
+
+    canvas.addEventListener('mousedown', function(e) {
+        if (state.mode === 'title') return; // title screen handles its own click
+        if (state.mode === 'playing' && !state.pointerLocked && !isTouch) {
+            requestPointerLockSafe();
+            return;
+        }
+        if (state.mode === 'playing' && (e.button === 0 || e.button === 2)) {
             dashOn();
         }
     });
-    document.addEventListener('keyup', function (e) { if (e.code === 'Space') dashOff(); });
-    window.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    document.addEventListener('mouseup', function() { dashOff(); });
+    window.addEventListener('contextmenu', function(e) { e.preventDefault(); });
 
-    // --- Resize ---
-    window.addEventListener('resize', function () {
+    function dashOn() {
+        if (state.mode !== 'playing') return;
+        if (state.energy > 15) state.dashing = true;
+    }
+    function dashOff() { state.dashing = false; }
+
+    // ==========================================================
+    //  Keyboard input
+    // ==========================================================
+    document.addEventListener('keydown', function(e) {
+        if (e.repeat) return;
+        const code = e.code;
+        if (code === 'Escape') {
+            e.preventDefault();
+            if (state.mode === 'playing') pauseGame();
+            return;
+        }
+        if (code === 'KeyM') {
+            e.preventDefault();
+            const nm = !Audio.isMuted();
+            Audio.setMuted(nm);
+            updateMuteBtn();
+            syncSettings();
+            return;
+        }
+        if (state.mode === 'title') {
+            if (code === 'Space' || code === 'Enter') {
+                e.preventDefault();
+                startGame();
+            }
+            return;
+        }
+        if (state.mode === 'gameover') {
+            if (code === 'Space' || code === 'Enter') {
+                e.preventDefault();
+                startGame();
+            }
+            return;
+        }
+        if (state.mode !== 'playing') return;
+        if (code === 'KeyW' || code === 'ArrowUp') keys.w = true;
+        else if (code === 'KeyA' || code === 'ArrowLeft') keys.a = true;
+        else if (code === 'KeyS' || code === 'ArrowDown') keys.s = true;
+        else if (code === 'KeyD' || code === 'ArrowRight') keys.d = true;
+        else if (code === 'Space') { e.preventDefault(); dashOn(); }
+    });
+    document.addEventListener('keyup', function(e) {
+        const code = e.code;
+        if (code === 'KeyW' || code === 'ArrowUp') keys.w = false;
+        else if (code === 'KeyA' || code === 'ArrowLeft') keys.a = false;
+        else if (code === 'KeyS' || code === 'ArrowDown') keys.s = false;
+        else if (code === 'KeyD' || code === 'ArrowRight') keys.d = false;
+        else if (code === 'Space') dashOff();
+    });
+
+    // ==========================================================
+    //  Touch / mobile (tilt steering + tap dash + 2-finger brake)
+    // ==========================================================
+    let tiltHandler = null;
+    function bindTilt() {
+        if (tiltHandler) return;
+        tiltHandler = function(ev) {
+            if (state.mode !== 'playing') return;
+            // beta: front-back tilt [-180, 180]; gamma: left-right tilt [-90, 90]
+            const beta = ev.beta || 0;
+            const gamma = ev.gamma || 0;
+            if (!state.tiltCalibrated) {
+                state.baseBeta = beta;
+                state.baseGamma = gamma;
+                state.tiltCalibrated = true;
+                return;
+            }
+            // detect orientation roughly
+            const isLandscape = Math.abs(window.orientation || 0) === 90;
+            const dBeta = beta - state.baseBeta;
+            const dGamma = gamma - state.baseGamma;
+            // sensitivity scaling: degrees → small angle delta per frame
+            const tiltSens = 0.0006;
+            if (isLandscape) {
+                state.yaw -= dGamma * tiltSens * 16; // dGamma scaled
+                state.pitch -= dBeta * tiltSens * 16;
+            } else {
+                state.yaw += dGamma * tiltSens * 16;
+                state.pitch -= dBeta * tiltSens * 16;
+            }
+            state.pitch = Math.max(-cfg.pitchLimit, Math.min(cfg.pitchLimit, state.pitch));
+        };
+        window.addEventListener('deviceorientation', tiltHandler);
+    }
+
+    function requestTilt() {
+        const need = (typeof DeviceOrientationEvent !== 'undefined') &&
+            (typeof DeviceOrientationEvent.requestPermission === 'function');
+        if (need) {
+            DeviceOrientationEvent.requestPermission()
+                .then(function(resp) { if (resp === 'granted') bindTilt(); })
+                .catch(function() {});
+        } else {
+            bindTilt();
+        }
+    }
+
+    document.addEventListener('touchstart', function(e) {
+        if (state.mode === 'title' || state.mode === 'gameover') {
+            // start handled via title button or game-over button
+            return;
+        }
+        if (state.mode !== 'playing') return;
+        if (e.touches.length === 1) {
+            dashOn();
+        } else if (e.touches.length >= 2) {
+            state.twoFingerBraking = true;
+            dashOff();
+        }
+    }, { passive: false });
+    document.addEventListener('touchend', function(e) {
+        if (e.touches.length === 0) {
+            dashOff();
+            state.twoFingerBraking = false;
+        } else if (e.touches.length < 2) {
+            state.twoFingerBraking = false;
+        }
+    }, { passive: false });
+    document.addEventListener('touchcancel', function() {
+        dashOff();
+        state.twoFingerBraking = false;
+    });
+
+    // Prevent zoom gestures
+    document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+
+    // ==========================================================
+    //  Title / pause / settings UI wiring
+    // ==========================================================
+    dom.title.addEventListener('click', function() {
+        if (isTouch) requestTilt();
+        startGame();
+    });
+
+    document.getElementById('resume-btn').addEventListener('click', function() { resumeGame(); });
+    document.getElementById('restart-btn').addEventListener('click', function() {
+        startGame();
+    });
+
+    dom.muteBtn.addEventListener('click', function() {
+        const nm = !Audio.isMuted();
+        Audio.setMuted(nm);
+        updateMuteBtn();
+        syncSettings();
+    });
+
+    dom.mobilePauseBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (state.mode === 'playing') pauseGame();
+    });
+
+    function updateMuteBtn() {
+        dom.muteBtn.textContent = Audio.isMuted() ? 'SOUND OFF' : 'SOUND ON';
+    }
+    updateMuteBtn();
+
+    // === Settings sliders ===
+    function syncSettings() {
+        const setSens = document.getElementById('set-sens');
+        const setSensVal = document.getElementById('set-sens-val');
+        const setVolM = document.getElementById('set-vol-master');
+        const setVolMVal = document.getElementById('set-vol-master-val');
+        const setVolS = document.getElementById('set-vol-sfx');
+        const setVolSVal = document.getElementById('set-vol-sfx-val');
+        const setVolA = document.getElementById('set-vol-ambient');
+        const setVolAVal = document.getElementById('set-vol-ambient-val');
+        const setMute = document.getElementById('set-mute-toggle');
+        const setInvert = document.getElementById('set-invert-toggle');
+        const v = Audio.getVols();
+        setSens.value = cfg.mouseSens;
+        setSensVal.textContent = (cfg.mouseSens * 1000).toFixed(2);
+        setVolM.value = v.master; setVolMVal.textContent = Math.round(v.master * 100) + '%';
+        setVolS.value = v.sfx;    setVolSVal.textContent = Math.round(v.sfx * 100) + '%';
+        setVolA.value = v.ambient; setVolAVal.textContent = Math.round(v.ambient * 100) + '%';
+        setMute.classList.toggle('on', Audio.isMuted());
+        setInvert.classList.toggle('on', cfg.invertY);
+    }
+
+    document.getElementById('set-sens').addEventListener('input', function(e) {
+        cfg.mouseSens = parseFloat(e.target.value);
+        lsSetNum(LS.sens, cfg.mouseSens);
+        document.getElementById('set-sens-val').textContent = (cfg.mouseSens * 1000).toFixed(2);
+    });
+    document.getElementById('set-vol-master').addEventListener('input', function(e) {
+        Audio.setVolume('master', parseFloat(e.target.value));
+        document.getElementById('set-vol-master-val').textContent = Math.round(e.target.value * 100) + '%';
+    });
+    document.getElementById('set-vol-sfx').addEventListener('input', function(e) {
+        Audio.setVolume('sfx', parseFloat(e.target.value));
+        document.getElementById('set-vol-sfx-val').textContent = Math.round(e.target.value * 100) + '%';
+    });
+    document.getElementById('set-vol-ambient').addEventListener('input', function(e) {
+        Audio.setVolume('ambient', parseFloat(e.target.value));
+        document.getElementById('set-vol-ambient-val').textContent = Math.round(e.target.value * 100) + '%';
+    });
+    document.getElementById('set-mute-toggle').addEventListener('click', function() {
+        Audio.setMuted(!Audio.isMuted());
+        updateMuteBtn();
+        syncSettings();
+    });
+    document.getElementById('set-invert-toggle').addEventListener('click', function() {
+        cfg.invertY = !cfg.invertY;
+        lsSetBool(LS.invertY, cfg.invertY);
+        syncSettings();
+    });
+
+    // sync once at load
+    setTimeout(syncSettings, 0);
+
+    // ==========================================================
+    //  Resize / visibility
+    // ==========================================================
+    window.addEventListener('resize', function() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // --- Page Visibility: pause rendering when tab is hidden ---
     let tabVisible = true;
-    document.addEventListener('visibilitychange', function () {
+    document.addEventListener('visibilitychange', function() {
         tabVisible = !document.hidden;
-        if (tabVisible) state.lastTime = 0; // reset dt to avoid time jump
+        if (tabVisible) state.lastTime = 0;
+        else if (state.mode === 'playing') pauseGame();
+    });
+    window.addEventListener('blur', function() {
+        if (state.mode === 'playing') pauseGame();
     });
 
-    // --- Title ---
-    setTimeout(function () { dom.centerMsg.style.opacity = '1'; }, 400);
+    // ==========================================================
+    //  Initial title-screen setup
+    // ==========================================================
+    showTitle();
+    if (isTouch) {
+        dom.clickHint.textContent = 'TAP TO DIVE';
+    }
 
-    // ===========================================================
-    //  Main Loop
-    // ===========================================================
+    // ==========================================================
+    //  Main loop
+    // ==========================================================
     function animate(time) {
         requestAnimationFrame(animate);
-        if (!tabVisible) return; // Skip rendering entirely when tab is hidden
+        if (!tabVisible) return;
 
         const timeSec = time * 0.001;
         const dt = state.lastTime > 0 ? Math.min(timeSec - state.lastTime, 0.05) : 0.016;
         state.lastTime = timeSec;
 
-        if (!state.playing) {
-            renderer.render(scene, camera);
-            return;
+        // Update systems based on mode
+        if (state.mode === 'playing') {
+            updateMovement(dt);
+            spotLight.position.copy(camera.position);
+            _fwd.set(0, 0, -1).applyEuler(camera.rotation);
+            spotLight.target.position.set(
+                camera.position.x + _fwd.x * 50,
+                camera.position.y + _fwd.y * 50,
+                camera.position.z + _fwd.z * 50
+            );
+            spotLight.target.updateMatrixWorld();
+
+            seaBed.position.x = camera.position.x;
+            seaBed.position.z = camera.position.z;
+            surface.position.x = camera.position.x;
+            surface.position.z = camera.position.z;
+            snowSystem.position.x = camera.position.x;
+            snowSystem.position.y = camera.position.y;
+            snowSystem.position.z = camera.position.z;
+
+            processEntities(timeSec, dt);
+            updateCompass();
+            updateBiome();
+            updateHUD(dt);
+            manageSpawning();
+            updateExplosion(dt);
+        } else {
+            // Title / pause / gameover: still spin a slow background rotation for ambience
+            // No state changes; just render.
+            updateExplosion(dt);
         }
-
-        // Hide title
-        if (state.absDepth > 20) dom.centerMsg.style.opacity = '0';
-
-        // Movement
-        camera.position.z -= state.speed * dt * 60;
-        state.depth = camera.position.z;
-        state.absDepth = -state.depth; // cache once, used everywhere
-
-        state.targetX = state.mouseX * cfg.boundsX;
-        state.targetY = state.mouseY * cfg.boundsY;
-        camera.position.x += (state.targetX - camera.position.x) * 0.07;
-        camera.position.y += (state.targetY - camera.position.y) * 0.07;
-
-        // Camera tilt
-        const diffX = state.targetX - camera.position.x;
-        const diffY = state.targetY - camera.position.y;
-        camera.rotation.y += (diffX * -0.04 - camera.rotation.y) * 0.08;
-        camera.rotation.x += (diffY * 0.04 - camera.rotation.x) * 0.08;
-        camera.rotation.z += (diffX * -0.015 - camera.rotation.z) * 0.08;
-
-        // Spotlight follows camera
-        spotLight.position.copy(camera.position);
-        spotLight.target.position.set(camera.position.x, camera.position.y, camera.position.z - 50);
-        spotLight.target.updateMatrixWorld();
-
-        // Environment tracking
-        seaBed.position.z = camera.position.z;
-        surface.position.z = camera.position.z;
-        snowSystem.position.z = camera.position.z;
-
-        // Unified entity processing (animate + collide + compass + magnet — single pass)
-        processEntities(timeSec);
-
-        // Systems
-        updateCompass();
-        updateBiome();
-        updateHUD(dt);
-        manageSpawning();
-        updateExplosion(dt);
 
         renderer.render(scene, camera);
     }
-
     animate(0);
+
     </script>
 </body>
 </html>
