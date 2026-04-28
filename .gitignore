@@ -119,6 +119,10 @@ resources/*
 # Node / npm
 node_modules/
 
+# Local Claude Code state (settings.local.json, worktrees, launch.json).
+# Per-developer — must not be committed.
+.claude/
+
 # Built game output is committed under static/games/<name>/ so the site hosts all games.
 # Run: cd games/<name> && npm ci && npm run build
 
