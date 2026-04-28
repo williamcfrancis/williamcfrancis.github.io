@@ -93,13 +93,21 @@ const canvas = document.getElementsByTagName('canvas')[0];
  * scaleByPixelRatio, so the DPR factor cancels — splat alignment is preserved
  * regardless of clamp value. */
 window.FLUID_MAX_DPR = window.FLUID_MAX_DPR || 2.0;
-let _cachedDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
+// _targetDPR is the ceiling (device DPR clamped to FLUID_MAX_DPR).
+// _cachedDPR is the *currently effective* DPR — Patch F8 (below) may pull it
+// down toward 1.0 when the GPU can't keep up, then step it back toward the
+// ceiling when frames are healthy again.
+let _targetDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
+let _cachedDPR = _targetDPR;
 let pendingResize = true;
 let cachedClientW = canvas.clientWidth;
 let cachedClientH = canvas.clientHeight;
 let cachedAspectRatio = 1;
 function _refreshDPR () {
-    _cachedDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
+    // Page zoom / monitor change: reset both ceiling and current. Adaptive
+    // state restarts from a clean slate at the new device DPR.
+    _targetDPR = Math.min(window.devicePixelRatio || 1, window.FLUID_MAX_DPR);
+    _cachedDPR = _targetDPR;
     pendingResize = true;
     // matchMedia DPR queries are one-shot per breakpoint — re-arm after each fire.
     if (window.matchMedia)
@@ -157,6 +165,25 @@ let _frameIdx = 0;
 let _frameTimeAvg = 16;
 let _bloomToggle = 0;
 let _bloomThisFrame = true;     // gates applyBloom + applySunrays in render()
+
+/* ---------- Patch F8: adaptive DPR fallback ----------
+ * If frame time stays high after Patch F's bloom dimming, the GPU has
+ * sustained pressure that temporal tricks can't hide. Drop the canvas backing
+ * resolution in 0.25 DPR steps (never below 1.0) until frames recover. When
+ * we're back below 14 ms avg sustained, step DPR back up toward the original
+ * ceiling. Asymmetric thresholds (drop at 25 ms, raise at 14 ms) plus a 3 s
+ * cooldown create the hysteresis needed to avoid oscillation between two
+ * close DPR values. Each step triggers framebuffer reinit on the next frame
+ * via the existing pendingResize plumbing in resizeCanvas().
+ *
+ * On DPR=1 displays this is a no-op (_targetDPR=1.0, no headroom to drop).
+ * Only kicks in when the device has retina pixels AND the GPU can't afford
+ * them — exactly the failure mode we want to catch. */
+const _F8_MIN_DPR = 1.0;
+const _F8_DROP_THRESHOLD_MS = 25;   // > 40 fps avg → hold; < 40 fps avg → drop
+const _F8_RAISE_THRESHOLD_MS = 14;  // > 71 fps avg → step DPR back up
+const _F8_COOLDOWN_MS = 3000;
+let _f8LastChange = 0;
 
 resizeCanvas();
 
@@ -1356,6 +1383,21 @@ function update () {
         let s = 0;
         for (let i = 0; i < 8; i++) s += _frameTimes[i];
         _frameTimeAvg = s * 0.125;
+
+        // Patch F8: adaptive DPR adjustment. Only on the every-8-frame tick
+        // so the cooldown is checked at most ~7 times/sec — cheap. The actual
+        // resize takes effect on the *next* frame via pendingResize.
+        if (frameStart - _f8LastChange > _F8_COOLDOWN_MS) {
+            if (_frameTimeAvg > _F8_DROP_THRESHOLD_MS && _cachedDPR > _F8_MIN_DPR) {
+                _cachedDPR = Math.max(_F8_MIN_DPR, _cachedDPR - 0.25);
+                pendingResize = true;
+                _f8LastChange = frameStart;
+            } else if (_frameTimeAvg < _F8_RAISE_THRESHOLD_MS && _cachedDPR < _targetDPR) {
+                _cachedDPR = Math.min(_targetDPR, _cachedDPR + 0.25);
+                pendingResize = true;
+                _f8LastChange = frameStart;
+            }
+        }
     }
     _bloomThisFrame = _frameTimeAvg < 22 || (_bloomToggle++ & 1) === 0;
 
