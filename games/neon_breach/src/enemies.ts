@@ -7,8 +7,11 @@ import {
   PBRMaterial,
   TransformNode,
   StandardMaterial,
+  GlowLayer,
 } from '@babylonjs/core';
 import type { Enemy, EnemyType, PlayerState } from './types';
+
+const FLASH_WHITE = new Color3(1, 1, 1);
 
 export const ENEMY_TYPES: EnemyType[] = [
   {
@@ -93,7 +96,7 @@ export const ENEMY_TYPES: EnemyType[] = [
   },
 ];
 
-export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): Enemy {
+export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3, glowLayer?: GlowLayer): Enemy {
   const root = new TransformNode(`enemy_${type.name}_${Date.now()}`, scene);
   root.position = position.clone();
 
@@ -114,12 +117,12 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   glowMat.roughness = 0.3;
   glowMat.metallic = 0.3;
 
-  const hitMat = new PBRMaterial(`eMat_hit_${root.name}`, scene);
-  hitMat.albedoColor = new Color3(1, 1, 1);
-  hitMat.emissiveColor = new Color3(1, 1, 1);
-  hitMat.emissiveIntensity = 5;
-  hitMat.roughness = 0.3;
-  hitMat.metallic = 0.3;
+  // Hit flash now mutates emissive on the body+glow materials directly
+  // instead of swapping mesh.material every frame; fewer dirty rebinds.
+  const flashMaterials = [
+    { mat: bodyMat, baseColor: bodyMat.emissiveColor.clone(), baseIntensity: bodyMat.emissiveIntensity },
+    { mat: glowMat, baseColor: glowMat.emissiveColor.clone(), baseIntensity: glowMat.emissiveIntensity },
+  ];
 
   const makePart = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, isHead = false): Mesh => {
     const mesh = opts.diameter !== undefined
@@ -131,8 +134,9 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
     mesh.material = mat;
     mesh.isPickable = true;
     mesh.checkCollisions = false;
-    mesh.metadata = { isHead, originalMat: mat, hitMat, enemy: root.name };
+    mesh.metadata = { isHead, enemy: root.name };
     bodyParts.push(mesh);
+    if (glowLayer && mat === glowMat) glowLayer.addIncludedOnlyMesh(mesh);
     return mesh;
   };
 
@@ -207,6 +211,7 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
     specialTimer: 5,
     shieldActive: false,
     healthBarMesh,
+    flashMaterials,
   };
 }
 
@@ -228,15 +233,22 @@ export function updateEnemy(
     return;
   }
 
-  // Hit flash
+  // Hit flash via emissive modulation. Faster than swapping `mesh.material`
+  // each frame because Babylon doesn't have to re-bind material uniforms,
+  // and it leaves the GlowLayer mesh-include list intact.
   if (enemy.hitFlashTimer > 0) {
     enemy.hitFlashTimer -= dt;
-    const flashing = enemy.hitFlashTimer > 0;
-    enemy.bodyParts.forEach(p => {
-      if (p.metadata) {
-        p.material = flashing ? p.metadata.hitMat : p.metadata.originalMat;
+    const t = Math.max(0, enemy.hitFlashTimer / 0.08);
+    for (const fm of enemy.flashMaterials) {
+      Color3.LerpToRef(fm.baseColor, FLASH_WHITE, t, fm.mat.emissiveColor);
+      fm.mat.emissiveIntensity = fm.baseIntensity + t * 4;
+    }
+    if (enemy.hitFlashTimer <= 0) {
+      for (const fm of enemy.flashMaterials) {
+        fm.mat.emissiveColor.copyFrom(fm.baseColor);
+        fm.mat.emissiveIntensity = fm.baseIntensity;
       }
-    });
+    }
   }
 
   const toPlayer = playerPos.subtract(enemy.position);

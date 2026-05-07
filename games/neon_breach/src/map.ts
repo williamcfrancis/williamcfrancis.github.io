@@ -5,11 +5,13 @@ import {
   MeshBuilder,
   Color3,
   Color4,
+  Matrix,
+  Quaternion,
   PBRMaterial,
-  StandardMaterial,
   HemisphericLight,
   DirectionalLight,
   PointLight,
+  GlowLayer,
 } from '@babylonjs/core';
 import type { Platform } from './types';
 
@@ -21,16 +23,21 @@ export interface MapData {
   wallRunSurfaces: Mesh[];
   grapplePoints: Vector3[];
   animatedMeshes: { mesh: Mesh; rotSpeed: Vector3; baseY: number; bobSpeed: number; bobAmount: number }[];
+  staticMeshes: Mesh[];
+  neonMaterials: PBRMaterial[];
+  glowLayer: GlowLayer;
+  centerLight: PointLight;
 }
 
 export function buildMap(scene: Scene): MapData {
   scene.clearColor = new Color4(0.04, 0.03, 0.08, 1);
   scene.ambientColor = new Color3(0.15, 0.12, 0.2);
+  // Thicker volumetric-feeling fog hides the arena horizon and makes neon
+  // accents read as "lit volume". Bumped from 0.003 → 0.008.
   scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = 0.003;
+  scene.fogDensity = 0.008;
   scene.fogColor = new Color3(0.05, 0.03, 0.1);
 
-  // Lights
   const hemi = new HemisphericLight('hemi', new Vector3(0, 1, 0), scene);
   hemi.intensity = 1.0;
   hemi.diffuse = new Color3(0.6, 0.5, 0.8);
@@ -42,6 +49,19 @@ export function buildMap(scene: Scene): MapData {
   dirLight.position = new Vector3(0, 80, 0);
 
   const shadowGen: { addShadowCaster: (m: Mesh) => void } | null = null;
+
+  // Tagged mesh accumulators for end-of-build freeze and glow registration.
+  const staticMeshes: Mesh[] = [];
+  const glowMeshes: Mesh[] = [];
+
+  const tagStatic = (m: Mesh): Mesh => {
+    staticMeshes.push(m);
+    return m;
+  };
+  const tagGlow = (m: Mesh): Mesh => {
+    glowMeshes.push(m);
+    return tagStatic(m);
+  };
 
   // Materials
   const floorMat = new PBRMaterial('floor', scene);
@@ -94,22 +114,23 @@ export function buildMap(scene: Scene): MapData {
   ground.material = floorMat;
   ground.checkCollisions = true;
   ground.receiveShadows = true;
+  tagStatic(ground);
 
-  // Grid lines on floor
-  const gridLines: Mesh[] = [];
+  // Grid lines: 18 axis-aligned strips → single thin-instance mesh.
+  // Base mesh is one X-axis strip; per-instance we either keep it horizontal
+  // or rotate 90° around Y for the Z-axis ones.
+  const gridBase = MeshBuilder.CreateBox('gridBase', { width: 180, height: 0.02, depth: 0.06 }, scene);
+  gridBase.material = neonCyan;
+  gridBase.isPickable = false;
+  gridBase.receiveShadows = true;
+  const gridMatrices: Matrix[] = [];
+  const yRot90 = Quaternion.RotationAxis(Vector3.Up(), Math.PI / 2);
   for (let i = -90; i <= 90; i += 20) {
-    const lineX = MeshBuilder.CreateBox(`gridX_${i}`, { width: 180, height: 0.02, depth: 0.06 }, scene);
-    lineX.position = new Vector3(0, 0.01, i);
-    lineX.material = neonCyan;
-    lineX.isPickable = false;
-    gridLines.push(lineX);
-
-    const lineZ = MeshBuilder.CreateBox(`gridZ_${i}`, { width: 0.06, height: 0.02, depth: 180 }, scene);
-    lineZ.position = new Vector3(i, 0.01, 0);
-    lineZ.material = neonCyan;
-    lineZ.isPickable = false;
-    gridLines.push(lineZ);
+    gridMatrices.push(Matrix.Compose(Vector3.One(), Quaternion.Identity(), new Vector3(0, 0.01, i)));
+    gridMatrices.push(Matrix.Compose(Vector3.One(), yRot90, new Vector3(i, 0.01, 0)));
   }
+  setThinInstances(gridBase, gridMatrices);
+  tagGlow(gridBase);
 
   // Arena boundary walls
   const wallRunSurfaces: Mesh[] = [];
@@ -132,9 +153,8 @@ export function buildMap(scene: Scene): MapData {
     wall.checkCollisions = true;
     wall.receiveShadows = true;
     wallRunSurfaces.push(wall);
-    shadowGen?.addShadowCaster(wall);
+    tagStatic(wall);
 
-    // Neon trim on walls
     const trim = MeshBuilder.CreateBox(`bwallTrim_${i}`, {
       width: isXWall ? w : 0.1,
       height: 0.1,
@@ -143,12 +163,13 @@ export function buildMap(scene: Scene): MapData {
     trim.position = new Vector3(x, 2, z);
     trim.material = neonMats[i % 4];
     trim.isPickable = false;
+    tagGlow(trim);
 
-    const trimHigh = trim.clone(`bwallTrimH_${i}`);
+    const trimHigh = trim.clone(`bwallTrimH_${i}`)!;
     trimHigh.position.y = 8;
+    tagGlow(trimHigh);
   });
 
-  // Platforms
   const platforms: Platform[] = [];
 
   const createPlatform = (x: number, y: number, z: number, w: number, d: number, h: number, mat: PBRMaterial, neonIdx: number): Platform => {
@@ -157,25 +178,23 @@ export function buildMap(scene: Scene): MapData {
     plat.material = mat;
     plat.checkCollisions = true;
     plat.receiveShadows = true;
-    shadowGen?.addShadowCaster(plat);
+    tagStatic(plat);
 
-    // Neon edge trim
     const edgeMat = neonMats[neonIdx % 4];
     const trimTop = MeshBuilder.CreateBox(`platTrim_${x}_${z}`, { width: w + 0.2, height: 0.08, depth: d + 0.2 }, scene);
     trimTop.position = new Vector3(x, y + h / 2 + 0.04, z);
     trimTop.material = edgeMat;
     trimTop.isPickable = false;
+    tagGlow(trimTop);
 
     const platform: Platform = { mesh: plat, position: new Vector3(x, y, z), width: w, depth: d, height: h };
     platforms.push(platform);
     return platform;
   };
 
-  // Center tower
   createPlatform(0, 1.5, 0, 14, 14, 3, platformMat, 0);
   createPlatform(0, 5, 0, 8, 8, 1.5, platformMat, 2);
 
-  // Ramps to center
   const rampMat = new PBRMaterial('ramp', scene);
   rampMat.albedoColor = new Color3(0.08, 0.07, 0.1);
   rampMat.roughness = 0.8;
@@ -189,7 +208,7 @@ export function buildMap(scene: Scene): MapData {
     ramp.material = rampMat;
     ramp.checkCollisions = true;
     ramp.receiveShadows = true;
-    shadowGen?.addShadowCaster(ramp);
+    tagStatic(ramp);
 
     const rampTrim = MeshBuilder.CreateBox('rampTrim', { width: 4.2, height: 0.06, depth: 10.2 }, scene);
     rampTrim.position = ramp.position.clone();
@@ -197,6 +216,7 @@ export function buildMap(scene: Scene): MapData {
     rampTrim.rotation = ramp.rotation.clone();
     rampTrim.material = neonCyan;
     rampTrim.isPickable = false;
+    tagGlow(rampTrim);
   };
 
   createRamp(0, -11, 0);
@@ -204,12 +224,10 @@ export function buildMap(scene: Scene): MapData {
   createRamp(-11, 0, Math.PI / 2);
   createRamp(11, 0, -Math.PI / 2);
 
-  // Corner elevated platforms (sniper perches)
   const corners: [number, number, number][] = [[-55, 0, -55], [55, 0, -55], [-55, 0, 55], [55, 0, 55]];
   corners.forEach(([cx, , cz], i) => {
     createPlatform(cx, 4, cz, 12, 12, 8, platformMat, i);
 
-    // Stairs to corner platforms
     for (let s = 0; s < 4; s++) {
       const stairX = cx + (i % 2 === 0 ? 8 : -8);
       const stairZ = cz + (i < 2 ? 6 - s * 3 : -6 + s * 3);
@@ -217,7 +235,6 @@ export function buildMap(scene: Scene): MapData {
     }
   });
 
-  // Mid-height catwalks connecting corners
   const catwalkMat = new PBRMaterial('catwalk', scene);
   catwalkMat.albedoColor = new Color3(0.08, 0.06, 0.1);
   catwalkMat.roughness = 0.8;
@@ -236,17 +253,17 @@ export function buildMap(scene: Scene): MapData {
     cw.material = catwalkMat;
     cw.checkCollisions = true;
     cw.receiveShadows = true;
-    shadowGen?.addShadowCaster(cw);
+    tagStatic(cw);
 
     const cwTrim = MeshBuilder.CreateBox(`cwTrim_${i}`, { width: w + 0.1, height: 0.06, depth: d + 0.1 }, scene);
     cwTrim.position = new Vector3(x, y + 0.18, z);
     cwTrim.material = neonMats[i % 4];
     cwTrim.isPickable = false;
+    tagGlow(cwTrim);
 
     platforms.push({ mesh: cw, position: new Vector3(x, y, z), width: w, depth: d, height: 0.3 });
   });
 
-  // Cover blocks scattered around mid-field
   const coverPositions: [number, number, number, number, number][] = [
     [-30, 1, -30, 5, 3], [30, 1, -30, 5, 3],
     [-30, 1, 30, 5, 3], [30, 1, 30, 5, 3],
@@ -265,16 +282,15 @@ export function buildMap(scene: Scene): MapData {
     cover.checkCollisions = true;
     cover.receiveShadows = true;
     wallRunSurfaces.push(cover);
-    shadowGen?.addShadowCaster(cover);
+    tagStatic(cover);
 
-    // Neon accent strip
     const strip = MeshBuilder.CreateBox(`coverStrip_${i}`, { width: w + 0.1, height: 0.06, depth: d + 0.1 }, scene);
     strip.position = new Vector3(x, y + 1.5, z);
     strip.material = neonMats[i % 4];
     strip.isPickable = false;
+    tagGlow(strip);
   });
 
-  // Floating wall-run surfaces (vertical walls in mid-air)
   const wallRunPanels: [number, number, number, number, boolean][] = [
     [-35, 5, -10, 16, true],
     [35, 5, 10, 16, true],
@@ -294,9 +310,8 @@ export function buildMap(scene: Scene): MapData {
     panel.material = wallMat;
     panel.checkCollisions = true;
     wallRunSurfaces.push(panel);
-    shadowGen?.addShadowCaster(panel);
+    tagStatic(panel);
 
-    // Neon edge
     const edge = MeshBuilder.CreateBox(`wrEdge_${i}`, {
       width: isXAligned ? 0.08 : len + 0.1,
       height: 6.2,
@@ -309,14 +324,24 @@ export function buildMap(scene: Scene): MapData {
     );
     edge.material = neonMats[(i + 2) % 4];
     edge.isPickable = false;
+    tagGlow(edge);
   });
 
-  // Neon pillar decorations
+  // Pillars stay individual (wall-run colliders). Their rings collapse into
+  // four thin-instance meshes, one per neon color — 36 ring meshes → 4.
   const pillarPositions: [number, number][] = [
     [-70, -70], [70, -70], [-70, 70], [70, 70],
     [-40, -40], [40, -40], [-40, 40], [40, 40],
     [0, -70], [0, 70], [-70, 0], [70, 0],
   ];
+
+  const ringBases: Mesh[] = neonMats.map((mat, idx) => {
+    const m = MeshBuilder.CreateBox(`pillarRingBase_${idx}`, { width: 2, height: 0.1, depth: 2 }, scene);
+    m.material = mat;
+    m.isPickable = false;
+    return m;
+  });
+  const ringMatrices: Matrix[][] = [[], [], [], []];
 
   const animatedMeshes: MapData['animatedMeshes'] = [];
 
@@ -326,18 +351,21 @@ export function buildMap(scene: Scene): MapData {
     pillar.material = wallMat;
     pillar.checkCollisions = true;
     wallRunSurfaces.push(pillar);
-    shadowGen?.addShadowCaster(pillar);
+    tagStatic(pillar);
 
-    // Neon ring around pillar
     for (let r = 0; r < 3; r++) {
-      const ring = MeshBuilder.CreateBox(`pillarRing_${i}_${r}`, { width: 2, height: 0.1, depth: 2 }, scene);
-      ring.position = new Vector3(x, 3 + r * 5, z);
-      ring.material = neonMats[(i + r) % 4];
-      ring.isPickable = false;
+      const matIdx = (i + r) % 4;
+      ringMatrices[matIdx].push(
+        Matrix.Translation(x, 3 + r * 5, z),
+      );
     }
   });
 
-  // Floating decorative elements
+  ringBases.forEach((base, i) => {
+    if (ringMatrices[i].length > 0) setThinInstances(base, ringMatrices[i]);
+    tagGlow(base);
+  });
+
   const floatingPositions: [number, number, number][] = [
     [-30, 12, -30], [30, 14, -30], [-30, 11, 30], [30, 13, 30],
     [0, 16, 0], [-60, 10, 0], [60, 10, 0], [0, 10, -60], [0, 10, 60],
@@ -353,6 +381,7 @@ export function buildMap(scene: Scene): MapData {
     shape.position = new Vector3(x, y, z);
     shape.material = neonMats[i % 4];
     shape.isPickable = false;
+    glowMeshes.push(shape);
 
     animatedMeshes.push({
       mesh: shape,
@@ -367,27 +396,19 @@ export function buildMap(scene: Scene): MapData {
     });
   });
 
-  // Single accent light at center (cheap atmosphere). Other corner colors come from emissive trims.
   const centerLight = new PointLight('pLightCenter', new Vector3(0, 8, 0), scene);
   centerLight.diffuse = new Color3(0, 1, 0.8);
   centerLight.intensity = 8;
   centerLight.range = 30;
 
-  // Grapple points (visible orbs at strategic locations)
   const grapplePoints: Vector3[] = [
     new Vector3(0, 14, 0),
-    new Vector3(-40, 12, -40),
-    new Vector3(40, 12, -40),
-    new Vector3(-40, 12, 40),
-    new Vector3(40, 12, 40),
-    new Vector3(-60, 10, 0),
-    new Vector3(60, 10, 0),
-    new Vector3(0, 10, -60),
-    new Vector3(0, 10, 60),
-    new Vector3(-20, 9, -20),
-    new Vector3(20, 9, -20),
-    new Vector3(-20, 9, 20),
-    new Vector3(20, 9, 20),
+    new Vector3(-40, 12, -40), new Vector3(40, 12, -40),
+    new Vector3(-40, 12, 40), new Vector3(40, 12, 40),
+    new Vector3(-60, 10, 0), new Vector3(60, 10, 0),
+    new Vector3(0, 10, -60), new Vector3(0, 10, 60),
+    new Vector3(-20, 9, -20), new Vector3(20, 9, -20),
+    new Vector3(-20, 9, 20), new Vector3(20, 9, 20),
   ];
 
   grapplePoints.forEach((pos, i) => {
@@ -395,11 +416,13 @@ export function buildMap(scene: Scene): MapData {
     orb.position = pos;
     orb.material = neonCyan;
     orb.isPickable = false;
+    tagGlow(orb);
 
     const ring = MeshBuilder.CreateTorus(`grappleRing_${i}`, { diameter: 1.6, thickness: 0.08, tessellation: 16 }, scene);
     ring.position = pos;
     ring.material = neonCyan;
     ring.isPickable = false;
+    glowMeshes.push(ring);
 
     animatedMeshes.push({
       mesh: ring,
@@ -410,7 +433,6 @@ export function buildMap(scene: Scene): MapData {
     });
   });
 
-  // Spawn points
   const spawnPoints: Vector3[] = [
     new Vector3(-70, 1, -70), new Vector3(70, 1, -70),
     new Vector3(-70, 1, 70), new Vector3(70, 1, 70),
@@ -422,7 +444,6 @@ export function buildMap(scene: Scene): MapData {
     new Vector3(-50, 9, 55), new Vector3(50, 9, 55),
   ];
 
-  // Pickup locations
   const pickupLocations: Vector3[] = [
     new Vector3(0, 5.75, 0),
     new Vector3(-30, 0, -30), new Vector3(30, 0, -30),
@@ -434,6 +455,30 @@ export function buildMap(scene: Scene): MapData {
     new Vector3(-15, 6, -55), new Vector3(15, 6, 55),
   ];
 
+  // Glow layer catches every emissive accent on a low-res buffer — sharper
+  // and cheaper than letting the bloom pass blur the whole scene.
+  const glowLayer = new GlowLayer('arenaGlow', scene, { blurKernelSize: 32 });
+  glowLayer.intensity = 0.9;
+  for (const m of glowMeshes) glowLayer.addIncludedOnlyMesh(m);
+
+  // Pulse the four neon material emissive intensities so the arena breathes.
+  // One observer, four materials — no per-mesh cost.
+  const baseIntensities = neonMats.map(m => m.emissiveIntensity);
+  scene.onBeforeRenderObservable.add(() => {
+    const t = performance.now() * 0.001;
+    for (let i = 0; i < neonMats.length; i++) {
+      const base = baseIntensities[i];
+      neonMats[i].emissiveIntensity = base * (0.85 + Math.sin(t * 0.9 + i * 1.7) * 0.18);
+    }
+  });
+
+  // Lock world matrices on truly static meshes. Wall-run/cover surfaces stay
+  // in the static set — Babylon still raycasts a frozen mesh correctly.
+  for (const m of staticMeshes) {
+    m.freezeWorldMatrix();
+    m.doNotSyncBoundingInfo = true;
+  }
+
   return {
     spawnPoints,
     pickupLocations,
@@ -442,5 +487,17 @@ export function buildMap(scene: Scene): MapData {
     wallRunSurfaces,
     grapplePoints,
     animatedMeshes,
+    staticMeshes,
+    neonMaterials: neonMats,
+    glowLayer,
+    centerLight,
   };
+}
+
+function setThinInstances(base: Mesh, matrices: Matrix[]): void {
+  if (matrices.length === 0) return;
+  const buffer = new Float32Array(matrices.length * 16);
+  for (let i = 0; i < matrices.length; i++) matrices[i].copyToArray(buffer, i * 16);
+  base.thinInstanceSetBuffer('matrix', buffer, 16, true);
+  base.thinInstanceRefreshBoundingInfo(true);
 }

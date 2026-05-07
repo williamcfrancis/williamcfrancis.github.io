@@ -13,6 +13,8 @@ import {
   TransformNode,
   ParticleSystem,
   Texture,
+  PointLight,
+  VolumetricLightScatteringPostProcess,
 } from '@babylonjs/core';
 
 import type { PlayerState, GameState, WeaponState, Enemy, Pickup, StyleKill } from './types';
@@ -27,7 +29,8 @@ import {
   createTracer,
   createEnemyTracer,
   createPickupGlow,
-  createGrappleBeam,
+  setGrappleBeam,
+  hideGrappleBeam,
   createEMPBlast,
   createBeamEffect,
   createWallRunTrail,
@@ -106,10 +109,36 @@ let weapons: WeaponState[];
 let currentWeaponIdx = 0;
 let enemies: Enemy[] = [];
 let pickups: Pickup[] = [];
-let projectiles: { mesh: Mesh; velocity: Vector3; damage: number; radius: number; timer: number; trail: ParticleSystem | null }[] = [];
+type ProjectileSlot = {
+  mesh: Mesh;
+  trail: ParticleSystem;
+  inUse: boolean;
+  velocity: Vector3;
+  damage: number;
+  radius: number;
+  timer: number;
+};
+let projectilePool: ProjectileSlot[] = [];
 let grenades: { mesh: Mesh; velocity: Vector3; timer: number; bounces: number }[] = [];
 let damagePost: { setDamageIntensity: (v: number) => void } | null = null;
 let btPost: { setActive: (v: boolean) => void } | null = null;
+
+// Decal pool — pooled bullet impact stickers on world geometry. FIFO eviction.
+type DecalSlot = { mesh: Mesh | null; ageIdx: number };
+let decalPool: DecalSlot[] = [];
+let decalNext = 0;
+let decalMat: StandardMaterial | null = null;
+const DECAL_POOL_SIZE = 28;
+
+// Muzzle dynamic light pool — short-lived 1-frame point light at fire.
+type MuzzleLightSlot = { light: PointLight; life: number };
+let muzzleLightPool: MuzzleLightSlot[] = [];
+let muzzleLightNext = 0;
+const MUZZLE_LIGHT_POOL_SIZE = 3;
+
+// Cached `now` (seconds) for the current frame — set at the top of the
+// render loop so per-frame functions don't each call performance.now().
+let nowSec = 0;
 let damageIntensity = 0;
 let screenShakeIntensity = 0;
 let headBobPhase = 0;
@@ -142,7 +171,6 @@ let slideDirection = Vector3.Zero();
 let grenadeCount = MAX_GRENADES;
 let lastStreakAnnounce = 0;
 let grappleCooldown = 0;
-let grappleBeamMesh: Mesh | null = null;
 let multiKillTimer = 0;
 let multiKillCount = 0;
 let wallRunTrailTimer = 0;
@@ -158,6 +186,11 @@ async function init(): Promise<void> {
 
   scene = new Scene(engine);
   scene.collisionsEnabled = true;
+  // Pointer-move picking is the default; we never need it. Picking is invoked
+  // explicitly by the hitscan code, so disabling the per-mousemove scene pick
+  // saves a noticeable amount on input-heavy frames.
+  scene.skipPointerMovePicking = true;
+  scene.constantlyUpdateMeshUnderPointer = false;
 
   camera = new FreeCamera('fpsCam', new Vector3(0, PLAYER_HEIGHT, -30), scene);
   camera.minZ = 0.1;
@@ -174,9 +207,21 @@ async function init(): Promise<void> {
   damagePost = createDamagePostProcess(scene, camera);
   btPost = createBulletTimePostProcess(scene, camera);
 
+  setupVolumetricBeacon();
+  initDecalPool();
+  initMuzzleLightPool();
+  initProjectilePool();
+
   buildWeaponModel(scene);
   setupInput(canvas);
   initHUD();
+
+  // After every material has been created and configured at least once, freeze
+  // the dirty mechanism — Babylon won't re-detect uniform changes per frame.
+  // Materials we explicitly mutate (neon pulse, enemy hit flash, grenade
+  // emissive flicker) work because the GPU just sees the new uniform value;
+  // it's the dirty-tracking lookup we're skipping.
+  scene.blockMaterialDirtyMechanism = true;
 
   showMenu();
   hideHUD();
@@ -189,6 +234,7 @@ async function init(): Promise<void> {
 
   engine.runRenderLoop(() => {
     const now = performance.now();
+    nowSec = now * 0.001;
     const rawDt = Math.min((now - lastFrameTime) / 1000, 0.05);
     lastFrameTime = now;
 
@@ -216,6 +262,176 @@ async function init(): Promise<void> {
   });
 
   window.addEventListener('resize', () => engine.resize());
+}
+
+// ── Decal pool ──
+// Bullet impacts on world geometry stamp a small additive decal that lingers.
+// FIFO eviction means the oldest decal is reused once we hit the cap.
+function initDecalPool(): void {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 30);
+  g.addColorStop(0, 'rgba(255,220,255,0.95)');
+  g.addColorStop(0.4, 'rgba(180,80,255,0.55)');
+  g.addColorStop(1, 'rgba(40,0,80,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+
+  decalMat = new StandardMaterial('bulletDecalMat', scene);
+  decalMat.diffuseTexture = new Texture(c.toDataURL(), scene);
+  decalMat.diffuseTexture.hasAlpha = true;
+  decalMat.useAlphaFromDiffuseTexture = true;
+  decalMat.emissiveColor = new Color3(0.7, 0.4, 0.9);
+  decalMat.disableLighting = true;
+  decalMat.zOffset = -2;
+
+  decalPool = [];
+  for (let i = 0; i < DECAL_POOL_SIZE; i++) {
+    decalPool.push({ mesh: null, ageIdx: i });
+  }
+}
+
+function spawnBulletDecal(targetMesh: Mesh, position: Vector3, normal: Vector3): void {
+  if (!decalMat) return;
+  const slot = decalPool[decalNext];
+  decalNext = (decalNext + 1) % DECAL_POOL_SIZE;
+  if (slot.mesh) slot.mesh.dispose();
+
+  const decal = MeshBuilder.CreateDecal('bulletDecal', targetMesh, {
+    position,
+    normal,
+    size: new Vector3(0.6, 0.6, 0.6),
+    angle: Math.random() * Math.PI * 2,
+  });
+  decal.material = decalMat;
+  decal.isPickable = false;
+  decal.alwaysSelectAsActiveMesh = false;
+  slot.mesh = decal;
+}
+
+// ── Muzzle dynamic light pool ──
+// One-frame point lights at the muzzle. Three slots round-robin so back-to-back
+// shots don't trample each other's flicker frame.
+function initMuzzleLightPool(): void {
+  muzzleLightPool = [];
+  for (let i = 0; i < MUZZLE_LIGHT_POOL_SIZE; i++) {
+    const light = new PointLight(`muzzleLight_${i}`, new Vector3(0, 0, 0), scene);
+    light.intensity = 0;
+    light.range = 8;
+    light.diffuse = new Color3(0, 1, 0.8);
+    muzzleLightPool.push({ light, life: 0 });
+  }
+  scene.onBeforeRenderObservable.add(() => {
+    for (const ml of muzzleLightPool) {
+      if (ml.life <= 0) continue;
+      ml.life -= scene.getEngine().getDeltaTime() / 1000;
+      ml.light.intensity = Math.max(0, ml.life * 60);
+    }
+  });
+}
+
+function flashMuzzleLight(position: Vector3, color: Color3): void {
+  const slot = muzzleLightPool[muzzleLightNext];
+  muzzleLightNext = (muzzleLightNext + 1) % MUZZLE_LIGHT_POOL_SIZE;
+  slot.light.position.copyFrom(position);
+  slot.light.diffuse = color;
+  slot.life = 0.1;
+  slot.light.intensity = 6;
+}
+
+// ── Projectile pool ──
+// Nova Launcher rockets. One mesh + one persistent particle trail per slot.
+const PROJECTILE_POOL_SIZE = 8;
+function initProjectilePool(): void {
+  projectilePool = [];
+  // Shared rocket material across all pool slots — one PBR/Standard ref.
+  const sharedMat = new StandardMaterial('rocketMat', scene);
+  sharedMat.emissiveColor = new Color3(1, 0.5, 0.1);
+  sharedMat.disableLighting = true;
+  sharedMat.freeze();
+
+  const trailTex = getRocketTrailTexture(scene);
+
+  for (let i = 0; i < PROJECTILE_POOL_SIZE; i++) {
+    const mesh = MeshBuilder.CreateSphere(`rocket_${i}`, { diameter: 0.3, segments: 6 }, scene);
+    mesh.material = sharedMat;
+    mesh.checkCollisions = false;
+    mesh.isPickable = false;
+    mesh.setEnabled(false);
+
+    const trail = new ParticleSystem(`rocketTrail_${i}`, 60, scene);
+    trail.particleTexture = trailTex;
+    trail.emitter = mesh;
+    trail.minLifeTime = 0.15;
+    trail.maxLifeTime = 0.4;
+    trail.minSize = 0.15;
+    trail.maxSize = 0.4;
+    trail.emitRate = 80;
+    trail.color1 = new Color4(1, 0.6, 0.1, 0.8);
+    trail.color2 = new Color4(1, 0.3, 0, 0.6);
+    trail.colorDead = new Color4(0.3, 0.1, 0, 0);
+    trail.direction1 = new Vector3(-0.5, -0.5, -0.5);
+    trail.direction2 = new Vector3(0.5, 0.5, 0.5);
+    trail.minEmitPower = 0.5;
+    trail.maxEmitPower = 1.5;
+    trail.gravity = new Vector3(0, 1, 0);
+    trail.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+    projectilePool.push({
+      mesh,
+      trail,
+      inUse: false,
+      velocity: Vector3.Zero(),
+      damage: 0,
+      radius: 0,
+      timer: 0,
+    });
+  }
+}
+
+function acquireProjectile(): ProjectileSlot | null {
+  for (const p of projectilePool) if (!p.inUse) return p;
+  return null;
+}
+
+function releaseProjectile(p: ProjectileSlot): void {
+  p.inUse = false;
+  p.mesh.setEnabled(false);
+  p.trail.stop();
+}
+
+// ── Volumetric beacon ──
+// Light shafts emanating from the central glow. Cheap because the source mesh
+// is small and the post-process renders at 1/4 res.
+function setupVolumetricBeacon(): void {
+  // Hidden emitter mesh for the scattering effect — small sphere at the
+  // central beacon position, glow-only material so it never shadows itself.
+  const emitter = MeshBuilder.CreateSphere('beaconEmitter', { diameter: 1.6, segments: 10 }, scene);
+  emitter.position = new Vector3(0, 8, 0);
+  emitter.isPickable = false;
+  const emitterMat = new StandardMaterial('beaconEmitterMat', scene);
+  emitterMat.emissiveColor = new Color3(0, 1, 0.8);
+  emitterMat.diffuseColor = new Color3(0, 0, 0);
+  emitterMat.disableLighting = true;
+  emitter.material = emitterMat;
+  emitter.applyFog = false;
+
+  const scatter = new VolumetricLightScatteringPostProcess(
+    'godrays',
+    { passRatio: 0.5 },
+    camera,
+    emitter,
+    60,
+    Texture.BILINEAR_SAMPLINGMODE,
+    engine,
+    false,
+  );
+  scatter.exposure = 0.18;
+  scatter.decay = 0.96;
+  scatter.weight = 0.4;
+  scatter.density = 0.85;
+  if (mapData.glowLayer) mapData.glowLayer.addIncludedOnlyMesh(emitter);
 }
 
 function setupInput(canvas: HTMLCanvasElement): void {
@@ -271,7 +487,11 @@ function setupInput(canvas: HTMLCanvasElement): void {
 }
 
 // ── Weapon View Models ──
-let weaponModels: TransformNode[] = [];
+// Lazily built — only the equipped weapon's mesh tree is constructed up
+// front. Switching to a fresh slot builds it on demand. Each TransformNode
+// has 7-9 child boxes + 2 PBR materials, so eager-building 5× was wasteful
+// when the player rarely cycles through all of them in a session.
+let weaponModels: (TransformNode | null)[] = [];
 let weaponSwitchTimer = 0;
 const WEAPON_SWITCH_TIME = 0.3;
 let prevWeaponIdx = 0;
@@ -287,90 +507,96 @@ const WEAPON_GLOW_COLORS: Color3[] = [
 function buildWeaponModel(_scene: Scene): void {
   weaponModel = new TransformNode('weaponRoot', _scene);
   weaponModel.parent = camera;
-  weaponModels = [];
+  weaponModels = new Array(5).fill(null);
+  buildWeaponSlot(0);
+}
 
-  for (let w = 0; w < 5; w++) {
-    const model = new TransformNode(`weaponModel_${w}`, _scene);
-    model.parent = weaponModel;
-    model.setEnabled(w === 0);
+function buildWeaponSlot(w: number): TransformNode {
+  if (weaponModels[w]) return weaponModels[w]!;
+  const _scene = scene;
 
-    const gunMat = new PBRMaterial(`gunMat_${w}`, _scene);
-    gunMat.albedoColor = new Color3(0.2, 0.18, 0.22);
-    gunMat.roughness = 0.6;
-    gunMat.metallic = 0.2;
+  const model = new TransformNode(`weaponModel_${w}`, _scene);
+  model.parent = weaponModel;
+  model.setEnabled(w === currentWeaponIdx);
 
-    const glowColor = WEAPON_GLOW_COLORS[w];
-    const glowMat = new PBRMaterial(`gunGlow_${w}`, _scene);
-    glowMat.albedoColor = glowColor.scale(0.1);
-    glowMat.emissiveColor = glowColor;
-    glowMat.emissiveIntensity = 2;
-    glowMat.roughness = 0.3;
-    glowMat.metallic = 0.3;
+  const gunMat = new PBRMaterial(`gunMat_${w}`, _scene);
+  gunMat.albedoColor = new Color3(0.2, 0.18, 0.22);
+  gunMat.roughness = 0.6;
+  gunMat.metallic = 0.2;
 
-    const part = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, rot?: Vector3): Mesh => {
-      const m = MeshBuilder.CreateBox(`${name}_${w}`, opts, _scene);
-      m.position = pos;
-      if (rot) m.rotation = rot;
-      m.parent = model;
-      m.material = mat;
-      m.isPickable = false;
-      return m;
-    };
+  const glowColor = WEAPON_GLOW_COLORS[w];
+  const glowMat = new PBRMaterial(`gunGlow_${w}`, _scene);
+  glowMat.albedoColor = glowColor.scale(0.1);
+  glowMat.emissiveColor = glowColor;
+  glowMat.emissiveIntensity = 2;
+  glowMat.roughness = 0.3;
+  glowMat.metallic = 0.3;
 
-    switch (w) {
-      case 0:
-        part('barrel', { width: 0.05, height: 0.05, depth: 0.5 }, new Vector3(0.25, -0.18, 0.45), gunMat);
-        part('body', { width: 0.1, height: 0.11, depth: 0.28 }, new Vector3(0.25, -0.2, 0.25), gunMat);
-        part('grip', { width: 0.05, height: 0.13, depth: 0.05 }, new Vector3(0.25, -0.2, 0.18), gunMat, new Vector3(0.3, 0, 0));
-        part('stock', { width: 0.04, height: 0.06, depth: 0.15 }, new Vector3(0.25, -0.19, 0.03), gunMat);
-        part('mag', { width: 0.04, height: 0.09, depth: 0.07 }, new Vector3(0.25, -0.3, 0.28), gunMat);
-        part('accent1', { width: 0.12, height: 0.015, depth: 0.3 }, new Vector3(0.25, -0.14, 0.3), glowMat);
-        part('accent2', { width: 0.015, height: 0.06, depth: 0.04 }, new Vector3(0.25, -0.18, 0.68), glowMat);
-        part('sight', { width: 0.03, height: 0.035, depth: 0.04 }, new Vector3(0.25, -0.125, 0.4), gunMat);
-        break;
-      case 1:
-        part('barrel1', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.22, -0.17, 0.4), gunMat);
-        part('barrel2', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.28, -0.17, 0.4), gunMat);
-        part('body', { width: 0.14, height: 0.12, depth: 0.25 }, new Vector3(0.25, -0.2, 0.2), gunMat);
-        part('grip', { width: 0.06, height: 0.14, depth: 0.06 }, new Vector3(0.25, -0.32, 0.15), gunMat, new Vector3(0.2, 0, 0));
-        part('pump', { width: 0.08, height: 0.05, depth: 0.12 }, new Vector3(0.25, -0.24, 0.35), glowMat);
-        part('accent', { width: 0.16, height: 0.02, depth: 0.06 }, new Vector3(0.25, -0.13, 0.3), glowMat);
-        part('muzzle', { width: 0.12, height: 0.08, depth: 0.03 }, new Vector3(0.25, -0.17, 0.58), glowMat);
-        break;
-      case 2:
-        part('barrel', { width: 0.035, height: 0.035, depth: 0.7 }, new Vector3(0.25, -0.17, 0.5), gunMat);
-        part('body', { width: 0.08, height: 0.09, depth: 0.22 }, new Vector3(0.25, -0.19, 0.18), gunMat);
-        part('grip', { width: 0.04, height: 0.12, depth: 0.04 }, new Vector3(0.25, -0.29, 0.15), gunMat, new Vector3(0.3, 0, 0));
-        part('stock', { width: 0.04, height: 0.05, depth: 0.2 }, new Vector3(0.25, -0.18, -0.02), gunMat);
-        part('scope', { width: 0.04, height: 0.04, depth: 0.1 }, new Vector3(0.25, -0.11, 0.35), gunMat);
-        part('scopeLens', { width: 0.035, height: 0.035, depth: 0.015 }, new Vector3(0.25, -0.11, 0.405), glowMat);
-        part('rail1', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.22, -0.15, 0.45), glowMat);
-        part('rail2', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.28, -0.15, 0.45), glowMat);
-        part('chargeRing', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.17, 0.82), glowMat);
-        break;
-      case 3:
-        part('tube', { width: 0.09, height: 0.09, depth: 0.45 }, new Vector3(0.25, -0.16, 0.4), gunMat);
-        part('body', { width: 0.13, height: 0.14, depth: 0.2 }, new Vector3(0.25, -0.2, 0.15), gunMat);
-        part('grip', { width: 0.06, height: 0.15, depth: 0.06 }, new Vector3(0.25, -0.34, 0.12), gunMat, new Vector3(0.25, 0, 0));
-        part('handle', { width: 0.04, height: 0.06, depth: 0.08 }, new Vector3(0.25, -0.12, 0.3), gunMat);
-        part('muzzle', { width: 0.11, height: 0.11, depth: 0.03 }, new Vector3(0.25, -0.16, 0.63), glowMat);
-        part('vent1', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.19, -0.16, 0.5), glowMat);
-        part('vent2', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.31, -0.16, 0.5), glowMat);
-        part('warhead', { width: 0.05, height: 0.05, depth: 0.05 }, new Vector3(0.25, -0.16, 0.66), glowMat);
-        break;
-      case 4:
-        part('barrel', { width: 0.04, height: 0.04, depth: 0.3 }, new Vector3(0.25, -0.18, 0.38), gunMat);
-        part('body', { width: 0.09, height: 0.1, depth: 0.2 }, new Vector3(0.25, -0.2, 0.2), gunMat);
-        part('grip', { width: 0.045, height: 0.11, depth: 0.045 }, new Vector3(0.25, -0.3, 0.18), gunMat, new Vector3(0.3, 0, 0));
-        part('mag', { width: 0.035, height: 0.08, depth: 0.05 }, new Vector3(0.25, -0.3, 0.25), gunMat);
-        part('accent1', { width: 0.11, height: 0.012, depth: 0.22 }, new Vector3(0.25, -0.145, 0.25), glowMat);
-        part('coil1', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.18, 0.5), glowMat);
-        part('coil2', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.18, 0.55), glowMat);
-        break;
-    }
+  const part = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, rot?: Vector3): Mesh => {
+    const m = MeshBuilder.CreateBox(`${name}_${w}`, opts, _scene);
+    m.position = pos;
+    if (rot) m.rotation = rot;
+    m.parent = model;
+    m.material = mat;
+    m.isPickable = false;
+    if (mat === glowMat && mapData?.glowLayer) mapData.glowLayer.addIncludedOnlyMesh(m);
+    return m;
+  };
 
-    weaponModels.push(model);
+  switch (w) {
+    case 0:
+      part('barrel', { width: 0.05, height: 0.05, depth: 0.5 }, new Vector3(0.25, -0.18, 0.45), gunMat);
+      part('body', { width: 0.1, height: 0.11, depth: 0.28 }, new Vector3(0.25, -0.2, 0.25), gunMat);
+      part('grip', { width: 0.05, height: 0.13, depth: 0.05 }, new Vector3(0.25, -0.2, 0.18), gunMat, new Vector3(0.3, 0, 0));
+      part('stock', { width: 0.04, height: 0.06, depth: 0.15 }, new Vector3(0.25, -0.19, 0.03), gunMat);
+      part('mag', { width: 0.04, height: 0.09, depth: 0.07 }, new Vector3(0.25, -0.3, 0.28), gunMat);
+      part('accent1', { width: 0.12, height: 0.015, depth: 0.3 }, new Vector3(0.25, -0.14, 0.3), glowMat);
+      part('accent2', { width: 0.015, height: 0.06, depth: 0.04 }, new Vector3(0.25, -0.18, 0.68), glowMat);
+      part('sight', { width: 0.03, height: 0.035, depth: 0.04 }, new Vector3(0.25, -0.125, 0.4), gunMat);
+      break;
+    case 1:
+      part('barrel1', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.22, -0.17, 0.4), gunMat);
+      part('barrel2', { width: 0.04, height: 0.04, depth: 0.35 }, new Vector3(0.28, -0.17, 0.4), gunMat);
+      part('body', { width: 0.14, height: 0.12, depth: 0.25 }, new Vector3(0.25, -0.2, 0.2), gunMat);
+      part('grip', { width: 0.06, height: 0.14, depth: 0.06 }, new Vector3(0.25, -0.32, 0.15), gunMat, new Vector3(0.2, 0, 0));
+      part('pump', { width: 0.08, height: 0.05, depth: 0.12 }, new Vector3(0.25, -0.24, 0.35), glowMat);
+      part('accent', { width: 0.16, height: 0.02, depth: 0.06 }, new Vector3(0.25, -0.13, 0.3), glowMat);
+      part('muzzle', { width: 0.12, height: 0.08, depth: 0.03 }, new Vector3(0.25, -0.17, 0.58), glowMat);
+      break;
+    case 2:
+      part('barrel', { width: 0.035, height: 0.035, depth: 0.7 }, new Vector3(0.25, -0.17, 0.5), gunMat);
+      part('body', { width: 0.08, height: 0.09, depth: 0.22 }, new Vector3(0.25, -0.19, 0.18), gunMat);
+      part('grip', { width: 0.04, height: 0.12, depth: 0.04 }, new Vector3(0.25, -0.29, 0.15), gunMat, new Vector3(0.3, 0, 0));
+      part('stock', { width: 0.04, height: 0.05, depth: 0.2 }, new Vector3(0.25, -0.18, -0.02), gunMat);
+      part('scope', { width: 0.04, height: 0.04, depth: 0.1 }, new Vector3(0.25, -0.11, 0.35), gunMat);
+      part('scopeLens', { width: 0.035, height: 0.035, depth: 0.015 }, new Vector3(0.25, -0.11, 0.405), glowMat);
+      part('rail1', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.22, -0.15, 0.45), glowMat);
+      part('rail2', { width: 0.01, height: 0.01, depth: 0.6 }, new Vector3(0.28, -0.15, 0.45), glowMat);
+      part('chargeRing', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.17, 0.82), glowMat);
+      break;
+    case 3:
+      part('tube', { width: 0.09, height: 0.09, depth: 0.45 }, new Vector3(0.25, -0.16, 0.4), gunMat);
+      part('body', { width: 0.13, height: 0.14, depth: 0.2 }, new Vector3(0.25, -0.2, 0.15), gunMat);
+      part('grip', { width: 0.06, height: 0.15, depth: 0.06 }, new Vector3(0.25, -0.34, 0.12), gunMat, new Vector3(0.25, 0, 0));
+      part('handle', { width: 0.04, height: 0.06, depth: 0.08 }, new Vector3(0.25, -0.12, 0.3), gunMat);
+      part('muzzle', { width: 0.11, height: 0.11, depth: 0.03 }, new Vector3(0.25, -0.16, 0.63), glowMat);
+      part('vent1', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.19, -0.16, 0.5), glowMat);
+      part('vent2', { width: 0.02, height: 0.12, depth: 0.04 }, new Vector3(0.31, -0.16, 0.5), glowMat);
+      part('warhead', { width: 0.05, height: 0.05, depth: 0.05 }, new Vector3(0.25, -0.16, 0.66), glowMat);
+      break;
+    case 4:
+      part('barrel', { width: 0.04, height: 0.04, depth: 0.3 }, new Vector3(0.25, -0.18, 0.38), gunMat);
+      part('body', { width: 0.09, height: 0.1, depth: 0.2 }, new Vector3(0.25, -0.2, 0.2), gunMat);
+      part('grip', { width: 0.045, height: 0.11, depth: 0.045 }, new Vector3(0.25, -0.3, 0.18), gunMat, new Vector3(0.3, 0, 0));
+      part('mag', { width: 0.035, height: 0.08, depth: 0.05 }, new Vector3(0.25, -0.3, 0.25), gunMat);
+      part('accent1', { width: 0.11, height: 0.012, depth: 0.22 }, new Vector3(0.25, -0.145, 0.25), glowMat);
+      part('coil1', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.18, 0.5), glowMat);
+      part('coil2', { width: 0.06, height: 0.06, depth: 0.015 }, new Vector3(0.25, -0.18, 0.55), glowMat);
+      break;
   }
+
+  weaponModels[w] = model;
+  return model;
 }
 
 // ── Game Start ──
@@ -431,11 +657,7 @@ function startGame(): void {
   enemies.forEach(e => cleanupEnemy(e));
   enemies = [];
 
-  projectiles.forEach(p => {
-    if (p.trail) { p.trail.stop(); p.trail.dispose(); }
-    p.mesh.dispose();
-  });
-  projectiles = [];
+  for (const p of projectilePool) if (p.inUse) releaseProjectile(p);
 
   grenades.forEach(g => g.mesh.dispose());
   grenades = [];
@@ -457,7 +679,7 @@ function startGame(): void {
   grappleCooldown = 0;
   multiKillTimer = 0;
   multiKillCount = 0;
-  if (grappleBeamMesh) { grappleBeamMesh.dispose(); grappleBeamMesh = null; }
+  hideGrappleBeam();
 
   const canvas = engine.getRenderingCanvas()!;
   canvas.requestPointerLock();
@@ -703,23 +925,24 @@ function updatePlayerMovement(dt: number): void {
     footstepTimer = 0;
   }
 
-  // Screen shake
+  // Screen shake — small translation + tiny rotational kick. The rotation
+  // damps out via the wall-run tilt smoothstep that runs every frame.
   if (screenShakeIntensity > 0) {
-    camera.position.x += (Math.random() - 0.5) * screenShakeIntensity * 0.15;
-    camera.position.y += (Math.random() - 0.5) * screenShakeIntensity * 0.1;
+    const s = screenShakeIntensity;
+    camera.position.x += (Math.random() - 0.5) * s * 0.15;
+    camera.position.y += (Math.random() - 0.5) * s * 0.1;
+    camera.rotation.z += (Math.random() - 0.5) * s * 0.006;
   }
 
-  // Grapple beam visual
+  // Grapple beam visual — single persistent mesh, shown/hidden + repositioned.
   if (player.grappling && player.grapplePoint) {
-    if (grappleBeamMesh) grappleBeamMesh.dispose();
-    grappleBeamMesh = createGrappleBeam(scene, camera.position, player.grapplePoint);
-  } else if (grappleBeamMesh) {
-    grappleBeamMesh.dispose();
-    grappleBeamMesh = null;
+    setGrappleBeam(scene, camera.position, player.grapplePoint);
+  } else {
+    hideGrappleBeam();
   }
 }
 
-function checkWallRun(dt: number): void {
+function checkWallRun(_dt: number): void {
   if (player.wallRunning) return;
 
   const rightDir = camera.getDirection(Vector3.Right());
@@ -731,9 +954,23 @@ function checkWallRun(dt: number): void {
     { dir: rightDir.scale(-1), side: -1 },
   ];
 
+  // Spatial prune: only test surfaces whose center is within ~5m of the
+  // player. Wall-run rays are 1.2m long, so anything farther can't possibly
+  // intersect — saves N raycasts per frame on a 30-surface list.
+  const px = player.position.x;
+  const pz = player.position.z;
+  const py = player.position.y;
+  const PROX = 5;
+
   for (const { dir, side } of sides) {
     const ray = new Ray(player.position, dir, 1.2);
     for (const surface of mapData.wallRunSurfaces) {
+      const sp = (surface as any).position as Vector3;
+      const dx = sp.x - px;
+      const dz = sp.z - pz;
+      const dy = sp.y - py;
+      if (dx * dx + dz * dz > PROX * PROX) continue;
+      if (Math.abs(dy) > 8) continue;
       const pick = ray.intersectsMesh(surface as any);
       if (pick.hit) {
         player.wallRunning = true;
@@ -818,6 +1055,7 @@ function switchWeapon(idx: number): void {
   currentWeaponIdx = idx;
   weapons[currentWeaponIdx].equipped = true;
   weaponSwitchTimer = WEAPON_SWITCH_TIME;
+  buildWeaponSlot(idx); // lazy: first time the player picks up this weapon
   Audio.playReload();
 }
 
@@ -975,14 +1213,23 @@ function fireHitscan(weapon: WeaponState, muzzlePos: Vector3, dmgMult: number): 
     }
   }
 
-  const worldPick = scene.pickWithRay(ray, (mesh) => mesh.checkCollisions && mesh.isPickable !== false);
-  if (worldPick?.hit && worldPick.distance < hitDist) {
-    hitEnemy = null;
-    hitPoint = worldPick.pickedPoint!;
-    createBulletImpact(scene, hitPoint, worldPick.getNormal(true) || Vector3.Up());
+  // World pick against the tight static-mesh list. ray.intersectsMeshes walks
+  // only what we hand it, no scene-graph traversal or pickable-filter loop.
+  const worldHits = ray.intersectsMeshes(mapData.staticMeshes as any[], false);
+  if (worldHits.length > 0) {
+    const wh = worldHits[0];
+    if (wh.distance < hitDist && wh.pickedPoint) {
+      hitEnemy = null;
+      hitDist = wh.distance;
+      hitPoint = wh.pickedPoint;
+      const normal = wh.getNormal(true) || Vector3.Up();
+      createBulletImpact(scene, hitPoint, normal);
+      if (wh.pickedMesh) spawnBulletDecal(wh.pickedMesh as Mesh, hitPoint, normal);
+    }
   }
 
   createTracer(scene, muzzlePos, hitPoint);
+  flashMuzzleLight(muzzlePos, WEAPON_GLOW_COLORS[currentWeaponIdx] ?? new Color3(0, 1, 0.8));
 
   if (hitEnemy) {
     const baseDmg = hitHeadshot ? weapon.def.damage * weapon.def.headshotMultiplier : weapon.def.damage;
@@ -1020,13 +1267,15 @@ function createRocketTrailTexture(): string {
 }
 
 function getRocketTrailTexture(scene: Scene): Texture {
-  if (rocketTrailTexture && !rocketTrailTexture.isDisposed()) return rocketTrailTexture;
+  if (rocketTrailTexture) return rocketTrailTexture;
   if (!rocketTrailTextureUrl) rocketTrailTextureUrl = createRocketTrailTexture();
   rocketTrailTexture = new Texture(rocketTrailTextureUrl, scene);
   return rocketTrailTexture;
 }
 
 function fireProjectile(weapon: WeaponState, muzzlePos: Vector3, dmgMult: number): void {
+  const slot = acquireProjectile();
+  if (!slot) return;
   const spread = weapon.def.spread;
   const dir = camera.getDirection(Vector3.Forward()).add(new Vector3(
     (Math.random() - 0.5) * spread,
@@ -1034,87 +1283,63 @@ function fireProjectile(weapon: WeaponState, muzzlePos: Vector3, dmgMult: number
     (Math.random() - 0.5) * spread,
   )).normalize();
 
-  const rocket = MeshBuilder.CreateSphere('rocket', { diameter: 0.3, segments: 6 }, scene);
-  rocket.position = muzzlePos.clone();
-  const mat = new StandardMaterial('rocketMat', scene);
-  mat.emissiveColor = new Color3(1, 0.5, 0.1);
-  mat.disableLighting = true;
-  rocket.material = mat;
-  rocket.checkCollisions = false;
-  rocket.isPickable = false;
-
-  const trail = new ParticleSystem('rocketTrail', 60, scene);
-  trail.particleTexture = getRocketTrailTexture(scene);
-  trail.emitter = rocket;
-  trail.minLifeTime = 0.15;
-  trail.maxLifeTime = 0.4;
-  trail.minSize = 0.15;
-  trail.maxSize = 0.4;
-  trail.emitRate = 80;
-  trail.color1 = new Color4(1, 0.6, 0.1, 0.8);
-  trail.color2 = new Color4(1, 0.3, 0, 0.6);
-  trail.colorDead = new Color4(0.3, 0.1, 0, 0);
-  trail.direction1 = new Vector3(-0.5, -0.5, -0.5);
-  trail.direction2 = new Vector3(0.5, 0.5, 0.5);
-  trail.minEmitPower = 0.5;
-  trail.maxEmitPower = 1.5;
-  trail.gravity = new Vector3(0, 1, 0);
-  trail.blendMode = ParticleSystem.BLENDMODE_ADD;
-  trail.start();
-
-  projectiles.push({
-    mesh: rocket,
-    velocity: dir.scale(weapon.def.projectileSpeed!),
-    damage: weapon.def.damage * dmgMult,
-    radius: weapon.def.explosionRadius!,
-    timer: 5,
-    trail,
-  });
+  slot.mesh.position.copyFrom(muzzlePos);
+  slot.mesh.setEnabled(true);
+  slot.velocity.copyFrom(dir.scale(weapon.def.projectileSpeed!));
+  slot.damage = weapon.def.damage * dmgMult;
+  slot.radius = weapon.def.explosionRadius!;
+  slot.timer = 5;
+  slot.inUse = true;
+  slot.trail.start();
 }
 
 // ── Projectile Update ──
 function updateProjectilesLoop(dt: number): void {
-  for (let i = projectiles.length - 1; i >= 0; i--) {
-    const proj = projectiles[i];
+  const tmpPrev = TMP_PREV_POS;
+  const tmpDir = TMP_DIR;
+  for (const proj of projectilePool) {
+    if (!proj.inUse) continue;
     proj.timer -= dt;
-    const prevPos = proj.mesh.position.clone();
+    tmpPrev.copyFrom(proj.mesh.position);
     proj.mesh.position.addInPlace(proj.velocity.scale(dt));
     proj.velocity.y += GRAVITY * 0.3 * dt;
 
-    const dir = proj.mesh.position.subtract(prevPos);
-    const dist = dir.length();
+    tmpDir.copyFrom(proj.mesh.position);
+    tmpDir.subtractInPlace(tmpPrev);
+    const dist = tmpDir.length();
     if (dist > 0) {
-      const ray = new Ray(prevPos, dir.normalize(), dist);
-      const hit = scene.pickWithRay(ray, (mesh) => mesh.checkCollisions);
-      if (hit?.hit || proj.timer <= 0) {
-        const expPos = hit?.pickedPoint || proj.mesh.position;
+      const ray = new Ray(tmpPrev, tmpDir.normalize(), dist);
+      // Restrict the pick to mapData.staticMeshes — a tight collider list
+      // beats walking the whole scene picker every frame for every projectile.
+      const hit = ray.intersectsMeshes(mapData.staticMeshes as any[], false);
+      if (hit.length > 0 || proj.timer <= 0) {
+        const expPos = hit.length > 0 && hit[0].pickedPoint ? hit[0].pickedPoint : proj.mesh.position;
         explosionDamage(expPos, proj.damage, proj.radius);
         createExplosion(scene, expPos, proj.radius);
         Audio.playExplosion();
         screenShakeIntensity = 2;
-        if (proj.trail) { proj.trail.stop(); proj.trail.dispose(); }
-        proj.mesh.dispose();
-        projectiles.splice(i, 1);
+        releaseProjectile(proj);
         continue;
       }
     }
 
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
-      const d = Vector3.Distance(proj.mesh.position, enemy.position.add(new Vector3(0, 1, 0)));
-      if (d < 1.5) {
+      const d = Vector3.Distance(proj.mesh.position, enemy.position);
+      if (d < 2.5) {
         explosionDamage(proj.mesh.position, proj.damage, proj.radius);
         createExplosion(scene, proj.mesh.position, proj.radius);
         Audio.playExplosion();
         screenShakeIntensity = 2;
-        if (proj.trail) { proj.trail.stop(); proj.trail.dispose(); }
-        proj.mesh.dispose();
-        projectiles.splice(i, 1);
+        releaseProjectile(proj);
         break;
       }
     }
   }
 }
+
+const TMP_PREV_POS = Vector3.Zero();
+const TMP_DIR = Vector3.Zero();
 
 function explosionDamage(pos: Vector3, damage: number, radius: number): void {
   for (const enemy of enemies) {
@@ -1322,7 +1547,7 @@ function updatePickupsLoop(dt: number): void {
     }
 
     pickup.mesh.rotation.y += dt * 2;
-    pickup.mesh.position.y = pickup.position.y + 0.5 + Math.sin(performance.now() * 0.003) * 0.15;
+    pickup.mesh.position.y = pickup.position.y + 0.5 + Math.sin(nowSec * 3) * 0.15;
 
     const d = Vector3.Distance(
       new Vector3(player.position.x, 0, player.position.z),
@@ -1449,10 +1674,7 @@ function spawnNextEnemy(): void {
   scaled.damage = Math.round(type.damage * (1 + (gameState.wave - 1) * 0.05));
   scaled.speed = type.speed * (1 + (gameState.wave - 1) * 0.02);
 
-  const enemy = spawnEnemy(scene, scaled, spawnPos.clone());
-  if (mapData.shadowGenerator) {
-    enemy.bodyParts.forEach(bp => mapData.shadowGenerator!.addShadowCaster(bp));
-  }
+  const enemy = spawnEnemy(scene, scaled, spawnPos.clone(), mapData.glowLayer);
   enemies.push(enemy);
   gameState.enemiesRemaining--;
 }
@@ -1568,7 +1790,7 @@ function releaseGrapple(): void {
   grappleCooldown = GRAPPLE_COOLDOWN;
   player.airJumpsLeft = MAX_AIR_JUMPS;
   Audio.playGrappleRelease();
-  if (grappleBeamMesh) { grappleBeamMesh.dispose(); grappleBeamMesh = null; }
+  hideGrappleBeam();
 }
 
 function activateBulletTime(): void {
@@ -1667,7 +1889,7 @@ function updateEffects(dt: number): void {
     player.health = Math.min(20, player.health + dt * 2);
   }
 
-  const t = performance.now() * 0.001;
+  const t = nowSec;
   for (const anim of mapData.animatedMeshes) {
     anim.mesh.rotation.x += anim.rotSpeed.x * dt;
     anim.mesh.rotation.y += anim.rotSpeed.y * dt;
@@ -1682,13 +1904,16 @@ function updateWeaponModel(dt: number): void {
   if (weaponSwitchTimer > 0) {
     weaponSwitchTimer -= dt;
     const progress = weaponSwitchTimer / WEAPON_SWITCH_TIME;
-    if (progress > 0.5) {
-      weaponModels.forEach((m, i) => m.setEnabled(i === prevWeaponIdx));
-    } else {
-      weaponModels.forEach((m, i) => m.setEnabled(i === currentWeaponIdx));
+    const visible = progress > 0.5 ? prevWeaponIdx : currentWeaponIdx;
+    for (let i = 0; i < weaponModels.length; i++) {
+      const m = weaponModels[i];
+      if (m) m.setEnabled(i === visible);
     }
   } else {
-    weaponModels.forEach((m, i) => m.setEnabled(i === currentWeaponIdx));
+    for (let i = 0; i < weaponModels.length; i++) {
+      const m = weaponModels[i];
+      if (m) m.setEnabled(i === currentWeaponIdx);
+    }
   }
 
   const weapon = weapons[currentWeaponIdx];
@@ -1696,10 +1921,10 @@ function updateWeaponModel(dt: number): void {
   const swayY = weaponSwayY * 2;
 
   let bobX = 0, bobY = 0;
-  const hSpeed = new Vector3(player.velocity.x, 0, player.velocity.z).length();
+  const hSpeed = Math.hypot(player.velocity.x, player.velocity.z);
   if (player.grounded && hSpeed > 1) {
     const bobFreq = player.sprinting ? 14 : 10;
-    const t = performance.now() * 0.001 * bobFreq;
+    const t = nowSec * bobFreq;
     bobX = Math.cos(t) * 0.008;
     bobY = Math.abs(Math.sin(t)) * 0.006;
   }

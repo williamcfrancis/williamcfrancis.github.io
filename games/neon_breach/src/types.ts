@@ -1,4 +1,4 @@
-import type { Mesh, Vector3, TransformNode } from '@babylonjs/core';
+import type { Mesh, Vector3, TransformNode, PBRMaterial, Color3 } from '@babylonjs/core';
 
 export interface WeaponDef {
   name: string;
@@ -77,6 +77,7 @@ export interface Enemy {
   specialTimer: number;
   shieldActive: boolean;
   healthBarMesh?: Mesh;
+  flashMaterials: { mat: PBRMaterial; baseColor: Color3; baseIntensity: number }[];
 }
 
 export interface Pickup {

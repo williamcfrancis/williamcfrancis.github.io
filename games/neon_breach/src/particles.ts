@@ -4,10 +4,13 @@ import {
   Color3,
   Color4,
   ParticleSystem,
+  GPUParticleSystem,
+  IParticleSystem,
   Texture,
   MeshBuilder,
   Mesh,
   StandardMaterial,
+  Engine,
 } from '@babylonjs/core';
 
 let particleTextureUrl: string | null = null;
@@ -32,7 +35,7 @@ function getParticleTextureUrl(): string {
 }
 
 function getParticleTexture(scene: Scene): Texture {
-  if (cachedParticleTex && cachedParticleScene === scene && !cachedParticleTex.isDisposed()) {
+  if (cachedParticleTex && cachedParticleScene === scene) {
     return cachedParticleTex;
   }
   cachedParticleScene = scene;
@@ -40,9 +43,35 @@ function getParticleTexture(scene: Scene): Texture {
   return cachedParticleTex;
 }
 
+// ── ParticleSystem pool ──
+// Each entry is a ring of ParticleSystems for a given effect kind. Acquiring
+// rotates to the next slot, calls reset() to clear stragglers, then returns
+// it for the caller to reconfigure (color/direction/etc) and start. This
+// avoids the per-burst `new ParticleSystem` + GL buffer allocation that
+// dominates muzzle/impact/blood frame cost.
+type Ring = { slots: ParticleSystem[]; next: number };
+const rings = new Map<string, Ring>();
+
+function ring(scene: Scene, key: string, capacity: number, size: number): ParticleSystem {
+  let r = rings.get(key);
+  if (!r) {
+    const slots: ParticleSystem[] = [];
+    for (let i = 0; i < size; i++) {
+      const ps = new ParticleSystem(`${key}_${i}`, capacity, scene);
+      ps.particleTexture = getParticleTexture(scene);
+      slots.push(ps);
+    }
+    r = { slots, next: 0 };
+    rings.set(key, r);
+  }
+  const ps = r.slots[r.next];
+  r.next = (r.next + 1) % r.slots.length;
+  ps.reset();
+  return ps;
+}
+
 export function createMuzzleFlash(scene: Scene, position: Vector3, direction: Vector3, scale: number): void {
-  const ps = new ParticleSystem('muzzle', 20, scene);
-  ps.particleTexture = getParticleTexture(scene);
+  const ps = ring(scene, 'muzzle', 24, 6);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.03;
   ps.maxLifeTime = 0.08;
@@ -56,15 +85,15 @@ export function createMuzzleFlash(scene: Scene, position: Vector3, direction: Ve
   ps.direction2 = direction.add(new Vector3(0.3, 0.3, 0.3));
   ps.minEmitPower = 2;
   ps.maxEmitPower = 5;
+  ps.gravity = Vector3.Zero();
   ps.blendMode = ParticleSystem.BLENDMODE_ADD;
   ps.targetStopDuration = 0.05;
-  ps.disposeOnStop = true;
+  ps.disposeOnStop = false;
   ps.start();
 }
 
 export function createBulletImpact(scene: Scene, position: Vector3, normal: Vector3): void {
-  const ps = new ParticleSystem('impact', 15, scene);
-  ps.particleTexture = getParticleTexture(scene);
+  const ps = ring(scene, 'impact', 20, 8);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.1;
   ps.maxLifeTime = 0.3;
@@ -81,13 +110,12 @@ export function createBulletImpact(scene: Scene, position: Vector3, normal: Vect
   ps.gravity = new Vector3(0, -15, 0);
   ps.blendMode = ParticleSystem.BLENDMODE_ADD;
   ps.targetStopDuration = 0.08;
-  ps.disposeOnStop = true;
+  ps.disposeOnStop = false;
   ps.start();
 }
 
 export function createBloodEffect(scene: Scene, position: Vector3, direction: Vector3): void {
-  const ps = new ParticleSystem('blood', 20, scene);
-  ps.particleTexture = getParticleTexture(scene);
+  const ps = ring(scene, 'blood', 28, 6);
   ps.emitter = position.clone();
   ps.minLifeTime = 0.15;
   ps.maxLifeTime = 0.4;
@@ -104,16 +132,55 @@ export function createBloodEffect(scene: Scene, position: Vector3, direction: Ve
   ps.gravity = new Vector3(0, -12, 0);
   ps.blendMode = ParticleSystem.BLENDMODE_ADD;
   ps.targetStopDuration = 0.06;
-  ps.disposeOnStop = true;
+  ps.disposeOnStop = false;
   ps.start();
+}
+
+export function createWallRunTrail(scene: Scene, position: Vector3): void {
+  const ps = ring(scene, 'wrTrail', 12, 4);
+  ps.emitter = position.clone();
+  ps.minLifeTime = 0.1;
+  ps.maxLifeTime = 0.25;
+  ps.minSize = 0.05;
+  ps.maxSize = 0.15;
+  ps.emitRate = 200;
+  ps.color1 = new Color4(0, 1, 0.8, 0.6);
+  ps.color2 = new Color4(0, 0.5, 1, 0.4);
+  ps.colorDead = new Color4(0, 0, 0, 0);
+  ps.direction1 = new Vector3(-0.3, -0.5, -0.3);
+  ps.direction2 = new Vector3(0.3, 0, 0.3);
+  ps.minEmitPower = 0.5;
+  ps.maxEmitPower = 1.5;
+  ps.gravity = Vector3.Zero();
+  ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+  ps.targetStopDuration = 0.05;
+  ps.disposeOnStop = false;
+  ps.start();
+}
+
+// Big-burst effects — explosion + EMP — go on GPU when the engine supports
+// transform feedback. CPU update for 130+ particles per blast was the
+// dominant frame-spike on hits. Falls back to CPU ParticleSystem otherwise.
+const supportsGPU = (scene: Scene): boolean => {
+  try { return GPUParticleSystem.IsSupported && (scene.getEngine() as Engine).webGLVersion >= 2; }
+  catch { return false; }
+};
+
+function makeGPUOrCPU(scene: Scene, name: string, capacity: number): IParticleSystem {
+  if (supportsGPU(scene)) {
+    const ps = new GPUParticleSystem(name, { capacity }, scene);
+    ps.particleTexture = getParticleTexture(scene);
+    return ps;
+  }
+  const ps = new ParticleSystem(name, capacity, scene);
+  ps.particleTexture = getParticleTexture(scene);
+  return ps;
 }
 
 export function createExplosion(scene: Scene, position: Vector3, radius: number): void {
   const scale = radius / 6;
 
-  // Core flash
-  const flash = new ParticleSystem('expFlash', 30, scene);
-  flash.particleTexture = getParticleTexture(scene);
+  const flash = makeGPUOrCPU(scene, 'expFlash', 32);
   flash.emitter = position.clone();
   flash.minLifeTime = 0.08;
   flash.maxLifeTime = 0.2;
@@ -130,9 +197,7 @@ export function createExplosion(scene: Scene, position: Vector3, radius: number)
   flash.disposeOnStop = true;
   flash.start();
 
-  // Outer debris
-  const debris = new ParticleSystem('expDebris', 50, scene);
-  debris.particleTexture = getParticleTexture(scene);
+  const debris = makeGPUOrCPU(scene, 'expDebris', 64) as ParticleSystem;
   debris.emitter = position.clone();
   debris.minLifeTime = 0.3;
   debris.maxLifeTime = 0.8;
@@ -152,7 +217,8 @@ export function createExplosion(scene: Scene, position: Vector3, radius: number)
   debris.disposeOnStop = true;
   debris.start();
 
-  // Smoke ring
+  // Smoke stays on CPU — it's small (<= 20 particles) and uses a different
+  // blend mode that works the same on both paths anyway.
   const smoke = new ParticleSystem('expSmoke', 20, scene);
   smoke.particleTexture = getParticleTexture(scene);
   smoke.emitter = position.clone();
@@ -175,63 +241,113 @@ export function createExplosion(scene: Scene, position: Vector3, radius: number)
   smoke.start();
 }
 
-export function createTracer(scene: Scene, start: Vector3, end: Vector3): void {
+export function createEMPBlast(scene: Scene, position: Vector3, radius: number): void {
+  const ps = makeGPUOrCPU(scene, 'emp', 96) as ParticleSystem;
+  ps.emitter = position.clone();
+  ps.minLifeTime = 0.2;
+  ps.maxLifeTime = 0.5;
+  ps.minSize = 0.3;
+  ps.maxSize = 1;
+  ps.emitRate = 500;
+  ps.color1 = new Color4(0, 0.5, 1, 0.8);
+  ps.color2 = new Color4(0.5, 0, 1, 0.6);
+  ps.colorDead = new Color4(0, 0, 0.2, 0);
+  ps.direction1 = new Vector3(-1, -0.5, -1).scale(radius / 3);
+  ps.direction2 = new Vector3(1, 1, 1).scale(radius / 3);
+  ps.minEmitPower = 5;
+  ps.maxEmitPower = 15;
+  ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+  ps.targetStopDuration = 0.15;
+  ps.disposeOnStop = true;
+  ps.start();
+}
+
+// ── Tracer pool ──
+// Box meshes get pooled instead of created/disposed per shot. Each tracer is
+// a thin emissive box that fades over its lifetime via a single onBeforeRender
+// observer; positions are written each frame for the active set.
+type Tracer = { mesh: Mesh; mat: StandardMaterial; life: number; lifeMax: number; available: boolean };
+let playerTracers: Tracer[] | null = null;
+let enemyTracers: Tracer[] | null = null;
+let tracerObserver = false;
+
+function ensureTracerPools(scene: Scene): void {
+  if (playerTracers && enemyTracers) return;
+  playerTracers = makeTracerPool(scene, 24, 0.03, new Color3(0, 1, 0.8));
+  enemyTracers = makeTracerPool(scene, 24, 0.025, new Color3(1, 0.2, 0.4));
+  if (!tracerObserver) {
+    scene.onBeforeRenderObservable.add(() => {
+      const dt = scene.getEngine().getDeltaTime() / 1000;
+      stepTracers(playerTracers!, dt);
+      stepTracers(enemyTracers!, dt);
+    });
+    tracerObserver = true;
+  }
+}
+
+function makeTracerPool(scene: Scene, size: number, thickness: number, color: Color3): Tracer[] {
+  const out: Tracer[] = [];
+  for (let i = 0; i < size; i++) {
+    const mesh = MeshBuilder.CreateBox(`tracer_${color.r.toFixed(1)}_${i}`, { width: thickness, height: thickness, depth: 1 }, scene);
+    mesh.isPickable = false;
+    mesh.setEnabled(false);
+    const mat = new StandardMaterial(`tracerMat_${i}`, scene);
+    mat.emissiveColor = color;
+    mat.disableLighting = true;
+    mat.alpha = 0;
+    mesh.material = mat;
+    out.push({ mesh, mat, life: 0, lifeMax: 1, available: true });
+  }
+  return out;
+}
+
+function stepTracers(pool: Tracer[], dt: number): void {
+  for (const t of pool) {
+    if (t.available) continue;
+    t.life -= dt;
+    if (t.life <= 0) {
+      t.mesh.setEnabled(false);
+      t.mat.alpha = 0;
+      t.available = true;
+    } else {
+      t.mat.alpha = (t.life / t.lifeMax) * 0.6;
+    }
+  }
+}
+
+function spawnTracer(pool: Tracer[], start: Vector3, end: Vector3, lifeMax: number, alpha: number): void {
   const dir = end.subtract(start);
   const dist = dir.length();
   if (dist < 0.1) return;
 
-  const mid = start.add(dir.scale(0.5));
-  const tracer = MeshBuilder.CreateBox('tracer', { width: 0.03, height: 0.03, depth: dist }, scene);
-  tracer.position = mid;
-  tracer.lookAt(end);
-  tracer.isPickable = false;
+  // First available slot, else clobber the oldest.
+  let t = pool.find(x => x.available);
+  if (!t) {
+    t = pool.reduce((a, b) => a.life < b.life ? a : b);
+  }
+  t.available = false;
+  t.life = lifeMax;
+  t.lifeMax = lifeMax;
+  t.mat.alpha = alpha;
 
-  const mat = new StandardMaterial('tracerMat', scene);
-  mat.emissiveColor = new Color3(0, 1, 0.8);
-  mat.disableLighting = true;
-  mat.alpha = 0.6;
-  tracer.material = mat;
+  // Reuse: scale Z to match desired length, position at midpoint, lookAt end.
+  t.mesh.scaling.z = dist;
+  t.mesh.position.copyFrom(start.add(dir.scale(0.5)));
+  t.mesh.lookAt(end);
+  t.mesh.setEnabled(true);
+}
 
-  let life = 0.08;
-  const obs = scene.onBeforeRenderObservable.add(() => {
-    life -= scene.getEngine().getDeltaTime() / 1000;
-    mat.alpha = Math.max(0, life / 0.08) * 0.6;
-    if (life <= 0) {
-      scene.onBeforeRenderObservable.remove(obs);
-      mat.dispose();
-      tracer.dispose();
-    }
-  });
+export function createTracer(scene: Scene, start: Vector3, end: Vector3): void {
+  ensureTracerPools(scene);
+  spawnTracer(playerTracers!, start, end, 0.08, 0.6);
 }
 
 export function createEnemyTracer(scene: Scene, start: Vector3, end: Vector3): void {
+  ensureTracerPools(scene);
   const dir = end.subtract(start);
-  const dist = Math.min(dir.length(), 100);
-  if (dist < 0.1) return;
-  const actualEnd = start.add(dir.normalize().scale(dist));
-
-  const mid = start.add(actualEnd.subtract(start).scale(0.5));
-  const tracer = MeshBuilder.CreateBox('eTracer', { width: 0.025, height: 0.025, depth: dist }, scene);
-  tracer.position = mid;
-  tracer.lookAt(actualEnd);
-  tracer.isPickable = false;
-
-  const mat = new StandardMaterial('eTracerMat', scene);
-  mat.emissiveColor = new Color3(1, 0.2, 0.4);
-  mat.disableLighting = true;
-  mat.alpha = 0.5;
-  tracer.material = mat;
-
-  let life = 0.1;
-  const obs = scene.onBeforeRenderObservable.add(() => {
-    life -= scene.getEngine().getDeltaTime() / 1000;
-    mat.alpha = Math.max(0, life / 0.1) * 0.5;
-    if (life <= 0) {
-      scene.onBeforeRenderObservable.remove(obs);
-      mat.dispose();
-      tracer.dispose();
-    }
-  });
+  const len = Math.min(dir.length(), 100);
+  const adjustedEnd = len < 100 ? end : start.add(dir.normalize().scale(100));
+  spawnTracer(enemyTracers!, start, adjustedEnd, 0.1, 0.5);
 }
 
 export function createPickupGlow(scene: Scene, position: Vector3, color: Color3): void {
@@ -255,109 +371,108 @@ export function createPickupGlow(scene: Scene, position: Vector3, color: Color3)
   ps.start();
 }
 
-export function createGrappleBeam(scene: Scene, start: Vector3, end: Vector3): Mesh {
+// ── Pooled grapple beam ──
+// Single persistent mesh shown/hidden when the grapple toggles, repositioned
+// each frame the player is grappling. Avoids the dispose-and-rebuild churn
+// the old code did every render tick.
+let grappleBeamMesh: Mesh | null = null;
+let grappleBeamMat: StandardMaterial | null = null;
+
+export function setGrappleBeam(scene: Scene, start: Vector3, end: Vector3): Mesh {
+  if (!grappleBeamMesh) {
+    grappleBeamMesh = MeshBuilder.CreateBox('grappleBeam', { width: 0.04, height: 0.04, depth: 1 }, scene);
+    grappleBeamMesh.isPickable = false;
+    grappleBeamMat = new StandardMaterial('grappleBeamMat', scene);
+    grappleBeamMat.emissiveColor = new Color3(0, 1, 0.8);
+    grappleBeamMat.disableLighting = true;
+    grappleBeamMat.alpha = 0.8;
+    grappleBeamMesh.material = grappleBeamMat;
+  }
   const dir = end.subtract(start);
   const dist = dir.length();
-  const mid = start.add(dir.scale(0.5));
-
-  const beam = MeshBuilder.CreateBox('grappleBeam', { width: 0.04, height: 0.04, depth: dist }, scene);
-  beam.position = mid;
-  beam.lookAt(end);
-  beam.isPickable = false;
-
-  const mat = new StandardMaterial('grappleMat', scene);
-  mat.emissiveColor = new Color3(0, 1, 0.8);
-  mat.disableLighting = true;
-  mat.alpha = 0.8;
-  beam.material = mat;
-
-  return beam;
+  grappleBeamMesh.scaling.z = dist;
+  grappleBeamMesh.position.copyFrom(start.add(dir.scale(0.5)));
+  grappleBeamMesh.lookAt(end);
+  grappleBeamMesh.setEnabled(true);
+  return grappleBeamMesh;
 }
 
-export function createEMPBlast(scene: Scene, position: Vector3, radius: number): void {
-  const ps = new ParticleSystem('emp', 80, scene);
-  ps.particleTexture = getParticleTexture(scene);
-  ps.emitter = position.clone();
-  ps.minLifeTime = 0.2;
-  ps.maxLifeTime = 0.5;
-  ps.minSize = 0.3;
-  ps.maxSize = 1;
-  ps.emitRate = 500;
-  ps.color1 = new Color4(0, 0.5, 1, 0.8);
-  ps.color2 = new Color4(0.5, 0, 1, 0.6);
-  ps.colorDead = new Color4(0, 0, 0.2, 0);
-  ps.direction1 = new Vector3(-1, -0.5, -1).scale(radius / 3);
-  ps.direction2 = new Vector3(1, 1, 1).scale(radius / 3);
-  ps.minEmitPower = 5;
-  ps.maxEmitPower = 15;
-  ps.blendMode = ParticleSystem.BLENDMODE_ADD;
-  ps.targetStopDuration = 0.15;
-  ps.disposeOnStop = true;
-  ps.start();
+export function hideGrappleBeam(): void {
+  if (grappleBeamMesh) grappleBeamMesh.setEnabled(false);
+}
+
+// Legacy export name used in older callsites; alias to setGrappleBeam.
+export function createGrappleBeam(scene: Scene, start: Vector3, end: Vector3): Mesh {
+  return setGrappleBeam(scene, start, end);
+}
+
+// ── Pooled beam effect ──
+// Used by the VOLT SNIPER charged beam. Pooled because it can chain in rapid
+// succession via the alt-fire cooldown mechanic.
+type BeamSlot = { core: Mesh; coreMat: StandardMaterial; glow: Mesh; glowMat: StandardMaterial; life: number };
+let beamPool: BeamSlot[] | null = null;
+let beamObserver = false;
+
+function ensureBeamPool(scene: Scene): void {
+  if (beamPool) return;
+  beamPool = [];
+  for (let i = 0; i < 4; i++) {
+    const core = MeshBuilder.CreateBox(`beamFX_${i}`, { width: 0.15, height: 0.15, depth: 1 }, scene);
+    core.isPickable = false;
+    core.setEnabled(false);
+    const coreMat = new StandardMaterial(`beamMat_${i}`, scene);
+    coreMat.emissiveColor = new Color3(0.5, 0, 1);
+    coreMat.disableLighting = true;
+    coreMat.alpha = 0;
+    core.material = coreMat;
+
+    const glow = MeshBuilder.CreateBox(`beamGlow_${i}`, { width: 0.4, height: 0.4, depth: 1 }, scene);
+    glow.isPickable = false;
+    glow.setEnabled(false);
+    const glowMat = new StandardMaterial(`beamGlowMat_${i}`, scene);
+    glowMat.emissiveColor = new Color3(0.3, 0, 0.8);
+    glowMat.disableLighting = true;
+    glowMat.alpha = 0;
+    glow.material = glowMat;
+
+    beamPool.push({ core, coreMat, glow, glowMat, life: 0 });
+  }
+  if (!beamObserver) {
+    scene.onBeforeRenderObservable.add(() => {
+      const dt = scene.getEngine().getDeltaTime() / 1000;
+      for (const b of beamPool!) {
+        if (b.life <= 0) continue;
+        b.life -= dt;
+        const t = Math.max(0, b.life / 0.2);
+        b.coreMat.alpha = t * 0.9;
+        b.glowMat.alpha = t * 0.3;
+        if (b.life <= 0) {
+          b.core.setEnabled(false);
+          b.glow.setEnabled(false);
+        }
+      }
+    });
+    beamObserver = true;
+  }
 }
 
 export function createBeamEffect(scene: Scene, start: Vector3, end: Vector3): void {
+  ensureBeamPool(scene);
   const dir = end.subtract(start);
   const dist = dir.length();
   const mid = start.add(dir.scale(0.5));
 
-  const beam = MeshBuilder.CreateBox('beamFX', { width: 0.15, height: 0.15, depth: dist }, scene);
-  beam.position = mid;
-  beam.lookAt(end);
-  beam.isPickable = false;
-
-  const mat = new StandardMaterial('beamMat', scene);
-  mat.emissiveColor = new Color3(0.5, 0, 1);
-  mat.disableLighting = true;
-  mat.alpha = 0.9;
-  beam.material = mat;
-
-  // Glow around beam
-  const glow = MeshBuilder.CreateBox('beamGlow', { width: 0.4, height: 0.4, depth: dist }, scene);
-  glow.position = mid;
-  glow.lookAt(end);
-  glow.isPickable = false;
-
-  const glowMat = new StandardMaterial('beamGlowMat', scene);
-  glowMat.emissiveColor = new Color3(0.3, 0, 0.8);
-  glowMat.disableLighting = true;
-  glowMat.alpha = 0.3;
-  glow.material = glowMat;
-
-  let life = 0.2;
-  const obs = scene.onBeforeRenderObservable.add(() => {
-    life -= scene.getEngine().getDeltaTime() / 1000;
-    const t = Math.max(0, life / 0.2);
-    mat.alpha = t * 0.9;
-    glowMat.alpha = t * 0.3;
-    if (life <= 0) {
-      scene.onBeforeRenderObservable.remove(obs);
-      mat.dispose();
-      beam.dispose();
-      glowMat.dispose();
-      glow.dispose();
-    }
-  });
-}
-
-export function createWallRunTrail(scene: Scene, position: Vector3): void {
-  const ps = new ParticleSystem('wrTrail', 10, scene);
-  ps.particleTexture = getParticleTexture(scene);
-  ps.emitter = position.clone();
-  ps.minLifeTime = 0.1;
-  ps.maxLifeTime = 0.25;
-  ps.minSize = 0.05;
-  ps.maxSize = 0.15;
-  ps.emitRate = 200;
-  ps.color1 = new Color4(0, 1, 0.8, 0.6);
-  ps.color2 = new Color4(0, 0.5, 1, 0.4);
-  ps.colorDead = new Color4(0, 0, 0, 0);
-  ps.direction1 = new Vector3(-0.3, -0.5, -0.3);
-  ps.direction2 = new Vector3(0.3, 0, 0.3);
-  ps.minEmitPower = 0.5;
-  ps.maxEmitPower = 1.5;
-  ps.blendMode = ParticleSystem.BLENDMODE_ADD;
-  ps.targetStopDuration = 0.05;
-  ps.disposeOnStop = true;
-  ps.start();
+  let slot = beamPool!.find(b => b.life <= 0);
+  if (!slot) slot = beamPool!.reduce((a, b) => a.life < b.life ? a : b);
+  slot.life = 0.2;
+  slot.core.scaling.z = dist;
+  slot.glow.scaling.z = dist;
+  slot.core.position.copyFrom(mid);
+  slot.glow.position.copyFrom(mid);
+  slot.core.lookAt(end);
+  slot.glow.lookAt(end);
+  slot.core.setEnabled(true);
+  slot.glow.setEnabled(true);
+  slot.coreMat.alpha = 0.9;
+  slot.glowMat.alpha = 0.3;
 }
