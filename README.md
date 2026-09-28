@@ -59,6 +59,17 @@ ignored by Git, and generated bundles do not need to be committed.
   [function behavior and limits](netlify/README.md).
 - `scripts/`, `tests/`: the shared build pipeline and regression checks.
 
+## Project listings
+
+The homepage Projects section is maintained in `data/en/sections/projects.yaml`.
+Run `npm run check:projects` after adding or renaming a public GitHub repository
+to compare its cards with the current public inventory. The check includes forks
+and repository placeholders, reports missing or duplicate listings and outdated
+links, and never reads private repositories. It requires [GitHub CLI](https://cli.github.com/)
+and `gh auth login`, and uses GitHub's public user repository endpoint. This is an
+explicit maintenance command, so normal builds remain independent of GitHub
+availability. Existing projects without a GitHub repository remain listed too.
+
 ## Local functions
 
 Use [Netlify CLI](https://docs.netlify.com/api-and-cli-guides/cli-guides/get-started-with-cli/)

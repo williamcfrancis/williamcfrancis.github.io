@@ -47,11 +47,73 @@ projects:
     summary: Agent workflows for structured extraction and natural-language analytics, helping teams explore portfolio data and automate modeling tasks.
     tags: ["professional", "agentic AI", "LLMs", "data analytics"]
 
+  - name: RuleKeeper
+    role: Developer
+    repo: https://github.com/williamcfrancis/rulekeeper
+    summary: A D&D rules and Dungeon Master companion with cited hybrid retrieval, campaign memory, and dice tools. Combines a React interface with a FastAPI backend and support for local or hosted language models.
+    tags:
+      - hobby
+      - RAG
+      - LLMs
+      - React
+      - FastAPI
+
+  - name: GPT Vision Assistant
+    role: Prototype
+    repo: https://github.com/williamcfrancis/gpt-vision-assistant
+    summary: A real-time visual assistant that combines a phone video stream, CogVLM image understanding, GPT-4 reasoning, and spoken interaction. Keeps recent visual observations as context for answering questions.
+    tags:
+      - hobby
+      - multimodal AI
+      - computer vision
+      - accessibility
+
+  - name: AI-to-AI Conversation Loop
+    role: Experiment
+    repo: https://github.com/williamcfrancis/ai2ai-conversation-loop
+    summary: Ongoing conversations between GPT and Google Gemini, with the option for a person to join the exchange.
+    tags:
+      - hobby
+      - LLMs
+      - Gemini
+      - Python
+
+  - name: Gemini Vision and CogVLM Comparison
+    role: Study
+    repo: https://github.com/williamcfrancis/vlm-comparison-gemini-cog
+    summary: A comparative study of Google Gemini Vision and CogVLM for vision-language tasks.
+    tags:
+      - hobby
+      - multimodal AI
+      - model evaluation
+      - Python
+
+  - name: RAG Pilot
+    role: Prototype
+    repo: https://github.com/williamcfrancis/RAG_Pilot
+    summary: A Streamlit chatbot prototype using LlamaIndex to index documentation and retrieve relevant context for GPT-powered answers.
+    tags:
+      - hobby
+      - RAG
+      - LlamaIndex
+      - Streamlit
+
+  - name: Personal Website & Interactive Games
+    role: Maintainer (fork)
+    repo: https://github.com/williamcfrancis/williamcfrancis.github.io
+    summary: My Hugo and Toha portfolio, with professional projects, writing, a photo gallery, and interactive games and sandboxes. Uses a shared Vite build and Netlify functions for its AI-powered experiences.
+    tags:
+      - hobby
+      - web development
+      - Hugo
+      - TypeScript
+      - fork
+
   - name: Efficient Panoptic Segmentation with SOLOv2
     # logo: /images/sections/projects/kubernetes.png
     role: Developer
     timeline: "Aug 2022 - Dec 2022"
-    repo: https://github.com/williamcfrancis/Enhancing-Efficient-Panoptic-Segmentation-with-SOLOv2 # If your project is a public repo on GitHub, then provide this link. it will show star count.
+    repo: https://github.com/williamcfrancis/Location-Based-Panoptic-Segmentation-with-SOLOv2 # If your project is a public repo on GitHub, then provide this link. it will show star count.
     #url: ""  # If your project is not a public repo but it has a website or any external details url then provide it here. don't provide "repo" and "url" simultaneously.
     summary: Improved state-of-the-art EfficientPS model by replacing its instance head (Mask RCNN) with SOLOv2.
     tags:
@@ -99,7 +161,7 @@ projects:
     # logo: /images/sections/projects/kubernetes.png
     role: Developer
     timeline: "Aug 2021 - Dec 2021"
-    repo: https://github.com/williamcfrancis/Blind-Motion-Deblurring-for-Legible-License-Plates-using-Deep-Learning # If your project is a public repo on GitHub, then provide this link. it will show star count.
+    repo: https://github.com/williamcfrancis/Blind-Motion-Deblurring-for-Legible-License-Plates # If your project is a public repo on GitHub, then provide this link. it will show star count.
     #url: ""  # If your project is not a public repo but it has a website or any external details url then provide it here. don't provide "repo" and "url" simultaneously.
     summary: A deep learning approach to blind motion deblurring that estimates blur parameters for Wiener deconvolution, improving the legibility of blurred license plates. Includes an [interactive demo on Hugging Face](https://huggingface.co/spaces/williamcfrancis/Deep-Blind-Motion-Deblurring).
     tags: ["TensorFlow", "motion deblurring", "computer vision", "academic"]
@@ -155,7 +217,7 @@ projects:
     # logo: /images/sections/projects/tensorflow.png
     role: Owner
     timeline: "Aug 2021 - Dec 2021"
-    repo: https://github.com/williamcfrancis/RNN-language-model
+    repo: https://github.com/williamcfrancis/RNN-Tolstoy-language-model
     #url: ""
     summary: Recurrent Neural Network trained on Leo Tolstoy's War and Peace to imitate his language style.
     tags: ["natural language processing", "pytorch", "deep learning","academic"]
@@ -183,6 +245,221 @@ projects:
     repo: "https://github.com/williamcfrancis/EKF-and-UKF-for-3D-Robot-Orientation-Tracking"
     summary: Robot orientation tracking using EKF and UKF on VICON motion capture system
     tags: ["robotics", "kalman filtering", "python", "academic"] 
+  - name: Autonomous Fire-Extinguishing Robot
+    role: Developer
+    repo: https://github.com/williamcfrancis/Autonomous-Fire-Extinguishing-Robot
+    summary: An autonomous robot that scans its surroundings to locate and extinguish fires.
+    tags:
+      - academic
+      - robotics
+      - embedded systems
+      - C++
+
+  - name: Baum-Welch for Hidden Markov Models
+    role: Implementation
+    repo: https://github.com/williamcfrancis/Baum-Welch-algorithm-for-HMM
+    summary: A Python implementation of the Baum-Welch algorithm for learning the parameters of a hidden Markov model.
+    tags:
+      - academic
+      - probabilistic models
+      - Python
+
+  - name: ML Bias Bounty
+    role: Experiment
+    repo: https://github.com/williamcfrancis/Bias_Bountry_Hunt
+    summary: "Experiments with the ML Bias Bounty workflow: defining population groups, training group-specific predictors, and submitting improvements to a shared Pointer Decision List model."
+    tags:
+      - academic
+      - machine learning
+      - fairness
+      - Python
+
+  - name: Canny Edge Detector
+    role: Implementation
+    repo: https://github.com/williamcfrancis/Canny-Edge-Detector
+    summary: A Python implementation of the multistage Canny edge-detection algorithm for identifying image boundaries.
+    tags:
+      - academic
+      - computer vision
+      - image processing
+      - Python
+
+  - name: Chess Knight's Tour
+    role: Implementation
+    repo: https://github.com/williamcfrancis/Chess-Knights-Tour-Problem-in-Python
+    summary: Three algorithms for solving the knight's tour problem, exploring how a knight can visit every square on a chessboard while managing time and space complexity.
+    tags:
+      - hobby
+      - algorithms
+      - Python
+
+  - name: CIFAR-10 & Cosine Annealing
+    role: Study
+    repo: https://github.com/williamcfrancis/CIFAR10-CNN-Cosine-Annealing
+    summary: An all-convolutional network trained on CIFAR-10 in PyTorch to study cosine annealing for learning-rate scheduling.
+    tags:
+      - academic
+      - deep learning
+      - optimization
+      - PyTorch
+
+  - name: CNN Image Colorization
+    role: Developer
+    repo: https://github.com/williamcfrancis/CNN-Image-Colorization-Pytorch
+    summary: A convolutional neural network that colorizes grayscale images, with PyTorch training and inference code, a sample dataset, and color-temperature control.
+    tags:
+      - hobby
+      - computer vision
+      - image colorization
+      - PyTorch
+
+  - name: Gabor Filters & SVM on MNIST
+    role: Experiment
+    repo: https://github.com/williamcfrancis/Gabor-Filters-and-SVM-on-MNIST
+    summary: Handwritten-digit classification experiments combining Gabor image features with support vector machines on MNIST.
+    tags:
+      - academic
+      - machine learning
+      - image processing
+      - Python
+
+  - name: UPenn GoKart Documentation
+    role: Documentation fork
+    repo: https://github.com/williamcfrancis/gokart-doc
+    summary: A fork of UPenn GoKart's documentation repository, with Sphinx and reStructuredText sources for the autonomous go-kart project.
+    tags:
+      - academic
+      - robotics
+      - documentation
+      - fork
+
+  - name: Gradient Descent, SGD & Nesterov Momentum
+    role: Study
+    repo: https://github.com/williamcfrancis/Gradient-Descent-vs-SGD-and-Nesterov-momentum
+    summary: A comparison of gradient descent, stochastic gradient descent, and Nesterov momentum for logistic regression on MNIST.
+    tags:
+      - academic
+      - optimization
+      - machine learning
+      - Python
+
+  - name: Lane Segmentation & Steering-Angle Estimation
+    role: Experiment
+    repo: https://github.com/williamcfrancis/Lane-Segmentation-and-Steering-Angle-Estimation
+    summary: A lane-detection pipeline using camera calibration, perspective transforms, color and gradient thresholds, and polynomial fitting to estimate lane curvature and vehicle position.
+    tags:
+      - academic
+      - computer vision
+      - autonomous driving
+      - Python
+
+  - name: Laplacian Image Blending
+    role: Implementation
+    repo: https://github.com/williamcfrancis/Laplacian-Blending
+    summary: Image blending with Gaussian and Laplacian pyramids, using multiscale reduce, expand, combine, and collapse operations.
+    tags:
+      - academic
+      - computer vision
+      - image processing
+      - Python
+
+  - name: Protein Reverse Engineering
+    role: Experiment
+    repo: https://github.com/williamcfrancis/Protein-Reverse-Engineering
+    summary: Exploratory notebooks and data preparation for protein reverse engineering, including E. coli data.
+    tags:
+      - hobby
+      - bioinformatics
+      - Python
+      - notebooks
+
+  - name: Policy Iteration for a Robot Agent
+    role: Implementation
+    repo: https://github.com/williamcfrancis/RL-Policy-Iteration-for-robot-agent
+    summary: Policy iteration for finding a robot trajectory from a start cell to a goal in a two-dimensional grid world.
+    tags:
+      - academic
+      - reinforcement learning
+      - robotics
+      - Python
+
+  - name: Q-Learning on CartPole
+    role: Implementation
+    repo: https://github.com/williamcfrancis/RL-Q-Learning-on-the-Cart-Pole-Challenge
+    summary: Q-learning with the Double DQN technique for balancing a pole on the CartPole control task.
+    tags:
+      - academic
+      - reinforcement learning
+      - control
+      - Python
+
+  - name: Tic-Tac-Toe in C++
+    role: Developer
+    repo: https://github.com/williamcfrancis/TicTacToe-in-Turbo-CPP
+    summary: A Turbo C++ implementation of tic-tac-toe with single-player and multiplayer modes.
+    tags:
+      - hobby
+      - games
+      - C++
+
+  - name: Bayesian Robot Position Tracking
+    role: Implementation
+    repo: https://github.com/williamcfrancis/Tracking-Robot-Position-Using-Bayesian-Filtering
+    summary: A Bayes filter that tracks the position of a robot moving through a two-dimensional grid world.
+    tags:
+      - academic
+      - robotics
+      - state estimation
+      - Python
+
+  - name: Vision Transformer in PyTorch
+    role: Implementation
+    repo: https://github.com/williamcfrancis/vision-transformer-pytorch
+    summary: A simplified implementation of a vision transformer in PyTorch.
+    tags:
+      - hobby
+      - computer vision
+      - transformers
+      - PyTorch
+
+  - name: Visual Question Answering with Stacked Attention
+    role: Implementation
+    repo: https://github.com/williamcfrancis/Visual-Question-Answering-using-Stacked-Attention-Networks
+    summary: A multimodal visual question-answering model combining CNN image features, an LSTM question encoder, and stacked attention, with visualizations of the attention layers.
+    tags:
+      - academic
+      - multimodal AI
+      - computer vision
+      - PyTorch
+
+  - name: Wearable Sleep-Monitoring Device
+    role: Developer
+    repo: https://github.com/williamcfrancis/Wearable-Sleep-Monitoring-IoT-Device
+    summary: An Arduino-based wrist-worn prototype that monitors heart rate and motion from accelerometer and gyroscope readings to estimate sleep quality.
+    tags:
+      - academic
+      - IoT
+      - embedded systems
+      - Arduino
+
+  - name: Image Colorization Repository
+    role: Repository placeholder
+    repo: https://github.com/williamcfrancis/image-colorization
+    summary: An initial repository for image-colorization work. No implementation has been published in this repository yet.
+    tags:
+      - hobby
+      - computer vision
+      - placeholder
+
+  - name: GitHub Profile
+    role: Profile
+    repo: https://github.com/williamcfrancis/williamcfrancis
+    summary: The source for my GitHub profile README, including project links and technical interests.
+    tags:
+      - hobby
+      - documentation
+      - GitHub
+
   # - name: A sample academic paper
   #   role: Team Lead
   #   timeline: "Jan 2017 - Nov 2017"
