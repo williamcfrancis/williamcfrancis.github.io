@@ -255,24 +255,37 @@ test('stats storage read deadlines are bounded', async () => {
   await assert.rejects(readStats({ getWithMetadata: () => new Promise(() => {}) }, { timeoutMs: 25 }), error => error.status === 504);
 });
 
-test('two deployed functions cover every public API within the Free plan rule allowance', async () => {
+test('five exact native endpoints share a namespace rate rule and a second stats rule', async () => {
   const files = await readdir(new URL('../netlify/functions/', import.meta.url));
-  assert.deepEqual(files.filter(f => f.endsWith('.js')).sort(), ['ai.js', 'turing-stats.js']);
-  const expected = { ai: 120, 'turing-stats': 60 };
-  for (const [name, limit] of Object.entries(expected)) {
+  const names = ['compile', 'forge', 'meaning-score', 'translate', 'turing-stats'];
+  assert.deepEqual(files.filter(f => f.endsWith('.js')).sort(), names.map(name => `${name}.js`));
+  for (const name of names) {
     const module = await import(`../netlify/functions/${name}.js`);
     assert.equal(typeof module.default, 'function');
-    assert.deepEqual(module.config.rateLimit, { windowLimit: limit, windowSize: 60, aggregateBy: ['ip', 'domain'] });
-    const paths = name === 'ai' ? ['translate', 'meaning-score', 'forge', 'compile'].map(p => `/.netlify/functions/${p}`) : [module.config.path];
-    for (const path of paths) {
-      for (const suffix of ['', '/']) {
-        const response = await module.default(new Request(`https://test.invalid${path}${suffix}`, { method: 'OPTIONS' }));
-        assert.equal(response.status, 204);
-      }
+    assert.equal(module.config.path, `/.netlify/functions/${name}`, 'The deployed name and literal route must match');
+    if (name === 'turing-stats') {
+      assert.deepEqual(module.config.rateLimit, { windowLimit: 60, windowSize: 60, aggregateBy: ['ip', 'domain'] });
+    } else assert.equal(module.config.rateLimit, undefined, 'AI endpoints share the namespace rule instead of adding per-function rules');
+    for (const suffix of ['', '/']) {
+      const response = await module.default(new Request(`https://test.invalid${module.config.path}${suffix}`, { method: 'OPTIONS' }));
+      assert.equal(response.status, 204);
+      const invalid = await module.default(new Request(`https://test.invalid${module.config.path}${suffix}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      }));
+      assert.equal(invalid.status, 400);
+      assert.equal((await invalid.json()).code, 'invalid_input');
     }
   }
-  const { config } = await import('../netlify/functions/ai.js');
-  assert.equal(config.path, '/.netlify/functions/:endpoint(translate|meaning-score|forge|compile)');
+  const toml = await readFile(new URL('../netlify.toml', import.meta.url), 'utf8');
+  const rules = toml.split('[[redirects]]').slice(1).filter(block => block.includes('[redirects.rate_limit]'));
+  assert.equal(rules.length, 1);
+  assert.match(rules[0], /from = "\/\.netlify\/functions\/\*"/);
+  assert.match(rules[0], /to = "\/\.netlify\/functions\/:splat"/);
+  assert.match(rules[0], /status = 200/);
+  assert.match(rules[0], /window_limit = 120/);
+  assert.match(rules[0], /window_size = 60/);
+  assert.match(rules[0], /aggregate_by = \["ip", "domain"\]/);
   // Local tests verify deploy declarations. Actual edge enforcement needs a deploy preview.
   await assert.rejects(readFile(new URL('../netlify/functions/llm.js', import.meta.url)), { code: 'ENOENT' });
+  await assert.rejects(readFile(new URL('../netlify/functions/ai.js', import.meta.url)), { code: 'ENOENT' });
 });

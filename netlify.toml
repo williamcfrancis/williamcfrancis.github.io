@@ -27,6 +27,19 @@ functionsPort = 9999
 framework = "#custom"
 autoLaunch = false
 
+# One original-path rule protects all public functions before function routing.
+# This self-rewrite follows Netlify's documented site-wide rate-limit pattern.
+# The stats function adds the second, narrower rule allowed on every plan.
+[[redirects]]
+from = "/.netlify/functions/*"
+to = "/.netlify/functions/:splat"
+status = 200
+
+[redirects.rate_limit]
+window_limit = 120
+window_size = 60
+aggregate_by = ["ip", "domain"]
+
 # Preserve the old game URL.
 [[redirects]]
 from = "/games/junkcode_brawlers"

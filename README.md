@@ -54,7 +54,7 @@ ignored by Git, and generated bundles do not need to be committed.
   and One Trillion Parameters. See [the games guide](games/README.md).
 - `static/games/<name>/`: standalone HTML/JavaScript games and legacy compiled
   snapshots. Only standalone games are copied into the new build.
-- `netlify/functions/`, `netlify/handlers/`, `netlify/lib/`: the two deployable
+- `netlify/functions/`, `netlify/handlers/`, `netlify/lib/`: the five deployable
   entry points, endpoint handlers, and shared backend code. See
   [function behavior and limits](netlify/README.md).
 - `scripts/`, `tests/`: the shared build pipeline and regression checks.
@@ -100,15 +100,24 @@ in the browser. The automated checks cover type errors, catalog routes and
 preview resources, static staging exclusions, and backend regression cases.
 They do not replace gameplay, mobile, graphics, audio, or provider-backed testing.
 
-`npm run validate:functions` checks the source declarations covering all five API
-endpoints with two rate-limited route patterns. `npm run build:functions` uses
-Netlify's pinned native bundler, validates the emitted traffic rules, ESM runtime,
-and quiz data, then runs 50 input/preflight checks against the packaged handlers.
+`npm run validate:functions` checks five native function entry points whose literal
+paths match their filenames. One Netlify TOML rule protects the entire function
+namespace at 120 requests per minute; the stats function adds a narrower native
+rule at 60 requests per minute. Both aggregate by IP and domain, for two total
+rate-limit rules. `npm run build:functions` uses Netlify's pinned native bundler,
+validates the exact native routes, emitted stats traffic rule, shared TOML rule,
+ESM runtime, and quiz data, then runs 50 input/preflight checks against the
+packaged handlers.
 Outbound fetch is disabled during those checks, so they cannot contact providers
 or write quiz statistics even when credentials exist in the environment.
 Artifacts and the inspectable manifest are written to `.build/functions/`.
 The full build and all Netlify deploy contexts include this check. Actual platform
 rate enforcement still requires a deploy preview; a local check cannot prove it.
+
+After a deployment, run `npm run smoke:live -- https://williamcfrancis.netlify.app`
+(or pass a deploy-preview URL) to verify actual platform routing. This opt-in
+check sends one preflight and one empty, invalid POST to each of the five API
+endpoints. It makes no paid provider calls and writes no quiz statistics.
 
 GitHub Actions also runs `npm audit --audit-level=moderate` after the clean install
 so dependency advisories at moderate severity or higher fail validation.

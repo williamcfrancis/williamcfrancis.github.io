@@ -44,7 +44,8 @@ try {
   }
 
   for (const endpoint of endpoints) {
-    const handler = handlers.get(endpoint === 'turing-stats' ? 'turing-stats' : 'ai');
+    const handler = handlers.get(endpoint);
+    assert.equal(typeof handler, 'function', `Missing native ${endpoint} function`);
     for (const suffix of ['', '/']) {
       const url = `https://build-check.invalid/.netlify/functions/${endpoint}${suffix}`;
       const cases = [
