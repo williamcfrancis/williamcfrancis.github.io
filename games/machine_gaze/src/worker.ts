@@ -33,13 +33,13 @@ function onProgress(info: {
 async function loadPipelines() {
   if (depthPipe) return;
   [depthPipe, objectsPipe, segmentsPipe] = await Promise.all([
-    pipeline('depth-estimation', 'Xenova/depth-anything-small-hf', {
+    pipeline<'depth-estimation'>('depth-estimation', 'Xenova/depth-anything-small-hf', {
       progress_callback: onProgress,
     }) as Promise<DepthEstimationPipeline>,
-    pipeline('object-detection', 'Xenova/detr-resnet-50', {
+    pipeline<'object-detection'>('object-detection', 'Xenova/detr-resnet-50', {
       progress_callback: onProgress,
     }) as Promise<ObjectDetectionPipeline>,
-    pipeline('image-segmentation', 'Xenova/detr-resnet-50-panoptic', {
+    pipeline<'image-segmentation'>('image-segmentation', 'Xenova/detr-resnet-50-panoptic', {
       progress_callback: onProgress,
     }) as Promise<ImageSegmentationPipeline>,
   ]);

@@ -13,6 +13,7 @@ export interface TranslationStep {
   transliteration?: string;
   backTranslation: string;
   driftScore: number;
+  driftHint?: string;
 }
 
 export interface TranslationChain {

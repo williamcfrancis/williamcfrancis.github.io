@@ -6,13 +6,13 @@ greeting: "Hi, I am"
 image: "images/author/avatar.jpg"
 # give your some contact information. they will be used in the footer
 contactInfo:
-  email: "willcf@seas.upenn.edu"
+  email: "williamcfranco@gmail.com"
   github: williamcfrancis
 
 # some summary about what you do
 summary:
-  - I am a roboticist
-  - I love developing artificial intelligence
-  - In my world, computers are able to see, hear and learn
-  - The future depends on some graduate student who is deeply suspicious of everything I have said. — Geoffrey Hinton
+  - I am a Data Scientist at Chubb
+  - I build machine learning tools and agentic AI applications
+  - I explore computer vision, language, and multimodal AI
+  - My roots are in robotics and autonomous systems
 

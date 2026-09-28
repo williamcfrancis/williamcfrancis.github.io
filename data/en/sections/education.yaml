@@ -1,70 +1,37 @@
-# section information
 section:
   name: Education
   id: education
   enable: true
   weight: 4
   showOnNavbar: true
-  # Can optionally hide the title in sections
-  # hideTitle: true
 
 degrees:
-  - name: M.S.E. in Robotics, M.S.E in Computer Science
-    icon: fas fa-robot
-    timeframe: 2021-2024
+  - name: Dual M.S.E. in Robotics and Computer and Information Science
+    icon: fa-robot
+    timeframe: Aug 2021 - May 2024
     institution:
       name: University of Pennsylvania
       url: "https://www.upenn.edu/"
     grade:
       scale: GPA
-      achieved: 3.80
+      achieved: 3.8
       outOf: 4.0
     takenCourses:
-      # if true, the courses will be rendered as a table otherwise it will render as a list and the grades will be hidden.
       showGrades: false
+      collapseAfter: 4
       courses:
-        - name: ESE 546 Principles of Deep Learning
-          achieved: 4
-          outOf: 4
-        - name: CIS 581 Computer Vision & Computational Photography
-          achieved: 4
-          outOf: 4
-        - name: CIS 520 Machine Learning
-          achieved: 4
-          outOf: 4
-        - name: ESE 650 Learning in Robotics
-          achieved: 3
-          outOf: 4
-        - name: CIS 522 Deep Learning for Data Science
-          achieved: 4
-          outOf: 4
-        - name: ROBO 599 Independent Study - Build & Race a self-driving Go-Kart
-          achieved: 4
-          outOf: 4
-        - name: CIS 680 Advanced Topics in Machine Perception
-          achieved: 4
-          outOf: 4
-        - name: ESE 514 Graph Neural Networks
-          achieved: 4
-          outOf: 4
-        - name: MEAM 520 Introduction to Robotics
-          achieved: 4.0
-          outOf: 4.0
-        - name: CIS 700 Neuro-Symbolic AI
-          achieved: 4.0
-          outof: 4.0
-        - name: CIS 523 Ethics in Algorithms
-          achieved: 4.0
-          outof: 4.0
-    publications:
+        - name: Applied Machine Learning (Teaching Assistant)
+        - name: Principles of Deep Learning
+        - name: Natural Language Processing
+        - name: Advanced Computer Vision
+        - name: Software Systems
+        - name: Statistics
+        - name: Graph Neural Networks
+        - name: Neuro-Symbolic AI
 
-    #   - title: Fusce eu augue ut odio porttitor pulvinar.
-    #     url: "#"
-    #   - title: Nullam vitae orci tincidunt purus viverra pulvinar.
-    #     url: "#"
-  - name: B.Tech in Electrical and Electronics Engineering with a Minor in Computer Science Engineering
+  - name: B.Tech. in Electrical and Electronics Engineering with a Minor in Computer Science
     icon: fa-graduation-cap
-    timeframe: 2016-2020
+    timeframe: 2016 - Jun 2020
     institution:
       name: Vellore Institute of Technology
       url: "https://vit.ac.in/"
@@ -73,42 +40,19 @@ degrees:
       achieved: 8.99
       outOf: 10
     takenCourses:
-      # if true, the courses will be rendered as a table otherwise it will render as a list and the grades will be hidden.
       showGrades: false
+      collapseAfter: 4
       courses:
-        - name: CSE 4020 Machine Learning
-        - name: EEE 1007 Neural Networks and Fuzzy Logic
-        - name: CSE 2003 Data Structures and Algorithms
-        - name: CSE 1001 Problem Solving and Programmingg
-        - name: CSE 1002 Problem Solving and Object Oriented Programming
-        - name: MAT 2001 Statistic for Engineers
-        - name: MAT 3003 Complex Variables and Partial Differential Equations
-        - name: EEE 1020 Engineering Optimization
-        - name: EEE 4016 Electric Vehicles
-        - name: CSE 1004 Network and Communication
-        - name: CSE 2002 Theory of Computation and Compiler Design
-        - name: CSE 2001 Computer Architecture and Organization
+        - name: Machine Learning
+        - name: Neural Networks and Fuzzy Logic
+        - name: Data Structures and Algorithms
+        - name: Statistics for Engineers
+        - name: Engineering Optimization
+        - name: Computer Architecture and Organization
     publications:
-      - title: Brain-Computer Interfacing for Wheelchair Control by Detecting Voluntary Eye Blinks 
-        url: "http://section.iaesonline.com/index.php/IJEEI/article/view/2749/618"
-    #   - title: Fusce eu augue ut odio porttitor pulvinar.
-    #     url: "#"
-    # extracurricularActivities:
-    #   - In vitae facilisis est, eget porta sem.
-    #   - Vestibulum consectetur lorem justo, at laoreet lorem feugiat et.
-    #   - Duis sed massa feugiat, ornare justo et, aliquam est.
-    #   - Pellentesque ut fringilla magna.
-  # - name: B.S. in Electrical and Computer Engineering
-  #   icon: fa-university
-  #   timeframe: 2016-2020
-  #   institution:
-  #     name: Shanghai Jiao Tong University (UM-SJTU Joint Institute)
-  #     url: "https://www.ji.sjtu.edu.cn/"
-  #   grade:
-  #     scale: GPA
-  #     achieved: 3.6
-  #     outOf: 4
+      - title: Brain-Computer Interfacing for Wheelchair Control by Detecting Voluntary Eye Blinks (June 2021)
+        url: "https://doi.org/10.52549/ijeei.v9i2.2749"
     extracurricularActivities:
-      - Captain of the university Tennis team, leading the team to win several tournaments
-      - Member of the VIT Quiz Club
-      - Awarded the Best Delegate in the inter collegiate Model of United Nations debate competition
+      - Captain of the university tennis team, leading the team to win several tournaments.
+      - Member of the VIT Quiz Club.
+      - Best Delegate in an intercollegiate Model United Nations competition.

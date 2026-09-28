@@ -5,6 +5,7 @@ export function generateShareImage(
   score: number,
   total: number,
   answers: UserAnswer[],
+  twinsSeen: number = 0,
 ): string {
   const canvas = document.createElement('canvas');
   canvas.width = 600;
@@ -95,9 +96,15 @@ export function generateShareImage(
     }
   }
 
+  if (twinsSeen > 0) {
+    ctx.fillStyle = '#5eead4';
+    ctx.font = 'italic 13px "Inter", sans-serif';
+    ctx.fillText(`↔  saw all ${twinsSeen} twins`, 300, 268);
+  }
+
   ctx.fillStyle = '#eef0f6';
   ctx.font = '500 18px "Inter", sans-serif';
-  ctx.fillText('Can you beat me?', 300, 290);
+  ctx.fillText('Can you beat me?', 300, 295);
 
   ctx.fillStyle = '#4a5568';
   ctx.font = '13px "Inter", sans-serif';
@@ -110,8 +117,9 @@ export async function shareScore(
   score: number,
   total: number,
   answers: UserAnswer[],
+  twinsSeen: number = 0,
 ): Promise<void> {
-  const imageUrl = generateShareImage(score, total, answers);
+  const imageUrl = generateShareImage(score, total, answers, twinsSeen);
   const { title } = getScoreTitle(score);
   const text = `I scored ${score}/${total} on The Turing Shuffle \u2014 "${title}" \u{1F916}\u270D\uFE0F\n\nhttps://williamcfrancis.netlify.app/games/turing_shuffle/`;
 

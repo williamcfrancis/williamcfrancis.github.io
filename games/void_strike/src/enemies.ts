@@ -1,13 +1,13 @@
-import {
-  Scene,
-  Vector3,
-  MeshBuilder,
-  Mesh,
-  TransformNode,
-  StandardMaterial,
-  Color3,
-  Ray,
-} from '@babylonjs/core';
+import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
+import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
+import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Ray } from '@babylonjs/core/Culling/ray';
 import type { Enemy, EnemyType, PlayerState } from './types';
 
 export const ENEMY_TYPES: EnemyType[] = [
@@ -140,114 +140,114 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   };
 
   // --- PELVIS / HIP ---
-  const pelvis = MeshBuilder.CreateBox('pelvis', { width: 0.6 * s, height: 0.3 * s, depth: 0.35 * s }, scene);
+  const pelvis = CreateBox('pelvis', { width: 0.6 * s, height: 0.3 * s, depth: 0.35 * s }, scene);
   pelvis.position.y = 0.6 * s;
   addPart('pelvis', pelvis, darkMat);
 
   // --- TORSO (multi-segment) ---
-  const torsoLower = MeshBuilder.CreateBox('torsoLower', { width: 0.75 * s, height: 0.5 * s, depth: 0.4 * s }, scene);
+  const torsoLower = CreateBox('torsoLower', { width: 0.75 * s, height: 0.5 * s, depth: 0.4 * s }, scene);
   torsoLower.position.y = 1.0 * s;
   addPart('torsoLower', torsoLower, bodyMat);
 
-  const torsoUpper = MeshBuilder.CreateBox('torsoUpper', { width: 0.8 * s, height: 0.5 * s, depth: 0.42 * s }, scene);
+  const torsoUpper = CreateBox('torsoUpper', { width: 0.8 * s, height: 0.5 * s, depth: 0.42 * s }, scene);
   torsoUpper.position.y = 1.45 * s;
   addPart('torsoUpper', torsoUpper, bodyMat);
 
   // Chest armor plate
-  const chestPlate = MeshBuilder.CreateBox('chestPlate', { width: 0.6 * s, height: 0.35 * s, depth: 0.08 * s }, scene);
+  const chestPlate = CreateBox('chestPlate', { width: 0.6 * s, height: 0.35 * s, depth: 0.08 * s }, scene);
   chestPlate.position = new Vector3(0, 1.45 * s, 0.22 * s);
   addPart('chestPlate', chestPlate, armorMat);
 
   // Glowing core on chest
-  const core = MeshBuilder.CreateSphere('core', { diameter: 0.15 * s, segments: 6 }, scene);
+  const core = CreateSphere('core', { diameter: 0.15 * s, segments: 6 }, scene);
   core.position = new Vector3(0, 1.35 * s, 0.28 * s);
   addPart('core', core, glowMat);
 
   // Back panel
-  const backPanel = MeshBuilder.CreateBox('backPanel', { width: 0.5 * s, height: 0.3 * s, depth: 0.06 * s }, scene);
+  const backPanel = CreateBox('backPanel', { width: 0.5 * s, height: 0.3 * s, depth: 0.06 * s }, scene);
   backPanel.position = new Vector3(0, 1.5 * s, -0.22 * s);
   addPart('backPanel', backPanel, armorMat);
 
   // --- NECK ---
-  const neck = MeshBuilder.CreateCylinder('neck', { height: 0.15 * s, diameter: 0.2 * s, tessellation: 6 }, scene);
+  const neck = CreateCylinder('neck', { height: 0.15 * s, diameter: 0.2 * s, tessellation: 6 }, scene);
   neck.position.y = 1.78 * s;
   addPart('neck', neck, darkMat);
 
   // --- HEAD ---
-  const head = MeshBuilder.CreateBox('head', { width: 0.38 * s, height: 0.35 * s, depth: 0.35 * s }, scene);
+  const head = CreateBox('head', { width: 0.38 * s, height: 0.35 * s, depth: 0.35 * s }, scene);
   head.position.y = 2.03 * s;
   addPart('head', head, headMat, true);
 
   // Visor (glowing eye slit)
-  const visor = MeshBuilder.CreateBox('visor', { width: 0.32 * s, height: 0.08 * s, depth: 0.06 * s }, scene);
+  const visor = CreateBox('visor', { width: 0.32 * s, height: 0.08 * s, depth: 0.06 * s }, scene);
   visor.position = new Vector3(0, 2.05 * s, 0.18 * s);
   addPart('visor', visor, glowMat);
 
   // Antenna / crest based on enemy type
   if (type.behavior === 'snipe') {
-    const scope = MeshBuilder.CreateCylinder('scope', { height: 0.25 * s, diameter: 0.06 * s, tessellation: 6 }, scene);
+    const scope = CreateCylinder('scope', { height: 0.25 * s, diameter: 0.06 * s, tessellation: 6 }, scene);
     scope.position = new Vector3(0.15 * s, 2.15 * s, 0.1 * s);
     scope.rotation.x = Math.PI / 6;
     addPart('scope', scope, armorMat);
 
-    const lens = MeshBuilder.CreateSphere('lens', { diameter: 0.08 * s, segments: 4 }, scene);
+    const lens = CreateSphere('lens', { diameter: 0.08 * s, segments: 4 }, scene);
     lens.position = new Vector3(0.15 * s, 2.22 * s, 0.18 * s);
     addPart('lens', lens, glowMat);
   } else if (type.behavior === 'rush' && type.scale > 1) {
     // Juggernaut horns
     for (const side of [-1, 1]) {
-      const horn = MeshBuilder.CreateCylinder('horn', { height: 0.25 * s, diameterTop: 0.03 * s, diameterBottom: 0.08 * s, tessellation: 5 }, scene);
+      const horn = CreateCylinder('horn', { height: 0.25 * s, diameterTop: 0.03 * s, diameterBottom: 0.08 * s, tessellation: 5 }, scene);
       horn.position = new Vector3(side * 0.18 * s, 2.25 * s, 0);
       horn.rotation.z = side * -0.4;
       addPart('horn', horn, armorMat);
     }
   } else {
-    const antenna = MeshBuilder.CreateCylinder('antenna', { height: 0.2 * s, diameter: 0.03 * s, tessellation: 4 }, scene);
+    const antenna = CreateCylinder('antenna', { height: 0.2 * s, diameter: 0.03 * s, tessellation: 4 }, scene);
     antenna.position = new Vector3(0.12 * s, 2.28 * s, 0);
     addPart('antenna', antenna, darkMat);
 
-    const antennaTip = MeshBuilder.CreateSphere('antennaTip', { diameter: 0.06 * s, segments: 4 }, scene);
+    const antennaTip = CreateSphere('antennaTip', { diameter: 0.06 * s, segments: 4 }, scene);
     antennaTip.position = new Vector3(0.12 * s, 2.4 * s, 0);
     addPart('antennaTip', antennaTip, glowMat);
   }
 
   // --- SHOULDERS ---
   for (const side of [-1, 1]) {
-    const shoulderJoint = MeshBuilder.CreateSphere('shoulderJoint', { diameter: 0.22 * s, segments: 6 }, scene);
+    const shoulderJoint = CreateSphere('shoulderJoint', { diameter: 0.22 * s, segments: 6 }, scene);
     shoulderJoint.position = new Vector3(side * 0.52 * s, 1.65 * s, 0);
     addPart('shoulderJoint', shoulderJoint, darkMat);
 
-    const shoulderPad = MeshBuilder.CreateBox('shoulderPad', { width: 0.3 * s, height: 0.12 * s, depth: 0.35 * s }, scene);
+    const shoulderPad = CreateBox('shoulderPad', { width: 0.3 * s, height: 0.12 * s, depth: 0.35 * s }, scene);
     shoulderPad.position = new Vector3(side * 0.55 * s, 1.72 * s, 0);
     addPart('shoulderPad', shoulderPad, armorMat);
 
     // Upper arm
-    const upperArm = MeshBuilder.CreateBox('upperArm', { width: 0.16 * s, height: 0.45 * s, depth: 0.18 * s }, scene);
+    const upperArm = CreateBox('upperArm', { width: 0.16 * s, height: 0.45 * s, depth: 0.18 * s }, scene);
     upperArm.position = new Vector3(side * 0.55 * s, 1.35 * s, 0);
     addPart('upperArm', upperArm, bodyMat);
 
     // Elbow joint
-    const elbow = MeshBuilder.CreateSphere('elbow', { diameter: 0.14 * s, segments: 4 }, scene);
+    const elbow = CreateSphere('elbow', { diameter: 0.14 * s, segments: 4 }, scene);
     elbow.position = new Vector3(side * 0.55 * s, 1.1 * s, 0);
     addPart('elbow', elbow, darkMat);
 
     // Forearm
-    const forearm = MeshBuilder.CreateBox('forearm', { width: 0.14 * s, height: 0.35 * s, depth: 0.16 * s }, scene);
+    const forearm = CreateBox('forearm', { width: 0.14 * s, height: 0.35 * s, depth: 0.16 * s }, scene);
     forearm.position = new Vector3(side * 0.55 * s, 0.88 * s, 0.08 * s);
     addPart('forearm', forearm, bodyMat);
 
     // Hand/weapon mount
     if (side === 1) {
-      const gunMount = MeshBuilder.CreateBox('gunMount', { width: 0.1 * s, height: 0.08 * s, depth: 0.3 * s }, scene);
+      const gunMount = CreateBox('gunMount', { width: 0.1 * s, height: 0.08 * s, depth: 0.3 * s }, scene);
       gunMount.position = new Vector3(side * 0.55 * s, 0.7 * s, 0.2 * s);
       addPart('gunMount', gunMount, darkMat);
 
-      const barrel = MeshBuilder.CreateCylinder('eBarrel', { height: 0.25 * s, diameter: 0.06 * s, tessellation: 6 }, scene);
+      const barrel = CreateCylinder('eBarrel', { height: 0.25 * s, diameter: 0.06 * s, tessellation: 6 }, scene);
       barrel.position = new Vector3(side * 0.55 * s, 0.7 * s, 0.4 * s);
       barrel.rotation.x = Math.PI / 2;
       addPart('eBarrel', barrel, darkMat);
 
-      const muzzle = MeshBuilder.CreateSphere('muzzle', { diameter: 0.08 * s, segments: 4 }, scene);
+      const muzzle = CreateSphere('muzzle', { diameter: 0.08 * s, segments: 4 }, scene);
       muzzle.position = new Vector3(side * 0.55 * s, 0.7 * s, 0.52 * s);
       addPart('muzzle', muzzle, glowMat);
     }
@@ -255,28 +255,28 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
 
   // --- LEGS ---
   for (const side of [-1, 1]) {
-    const hipJoint = MeshBuilder.CreateSphere('hipJoint', { diameter: 0.18 * s, segments: 4 }, scene);
+    const hipJoint = CreateSphere('hipJoint', { diameter: 0.18 * s, segments: 4 }, scene);
     hipJoint.position = new Vector3(side * 0.22 * s, 0.5 * s, 0);
     addPart('hipJoint', hipJoint, darkMat);
 
-    const thigh = MeshBuilder.CreateBox('leg', { width: 0.18 * s, height: 0.4 * s, depth: 0.2 * s }, scene);
+    const thigh = CreateBox('leg', { width: 0.18 * s, height: 0.4 * s, depth: 0.2 * s }, scene);
     thigh.position = new Vector3(side * 0.22 * s, 0.28 * s, 0);
     addPart('thigh', thigh, bodyMat);
 
-    const knee = MeshBuilder.CreateSphere('knee', { diameter: 0.14 * s, segments: 4 }, scene);
+    const knee = CreateSphere('knee', { diameter: 0.14 * s, segments: 4 }, scene);
     knee.position = new Vector3(side * 0.22 * s, 0.08 * s, 0.04 * s);
     addPart('knee', knee, darkMat);
 
-    const shin = MeshBuilder.CreateBox('leg', { width: 0.15 * s, height: 0.35 * s, depth: 0.18 * s }, scene);
+    const shin = CreateBox('leg', { width: 0.15 * s, height: 0.35 * s, depth: 0.18 * s }, scene);
     shin.position = new Vector3(side * 0.22 * s, -0.12 * s, 0.02 * s);
     addPart('shin', shin, bodyMat);
 
     // Shin armor
-    const shinGuard = MeshBuilder.CreateBox('shinGuard', { width: 0.12 * s, height: 0.2 * s, depth: 0.06 * s }, scene);
+    const shinGuard = CreateBox('shinGuard', { width: 0.12 * s, height: 0.2 * s, depth: 0.06 * s }, scene);
     shinGuard.position = new Vector3(side * 0.22 * s, -0.08 * s, 0.12 * s);
     addPart('shinGuard', shinGuard, armorMat);
 
-    const foot = MeshBuilder.CreateBox('foot', { width: 0.2 * s, height: 0.08 * s, depth: 0.28 * s }, scene);
+    const foot = CreateBox('foot', { width: 0.2 * s, height: 0.08 * s, depth: 0.28 * s }, scene);
     foot.position = new Vector3(side * 0.22 * s, -0.32 * s, 0.05 * s);
     addPart('foot', foot, darkMat);
   }
@@ -284,18 +284,18 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   // Type-specific extras
   if (type.behavior === 'rush' && type.scale > 1) {
     // Juggernaut: extra armor plates and back engine
-    const backEngine = MeshBuilder.CreateCylinder('backEngine', { height: 0.3 * s, diameter: 0.25 * s, tessellation: 6 }, scene);
+    const backEngine = CreateCylinder('backEngine', { height: 0.3 * s, diameter: 0.25 * s, tessellation: 6 }, scene);
     backEngine.position = new Vector3(0, 1.2 * s, -0.28 * s);
     addPart('backEngine', backEngine, darkMat);
 
-    const engineGlow = MeshBuilder.CreateSphere('engineGlow', { diameter: 0.18 * s, segments: 4 }, scene);
+    const engineGlow = CreateSphere('engineGlow', { diameter: 0.18 * s, segments: 4 }, scene);
     engineGlow.position = new Vector3(0, 1.2 * s, -0.4 * s);
     addPart('engineGlow', engineGlow, glowMat);
   }
 
   if (type.behavior === 'flank') {
     for (const side of [-1, 1]) {
-      const blade = MeshBuilder.CreateBox('blade', { width: 0.03 * s, height: 0.06 * s, depth: 0.35 * s }, scene);
+      const blade = CreateBox('blade', { width: 0.03 * s, height: 0.06 * s, depth: 0.35 * s }, scene);
       blade.position = new Vector3(side * 0.4 * s, 0.9 * s, 0.1 * s);
       addPart('blade', blade, glowMat);
     }

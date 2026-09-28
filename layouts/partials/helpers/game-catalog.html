@@ -1,0 +1,8 @@
+{{ $personal := (index site.Data site.Language.Lang).personal | default site.Data.personal }}
+{{ $games := slice }}
+{{ range $personal.sections }}
+  {{ if and (eq .section.id "games") .section.enable }}
+    {{ $games = .games | default (slice) }}
+  {{ end }}
+{{ end }}
+{{ return $games }}

@@ -3,6 +3,7 @@ import { countryCodeToFlag } from './languages';
 import { compareWords } from './drift';
 import { shareResult, downloadShareImage, copyToClipboard } from './share';
 import { saveToUrl, setCachedChain } from './storage';
+import { journeyAudio } from './audio';
 
 function escapeHtml(s: string): string {
   const d = document.createElement('div');
@@ -94,6 +95,7 @@ export function createRevealScreen(
         <button class="btn-primary" id="share-btn">Share result</button>
         <button class="btn-secondary" id="copy-btn">Copy to clipboard</button>
         <button class="btn-secondary" id="dl-btn">Download as image</button>
+        ${journeyAudio.isSupported() ? '<button class="btn-secondary" id="replay-btn" aria-label="Replay the journey aloud">\u{1F50A} Replay aloud</button>' : ''}
         <button class="btn-ghost" id="restart-btn">&larr; Try another sentence</button>
       </div>
     </div>
@@ -114,22 +116,23 @@ export function createRevealScreen(
     0,
     true,
   );
+  origEntry.dataset.stepIdx = '0';
   timeline.appendChild(origEntry);
 
-  result.steps.forEach((step) => {
+  result.steps.forEach((step, i) => {
     const isEnglishStep = step.language.code === 'en';
-    timeline.appendChild(
-      timelineEntry(
-        countryCodeToFlag(step.language.countryCode),
-        step.language.name,
-        step.text,
-        step.transliteration,
-        step.driftScore,
-        false,
-        step.language.rtl,
-        isEnglishStep ? undefined : step.backTranslation,
-      ),
+    const entry = timelineEntry(
+      countryCodeToFlag(step.language.countryCode),
+      step.language.name,
+      step.text,
+      step.transliteration,
+      step.driftScore,
+      false,
+      step.language.rtl,
+      isEnglishStep ? undefined : step.backTranslation,
     );
+    entry.dataset.stepIdx = String(i + 1);
+    timeline.appendChild(entry);
   });
 
   const entries = timeline.querySelectorAll('.tl-entry');
@@ -152,7 +155,63 @@ export function createRevealScreen(
     downloadShareImage(result),
   );
 
+  const replayBtn = container.querySelector('#replay-btn') as HTMLButtonElement | null;
+  let replayGeneration = 0;
+  if (replayBtn) {
+    let replaying = false;
+    const setLabel = (text: string) => {
+      replayBtn.innerHTML = text;
+    };
+    const reset = () => {
+      replaying = false;
+      setLabel('\u{1F50A} Replay aloud');
+      replayBtn.setAttribute('aria-label', 'Replay the journey aloud');
+      timeline
+        .querySelectorAll('.tl-speaking')
+        .forEach(el => el.classList.remove('tl-speaking'));
+    };
+    replayBtn.addEventListener('click', async () => {
+      if (replaying) {
+        replayGeneration++;
+        journeyAudio.cancel();
+        reset();
+        return;
+      }
+      if (!journeyAudio.isEnabled()) {
+        journeyAudio.setEnabled(true);
+      }
+      replaying = true;
+      const generation = ++replayGeneration;
+      setLabel('\u{25A0} Stop');
+      replayBtn.setAttribute('aria-label', 'Stop replay');
+
+      const entries: { text: string; lang: string; idx: number }[] = [];
+      entries.push({ text: result.original, lang: result.chain[0].code, idx: 0 });
+      result.steps.forEach((step, i) => {
+        entries.push({ text: step.text, lang: step.language.code, idx: i + 1 });
+      });
+
+      for (const entry of entries) {
+        if (generation !== replayGeneration) break;
+        const el = timeline.querySelector(
+          `[data-step-idx="${entry.idx}"]`,
+        ) as HTMLElement | null;
+        if (el) {
+          el.classList.add('tl-speaking');
+          el.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+        }
+        await journeyAudio.speak(entry.text, entry.lang);
+        if (generation !== replayGeneration) break;
+        if (el) el.classList.remove('tl-speaking');
+        await new Promise(r => setTimeout(r, 250));
+      }
+      if (generation === replayGeneration) reset();
+    });
+  }
+
   container.querySelector('#restart-btn')!.addEventListener('click', () => {
+    replayGeneration++;
+    journeyAudio.cancel();
     window.history.replaceState(null, '', window.location.pathname);
     onRestart();
   });

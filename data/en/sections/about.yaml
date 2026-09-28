@@ -8,18 +8,27 @@ section:
   template: sections/about.html
 
 # your designation
-designation: Robotics Graduate Student
+designation: Data Scientist
 
 # your company information
 company:
-  name: GRASP Lab, University of Pennsylvania
-  url: "https://www.grasp.upenn.edu/"
+  name: Chubb
+  url: "https://www.chubb.com/"
 
 # your resume. this file path should be relative to you "static" directory
 resume: "files/Resume.pdf"
 
 # a summary about you
-summary: "Greetings! I am a robotics student passionate about the Artificial Intelligence (AI) industry. My main area of focus lies in prediction and machine learning. I also have a lot of experience in robotics perception, such as computer vision and LiDAR. Hope to see you in the future!"
+summary: >-
+  I'm a data scientist at Chubb in Philadelphia, building predictive models,
+  machine learning tools, and agentic AI applications. My work spans insurance
+  pricing, conversion and retention modeling, and tools that help teams move
+  from data to decisions. I hold dual master's degrees in Robotics and Computer
+  Science from the University of Pennsylvania, where I worked on perception and
+  localization for an autonomous racing go-kart. Beyond my day job, I built
+  PeeqAI, a multimodal assistant for visually impaired users, and co-founded
+  Philly AI Connect. I'm especially interested in how vision, language, and
+  learning can come together to solve practical problems.
 
 # your social links
 # give as many as you want. use font-awesome for the icons.
@@ -30,7 +39,7 @@ socialLinks:
 
   - name: Email
     icon: "fas fa-envelope"
-    url: "willcf@seas.upenn.edu"
+    url: "williamcfranco@gmail.com"
 
   - name: LinkedIn
     icon: "fab fa-linkedin"

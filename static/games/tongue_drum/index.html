@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tongue Drum Trainer — 15 Note D Major</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --panel: #131a2b;
+    --panel-2: #1a2238;
+    --text: #e6ecff;
+    --muted: #8a93ad;
+    --accent: #6ee7ff;
+    --accent-2: #ffd166;
+    --hit: #4ade80;
+    --hl: #f59e0b;
+    --shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(1200px 600px at 50% -10%, #1a2244 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    overflow: hidden;
+  }
+  /* Use 100% (== parent html height) instead of 100vh — viewport units
+     can resolve to the OUTER window inside embedded preview panes, which
+     pushes the page off-position and misaligns click coordinates. */
+  body { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+  header {
+    padding: 10px 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+  }
+  header h1 .accent { color: var(--accent); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; flex: 1; }
+  select, button, input[type="number"], input[type="range"], input[type="file"], textarea, input[type="text"] {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    outline: none;
+  }
+  select { min-width: 180px; }
+  button { cursor: pointer; transition: background 0.15s, transform 0.05s; }
+  :is(button, select, input, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  button:hover { background: #232c47; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); color: #00121b; border: none; font-weight: 600; }
+  button.primary:hover { background: #8eecff; }
+  button.toggle.on { background: var(--hl); color: #1a0f00; border-color: var(--hl); font-weight: 600; }
+  label.lab { color: var(--muted); font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+  .stat {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: 12px; padding: 4px 10px;
+    background: var(--panel-2); border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .stat b { color: var(--text); font-weight: 600; }
+
+  main { position: relative; overflow: hidden; }
+  #stage { width: 100%; height: 100%; display: block; }
+
+  footer {
+    padding: 8px 12px; background: rgba(0,0,0,0.25);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 10px;
+    color: var(--muted); font-size: 12px;
+  }
+  footer .legend { display: flex; gap: 12px; flex-wrap: wrap; }
+  footer .swatch {
+    display: inline-block; width: 12px; height: 12px;
+    border-radius: 3px; margin-right: 4px; vertical-align: middle;
+  }
+
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--panel); padding: 20px;
+    border-radius: 14px;
+    width: min(720px, 92vw); max-height: 85vh;
+    overflow: auto;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: var(--shadow);
+  }
+  .modal h2 { margin: 0 0 8px; }
+  .modal p { color: var(--muted); margin: 4px 0 12px; font-size: 13px; }
+  .modal textarea {
+    width: 100%; min-height: 220px;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 13px; resize: vertical;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row.right { justify-content: flex-end; margin-top: 12px; }
+  .hint {
+    background: var(--panel-2); border: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 12px; border-radius: 8px;
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+  .hint code {
+    color: var(--accent); background: rgba(110,231,255,0.08);
+    padding: 1px 5px; border-radius: 4px;
+  }
+
+  /* Note picker popover (edit mode) */
+  #notePicker {
+    position: absolute;
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: var(--shadow);
+    display: none;
+    z-index: 50;
+  }
+  #notePicker.show { display: block; }
+  #notePicker .pickerTitle {
+    color: var(--muted); font-size: 11px; margin: 0 4px 6px;
+  }
+  #notePicker .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+  }
+  #notePicker button.note {
+    background: var(--panel-2);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    padding: 6px 4px;
+    min-width: 52px;
+    cursor: pointer;
+  }
+  #notePicker button.note.low  { border-color: rgba(110,231,255,0.4); }
+  #notePicker button.note.mid  { border-color: rgba(255,209,102,0.4); }
+  #notePicker button.note.high { border-color: rgba(245,158,11,0.5); }
+  #notePicker button.note:hover { background: #232c47; }
+  #notePicker button.note.swap { background: rgba(245,158,11,0.2); border-color: var(--hl); }
+  #notePicker .pickerActions { display: flex; justify-content: space-between; margin-top: 6px; }
+  #notePicker .pickerActions button { font-size: 11px; padding: 4px 8px; }
+
+  @media (max-width: 640px) {
+    header h1 { font-size: 13px; flex-basis: 100%; }
+    select { min-width: 140px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="accent">◉</span> Tongue Drum Trainer <span class="accent">— 15 note D major</span></h1>
+  <div class="controls">
+    <label class="lab">Song
+      <select id="songSelect"></select>
+    </label>
+    <button id="playBtn" class="primary">▶ Play</button>
+    <button id="stopBtn">■ Stop</button>
+    <label class="lab">Tempo
+      <input id="tempo" type="range" min="0.3" max="2" step="0.05" value="1" style="width:110px;">
+      <span id="tempoVal" class="stat" style="min-width:48px;justify-content:center;"><b>1.00x</b></span>
+    </label>
+    <label class="lab">Lead
+      <input id="lead" type="range" min="1" max="5" step="0.25" value="2.5" style="width:90px;">
+      <span id="leadVal" class="stat"><b>2.5s</b></span>
+    </label>
+    <label class="lab"><input type="checkbox" id="loopChk"> Loop</label>
+    <label class="lab"><input type="checkbox" id="autoPlayChk" checked> Sound</label>
+    <button id="editBtn" class="toggle">✏ Edit layout</button>
+    <button id="resetLayoutBtn" title="Restore default note layout">↺ Reset</button>
+    <button id="customBtn">＋ Custom song</button>
+    <span class="stat">Time: <b id="timeStat">0.0s</b></span>
+    <span class="stat">Notes: <b id="hitStat">0</b>/<b id="totalStat">0</b></span>
+  </div>
+</header>
+
+<main>
+  <canvas id="stage"></canvas>
+  <div id="notePicker">
+    <div class="pickerTitle">Assign a note to this tongue</div>
+    <div class="grid" id="pickerGrid"></div>
+    <div class="pickerActions">
+      <button id="pickerCancel">Cancel</button>
+      <span style="color:var(--muted); font-size:11px;">Picking the same note will swap with another tongue</span>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--accent);"></span>Falling note</span>
+    <span><span class="swatch" style="background:var(--hl);"></span>About to hit</span>
+    <span><span class="swatch" style="background:var(--hit);"></span>Struck</span>
+  </div>
+  <div style="margin-left:auto;">
+    Click any tongue to play. <b>Space</b> = play/pause. In <b>Edit</b> mode, click a tongue to reassign its note.
+  </div>
+</footer>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2>Custom Song</h2>
+    <p>Enter notes separated by spaces. Format: <code>NOTE:DURATION</code> in beats. Use <code>_</code> for a rest.</p>
+    <div class="hint">
+      Available notes (15-note D major drum, F#3 → F#5):<br/>
+      <code>F#3 G3 A3 B3 C#4 D4 E4 F#4 G4 A4 B4 C#5 D5 E5 F#5</code><br/>
+      Use <code>F#</code> or <code>Fs</code>; <code>C#</code> or <code>Cs</code>. Default duration is <code>1</code> beat.<br/>
+      Example: <code>D4:1 D4:1 A4:1 A4:1 B4:1 B4:1 A4:2 G4:1 G4:1 F#4:1 F#4:1 E4:1 E4:1 D4:2</code>
+    </div>
+    <div style="height:10px;"></div>
+    <label class="lab">Title <input type="text" id="songTitle" placeholder="My Song" style="width:240px;"></label>
+    <span style="margin-left:8px;"></span>
+    <label class="lab">BPM <input type="number" id="songBpm" min="40" max="240" value="100" style="width:80px;"></label>
+    <div style="height:10px;"></div>
+    <textarea id="songText" aria-label="Custom song notes" placeholder="D4:1 D4:1 A4:1 A4:1 B4:1 B4:1 A4:2 ..."></textarea>
+    <p id="songError" role="alert" hidden></p>
+    <div class="row right">
+      <button id="modalCancel">Cancel</button>
+      <button id="modalSave" class="primary">Save & Load</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   TONGUE DRUM TRAINER — 15 note D Major
+   - 15 petal-shaped tongues (1 center + 14 ring tongues that
+     alternate big / small)
+   - Note range: F#3 .. F#5 (D major sticker set)
+   - Edit mode: click a tongue, pick a note. Layout persists in
+     localStorage so you can match your physical drum.
+   - Synthesia-style falling notes onto each tongue.
+   - Web Audio bell-like synth.
+============================================================ */
+
+// -------------------- 1. The 15 notes of the D major tongue drum --------------------
+const ALL_NOTES = [
+  "F#3","G3","A3","B3","C#4",       // lower octave (5)
+  "D4","E4","F#4","G4","A4","B4","C#5", // middle octave (7)
+  "D5","E5","F#5"                   // upper octave (3)
+];
+
+// "Sticker" / scale-degree shorthand for each note
+// (lower-octave = "n.", upper-octave = ".n")
+const STICKER = {
+  "F#3": "3.","G3": "4.","A3": "5.","B3": "6.","C#4": "7.",
+  "D4": "1","E4": "2","F#4": "3","G4": "4","A4": "5","B4": "6","C#5": "7",
+  "D5": ".1","E5": ".2","F#5": ".3"
+};
+
+// Octave class — used for tongue color
+function octaveClass(name) {
+  if (["F#3","G3","A3","B3","C#4"].includes(name)) return "low";
+  if (["D5","E5","F#5"].includes(name)) return "high";
+  return "mid";
+}
+
+// -------------------- 2. Petal layout (D major) --------------------
+// 15 tongues: 1 center disc + 14 ring tongues, evenly spaced and alternating
+// BIG / small around the rim. Big tongues reach further toward the center;
+// small tongues live in the outer band only.
+//   ang   : centre angle, 0° = top (12 o'clock), clockwise
+//   r1/r2 : inner / outer radius as fraction of drum radius (0..1)
+//   span  : angular width in degrees
+//   big   : true for the 7 longer alternating tongues
+// Index 0..14 = a fixed POSITION on the drum.
+// noteAt[position] = which note is currently assigned there.
+const PETALS = (() => {
+  const out = [
+    // 0: center tongue (small disc)
+    { ang: 0, r1: 0.00, r2: 0.17, span: 360, big: false },
+  ];
+  // 1..14: ring of 14 tongues. PETAL[1] sits at 12 o'clock; we go clockwise.
+  // The 7 BIG tongues land on even ring-indices (2, 4, 6, 8, 10, 12, 14).
+  const N = 14;
+  for (let i = 0; i < N; i++) {
+    const ang = i * (360 / N);
+    const isBig = (i % 2) === 1;
+    out.push(isBig
+      ? { ang, r1: 0.30, r2: 0.93, span: 21, big: true }
+      : { ang, r1: 0.54, r2: 0.90, span: 17, big: false });
+  }
+  return out;
+})();
+
+// Default note → position assignment for a 15-note D major tongue drum.
+// Going clockwise from 12 o'clock, the sticker pattern is:
+//   3*, 3, 1*, 1, 6, 6*, 4, 4*, 5, 5*, 7, 7*, 2*, 2
+// where * is the off-octave version of each scale degree. The center tongue
+// is also "3*" — F#3 (low), and its sibling F#5 (high) sits at 12 o'clock.
+// As a result the 7 BIG tongues hold the lower G3-F#4 octave and the 7 small
+// ring tongues hold the upper G4-F#5 octave.
+// You can rearrange any of this in Edit mode.
+const DEFAULT_LAYOUT = [
+  "F#3",                     //  0 center  (3* low)
+  "F#5", "F#4",              //  1 (3*),  2 (3)     ← 12 o'clock
+  "D5",  "D4",               //  3 (1*),  4 (1)
+  "B4",  "B3",               //  5 (6),   6 (6*)    ≈ 3 o'clock
+  "G4",  "G3",               //  7 (4),   8 (4*)    ← 6 o'clock
+  "A4",  "A3",               //  9 (5),  10 (5*)
+  "C#5", "C#4",              // 11 (7),  12 (7*)    ≈ 9 o'clock
+  "E5",  "E4",               // 13 (2*), 14 (2)
+];
+
+const LAYOUT_VERSION = "3-tongue-drum-14ring";
+let noteAt = loadLayout();    // length 15, position -> note name
+function loadLayout() {
+  try {
+    const ver = localStorage.getItem("tongueDrum.layoutVersion");
+    if (ver !== LAYOUT_VERSION) {
+      // Layout schema changed — drop the old saved layout so the new
+      // default takes effect on first load after the update.
+      localStorage.removeItem("tongueDrum.layout");
+      localStorage.setItem("tongueDrum.layoutVersion", LAYOUT_VERSION);
+      return DEFAULT_LAYOUT.slice();
+    }
+    const raw = localStorage.getItem("tongueDrum.layout");
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length === 15 &&
+          arr.every(n => ALL_NOTES.includes(n)) &&
+          new Set(arr).size === 15) {
+        return arr;
+      }
+    }
+  } catch {}
+  return DEFAULT_LAYOUT.slice();
+}
+function saveLayout() {
+  try {
+    localStorage.setItem("tongueDrum.layout", JSON.stringify(noteAt));
+    localStorage.setItem("tongueDrum.layoutVersion", LAYOUT_VERSION);
+  } catch {}
+}
+function resetLayoutToDefault() {
+  noteAt = DEFAULT_LAYOUT.slice();
+  saveLayout();
+}
+
+// Quick lookup: note name -> position index
+function posOf(noteName) { return noteAt.indexOf(noteName); }
+
+// -------------------- 3. Note name -> frequency --------------------
+const NOTE_BASE = { C:0,"C#":1,Db:1, D:2,"D#":3,Eb:3, E:4, F:5,"F#":6,Gb:6,
+                    G:7,"G#":8,Ab:8, A:9,"A#":10,Bb:10, B:11 };
+function noteToMidi(name) {
+  const m = name.replace("Fs","F#").replace("Cs","C#")
+                .replace("Gs","G#").replace("As","A#").replace("Ds","D#");
+  const match = m.match(/^([A-G][#b]?)(-?\d+)$/);
+  if (!match) return null;
+  return 12 * (parseInt(match[2], 10) + 1) + NOTE_BASE[match[1]];
+}
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+function noteToFreq(name) {
+  const midi = noteToMidi(name);
+  return midi == null ? null : midiToFreq(midi);
+}
+
+// -------------------- 4. Audio (synth tongue drum) --------------------
+let audioCtx = null, masterGain = null;
+const activeSources = new Set();
+function stopSongAudio() {
+  for (const source of activeSources) {
+    try { source.stop(); } catch {}
+  }
+  activeSources.clear();
+}
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.4;
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}
+function playNoteFreq(freq, when = 0, vel = 1.0) {
+  ensureAudio();
+  const t0 = audioCtx.currentTime + when;
+  const dur = 3.0;
+  const partials = [
+    { mult: 1.000, gain: 1.00, decay: 3.2 },
+    { mult: 2.005, gain: 0.45, decay: 2.0 },
+    { mult: 3.010, gain: 0.22, decay: 1.4 },
+    { mult: 5.400, gain: 0.10, decay: 0.9 },
+  ];
+  const noteGain = audioCtx.createGain();
+  noteGain.gain.setValueAtTime(0.0001, t0);
+  noteGain.gain.exponentialRampToValueAtTime(vel * 0.9, t0 + 0.005);
+  noteGain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  noteGain.connect(masterGain);
+  partials.forEach(p => {
+    const osc = audioCtx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq * p.mult;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(p.gain, t0 + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + p.decay);
+    osc.connect(g); g.connect(noteGain);
+    activeSources.add(osc);
+    osc.onended = () => { activeSources.delete(osc); osc.disconnect(); g.disconnect(); };
+    osc.start(t0); osc.stop(t0 + p.decay + 0.05);
+  });
+  const bufSize = Math.floor(audioCtx.sampleRate * 0.03);
+  const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const noiseG = audioCtx.createGain();
+  noiseG.gain.value = vel * 0.08;
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = "bandpass"; bp.frequency.value = freq * 4; bp.Q.value = 1.5;
+  noise.connect(bp); bp.connect(noiseG); noiseG.connect(masterGain);
+  activeSources.add(noise);
+  noise.onended = () => { activeSources.delete(noise); noise.disconnect(); bp.disconnect(); noiseG.disconnect(); };
+  noise.start(t0);
+}
+
+// -------------------- 5. Built-in songs (in F#3..F#5 range) --------------------
+function compileSong(text, bpm = 100, title = "Custom") {
+  if (!Number.isFinite(bpm) || bpm < 40 || bpm > 240) throw new Error("BPM must be between 40 and 240.");
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  let t = 0;
+  const notes = [];
+  for (const tok of tokens) {
+    let [n, d] = tok.split(":");
+    const beats = Number(d ?? "1");
+    if (!Number.isFinite(beats) || beats <= 0) throw new Error(`Invalid duration in ${tok}. Use a positive number of beats.`);
+    if (n !== "_" && n !== "rest") {
+      n = n.replace("Fs","F#").replace("Cs","C#")
+           .replace("Gs","G#").replace("As","A#").replace("Ds","D#");
+      if (!ALL_NOTES.includes(n)) throw new Error(`Unknown note ${n}. Choose a note from the drum's 15-note scale.`);
+      notes.push({ note: n, beats, time: t });
+    }
+    t += beats;
+  }
+  return { title, bpm, notes, totalBeats: t };
+}
+
+const SONGS = [
+  compileSong(
+    "D4:1 D4:1 A4:1 A4:1 B4:1 B4:1 A4:2 G4:1 G4:1 F#4:1 F#4:1 E4:1 E4:1 D4:2 " +
+    "A4:1 A4:1 G4:1 G4:1 F#4:1 F#4:1 E4:2 A4:1 A4:1 G4:1 G4:1 F#4:1 F#4:1 E4:2 " +
+    "D4:1 D4:1 A4:1 A4:1 B4:1 B4:1 A4:2 G4:1 G4:1 F#4:1 F#4:1 E4:1 E4:1 D4:2",
+    100, "Twinkle Twinkle Little Star"
+  ),
+  compileSong(
+    "A3:0.75 A3:0.25 B3:1 A3:1 D4:1 C#4:2 " +
+    "A3:0.75 A3:0.25 B3:1 A3:1 E4:1 D4:2 " +
+    "A3:0.75 A3:0.25 A4:1 F#4:1 D4:1 C#4:1 B3:2 " +
+    "G4:0.75 G4:0.25 F#4:1 D4:1 E4:1 D4:2",
+    110, "Happy Birthday"
+  ),
+  compileSong(
+    "F#4:1 F#4:1 G4:1 A4:1 A4:1 G4:1 F#4:1 E4:1 D4:1 D4:1 E4:1 F#4:1 F#4:1.5 E4:0.5 E4:2 " +
+    "F#4:1 F#4:1 G4:1 A4:1 A4:1 G4:1 F#4:1 E4:1 D4:1 D4:1 E4:1 F#4:1 E4:1.5 D4:0.5 D4:2",
+    120, "Ode to Joy (Beethoven)"
+  ),
+  compileSong(
+    "F#4:1 E4:1 D4:1 E4:1 F#4:1 F#4:1 F#4:2 " +
+    "E4:1 E4:1 E4:2 F#4:1 A4:1 A4:2 " +
+    "F#4:1 E4:1 D4:1 E4:1 F#4:1 F#4:1 F#4:1 F#4:1 " +
+    "E4:1 E4:1 F#4:1 E4:1 D4:4",
+    100, "Mary Had a Little Lamb"
+  ),
+  compileSong(
+    "D4:1.5 G4:0.5 B4:2 G4:1 B4:1 A4:2 G4:1 E4:1 D4:3 " +
+    "D4:1.5 G4:0.5 B4:2 G4:1 B4:1 A4:2 D5:3 " +
+    "D5:1.5 B4:0.5 B4:2 G4:1 B4:1 A4:2 G4:1 E4:1 D4:3",
+    72, "Amazing Grace"
+  ),
+  compileSong(
+    "F#4:1 F#4:1 F#4:2 F#4:1 F#4:1 F#4:2 " +
+    "F#4:1 A4:1 D4:1.5 E4:0.5 F#4:4 " +
+    "G4:1 G4:1 G4:1.5 G4:0.5 G4:1 F#4:1 F#4:1 F#4:0.5 F#4:0.5 " +
+    "F#4:1 E4:1 E4:1 F#4:1 E4:2 A4:2",
+    140, "Jingle Bells"
+  ),
+  compileSong(
+    "D4:1.5 G4:0.5 G4:1 A4:1 G4:1 B4:1 A4:1 G4:1.5 D4:0.5 " +
+    "D4:1 E4:1 G4:1.5 E4:0.5 G4:1 A4:1 B4:2 " +
+    "D5:1.5 G4:0.5 G4:1 A4:1 G4:1 B4:1 A4:1 G4:1.5 E4:0.5 " +
+    "E4:1 D4:1 D4:1.5 B4:0.5 A4:1 G4:1 G4:2",
+    90, "Auld Lang Syne"
+  ),
+  compileSong(
+    "F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2 " +
+    "D5:2 C#5:2 B4:2 A4:2 G4:2 F#4:2 G4:2 E4:2",
+    80, "Pachelbel — Canon (melody)"
+  ),
+  compileSong(
+    "F#3:0.5 G3:0.5 A3:0.5 B3:0.5 C#4:0.5 D4:0.5 E4:0.5 F#4:0.5 " +
+    "G4:0.5 A4:0.5 B4:0.5 C#5:0.5 D5:0.5 E5:0.5 F#5:1 " +
+    "F#5:0.5 E5:0.5 D5:0.5 C#5:0.5 B4:0.5 A4:0.5 G4:0.5 F#4:0.5 " +
+    "E4:0.5 D4:0.5 C#4:0.5 B3:0.5 A3:0.5 G3:0.5 F#3:1",
+    100, "D Major scale (full range)"
+  ),
+  compileSong(
+    "F#3:1 A3:1 D4:1 F#4:1 A4:1 D5:1 F#5:2 " +
+    "F#5:1 D5:1 A4:1 F#4:1 D4:1 A3:1 F#3:2 " +
+    "D4:1 F#4:1 A4:1 D5:1 D5:1 A4:1 F#4:1 D4:1 ",
+    100, "D major arpeggio practice"
+  ),
+  compileSong(
+    // "Sweden" by C418 — simplified, transposed to fit the drum's notes
+    // (F# minor uses G#; the drum is D major, so the melody is built from
+    // the F#m7 / D / Bm shapes that share notes with D major).
+    // Intro: F#m arpeggios — the recognisable opening swell
+    "F#4:2 A4:2 C#5:2 A4:2 " +
+    "F#4:2 A4:2 C#5:2 A4:2 " +
+    // Main melody enters
+    "C#5:2 D5:2 C#5:1 A4:1 F#4:2 " +
+    "A4:1 F#4:1 E4:2 F#4:2 D4:2 " +
+    // Repeat-and-vary the arpeggio bed
+    "F#4:2 A4:2 C#5:2 A4:2 " +
+    "F#4:2 A4:2 D5:2 C#5:2 " +
+    // Climbing phrase — "the part everyone hums"
+    "B4:2 C#5:2 D5:2 E5:2 " +
+    "D5:2 C#5:2 A4:2 F#4:2 " +
+    // Resolution
+    "E4:2 F#4:2 D4:4",
+    68, "Sweden — C418"
+  ),
+  compileSong(
+    // Tokyo Drift (Teriyaki Boyz) — the iconic background synth/bass hook.
+    // Originally in F# minor; we use the F#m / Bm / D notes that overlap
+    // with the drum's D-major scale (no G# needed).
+    // Hook bars 1-2: the syncopated F#4 stabs jumping to the F#5 octave
+    "F#4:0.5 F#4:0.5 A4:0.5 C#5:0.5 F#5:1 C#5:1 " +
+    "F#4:0.5 F#4:0.5 A4:0.5 C#5:0.5 F#5:1 D5:1 " +
+    // Bars 3-4: descending response
+    "C#5:1 D5:0.5 C#5:0.5 A4:1 F#4:1 " +
+    "E4:0.5 F#4:0.5 A4:0.5 B4:0.5 C#5:1 D5:1 " +
+    // Bars 5-6: repeat the hook with a small variation
+    "F#4:0.5 F#4:0.5 A4:0.5 C#5:0.5 F#5:1 C#5:1 " +
+    "F#4:0.5 F#4:0.5 A4:0.5 C#5:0.5 F#5:1 E5:1 " +
+    // Bars 7-8: the iconic descending tail of the hook, then settle on F#4
+    "F#5:0.5 E5:0.5 D5:0.5 C#5:0.5 B4:0.5 A4:0.5 F#4:1 " +
+    "E4:0.5 F#4:0.5 A4:0.5 C#5:0.5 F#4:2",
+    104, "Tokyo Drift — Teriyaki Boyz"
+  ),
+  compileSong(
+    // Hedwig's Theme (Harry Potter) — transposed down a 4th into B minor so
+    // every note sits inside the drum's D-major scale.
+    "F#4:1.5 B4:0.5 D5:1 C#5:1 B4:1.5 F#5:0.5 E5:2 C#5:2 " +
+    "F#4:1.5 B4:0.5 D5:1 C#5:1 A4:1.5 G4:0.5 F#4:3 " +
+    "F#4:1.5 B4:0.5 D5:1 C#5:1 B4:1.5 F#5:0.5 E5:1 D5:1 " +
+    "C#5:1.5 D5:0.5 C#5:1 B4:1 A4:1 F#4:3",
+    100, "Hedwig's Theme — Harry Potter"
+  ),
+  compileSong(
+    // Skyrim — "Dragonborn" main theme. Originally in B minor, which is the
+    // relative minor of D major, so every note lands on the drum natively.
+    // The "DOVAH-KIIN, DOVAH-KIIN" choral chant.
+    "B3:2 F#4:2 F#4:1 F#4:1 E4:1 D4:1 E4:2 F#4:2 " +
+    "B3:2 F#4:2 F#4:1 F#4:1 E4:1 D4:1 E4:2 F#4:2 " +
+    "F#4:1 G4:1 A4:1 B4:1 A4:2 F#4:2 " +
+    "G4:1 F#4:1 E4:1 D4:1 E4:2 F#4:2 " +
+    // Octave-up climax
+    "B4:2 F#5:2 F#5:1 F#5:1 E5:1 D5:1 E5:2 F#5:2",
+    100, "Skyrim — Dragonborn"
+  ),
+  compileSong(
+    // Take On Me (a-ha) — the iconic synth hook
+    "F#5:0.5 F#5:0.5 D5:0.5 B4:0.5 B4:0.5 E5:0.5 E5:0.5 E5:0.5 " +
+    "F#5:0.5 F#5:0.5 D5:0.5 B4:0.5 B4:0.5 E5:0.5 E5:0.5 E5:0.5 " +
+    "F#5:0.5 F#5:0.5 D5:0.5 B4:0.5 B4:0.5 E5:0.5 E5:0.5 E5:0.5 " +
+    "C#5:0.5 C#5:0.5 A4:0.5 F#4:0.5 F#4:0.5 B4:0.5 B4:0.5 B4:0.5 " +
+    "F#5:0.5 F#5:0.5 D5:0.5 B4:0.5 B4:0.5 E5:0.5 E5:0.5 E5:0.5 " +
+    "C#5:1 D5:1 E5:1 F#5:1 D5:2 B4:2",
+    150, "Take On Me — a-ha"
+  ),
+  compileSong(
+    // The Sound of Silence (Simon & Garfunkel / Disturbed cover) — the
+    // Disturbed version went viral in 2016. Transposed to E minor so the
+    // melody fits without needing F natural.
+    "E4:1 E4:1 G4:1 E4:1 G4:1 B4:1 A4:0.5 G4:0.5 F#4:1 E4:1 " +
+    "E4:1 E4:1 G4:1 E4:1 G4:1 B4:1 A4:0.5 G4:0.5 F#4:1 E4:1 " +
+    "B4:1 D5:1 D5:1 D5:1 D5:1 D5:1 B4:1 A4:1 G4:2 " +
+    "G4:1 B4:1 B4:1 B4:1 A4:0.5 G4:0.5 F#4:1 E4:2",
+    68, "Sound of Silence"
+  ),
+];
+
+// -------------------- 6. Canvas / drawing --------------------
+const canvas = document.getElementById("stage");
+const ctx = canvas.getContext("2d");
+let dpr = Math.max(1, window.devicePixelRatio || 1);
+let drumCenter = { x: 0, y: 0, r: 0 };
+
+function resizeCanvas() {
+  const main = document.querySelector("main");
+  const w = main.clientWidth, h = main.clientHeight;
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  computeLayout();
+}
+
+function computeLayout() {
+  const w = canvas.width / dpr, h = canvas.height / dpr;
+  // Smaller drum + centred vertically gives the radially-falling notes
+  // plenty of room on every side.
+  const drumDiameter = Math.min(w * 0.5, h * 0.55);
+  const radius = drumDiameter / 2;
+  const cx = w / 2;
+  const cy = h / 2 + 8;
+  drumCenter = { x: cx, y: cy, r: radius };
+}
+
+window.addEventListener("resize", resizeCanvas);
+
+// Compute (x,y) for the visual centre of a petal (used as label target).
+// Sits in the wide rectangular base (toward the rim) of the Taj-arch shape,
+// not the pointed apex which faces the drum's centre.
+function petalCentre(positionIdx) {
+  const { x, y, r } = drumCenter;
+  const p = PETALS[positionIdx];
+  const rMid = (p.r1 === 0)
+    ? 0
+    : (p.r1 + (p.r2 - p.r1) * 0.7) * r;
+  const ang = (p.ang - 90) * Math.PI / 180;
+  return { x: x + Math.cos(ang) * rMid, y: y + Math.sin(ang) * rMid };
+}
+
+// Build the path for a petal — shaped like a Taj Mahal entrance arch:
+// flat base at the OUTER rim, pointed apex toward the drum's centre,
+// with side walls that bow gently inward.
+function petalPath(positionIdx) {
+  const { x, y, r } = drumCenter;
+  const p = PETALS[positionIdx];
+  if (p.r1 === 0) {
+    ctx.beginPath();
+    ctx.arc(x, y, p.r2 * r, 0, Math.PI * 2);
+    return;
+  }
+  const r1 = p.r1 * r, r2 = p.r2 * r;
+  // Tangential half-width derived from the angular span at the mid-radius.
+  const halfW = ((r1 + r2) / 2) * (p.span * Math.PI / 180) / 2;
+  // Pointed-arch portion at the INNER end (toward the drum centre).
+  const archLen = Math.min(halfW * 1.55, (r2 - r1) * 0.42);
+  const sideStart = r1 + archLen;
+  // Slight rounding at the base corners so the rim base reads softly.
+  const baseR = Math.min(halfW * 0.45, (r2 - r1) * 0.18);
+  // Side-wall curvature — the Taj entrance walls aren't strictly straight,
+  // they bow gently inward as they rise toward the arch.
+  const wallTopY = halfW * 0.9;
+  const wallBowY = halfW * 0.68;
+  const wallMidX = (r2 - baseR + sideStart) / 2;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((p.ang - 90) * Math.PI / 180);
+
+  // In the rotated frame: +x runs outward. Apex at (r1, 0), flat base at r2.
+  ctx.beginPath();
+  ctx.moveTo(r2 - baseR, halfW);
+  // Outer-right rounded corner at the rim base
+  ctx.quadraticCurveTo(r2, halfW, r2, halfW - baseR);
+  // Outer (rim) edge — across the base of the arch
+  ctx.lineTo(r2, -halfW + baseR);
+  // Outer-left rounded corner
+  ctx.quadraticCurveTo(r2, -halfW, r2 - baseR, -halfW);
+  // Left side wall — gentle inward bow as it climbs toward the apex
+  ctx.quadraticCurveTo(wallMidX, -wallBowY, sideStart, -wallTopY);
+  // Left arch curve up to the pointed apex (lancet feel)
+  ctx.quadraticCurveTo(r1 + archLen * 0.32, -halfW * 0.45, r1, 0);
+  // Right arch curve down from the apex
+  ctx.quadraticCurveTo(r1 + archLen * 0.32, halfW * 0.45, sideStart, wallTopY);
+  // Right side wall — symmetric gentle inward bow back to the base
+  ctx.quadraticCurveTo(wallMidX, wallBowY, r2 - baseR, halfW);
+  ctx.closePath();
+
+  ctx.restore();
+}
+
+// Hit test: which petal contains (px, py)?
+function petalAt(px, py) {
+  const { x, y, r } = drumCenter;
+  const dx = px - x, dy = py - y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist > r * 1.0) return -1;
+  // Compute angle in degrees with 0 = top, clockwise
+  let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+  while (deg < 0) deg += 360;
+  while (deg >= 360) deg -= 360;
+  // Center first
+  if (dist <= PETALS[0].r2 * r) return 0;
+  // Then rings
+  for (let i = 1; i < PETALS.length; i++) {
+    const p = PETALS[i];
+    if (dist < p.r1 * r || dist > p.r2 * r) continue;
+    let d = Math.abs(deg - p.ang);
+    if (d > 180) d = 360 - d;
+    if (d <= p.span / 2) return i;
+  }
+  return -1;
+}
+
+// -------------------- 7. Game / play state --------------------
+let activeSong = SONGS[0];
+let playing = false;
+let songStartTime = 0;
+let pauseOffset = 0;
+let scheduledHead = 0;
+const lookAheadSec = 0.2;
+let leadSec = 2.5;
+let tempo = 1.0;
+let loop = false;
+let autoPlaySound = true;
+let editMode = false;
+let songEndAt = 0;
+let hits = 0;
+
+// Tongues' transient visual state, indexed by POSITION
+const lit    = new Array(15).fill(0);   // 0..1, decays after a strike
+const target = new Array(15).fill(0);   // 0..1, glow as a falling note approaches
+
+let fallingNotes = [];
+
+function loadSong(idx) {
+  activeSong = SONGS[idx];
+  resetSong();
+  document.getElementById("totalStat").textContent = activeSong.notes.length;
+}
+function resetSong() {
+  stopSongAudio();
+  playing = false;
+  pauseOffset = 0;
+  scheduledHead = 0;
+  fallingNotes = [];
+  hits = 0;
+  document.getElementById("hitStat").textContent = "0";
+  document.getElementById("timeStat").textContent = "0.0s";
+  document.getElementById("playBtn").textContent = "▶ Play";
+}
+function startSong() {
+  ensureAudio();
+  if (!audioCtx) return;
+  stopSongAudio();
+  scheduledHead = 0;
+  hits = 0;
+  pauseOffset = 0;
+  lit.fill(0);
+  target.fill(0);
+  document.getElementById("hitStat").textContent = "0";
+  const beatSec = 60 / activeSong.bpm / tempo;
+  fallingNotes = activeSong.notes.map(n => {
+    const idx = posOf(n.note);
+    return idx >= 0
+      ? { positionIdx: idx, hitTime: n.time * beatSec, played: false, vel: 1.0, durBeats: n.beats, noteName: n.note }
+      : null;
+  }).filter(Boolean);
+  songEndAt = activeSong.totalBeats * beatSec + 1.5;
+  songStartTime = audioCtx.currentTime + 0.1;
+  playing = true;
+  document.getElementById("playBtn").textContent = "⏸ Pause";
+}
+function pauseSong() {
+  if (!playing) return;
+  pauseOffset = Math.max(0, audioCtx.currentTime - songStartTime);
+  stopSongAudio();
+  // Notes scheduled ahead of the pause must be scheduled again on resume.
+  const next = fallingNotes.findIndex(n => n.hitTime >= pauseOffset);
+  scheduledHead = next < 0 ? fallingNotes.length : next;
+  playing = false;
+  document.getElementById("playBtn").textContent = "▶ Play";
+}
+function resumeSong() {
+  ensureAudio();
+  if (playing) return;
+  if (pauseOffset > 0) {
+    songStartTime = audioCtx.currentTime - pauseOffset;
+    playing = true;
+    document.getElementById("playBtn").textContent = "⏸ Pause";
+  } else { startSong(); }
+}
+
+// -------------------- 8. Render loop --------------------
+function render() {
+  const w = canvas.width / dpr, h = canvas.height / dpr;
+  ctx.clearRect(0, 0, w, h);
+
+  // soft glow behind drum
+  const grd = ctx.createRadialGradient(drumCenter.x, drumCenter.y, drumCenter.r * 0.2,
+                                        drumCenter.x, drumCenter.y, drumCenter.r * 1.6);
+  grd.addColorStop(0, "rgba(110,231,255,0.06)");
+  grd.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, w, h);
+
+  // current song time
+  let now = playing && audioCtx ? (audioCtx.currentTime - songStartTime) : pauseOffset;
+
+  // schedule audio for upcoming notes
+  if (playing && audioCtx) {
+    while (scheduledHead < fallingNotes.length &&
+           fallingNotes[scheduledHead].hitTime <= now + lookAheadSec) {
+      const n = fallingNotes[scheduledHead];
+      if (autoPlaySound) {
+        const when = Math.max(0, n.hitTime - now);
+        playNoteFreq(noteToFreq(n.noteName), when, n.vel);
+      }
+      scheduledHead++;
+    }
+    if (now >= songEndAt) {
+      if (loop) { startSong(); now = audioCtx.currentTime - songStartTime; }
+      else { playing = false; pauseOffset = 0; scheduledHead = 0;
+        document.getElementById("playBtn").textContent = "▶ Play"; }
+    }
+  }
+  document.getElementById("timeStat").textContent = Math.max(0, now).toFixed(1) + "s";
+
+  // update glow / hit state from falling notes
+  for (let i = 0; i < lit.length; i++) target[i] *= 0.9;
+  for (const n of fallingNotes) {
+    if (n.played) continue;
+    const dt = n.hitTime - now;
+    if (dt > 0 && dt < 0.4) {
+      const intensity = 1 - dt / 0.4;
+      target[n.positionIdx] = Math.max(target[n.positionIdx], intensity);
+    }
+    if (now >= n.hitTime) {
+      n.played = true;
+      lit[n.positionIdx] = 1.0;
+      hits++;
+      document.getElementById("hitStat").textContent = hits;
+    }
+  }
+
+  // draw drum body, then falling notes (behind), then petals, then labels
+  drawDrumBody();
+  drawFallingNotes(now);
+  drawPetals();
+
+  requestAnimationFrame(render);
+}
+
+function drawDrumBody() {
+  const { x, y, r } = drumCenter;
+  ctx.save();
+
+  // Drop shadow — gives the drum the sense of resting on something.
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+  ctx.shadowBlur = 30;
+  ctx.shadowOffsetY = r * 0.05;
+  ctx.fillStyle = "#000";
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  // Drum body — radial gradient anchored on the requested colour, lit
+  // from the upper-left so the surface reads as a domed metal disc.
+  const bg = ctx.createRadialGradient(
+    x - r * 0.4, y - r * 0.45, 0,
+    x, y, r * 1.05
+  );
+  bg.addColorStop(0.0, "#5b7a90");
+  bg.addColorStop(0.22, "#3c5a72");
+  bg.addColorStop(0.6,  "#294457");
+  bg.addColorStop(1.0,  "#0f1d2c");
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Specular streak — soft white arc on the upper rim, the highlight
+  // a real metal drum would show under directional light.
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.96, Math.PI * 1.18, Math.PI * 1.82);
+  ctx.lineWidth = r * 0.035;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+  ctx.stroke();
+
+  // Outer outline for crisp definition against the page background.
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.998, 0, Math.PI * 2);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+  ctx.stroke();
+
+  // Edit-mode badge — the regular drum title above the body has been removed.
+  if (editMode) {
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("✏ EDIT MODE", x, y - r - 14);
+  }
+  ctx.restore();
+}
+
+function drawFallingNotes(now) {
+  const w = canvas.width / dpr, h = canvas.height / dpr;
+  const { x: cx, y: cy, r: drumR } = drumCenter;
+
+  for (const n of fallingNotes) {
+    if (n.played && (now - n.hitTime) > 1.2) continue;
+    const startT = n.hitTime - leadSec;
+    if (now < startT) continue;
+    if (now > n.hitTime + 0.6 && n.played) continue;
+
+    const petal = PETALS[n.positionIdx];
+    const angRad = (petal.ang - 90) * Math.PI / 180;
+    const dx = Math.cos(angRad), dy = Math.sin(angRad);
+
+    // Per-tongue: where does the tongue's radial line cross the canvas edge?
+    // Use that as the bar's start distance so every bar appears at its own
+    // canvas edge at progress 0 — directions with less canvas space (like the
+    // bottom of the drum) no longer pop in late.
+    let edgeDist = Infinity;
+    if (dx >  1e-6) edgeDist = Math.min(edgeDist, (w - cx) / dx);
+    if (dx < -1e-6) edgeDist = Math.min(edgeDist, -cx / dx);
+    if (dy >  1e-6) edgeDist = Math.min(edgeDist, (h - cy) / dy);
+    if (dy < -1e-6) edgeDist = Math.min(edgeDist, -cy / dy);
+    if (!isFinite(edgeDist)) edgeDist = drumR * 2;
+    const startDist = edgeDist;
+
+    // Target = the OUTER edge of the tongue (not its centre). The bar's head
+    // reaches this radius exactly at hitTime, which is also when the audio
+    // plays and the tongue lights up — so visually the strike happens at the
+    // boundary the bar actually contacts first.
+    const targetDist = petal.r2 * drumR;
+
+    let progRaw = (now - startT) / leadSec;
+    // Clamp for position so the bar parks at the tongue's edge instead of
+    // sliding past it; the played-state fade is handled separately via alpha.
+    const prog = Math.max(0, Math.min(1, progRaw));
+
+    const headDist = startDist + (targetDist - startDist) * prog;
+    const lenBar = Math.max(20, n.durBeats * 36);
+    const wBar = 26;
+
+    // Per-bar uniform colour that shifts smoothly with proximity:
+    //   far → green, mid → yellow, at the tongue's edge → red.
+    const closeness = prog;
+    const colFar  = [ 70, 220,  90];
+    const colMid  = [250, 215,  50];
+    const colNear = [255,  60,  40];
+    const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+    let col;
+    if (closeness < 0.5) {
+      const t = closeness / 0.5;
+      col = [lerp(colFar[0], colMid[0], t), lerp(colFar[1], colMid[1], t), lerp(colFar[2], colMid[2], t)];
+    } else {
+      const t = (closeness - 0.5) / 0.5;
+      col = [lerp(colMid[0], colNear[0], t), lerp(colMid[1], colNear[1], t), lerp(colMid[2], colNear[2], t)];
+    }
+
+    // Fade in briefly so bars don't pop in, fade out fast after the hit.
+    let alpha = 0.95;
+    if (prog < 0.08) alpha *= prog / 0.08;
+    if (progRaw > 1) alpha *= Math.max(0, 1 - (progRaw - 1) * 12);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.rotate(angRad);
+
+    // Solid colour fill — the gradient is across TIME (bar-to-bar), not within
+    // a single bar.
+    roundRect(ctx, headDist, -wBar / 2, lenBar, wBar, 7);
+    ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.stroke();
+    ctx.restore();
+
+    // Labels stay upright so they're readable from every direction.
+    const centerD = headDist + lenBar / 2;
+    const lx = cx + dx * centerD;
+    const ly = cy + dy * centerD;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "700 12px ui-sans-serif, system-ui, sans-serif";
+    ctx.fillText(STICKER[n.noteName] || n.noteName, lx, ly - 6);
+    ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
+    ctx.fillText(n.noteName, lx, ly + 6);
+    ctx.restore();
+  }
+}
+
+function drawPetals() {
+  const { r: dcR } = drumCenter;
+  const clamp = v => Math.max(0, Math.min(255, v|0));
+  const shade = (c, f) => `rgb(${clamp(c.r * f)},${clamp(c.g * f)},${clamp(c.b * f)})`;
+
+  for (let i = 0; i < PETALS.length; i++) {
+    const note = noteAt[i];
+    const oc = octaveClass(note);
+    // Base colour, kept in the same steel-blue family as the drum body.
+    let base;
+    if (oc === "low")       base = { r: 32, g: 52,  b: 68  };
+    else if (oc === "high") base = { r: 78, g: 110, b: 134 };
+    else                    base = { r: 52, g: 80,  b: 100 };
+
+    const l = Math.max(lit[i], target[i] * 0.7);
+    let cur = base;
+    if (l > 0.02) {
+      const useHit = lit[i] > target[i] * 0.7;
+      const hi = useHit ? { r: 74, g: 222, b: 128 } : { r: 245, g: 158, b: 11 };
+      cur = {
+        r: Math.round(base.r + (hi.r - base.r) * l),
+        g: Math.round(base.g + (hi.g - base.g) * l),
+        b: Math.round(base.b + (hi.b - base.b) * l),
+      };
+    }
+
+    ctx.save();
+    // Glow halo when the tongue is active.
+    if (l > 0.05) {
+      const c0 = petalCentre(i);
+      const useHit = lit[i] > target[i] * 0.7;
+      const grd = ctx.createRadialGradient(c0.x, c0.y, 5, c0.x, c0.y, dcR * 0.5);
+      grd.addColorStop(0, useHit ? `rgba(74,222,128,${0.4 * l})` : `rgba(245,158,11,${0.35 * l})`);
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      petalPath(i);
+      ctx.fill();
+    }
+
+    // Build the path once for fill + multiple strokes.
+    petalPath(i);
+
+    // Body fill — diagonal gradient simulating light from the upper-left
+    // bouncing off a slightly convex tongue.
+    const c = petalCentre(i);
+    const off = dcR * 0.42;
+    const bodyGrd = ctx.createLinearGradient(
+      c.x - off, c.y - off,
+      c.x + off, c.y + off
+    );
+    bodyGrd.addColorStop(0,    shade(cur, 1.55));
+    bodyGrd.addColorStop(0.55, shade(cur, 1.0));
+    bodyGrd.addColorStop(1,    shade(cur, 0.45));
+    ctx.fillStyle = bodyGrd;
+    ctx.fill();
+
+    // Cut groove — dark stroke layered (wider lighter, then thinner darker)
+    // to read as a carved channel without the cost of a per-tongue shadowBlur.
+    ctx.lineWidth = 4.5;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.stroke();
+
+    // Bevel highlight — thin white edge where light catches the tongue rim.
+    ctx.lineWidth = 0.9;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.stroke();
+
+    // Edit-mode dashed outline.
+    if (editMode) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = i === pickerForPos ? "#ffd166" : "rgba(245,158,11,0.55)";
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Labels — no shadow (too expensive per frame); the gradient is dark
+    // enough on the lower-right side that white text reads cleanly.
+    const sticker = STICKER[note] || "?";
+    const baseSize = i === 0 ? 22 : 16;
+    ctx.fillStyle = l > 0.4 ? "#0b1020" : "rgba(255,255,255,0.95)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${baseSize}px ui-sans-serif, system-ui, sans-serif`;
+    drawStickerLabel(c.x, c.y - 2, sticker, baseSize);
+    ctx.font = `${baseSize - 6}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.fillStyle = l > 0.4 ? "#0b1020" : "rgba(255,255,255,0.75)";
+    ctx.fillText(note, c.x, c.y + baseSize - 4);
+
+    // decay
+    lit[i] *= 0.92;
+    ctx.restore();
+  }
+}
+
+// Render the sticker number with a tiny dot above (high) or below (low)
+function drawStickerLabel(x, y, sticker, size) {
+  if (sticker.startsWith(".")) {
+    const num = sticker.slice(1);
+    ctx.fillText(num, x, y);
+    ctx.beginPath();
+    ctx.arc(x, y - size * 0.55, size * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (sticker.endsWith(".")) {
+    const num = sticker.slice(0, -1);
+    ctx.fillText(num, x, y);
+    ctx.beginPath();
+    ctx.arc(x, y + size * 0.55, size * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillText(sticker, x, y);
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  if (w < 2 * r) r = w / 2;
+  if (h < 2 * r) r = h / 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y,     x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x,     y + h, r);
+  ctx.arcTo(x,     y + h, x,     y,     r);
+  ctx.arcTo(x,     y,     x + w, y,     r);
+  ctx.closePath();
+}
+
+// -------------------- 9. Interaction --------------------
+let pickerForPos = -1;
+const notePicker = document.getElementById("notePicker");
+const pickerGrid = document.getElementById("pickerGrid");
+
+function openPickerFor(positionIdx, screenX, screenY) {
+  pickerForPos = positionIdx;
+  pickerGrid.innerHTML = "";
+  ALL_NOTES.forEach(n => {
+    const btn = document.createElement("button");
+    btn.className = "note " + octaveClass(n);
+    if (n === noteAt[positionIdx]) btn.classList.add("swap");
+    btn.innerHTML = `<div style="font-weight:600">${n}</div>
+                     <div style="font-size:10px; color:var(--muted)">${STICKER[n]}</div>`;
+    btn.onclick = () => {
+      // Swap: if 'n' is currently at another position, that position takes the
+      // note this position used to have. Net effect: every note still appears once.
+      const fromPos = noteAt.indexOf(n);
+      const oldHere = noteAt[positionIdx];
+      noteAt[positionIdx] = n;
+      if (fromPos >= 0 && fromPos !== positionIdx) noteAt[fromPos] = oldHere;
+      fallingNotes.forEach(note => { note.positionIdx = posOf(note.noteName); });
+      saveLayout();
+      hidePicker();
+    };
+    pickerGrid.appendChild(btn);
+  });
+  // Position the popover near the click, clamped to viewport
+  notePicker.classList.add("show");
+  const main = document.querySelector("main").getBoundingClientRect();
+  const pw = notePicker.offsetWidth, ph = notePicker.offsetHeight;
+  let x = screenX - main.left - pw / 2;
+  let y = screenY - main.top - ph - 12;
+  x = Math.max(8, Math.min(main.width - pw - 8, x));
+  if (y < 8) y = screenY - main.top + 16;
+  notePicker.style.left = x + "px";
+  notePicker.style.top = y + "px";
+}
+function hidePicker() {
+  notePicker.classList.remove("show");
+  pickerForPos = -1;
+}
+document.getElementById("pickerCancel").onclick = hidePicker;
+
+canvas.addEventListener("pointerdown", e => {
+  ensureAudio();
+  const rect = canvas.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  const idx = petalAt(px, py);
+  if (idx < 0) { hidePicker(); return; }
+  if (editMode) {
+    openPickerFor(idx, e.clientX, e.clientY);
+  } else {
+    playNoteFreq(noteToFreq(noteAt[idx]), 0, 1.0);
+    lit[idx] = 1.0;
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.repeat) return;
+  if (e.code === "Space" && !e.target.closest("button, a, input, textarea, select")) {
+    e.preventDefault();
+    if (playing) pauseSong();
+    else if (pauseOffset > 0) resumeSong();
+    else { resetSong(); startSong(); }
+  } else if (e.code === "Escape") {
+    hidePicker();
+  }
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden) pauseSong(); });
+
+// -------------------- 10. UI wiring --------------------
+const songSelect = document.getElementById("songSelect");
+function refreshSongList() {
+  songSelect.innerHTML = "";
+  SONGS.forEach((s, i) => {
+    const opt = document.createElement("option");
+    opt.value = i; opt.textContent = s.title;
+    songSelect.appendChild(opt);
+  });
+}
+refreshSongList();
+loadSong(0);
+
+songSelect.addEventListener("change", () => loadSong(parseInt(songSelect.value, 10)));
+document.getElementById("playBtn").addEventListener("click", () => {
+  ensureAudio();
+  if (playing) pauseSong();
+  else if (pauseOffset > 0) resumeSong();
+  else { resetSong(); startSong(); }
+});
+document.getElementById("stopBtn").addEventListener("click", resetSong);
+
+const tempoEl = document.getElementById("tempo");
+const tempoValEl = document.getElementById("tempoVal").querySelector("b");
+tempoEl.addEventListener("input", () => {
+  tempo = parseFloat(tempoEl.value);
+  tempoValEl.textContent = tempo.toFixed(2) + "x";
+  if (playing || pauseOffset > 0) {
+    const wasPlaying = playing;
+    resetSong();
+    if (wasPlaying) startSong();
+  }
+});
+const leadEl = document.getElementById("lead");
+const leadValEl = document.getElementById("leadVal").querySelector("b");
+leadEl.addEventListener("input", () => {
+  leadSec = parseFloat(leadEl.value);
+  leadValEl.textContent = leadSec.toFixed(2) + "s";
+});
+
+document.getElementById("loopChk").addEventListener("change", e => loop = e.target.checked);
+document.getElementById("autoPlayChk").addEventListener("change", e => autoPlaySound = e.target.checked);
+
+const editBtn = document.getElementById("editBtn");
+editBtn.addEventListener("click", () => {
+  editMode = !editMode;
+  editBtn.classList.toggle("on", editMode);
+  editBtn.textContent = editMode ? "✓ Done editing" : "✏ Edit layout";
+  if (!editMode) hidePicker();
+});
+document.getElementById("resetLayoutBtn").addEventListener("click", () => {
+  if (confirm("Reset the tongue layout to the default arrangement?")) {
+    resetLayoutToDefault();
+    hidePicker();
+  }
+});
+
+// Custom song modal
+const modalBg = document.getElementById("modalBg");
+document.getElementById("customBtn").addEventListener("click", () => modalBg.classList.add("show"));
+document.getElementById("modalCancel").addEventListener("click", () => modalBg.classList.remove("show"));
+document.getElementById("modalSave").addEventListener("click", () => {
+  const text = document.getElementById("songText").value.trim();
+  const title = document.getElementById("songTitle").value.trim() || "Custom Song";
+  const bpm = Number(document.getElementById("songBpm").value);
+  if (!text) { modalBg.classList.remove("show"); return; }
+  let song;
+  try {
+    song = compileSong(text, bpm, title);
+    document.getElementById("songError").hidden = true;
+  } catch (error) {
+    const errorEl = document.getElementById("songError");
+    errorEl.textContent = error.message;
+    errorEl.hidden = false;
+    return;
+  }
+  SONGS.push(song);
+  refreshSongList();
+  songSelect.value = SONGS.length - 1;
+  loadSong(SONGS.length - 1);
+  modalBg.classList.remove("show");
+});
+
+// -------------------- 11. Boot --------------------
+resizeCanvas();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

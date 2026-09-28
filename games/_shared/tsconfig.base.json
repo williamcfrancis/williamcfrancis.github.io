@@ -11,7 +11,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "paths": {
-      "@shared/*": ["./games/_shared/src/*"]
+      "@shared/*": ["./src/*"]
     }
   }
 }

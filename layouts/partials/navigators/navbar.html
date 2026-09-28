@@ -45,13 +45,15 @@
   {{ end }}
 {{ end }}
 
-{{ $professionalIDs := slice "about" "experiences" "skills" "education" }}
+{{ $professionalIDs := slice "about" "experiences" "skills" "education" "projects" }}
+{{ $homePrefix := site.Home.RelPermalink }}
+{{ if .IsHome }}{{ $homePrefix = "" }}{{ end }}
 {{ $customMenus := site.Params.customMenus }}
 {{ if (index site.Data site.Language.Lang).site.customMenus }}
   {{ $customMenus = (index site.Data site.Language.Lang).site.customMenus }}
 {{ end }}
 
-<nav class="navbar navbar-expand-xl top-navbar initial-navbar" id="top-navbar">
+<nav class="navbar navbar-expand-xl top-navbar initial-navbar{{ if not .IsHome }} innerpage-navbar{{ end }}" id="top-navbar">
   <div class="container">
     <a class="navbar-brand" href="{{ site.BaseURL | relLangURL }}">
       {{ if $invertedLogo }}
@@ -66,6 +68,8 @@
       data-toggle="collapse"
       data-target="#top-nav-items"
       aria-label="menu"
+      aria-controls="top-nav-items"
+      aria-expanded="false"
     >
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -75,7 +79,7 @@
         <div class="navbar-group professional">
           <ul class="navbar-nav" aria-label="Professional">
             <li class="nav-item">
-              <a class="nav-link" href="#home">{{ i18n "home" }}</a>
+              <a class="nav-link" href="{{ $homePrefix }}#home">{{ i18n "home" }}</a>
             </li>
             {{ range sort $sections "section.weight" }}
               {{ $id := replace (lower .section.name) " " "-" }}
@@ -84,7 +88,7 @@
               {{ end }}
               {{ if and (.section.enable) (.section.showOnNavbar) (in $professionalIDs $id) }}
                 <li class="nav-item">
-                  <a class="nav-link" href="#{{ partial "helpers/get-section-id.html" . }}">{{ .section.name }}</a>
+                  <a class="nav-link" href="{{ $homePrefix }}#{{ partial "helpers/get-section-id.html" . }}">{{ .section.name }}</a>
                 </li>
               {{ end }}
             {{ end }}

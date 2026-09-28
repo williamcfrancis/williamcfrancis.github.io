@@ -75,6 +75,8 @@ if (googleLink) {
 // Simulation section
 
 const canvas = document.getElementsByTagName('canvas')[0];
+const fluidMotionPreference = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 resizeCanvas();
 
 let config = {
@@ -126,6 +128,13 @@ const { gl, ext } = getWebGLContext(canvas);
 
 if (isMobile()) {
     config.DYE_RESOLUTION = 512;
+}
+// Apply small-screen defaults before allocating the framebuffers.
+if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) {
+    config.SIM_RESOLUTION = 64;
+    config.DYE_RESOLUTION = 512;
+    config.BLOOM_RESOLUTION = 128;
+    config.SUNRAYS_RESOLUTION = 128;
 }
 if (!ext.supportLinearFiltering) {
     config.DYE_RESOLUTION = 512;
@@ -297,7 +306,8 @@ function startGUI () {
     app.domElement.parentElement.appendChild(appIcon);
     appIcon.className = 'icon app';
 
-    if (isMobile())
+    const hasSavedPanelState = gui.useLocalStorage && typeof gui.load.closed === 'boolean';
+    if (!hasSavedPanelState && (isMobile() || (window.matchMedia && window.matchMedia('(max-width: 720px)').matches)))
         gui.close();
 }
 
@@ -1192,9 +1202,30 @@ multipleSplats(parseInt(Math.random() * 20) + 5);
 
 let lastUpdateTime = Date.now();
 let colorUpdateTimer = 0.0;
-update();
+let fluidAnimationFrame = null;
+syncFluidAnimation();
+
+function fluidIsSuspended () {
+    return document.hidden || !!(fluidMotionPreference && fluidMotionPreference.matches);
+}
+
+function syncFluidAnimation () {
+    if (fluidIsSuspended()) {
+        if (fluidAnimationFrame !== null) cancelAnimationFrame(fluidAnimationFrame);
+        fluidAnimationFrame = null;
+        // Do not replay a stale drag when the page becomes visible again.
+        pointers.forEach(pointer => { pointer.down = false; pointer.moved = false; });
+        return;
+    }
+    if (fluidAnimationFrame === null) {
+        lastUpdateTime = Date.now();
+        fluidAnimationFrame = requestAnimationFrame(update);
+    }
+}
 
 function update () {
+    fluidAnimationFrame = null;
+    if (fluidIsSuspended()) return;
     const dt = calcDeltaTime();
     if (resizeCanvas())
         initFramebuffers();
@@ -1203,7 +1234,7 @@ function update () {
     if (!config.PAUSED)
         step(dt);
     render(null);
-    requestAnimationFrame(update);
+    fluidAnimationFrame = requestAnimationFrame(update);
 }
 
 function calcDeltaTime () {
@@ -1215,8 +1246,8 @@ function calcDeltaTime () {
 }
 
 function resizeCanvas () {
-    let width = scaleByPixelRatio(canvas.clientWidth);
-    let height = scaleByPixelRatio(canvas.clientHeight);
+    let width = Math.max(1, scaleByPixelRatio(canvas.clientWidth));
+    let height = Math.max(1, scaleByPixelRatio(canvas.clientHeight));
     if (canvas.width != width || canvas.height != height) {
         canvas.width = width;
         canvas.height = height;
@@ -1654,7 +1685,10 @@ function getTextureScale (texture, width, height) {
 }
 
 function scaleByPixelRatio (input) {
-    let pixelRatio = window.devicePixelRatio || 1;
+    // Keep ordinary desktop rendering unchanged; avoid oversized buffers on
+    // very high-DPR phones and displays above 4K. Use the same ratio for input.
+    const cssPixels = Math.max(1, canvas.clientWidth * canvas.clientHeight);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(8294400 / cssPixels));
     return Math.floor(input * pixelRatio);
 }
 
@@ -1670,32 +1704,18 @@ function hashCode (s) {
 
 /* ---------- Patch D: stability tweaks ---------- */
 
-// Pause GPU work when the tab is not visible. Modern browsers throttle rAF
-// for hidden tabs, but explicitly pausing the sim also zeroes shader dispatch.
-document.addEventListener('visibilitychange', () => {
-    config.PAUSED = document.hidden;
-});
-
-// Scale simulation resolution down on small screens so phones stay smooth.
-// Desktop keeps the upstream defaults so the look matches the source demo.
-if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) {
-    config.SIM_RESOLUTION = 64;     // default 128
-    config.DYE_RESOLUTION = 512;    // default 1024
-    config.BLOOM_RESOLUTION = 128;  // default 256
-    config.SUNRAYS_RESOLUTION = 128;// default 196
-}
-
-// Respect reduced-motion — pause immediately; the CSS fallback will show a
-// static gradient background instead.
-if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    config.PAUSED = true;
+// Suspend the entire render loop, including bloom and sunrays. Keep the GUI's
+// pause setting separate so tab visibility never overrides the user's choice.
+document.addEventListener('visibilitychange', syncFluidAnimation);
+if (fluidMotionPreference) {
+    fluidMotionPreference.addEventListener('change', syncFluidAnimation);
 }
 
 // Expose a splat helper so outside scripts (e.g. the periodic cat companion)
 // can paint a fluid trail from screen coordinates without faking mouse events
 // — faking would hijack pointers[0] and fight a real user's cursor.
 window.fluidSplatScreen = function (clientX, clientY, prevClientX, prevClientY) {
-    if (!canvas || !canvas.width || !canvas.height) return;
+    if (fluidIsSuspended() || config.PAUSED || !canvas || !canvas.width || !canvas.height) return;
     try {
         const posX = scaleByPixelRatio(clientX);
         const posY = scaleByPixelRatio(clientY);

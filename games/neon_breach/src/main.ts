@@ -1,19 +1,19 @@
-import {
-  Engine,
-  Scene,
-  FreeCamera,
-  Vector3,
-  Ray,
-  Mesh,
-  MeshBuilder,
-  Color3,
-  Color4,
-  StandardMaterial,
-  PBRMaterial,
-  TransformNode,
-  ParticleSystem,
-  Texture,
-} from '@babylonjs/core';
+import { createFpsControls } from '@shared/fps-controls';
+import '@shared/fps-controls.css';
+import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
+import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { Engine } from '@babylonjs/core/Engines/engine';
+import { Scene } from '@babylonjs/core/scene';
+import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Ray } from '@babylonjs/core/Culling/ray';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 
 import type { PlayerState, GameState, WeaponState, Enemy, Pickup, StyleKill } from './types';
 import { createAllWeapons } from './weapons';
@@ -114,7 +114,7 @@ let damageIntensity = 0;
 let screenShakeIntensity = 0;
 let headBobPhase = 0;
 let footstepTimer = 0;
-let pointerLocked = false;
+let fpsControls: ReturnType<typeof createFpsControls>;
 let recoilRecovery = { x: 0, y: 0 };
 let weaponSwayX = 0;
 let weaponSwayY = 0;
@@ -219,40 +219,41 @@ async function init(): Promise<void> {
 }
 
 function setupInput(canvas: HTMLCanvasElement): void {
-  canvas.addEventListener('click', () => {
-    if (!pointerLocked && gameState?.phase === 'playing') {
-      canvas.requestPointerLock();
-    }
+  fpsControls = createFpsControls({
+    canvas,
+    onLook: (dx, dy) => { mouseMovementX += dx; mouseMovementY += dy; },
+    onButtons: (buttons, pressed) => {
+      mouseDown = !!(buttons & 1);
+      mouseJustPressed ||= !!(pressed & 1);
+      rightMouseDown = !!(buttons & 2);
+      rightMouseJustPressed ||= !!(pressed & 2);
+    },
+    onPause: (paused) => {
+      if (gameState?.phase === 'playing' || gameState?.phase === 'paused') {
+        gameState.phase = paused ? 'paused' : 'playing';
+      }
+    },
+    onResetInput: () => {
+      keysHeld.clear();
+      keysJustPressed.clear();
+      mouseDown = false;
+      mouseJustPressed = false;
+      rightMouseDown = false;
+      rightMouseJustPressed = false;
+      mouseMovementX = 0;
+      mouseMovementY = 0;
+      scrollDelta = 0;
+    },
   });
 
-  document.addEventListener('pointerlockchange', () => {
-    pointerLocked = document.pointerLockElement !== null;
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (pointerLocked) {
-      mouseMovementX += e.movementX;
-      mouseMovementY += e.movementY;
-    }
-  });
-
-  document.addEventListener('mousedown', (e) => {
-    if (e.button === 0) { mouseDown = true; mouseJustPressed = true; }
-    if (e.button === 2) { rightMouseDown = true; rightMouseJustPressed = true; }
-  });
-
-  document.addEventListener('mouseup', (e) => {
-    if (e.button === 0) mouseDown = false;
-    if (e.button === 2) rightMouseDown = false;
-  });
-
-  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   document.addEventListener('keydown', (e) => {
+    if (!fpsControls.active || (e.target instanceof Element && e.target.closest('button, a, input, textarea, select'))) return;
     const k = e.key.toLowerCase();
+    if (k.startsWith('arrow') || k === ' ') e.preventDefault();
     if (!keysHeld.has(k)) keysJustPressed.add(k);
     keysHeld.add(k);
-    if (k === 'tab') e.preventDefault();
   });
 
   document.addEventListener('keyup', (e) => {
@@ -260,6 +261,7 @@ function setupInput(canvas: HTMLCanvasElement): void {
   });
 
   document.addEventListener('wheel', (e) => {
+    if (!fpsControls.active || e.target !== canvas) return;
     scrollDelta += Math.sign(e.deltaY);
   });
 
@@ -308,7 +310,7 @@ function buildWeaponModel(_scene: Scene): void {
     glowMat.metallic = 0.3;
 
     const part = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, rot?: Vector3): Mesh => {
-      const m = MeshBuilder.CreateBox(`${name}_${w}`, opts, _scene);
+      const m = CreateBox(`${name}_${w}`, opts, _scene);
       m.position = pos;
       if (rot) m.rotation = rot;
       m.parent = model;
@@ -459,8 +461,7 @@ function startGame(): void {
   multiKillCount = 0;
   if (grappleBeamMesh) { grappleBeamMesh.dispose(); grappleBeamMesh = null; }
 
-  const canvas = engine.getRenderingCanvas()!;
-  canvas.requestPointerLock();
+  fpsControls.start();
 
   Audio.playWaveStart();
 }
@@ -484,7 +485,7 @@ function setupPickups(): void {
   mapData.pickupLocations.forEach((pos, i) => {
     const type = typeRotation[i % typeRotation.length];
     const color = colors[type];
-    const mesh = MeshBuilder.CreateBox(`pickup_${i}`, { width: 0.6, height: 0.6, depth: 0.6 }, scene);
+    const mesh = CreateBox(`pickup_${i}`, { width: 0.6, height: 0.6, depth: 0.6 }, scene);
     mesh.position = pos.add(new Vector3(0, 0.5, 0));
     const mat = new PBRMaterial(`pickupMat_${i}`, scene);
     mat.albedoColor = color.scale(0.3);
@@ -749,7 +750,12 @@ function checkWallRun(dt: number): void {
 
 // ── Player Look ──
 function updatePlayerLook(dt: number): void {
-  if (!pointerLocked) return;
+  if (!fpsControls.active) return;
+  if (fpsControls.dragMode) {
+    const lookStep = 1.8 * dt / MOUSE_SENSITIVITY;
+    mouseMovementX += (Number(keysHeld.has('arrowright')) - Number(keysHeld.has('arrowleft'))) * lookStep;
+    mouseMovementY += (Number(keysHeld.has('arrowdown')) - Number(keysHeld.has('arrowup'))) * lookStep;
+  }
 
   camera.rotation.y += mouseMovementX * MOUSE_SENSITIVITY;
   camera.rotation.x += mouseMovementY * MOUSE_SENSITIVITY;
@@ -800,7 +806,7 @@ function updateWeapons(dt: number): void {
 
   const canFire = weapon.fireTimer <= 0 && !weapon.reloading && weapon.currentAmmo > 0;
   if (canFire) {
-    if (weapon.def.automatic && mouseDown) fireWeapon(weapon);
+    if (weapon.def.automatic && (mouseDown || mouseJustPressed)) fireWeapon(weapon);
     else if (!weapon.def.automatic && mouseJustPressed) fireWeapon(weapon);
   }
 
@@ -1020,7 +1026,7 @@ function createRocketTrailTexture(): string {
 }
 
 function getRocketTrailTexture(scene: Scene): Texture {
-  if (rocketTrailTexture && !rocketTrailTexture.isDisposed()) return rocketTrailTexture;
+  if (rocketTrailTexture && rocketTrailTexture.getScene() === scene) return rocketTrailTexture;
   if (!rocketTrailTextureUrl) rocketTrailTextureUrl = createRocketTrailTexture();
   rocketTrailTexture = new Texture(rocketTrailTextureUrl, scene);
   return rocketTrailTexture;
@@ -1034,7 +1040,7 @@ function fireProjectile(weapon: WeaponState, muzzlePos: Vector3, dmgMult: number
     (Math.random() - 0.5) * spread,
   )).normalize();
 
-  const rocket = MeshBuilder.CreateSphere('rocket', { diameter: 0.3, segments: 6 }, scene);
+  const rocket = CreateSphere('rocket', { diameter: 0.3, segments: 6 }, scene);
   rocket.position = muzzlePos.clone();
   const mat = new StandardMaterial('rocketMat', scene);
   mat.emissiveColor = new Color3(1, 0.5, 0.1);
@@ -1232,7 +1238,7 @@ function damagePlayer(damage: number): void {
     Audio.playDeath();
     showGameOver(player.score, gameState.wave);
     hideHUD();
-    document.exitPointerLock();
+    fpsControls.stop();
   }
 }
 
@@ -1450,9 +1456,6 @@ function spawnNextEnemy(): void {
   scaled.speed = type.speed * (1 + (gameState.wave - 1) * 0.02);
 
   const enemy = spawnEnemy(scene, scaled, spawnPos.clone());
-  if (mapData.shadowGenerator) {
-    enemy.bodyParts.forEach(bp => mapData.shadowGenerator!.addShadowCaster(bp));
-  }
   enemies.push(enemy);
   gameState.enemiesRemaining--;
 }
@@ -1589,7 +1592,7 @@ function throwGrenade(): void {
   const throwDir = camera.getDirection(Vector3.Forward()).add(new Vector3(0, 0.3, 0)).normalize();
   const startPos = camera.position.add(throwDir.scale(1.5));
 
-  const grenade = MeshBuilder.CreateSphere('grenade', { diameter: 0.25, segments: 6 }, scene);
+  const grenade = CreateSphere('grenade', { diameter: 0.25, segments: 6 }, scene);
   grenade.position = startPos.clone();
   const mat = new StandardMaterial('grenadeMat', scene);
   mat.emissiveColor = new Color3(1, 0.3, 0);

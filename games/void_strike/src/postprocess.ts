@@ -1,9 +1,7 @@
-import {
-  Scene,
-  Camera,
-  PostProcess,
-  Effect,
-} from '@babylonjs/core';
+import { Scene } from '@babylonjs/core/scene';
+import { Camera } from '@babylonjs/core/Cameras/camera';
+import { PostProcess } from '@babylonjs/core/PostProcesses/postProcess';
+import { Effect } from '@babylonjs/core/Materials/effect';
 
 export function setupPostProcessing(_scene: Scene, _camera: Camera): null {
   return null;

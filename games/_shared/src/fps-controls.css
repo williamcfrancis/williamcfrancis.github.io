@@ -1,0 +1,59 @@
+.fps-control-panel[hidden], .fps-control-hint[hidden] { display: none; }
+.fps-control-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #f3ffff;
+  background: rgba(3, 8, 15, 0.78);
+  font-family: inherit;
+}
+.fps-control-box {
+  width: min(100%, 520px);
+  padding: 28px;
+  border: 1px solid #5eeed0;
+  border-radius: 12px;
+  background: #0b1921;
+  box-shadow: 0 16px 64px #0008;
+}
+.fps-control-box h2 { margin: 0 0 14px; font-size: 24px; }
+.fps-control-box p { margin: 0 0 22px; color: #d0e6eb; line-height: 1.6; }
+.fps-control-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.fps-control-panel button, .fps-control-hint button {
+  padding: 10px 14px;
+  border: 1px solid #5eeed0;
+  border-radius: 6px;
+  color: #f3ffff;
+  background: #123b42;
+  font: inherit;
+  cursor: pointer;
+}
+.fps-control-panel button:focus-visible, .fps-control-hint button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+.fps-control-panel button:disabled { opacity: 0.5; cursor: wait; }
+.fps-control-hint {
+  position: fixed;
+  top: 94px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 220;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid #5eeed077;
+  border-radius: 8px;
+  color: #e4ffff;
+  background: #08141dee;
+  font: 12px/1.5 'Courier New', monospace;
+}
+.fps-control-hint button { flex-shrink: 0; padding: 5px 9px; }
+@media (max-width: 600px) {
+  .fps-control-hint { top: 74px; flex-direction: column; gap: 4px; text-align: center; }
+}

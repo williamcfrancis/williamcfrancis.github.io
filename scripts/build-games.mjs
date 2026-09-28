@@ -1,22 +1,22 @@
-import { execSync } from 'child_process';
-import { readdirSync, existsSync } from 'fs';
-import path from 'path';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { discoverGames, repoRoot, runNodeTool } from './games.mjs';
 
-const gamesDir = path.resolve('games');
-const dirs = readdirSync(gamesDir, { withFileTypes: true })
-  .filter((d) => d.isDirectory() && !d.name.startsWith('_'))
-  .map((d) => d.name);
-
-let built = 0;
-
-for (const dir of dirs) {
-  const pkg = path.join(gamesDir, dir, 'package.json');
-  if (!existsSync(pkg)) continue;
-
-  const gameDir = path.join(gamesDir, dir);
-  console.log(`\n=== Building ${dir} ===`);
-  execSync('npx vite build', { cwd: gameDir, stdio: 'inherit' });
-  built++;
+export function buildGames(outputRoot = path.join(repoRoot, '.build/static')) {
+  const games = discoverGames();
+  for (const game of games) {
+    console.log(`\nBuilding ${game.name}`);
+    runNodeTool('vite', 'bin/vite.js', [
+      'build', '--outDir', path.join(outputRoot, 'games', game.name),
+    ], game.directory);
+  }
+  console.log(`\nBuilt ${games.length} games.`);
 }
 
-console.log(`\nDone — built ${built} game(s).`);
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  const args = process.argv.slice(2);
+  if (args.length && (args[0] !== '--outDir' || args.length !== 2)) {
+    throw new Error('Usage: npm run build:games -- [--outDir <static-output-directory>]');
+  }
+  buildGames(args[1] ? path.resolve(args[1]) : undefined);
+}

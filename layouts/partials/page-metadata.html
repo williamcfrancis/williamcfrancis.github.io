@@ -1,0 +1,9 @@
+{{ $siteData := (index site.Data site.Language.Lang).site }}
+{{ $description := .Description | default (.Summary | plainify | truncate 160) | default $siteData.description }}
+<link rel="canonical" href="{{ .Permalink }}" />
+{{ if not .IsHome }}
+<meta name="description" content="{{ $description }}" />
+{{ end }}
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="{{ .Title | default site.Title }}" />
+<meta name="twitter:description" content="{{ $description }}" />

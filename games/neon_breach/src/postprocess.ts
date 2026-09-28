@@ -1,10 +1,8 @@
-import {
-  Scene,
-  Camera,
-  DefaultRenderingPipeline,
-  PostProcess,
-  Effect,
-} from '@babylonjs/core';
+import { Scene } from '@babylonjs/core/scene';
+import { Camera } from '@babylonjs/core/Cameras/camera';
+import { DefaultRenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline';
+import { PostProcess } from '@babylonjs/core/PostProcesses/postProcess';
+import { Effect } from '@babylonjs/core/Materials/effect';
 
 export function setupPostProcessing(scene: Scene, camera: Camera): DefaultRenderingPipeline {
   const pipeline = new DefaultRenderingPipeline('default', false, scene, [camera]);

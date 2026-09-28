@@ -1,80 +1,102 @@
-# section information
 section:
-  name: Experiences
+  name: Experience
   id: experiences
   enable: true
   weight: 3
   showOnNavbar: true
-  # Can optionally hide the title in sections
-  # hideTitle: true
 
-# Your experiences
 experiences:
-
   - company:
-      name: xLab, University of Pennsylvania
-      url: "https://mlab-upenn.github.io/lab_website/"
+      name: Chubb
+      url: "https://www.chubb.com/"
       location: Philadelphia, PA
-      # company overview
-      overview: xLab is a research lab at University of Pennsylvania lead by Prof. Rahul Mangharam targeting at developing critical systems and autonomous systems
+      overview: North America Data Science Modeling team, working on insurance pricing, predictive modeling, and internal AI applications.
     positions:
-      - designation: Graduate Research Assistant
-        start: Dec 2021
-        end: May 2022
-        # don't provide end date if you are currently working there. It will be replaced by "Present"
-        # end: Dec 2020
-        # give some points about what was your responsibilities at the company.
+      - designation: Data Scientist
+        start: May 2024
         responsibilities:
-          - Developed lane segmentation and obstacle avoidance algorithms using Python and PyTorch to improve the autonomous Go-kart's ability to navigate through complex racing tracks, resulting in a 40% improvement in obstacle avoidance rate
-          - Optimized code for speed using C++, resulting in 15% reduction in response time and real-time processing on Jetson AGX
-          - Led the Autonomous Go-kart team to a top-5 finish in the Autonomous evGrandPrix and presented at International Conference on Robotics and Automation (ICRA), securing sponsorship from the Autoware Foundation
+          - Develop and deploy GLM pricing models for personal and commercial insurance, owning factor selection, validation, and deployment.
+          - Build production XGBoost models for quote conversion, retention, and loss cost to support underwriting, pricing, and portfolio strategy.
+          - Build and maintain reusable modeling tools that support the workflow from raw data to deployed rating models.
+          - Develop agentic AI workflows for structured extraction and natural-language exploration of portfolio data.
+          - Deliver customer lifetime value estimates through a Streamlit application on Snowflake, helping stakeholders make acquisition and retention decisions.
 
   - company:
-      name: Vision Cultura
-      location: Bangalore, India
-      overview: Vision Cultura is a start-up that works on IoT-based farming solutions which interconnects sensors, cloud and a mobile app
+      name: Philly AI Connect
+      url: "https://www.phillyconnect.ai/"
+      location: Philadelphia, PA
+      overview: A community bringing together Philadelphia's AI and machine learning practitioners, researchers, and builders.
+    positions:
+      - designation: Co-Founder
+        start: Nov 2023
+        end: May 2024
+        responsibilities:
+          - Co-founded the organization and grew the community to 1,800 members.
+          - Organized six major events featuring research talks, demos, technical workshops, and hackathons, alongside smaller networking events.
+          - Secured partnerships with Pennovation Center and GraysonSky to support recurring programming.
+
+  - company:
+      name: University of Pennsylvania
+      url: "https://www.upenn.edu/"
+      location: Philadelphia, PA
+      overview: Research in autonomous systems at xLAB, alongside teaching in applied machine learning and community coding education.
+    positions:
+      - designation: Graduate Research Assistant, xLAB
+        start: Dec 2021
+        end: May 2023
+        responsibilities:
+          - Built perception and localization for an autonomous racing go-kart, fine-tuning PSPNet for drivable-area segmentation and fusing GNSS and IMU data with an extended Kalman filter for 100 Hz odometry.
+          - Deployed the stack on NVIDIA Jetson AGX and optimized inference with TensorRT for real-time operation.
+          - Led the team to first place at Autonomous evGrandPrix 2023 and presented the project at ICRA 2022.
+      - designation: Graduate Teaching Assistant, Applied Machine Learning
+        start: Jan 2022
+        end: Jul 2022
+        responsibilities:
+          - Developed instructional materials and assignments for more than 60 students in the graduate course MSSP 608.
+          - Taught data analysis, regression, support vector machines, neural networks, principal component analysis, and random forests through recitations and coding labs.
+      - designation: Student Coding Instructor, Penn Alexander School
+        start: Oct 2021
+        end: Jul 2022
+        responsibilities:
+          - Taught Python and Scratch to third- and fourth-grade students at Penn Alexander School.
+
+  - company:
+      name: Center for Industrial Automation Lab, Vellore Institute of Technology
+      url: "https://chennai.vit.ac.in/electrical-and-electronics-engineering-chennai/facilities/"
+      location: Chennai, India
+      overview: Research in embedded systems, assistive technology, and robotics.
+    positions:
+      - designation: Undergraduate Research Assistant
+        start: Oct 2019
+        end: Jun 2020
+        responsibilities:
+          - Built a brain-controlled wheelchair with camera-based collision avoidance and a Python and MATLAB interface.
+          - Developed a TensorFlow neural network for voluntary eye-blink detection in EEG signals, with adaptive blink detection and control sensitivity.
+          - Conducted user testing and contributed to a peer-reviewed publication in the Indonesian Journal of Electrical Engineering and Informatics in June 2021.
+
+  - company:
+      name: VisionCultura
+      location: Bengaluru, India
+      overview: An IoT farming startup connecting sensors, cloud infrastructure, and mobile applications.
     positions:
       - designation: Machine Learning Intern
         start: Dec 2019
         end: May 2020
         responsibilities:
-          - Redesigned AI-based farming solution utilizing PyTorch and IoT integration, resulting in 18% crop yield increase and 90% labor cost reduction through real-time monitoring of sunshine, water, and nutrient levels for each plant
-          - Deployed models using AWS SageMaker and monitored data in real-time using CloudWatch for optimal analysis
-          - Upgraded the perception stack using advanced object detection models (YOLO, RetinaNet, Faster R-CNN) leading to 33% boost in sales team productivity, translating to 100K increase in revenue, earning recognition as outstanding intern
-          - Worked in a cross-functional with Mechanical and Computervision engineers, Manager and manufacturers to ensure that product specification, performance, durability, safety, quality, cost, and manufacturing requirements are met
-      # - designation: Junior Software Engineer
-      #   start: Nov 2017
-      #   end: Oct 2019
-      #   responsibilities:
-      #     - Implement and test xyz feature for abc tool.
-      #     - Support client for abc tool.
-      #     - Learn k,d,w technology for xyz.
+          - Developed a PyTorch and IoT farming system that monitored sunlight, water, and nutrients, contributing to an 18% increase in crop yield and a 90% reduction in labor costs.
+          - Deployed models with AWS SageMaker and monitored real-time data with CloudWatch.
+          - Improved the perception stack with YOLO, RetinaNet, and Faster R-CNN object detection models.
 
   - company:
-      name: Center for Industrial Automation (CIA) Lab, Vellore Instiitute of Technology 
-      url: "https://chennai.vit.ac.in/electrical-and-electronics-engineering-chennai/facilities/"
-      location: Chennai, India
-      overview: CIA Lab is a research lab at Vellore Institute of Technology lead by Prof. Umayal that builds embedded systems for Industrial Automation and Robotics applications
-    positions:
-      - designation: Undergraduate Research Assistant
-        start: Jan 2019
-        end: Dec 2019
-        responsibilities:
-          - Engineered TensorFlow-based deep neural network for blink detection in EEG signals, resulting in 25% increase in signal-to-noise ratio for Brain-Controlled Wheelchair with camera-based collision avoidance
-          - Implemented adaptive algorithm for personalized blink detection and control sensitivity, leading to enhanced user experience
-          - Conducted user testing and gathered feedback to continually improve the prototype, utilizing a user-centered design approach
-  
-  - company:
       name: Siemens Gamesa Renewable Energy
-      url: https://www.siemensgamesa.com/en-int
-      location: Bangalore, India
-      overview: Siemens Gamesa is a leader in the renewable energy industry, working to provide the world's best offshore and onshore wind turbines and services
+      url: "https://www.siemensgamesa.com/en-int"
+      location: Bengaluru, India
+      overview: Wind energy engineering and embedded sensing applications.
     positions:
       - designation: Embedded Systems Intern
         start: May 2018
         end: Aug 2018
         responsibilities:
-          - Led design and implementation of miniature windmill model using ATtiny85 microcontroller showcasing novel sensor applications
-          - Mounted sensors to optimize windmill performance, designed a PCB using Eagle to control turbine and implemented blade angle detection for Heli-hoist
-          - Collected and analyzed sensor data using Parallax Data Acquisition
-          - Designed and 3D printed a highly detailed and proportionate model of a wind turbine including the turbine shaft, blades, and tower
+          - Designed and built a miniature wind turbine using an ATtiny85 microcontroller, sensors, and a custom PCB designed in Eagle.
+          - Implemented blade-angle detection for heli-hoist applications and analyzed sensor data with Parallax Data Acquisition.
+          - Designed and 3D-printed the turbine shaft, blades, and tower.

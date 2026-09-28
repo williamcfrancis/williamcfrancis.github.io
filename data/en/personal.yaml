@@ -49,7 +49,9 @@ sections:
         link:
           label: Play Lily Leap
           url: "/games/lily_leap/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/lily_leap.png"
+        icon: "🐸"
+        accent: "green"
       - title: Glow Hop
         genre: Audio-physics
         summary: "The world is silent and intangible. Use sound to create solid matter and reach the portal."
@@ -57,7 +59,9 @@ sections:
         link:
           label: Play Glow Hop
           url: "/games/glow_hop/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/glow_hop.png"
+        icon: "🎵"
+        accent: "amber"
       - title: Lexical Hazard
         genre: Word survival
         summary: "Type the falling words to neutralize them. Each word triggers its meaning—FAST speeds time, BLIND dims the lights."
@@ -65,7 +69,9 @@ sections:
         link:
           label: Play Lexical Hazard
           url: "/games/lexical_hazard/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/lexical_hazard.png"
+        icon: "⚠️"
+        accent: "teal"
       - title: Lyrically Lost
         genre: Lyric trivia
         summary: "Hear translated lyric snippets and race to identify the original songs across Hindi, Spanish, and English catalogs."
@@ -73,7 +79,9 @@ sections:
         link:
           label: Play Lyrically Lost
           url: "/games/lyrically_lost/"
-        image: "/games/lyrically_lost/lyrically_lost.svg"
+        image: "images/games/lyrically_lost.png"
+        icon: "🎧"
+        accent: "pink"
       - title: Abyss
         genre: Deep-dive survival
         summary: "Dive into the deep blue. Manage oxygen, dash to destroy mines, and descend through biomes to the abyssal rift."
@@ -81,7 +89,9 @@ sections:
         link:
           label: Play Abyss
           url: "/games/abyss/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/abyss.png"
+        icon: "🌊"
+        accent: "sky"
       - title: Algorithm Simulator
         genre: Dark simulation
         summary: "Maximize engagement and ad revenue by manipulating a subject's digital experience. A satirical take on attention economy mechanics."
@@ -89,7 +99,9 @@ sections:
         link:
           label: Play Algorithm Simulator
           url: "/games/algorithm_simulator/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/algorithm_simulator.png"
+        icon: "📱"
+        accent: "rose"
       - title: Botanical Brawl
         genre: 3D arena shooter
         summary: "A cozy but competitive botanical duel with forgeable weapon stats and lively ricochet combat."
@@ -97,7 +109,9 @@ sections:
         link:
           label: Play Botanical Brawl
           url: "/games/botanical_brawl/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/botanical_brawl.png"
+        icon: "🌿"
+        accent: "green"
       - title: "Wizard Brawl"
         genre: LLM-powered couch arena fighter
         summary: "Two wizards, one couch, and any object you can dream up as a weapon. Lose a round, rage-forge something new, and let the chaos fly."
@@ -105,7 +119,9 @@ sections:
         link:
           label: "Play Wizard Brawl"
           url: "/games/wizard_brawl/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/wizard_brawl.png"
+        icon: "🧙"
+        accent: "violet"
       - title: Void Strike
         genre: 3D FPS arena
         summary: "A neon-drenched wave-survival FPS. Four weapons, five enemy types, dash/slide mechanics, grenades, and kill-streak rewards in a sci-fi arena."
@@ -113,7 +129,9 @@ sections:
         link:
           label: Play Void Strike
           url: "/games/void_strike/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/void_strike.png"
+        icon: "🎯"
+        accent: "rose"
       - title: Lexicon Atlas
         genre: Educational interactive
         summary: "Spin a 3D globe and discover 392 English words unique to their homeland — from 'brinjal' in India to 'robot' meaning traffic light in South Africa."
@@ -121,7 +139,9 @@ sections:
         link:
           label: Explore Lexicon Atlas
           url: "/games/lexicon_atlas/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/lexicon_atlas.png"
+        icon: "🌍"
+        accent: "sky"
       - title: Machine Gaze
         genre: Interactive AI experience
         summary: "Upload a photo and watch a robot decompose it — layer by layer — into edges, depth, objects, and segments. Toggle between human and machine vision."
@@ -129,7 +149,9 @@ sections:
         link:
           label: Try Machine Gaze
           url: "/games/machine_gaze/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/machine_gaze.png"
+        icon: "👁️"
+        accent: "violet"
       - title: How Many?
         genre: Interactive size comparison
         summary: "Pick any two objects — from atoms to galaxies — and discover how many of the smaller fit inside the larger. A playful sense-of-scale calculator."
@@ -137,7 +159,9 @@ sections:
         link:
           label: Try How Many?
           url: "/games/how_many/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/how_many.png"
+        icon: "📏"
+        accent: "amber"
       - title: Lost in Translation
         genre: Language experiment
         summary: "Type a sentence, watch it travel through 20 languages and back, and see what survives the journey. Customize the chain or unleash chaos mode."
@@ -145,7 +169,9 @@ sections:
         link:
           label: Try Lost in Translation
           url: "/games/lost_in_translation/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/lost_in_translation.png"
+        icon: "💬"
+        accent: "teal"
       - title: The Turing Shuffle
         genre: AI vs Human quiz
         summary: "10 passages. Some written by humans, some by AI. Read each one and decide — can you tell the difference?"
@@ -153,7 +179,9 @@ sections:
         link:
           label: Play The Turing Shuffle
           url: "/games/turing_shuffle/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/turing_shuffle.png"
+        icon: "🤖"
+        accent: "cyan"
       - title: The Scale of Autonomy
         genre: Interactive explainer
         summary: "Journey through the levels of autonomous systems — from a thermostat to a self-driving car — with animated vignettes at every stage."
@@ -161,7 +189,9 @@ sections:
         link:
           label: Explore The Scale of Autonomy
           url: "/games/scale_of_autonomy/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/scale_of_autonomy.png"
+        icon: "⚖️"
+        accent: "sky"
       - title: One Trillion Parameters
         genre: 3D interactive explainer
         summary: "A cosmic zoom into neural networks. Scroll from a single neuron out to a trillion-parameter model and feel the scale of modern AI."
@@ -169,7 +199,9 @@ sections:
         link:
           label: Explore One Trillion Parameters
           url: "/games/trillion_parameters/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/trillion_parameters.png"
+        icon: "🧠"
+        accent: "violet"
       - title: Junkbot
         genre: Physics sandbox
         summary: "Drag parts from a junkyard palette, snap them together, tweak motors and thrusters, then launch your creation and watch it stumble across an obstacle course."
@@ -177,7 +209,9 @@ sections:
         link:
           label: Play Junkbot
           url: "/games/junkbot/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/junkbot.png"
+        icon: "🔧"
+        accent: "coral"
       - title: Neon Breach
         genre: Cyberpunk arena FPS
         summary: "Wall-running, grapple hook, and bullet time in a cyberpunk arena. Five weapons, boss waves, and style kills."
@@ -185,7 +219,19 @@ sections:
         link:
           label: Play Neon Breach
           url: "/games/neon_breach/"
-        image: "/games/game_placeholder.svg"
+        image: "images/games/neon_breach.png"
+        icon: "⚡"
+        accent: "pink"
+      - title: Tongue Drum Trainer
+        genre: Music trainer
+        summary: "Practice a 15-note D major tongue drum. Watch notes fall radially toward each tongue, gradient-colored from green to red as they approach the strike edge."
+        tags: ["browser", "music", "sound-on"]
+        link:
+          label: Play Tongue Drum Trainer
+          url: "/games/tongue_drum/"
+        image: "images/games/tongue_drum.png"
+        icon: "🥁"
+        accent: "amber"
   - section:
       name: Photo Gallery
       id: gallery

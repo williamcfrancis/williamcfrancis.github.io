@@ -7,6 +7,13 @@
     "wordCount": 78,
     "difficulty": 1,
     "explanation": "This is from <strong>The Diary of a Nobody</strong> (1892) by George and Weedon Grossmith — a comic novel written as a fictional diary. The mundane frustrations, the specific name 'Farmerson,' and the resigned tone are hallmarks of authentic Victorian humor. AI rarely captures this kind of low-stakes domestic complaint so naturally.",
+    "twinText": "April 12 — A frustrating start to the week. The garden seedlings have yet to make an appearance, despite being planted some time ago. To compound matters, the workman engaged for a small repair inadvertently damaged the gas line, requiring two additional laborers to remedy the issue. He offered no apology, only complaints about the original installation. It is the sort of small domestic setback one learns to expect from such projects.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "Farmerson", "type": "human", "note": "Real diaries name names. AI tends to keep workmen anonymous." },
+      { "phrase": "Mustard-and-cress", "type": "human", "note": "A period-specific produce reference no model would invent." },
+      { "phrase": "I shall be put to", "type": "human", "note": "Victorian construction — naturally archaic, not stylized." }
+    ],
     "meta": {
       "author": "George & Weedon Grossmith, 'The Diary of a Nobody,' 1892 (public domain)"
     }
@@ -19,6 +26,13 @@
     "wordCount": 101,
     "difficulty": 2,
     "explanation": "This is a real entry from <strong>Samuel Pepys' diary</strong>, September 1, 1660. The archaic phrasing ('ever I eat of') and the way he entangles a literary debate with leftover venison is deeply human — the priorities are charmingly wrong. Many visitors flag the old-fashioned language as 'trying too hard,' but it's just how people wrote in the 1660s.",
+    "twinText": "We had dinner at the Bullhead, where the venison pasty was exceptional — quite possibly the finest I have ever had. Conversation at the table turned philosophical when Mr. Moore and Dr. Clerke fell into a debate about whether tragedy requires its underlying argument to be true. Each made his case, but the matter remained unresolved. We agreed to revisit it the following week at the same establishment, with the loser obliged to pay for the next meal.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "ever I eat of", "type": "human", "note": "Genuine 17th-century syntax — too clumsy to be stylized." },
+      { "phrase": "the loser to spend 10s", "type": "human", "note": "Period currency casually entangled with a literary bet." },
+      { "phrase": "the eating of the remains of the pasty", "type": "human", "note": "Pepys-style entanglement of food and intellectual stakes." }
+    ],
     "meta": {
       "author": "Samuel Pepys, personal diary, September 1, 1660 (public domain)"
     }
@@ -31,6 +45,13 @@
     "wordCount": 98,
     "difficulty": 1,
     "explanation": "Another excerpt from <strong>The Diary of a Nobody</strong> (1892). The absurdity of painting a bath red and then being interrupted by someone wringing socks — this cascade of non-sequiturs is almost impossible for AI to replicate organically. The humor arises from the narrator's complete lack of self-awareness.",
+    "twinText": "Carrie disapproved of the new red bath this morning. She felt I ought to have consulted her before making such a decision, which is, in fairness, perhaps reasonable. We had a brief disagreement about it, which was thankfully interrupted by the unexpected arrival of Cummings. He explained, somewhat awkwardly, that the maid had let him in herself. The day's small absurdities have a way of resolving themselves, even if not always in the manner one might hope.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "Painted the bath red", "type": "human", "note": "Random absurd action with no setup — pure life, not narrative." },
+      { "phrase": "wringing out some socks", "type": "human", "note": "Non-sequitur domestic detail no AI would surface." },
+      { "phrase": "It's merely a matter of taste", "type": "human", "note": "Smug self-justification, in character." }
+    ],
     "meta": {
       "author": "George & Weedon Grossmith, 'The Diary of a Nobody,' 1892 (public domain)"
     }
@@ -43,6 +64,13 @@
     "wordCount": 62,
     "difficulty": 1,
     "explanation": "A real <strong>Yelp review</strong> of Caffe Vita Silverlake by Emily F. Cheever (2016). The structural gimmick of listing pros and cons but then veering into a running joke about a dog is peak human internet writing. 'V. soft.' and 'Bring a dog.' are the kind of micro-punchlines that AI tends to over-explain rather than just land.",
+    "twinText": "Pros: Plenty of outlets and a cozy atmosphere. The coffee is excellent and the artwork on the walls adds character to the space. Cons: The air conditioning runs a bit cold — a sweater is recommended. The music can be a little distracting if you are trying to concentrate, so headphones may help. Overall, a solid choice for working remotely or meeting a friend for a casual catch-up.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "V. soft.", "type": "human", "note": "Abbreviated punchline. AI explains; humans abbreviate." },
+      { "phrase": "Bring a dog.", "type": "human", "note": "The closing callback joke — committed, not hedged." },
+      { "phrase": "this guy came in with a real cute dog and I pet him on the head", "type": "human", "note": "Specific, off-topic, but real." }
+    ],
     "meta": {
       "author": "Emily F. Cheever, Yelp review, 2016"
     }
@@ -55,6 +83,13 @@
     "wordCount": 77,
     "difficulty": 1,
     "explanation": "A real <strong>Yelp review</strong> of One Stop DMV by Emily F. Cheever (2017). The opening pun, the self-deprecation ('I'm sometimes bad at life'), and the existential dread about the DMV are authentic human voice markers. AI can mimic this style but usually doesn't commit to the bit so wholeheartedly.",
+    "twinText": "One Stop made my registration renewal much easier than I expected. While they do charge an additional service fee — they are not an official DMV office — the convenience is well worth the cost, especially compared to the long lines at the actual DMV. The staff was efficient and friendly, and I was in and out in less than fifteen minutes. Highly recommended for anyone short on time.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "I'm sometimes bad at life", "type": "human", "note": "Specific, weird self-deprecation no model would land naturally." },
+      { "phrase": "GET IT?", "type": "human", "note": "Caps with a pun — AI usually plays it safer." },
+      { "phrase": "pondering my own existence", "type": "human", "note": "Overcommits to the bit. AI hedges." }
+    ],
     "meta": {
       "author": "Emily F. Cheever, Yelp review, 2017"
     }
@@ -67,6 +102,13 @@
     "wordCount": 85,
     "difficulty": 2,
     "explanation": "A real <strong>Yelp review</strong> of The Semi-Tropic by Emily F. Cheever (2016). The compound hyphenated description ('I just released a cassette of my band'-ironic dad-shirt hipster) is an inventive, highly specific joke that AI would struggle to construct so naturally. The ending metaphor twists the cliché just enough to feel spontaneous.",
+    "twinText": "This restaurant has a distinctly hipster aesthetic, which may or may not appeal depending on your taste. Despite the somewhat self-conscious atmosphere, however, the service has consistently been warm and attentive. The staff is genuinely knowledgeable about the menu, and the food itself is excellent. The space encourages lingering, and most visitors will find that the experience comfortably exceeds first impressions.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "'I just released a cassette of my band'-ironic dad-shirt hipster", "type": "human", "note": "A compound modifier so specific it can only be lived." },
+      { "phrase": "limited first edition cover", "type": "human", "note": "Cliché twisted in a way AI usually leaves intact." },
+      { "phrase": "THRILLED", "type": "human", "note": "Caps for emphasis — internet voice, not corporate." }
+    ],
     "meta": {
       "author": "Emily F. Cheever, Yelp review, 2016"
     }
@@ -79,6 +121,13 @@
     "wordCount": 99,
     "difficulty": 3,
     "explanation": "From Ambrose Bierce's <strong>'An Occurrence at Owl Creek Bridge'</strong> (1890). This passage fools many people because the prose is extremely polished and the sensory catalogue feels systematic — qualities we associate with AI. But the escalating specificity (from ripples to veins of leaves to individual spider webs) has a breathless, almost hallucinatory urgency that AI descriptions rarely achieve.",
+    "twinText": "His senses, in that moment, were unusually sharp. The world around him seemed amplified — the sound of running water, the texture of leaves on the trees by the riverbank, even the small movements of insects he might otherwise have overlooked entirely. There was a clarity to it all that bordered on the surreal, as though his consciousness had momentarily expanded beyond its usual limits, taking in everything at once.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "preternaturally", "type": "human", "note": "A 19th-century vocabulary choice modern AI tends to avoid." },
+      { "phrase": "the locusts, the brilliant bodied flies, the gray spiders stretching their webs from twig to twig", "type": "human", "note": "Cataloguing that escalates rather than balances." },
+      { "phrase": "the veining of each leaf", "type": "human", "note": "Hallucinatory specificity — Bierce's signature urgency." }
+    ],
     "meta": {
       "author": "Ambrose Bierce, 'An Occurrence at Owl Creek Bridge,' 1890 (public domain)"
     }
@@ -91,6 +140,13 @@
     "wordCount": 105,
     "difficulty": 3,
     "explanation": "From Frank R. Stockton's <strong>'The Lady, or the Tiger?'</strong> (1882). This is a classic trap passage — the dry, logical structure and ironic tone ('Its perfect fairness is obvious') read almost like AI-generated analysis. But the deadpan humor and the way 'devoured or married' is treated as equivalent are distinctly human wit that AI rarely produces without being prompted.",
+    "twinText": "The king had devised a unique method for adjudicating matters of guilt. The accused was placed in a public arena and presented with two doors. Behind one waited a young woman selected by the court; behind the other, a tiger. The accused had no way of knowing which fate lay behind each door. The system was, in its way, perfectly fair: each man chose his own outcome, and the verdict was rendered with mathematical impartiality, free from human bias.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "devoured or married", "type": "human", "note": "Treated as equivalent outcomes — human deadpan, not AI calibration." },
+      { "phrase": "Its perfect fairness is obvious", "type": "human", "note": "Ironic flatness AI doesn't reach for unprompted." },
+      { "phrase": "whether he liked it or not", "type": "human", "note": "Sardonic close — committed to the bit." }
+    ],
     "meta": {
       "author": "Frank R. Stockton, 'The Lady, or the Tiger?', 1882 (public domain)"
     }
@@ -103,6 +159,13 @@
     "wordCount": 65,
     "difficulty": 2,
     "explanation": "Emily Dickinson, poem 340 (c. 1861). Dickinson's dashes and capitalization create a distinctive rhythm that some visitors mistake for AI trying to be 'poetic.' But the metaphor of a funeral <em>in</em> the brain — grief as a physical, crushing weight — has an emotional precision that AI poetry typically lacks. The boots 'creaking across my Soul' is viscerally specific.",
+    "twinText": "There is a heaviness in mourning that settles softly in the mind, A slow procession of dark footsteps that crosses through the bone. Each silence becomes a hymn, each sound a final word, And in the dark cathedral of the lonely self, the listener stands alone. Then space itself begins to ring — and no one, no one calls. The echo of the leaving stays with us. The echo holds the all.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "Funeral, in my Brain", "type": "human", "note": "The unsettling preposition is Dickinson's, not AI's smoothing instinct." },
+      { "phrase": "Boots of Lead", "type": "human", "note": "Idiosyncratic capitalization at unexpected places." },
+      { "phrase": "treading—treading", "type": "human", "note": "Em-dash repetition — Dickinson's rhythmic signature." }
+    ],
     "meta": {
       "author": "Emily Dickinson, poem 340, c. 1861 (public domain)"
     }
@@ -115,6 +178,13 @@
     "wordCount": 63,
     "difficulty": 3,
     "explanation": "Emily Dickinson, poem 314 (c. 1861). This is one of the hardest passages in the pool. The extended metaphor is clean, the structure is balanced, and the message is uplifting — all qualities people associate with AI. But the final line ('It asked a crumb—of me') inverts expectations with startling humility. Over 60% of visitors flag this as AI.",
+    "twinText": "Hope is the soft thing in the dark, the music with no name, A small persistent voice that does not falter, does not change. It carries through the loudest storms, the longest, coldest nights, And asks of those who listen nothing — neither food nor flame nor home. It is the lantern we did not know we carried, until we light it again.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "thing with feathers", "type": "human", "note": "Dickinson's signature image — the model would write 'bird.'" },
+      { "phrase": "It asked a crumb—of me", "type": "human", "note": "An inversion that humbles, not concludes." },
+      { "phrase": "Extremity", "type": "human", "note": "Capitalized abstraction at an odd moment." }
+    ],
     "meta": {
       "author": "Emily Dickinson, poem 314, c. 1861 (public domain)"
     }
@@ -127,6 +197,13 @@
     "wordCount": 93,
     "difficulty": 3,
     "explanation": "This is directly from the <strong>Wikipedia article on Astragalus agnicidus</strong>. Wikipedia's neutral, encyclopedic tone is almost indistinguishable from AI — because AI was trained on exactly this kind of text. The giveaway is the genuinely surprising narrative arc: farmers destroy a plant, it's declared extinct, then it comes back from buried seeds decades later. AI rarely constructs such a satisfying factual story.",
+    "twinText": "Astragalus agnicidus is a rare plant species native to Humboldt County in northern California. It is part of the milkvetch family and is notable for its highly limited geographical range. The plant was once thought extinct due to extensive habitat loss but has since been rediscovered in restoration projects. It typically grows in disturbed soils and forms part of the broader ecology of the region's coastal forest understory communities.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "rediscovered in 1987 when long-buried seeds were plowed into favorable conditions", "type": "human", "note": "A surprising true narrative arc — too specific to invent." },
+      { "phrase": "means 'lamb-killer.'", "type": "human", "note": "An etymology that's also a story." },
+      { "phrase": "8-acre ranch", "type": "human", "note": "The kind of precise number you only get from real records." }
+    ],
     "meta": {
       "author": "Wikipedia contributors, 'Astragalus agnicidus' article"
     }
@@ -139,6 +216,13 @@
     "wordCount": 84,
     "difficulty": 3,
     "explanation": "Taken directly from the <strong>Wikipedia article on Cawker City, Kansas</strong>. The straightforward encyclopedic style sounds exactly like AI output — neutral, factual, well-structured. But the juxtaposition of a poker game deciding a town's name and the world's largest ball of twine is the kind of delightful absurdity that emerges from real history, not from language models optimizing for coherence.",
+    "twinText": "Cawker City is a small community in Mitchell County, Kansas, with a population of approximately 450 according to recent census figures. The town is known regionally for hosting one of the largest collections of folk art landmarks in the area, and serves as a stop for travelers along the historic highway. Founded in the late nineteenth century, Cawker City has experienced a gradual decline in population as younger residents have relocated to larger metropolitan areas.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "won naming rights for the town with a winning hand at poker", "type": "human", "note": "True absurdity from real history — not a generated detail." },
+      { "phrase": "the largest ball of twine in the world", "type": "human", "note": "Specific, unverifiable claim — AI hedges these into oblivion." },
+      { "phrase": "457", "type": "human", "note": "Real census figures are oddly specific." }
+    ],
     "meta": {
       "author": "Wikipedia contributors, 'Cawker City, Kansas' article"
     }
@@ -151,6 +235,13 @@
     "wordCount": 80,
     "difficulty": 2,
     "explanation": "From a <strong>CNN article</strong> published December 17, 2019. News writing has a formulaic quality that overlaps heavily with AI output — the inverted pyramid structure, the specific numbers, the clean attribution. What makes this identifiably human is the editorial choice to lead with the child's age and the specific amount ($80), creating an emotional contrast between the small sum and its large impact.",
+    "twinText": "In southern California this week, a young student gained recognition for an unusual act of generosity. The kindergartener, after learning that some families at her local elementary school faced financial difficulties, organized a small fundraising event over the weekend with the help of her parents. The funds raised were directed toward assisting with school-related expenses for over a hundred students. The story has been widely celebrated as an example of community-mindedness and youthful initiative.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "$80", "type": "human", "note": "The small specific sum that creates the emotional contrast." },
+      { "phrase": "Katelynn Hardee", "type": "human", "note": "A real name, not a placeholder." },
+      { "phrase": "Breeze Hill Elementary School", "type": "human", "note": "Real institutional name." }
+    ],
     "meta": {
       "author": "CNN, December 17, 2019"
     }
@@ -163,6 +254,13 @@
     "wordCount": 90,
     "difficulty": 3,
     "explanation": "From Horace Miner's famous 1956 anthropology paper <strong>'Body Ritual among the Nacirema.'</strong> The formal academic tone sounds very AI-like, but this passage is actually a satirical description of a <em>medicine cabinet</em> and <em>doctors writing prescriptions</em> — 'Nacirema' is 'American' spelled backwards. The dry humor of describing everyday objects as exotic rituals is a deeply human rhetorical move.",
+    "twinText": "Within the cultural framework of this group, healing practices are organized around a class of revered specialists. Adherents place considerable trust in these figures, who diagnose conditions and prescribe specific preparations to address physical and spiritual ailments. The relationship between practitioner and patient is mediated through ritual exchange, and the prescriptions themselves are typically written in a formal script not generally accessible to most members of the community.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "ancient and secret language", "type": "human", "note": "Sly satirical jab at doctor handwriting." },
+      { "phrase": "no native believes he could live", "type": "human", "note": "Anthropological deadpan that's also a joke." },
+      { "phrase": "must be rewarded with substantial gifts", "type": "human", "note": "Sardonic bite at medical fees." }
+    ],
     "meta": {
       "author": "Horace Miner, 'Body Ritual among the Nacirema,' American Anthropologist, 1956"
     }
@@ -175,6 +273,13 @@
     "wordCount": 62,
     "difficulty": 2,
     "explanation": "From Eliza Leslie's <strong>'Directions for Cookery'</strong> (1840). The practical specificity — 'not thicker than straws,' 'tin or pewter plates' — and the cautionary note about overcooking have a lived quality. The comma-heavy Victorian sentence structure is period-authentic, not AI trying to sound old-fashioned.",
+    "twinText": "To make homemade noodles, combine flour and beaten egg into a firm dough. Knead well, then roll out very thinly on a lightly floured surface and slice into long, narrow strips of uniform width. Allow the strips to dry for several hours before use. When ready to serve, add the noodles to hot soup just before serving — they cook quickly and will fall apart if left in the broth too long.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "not thicker than straws", "type": "human", "note": "A visual reference using whatever is at hand — period authentic." },
+      { "phrase": "tin or pewter plates", "type": "human", "note": "Period materials no AI would default to." },
+      { "phrase": "go to pieces", "type": "human", "note": "Period idiom for 'fall apart.'" }
+    ],
     "meta": {
       "author": "Eliza Leslie, 'Directions for Cookery,' 1840 (public domain)"
     }
@@ -187,6 +292,13 @@
     "wordCount": 82,
     "difficulty": 2,
     "explanation": "From Eliza Leslie's <strong>'Directions for Cookery'</strong> (1840), a recipe for Rich Brown Soup. The precise measurements in Victorian units ('tea-spoonful,' 'four dozen cloves') and the imperative cooking voice are authentic to the period. AI-generated recipes tend to use modern measurements and formats, making this old-fashioned style a genuine human artifact.",
+    "twinText": "For a hearty beef soup, take roughly six pounds of lean beef and stud it with whole cloves. Season the meat generously with salt, pepper, mace, and freshly grated nutmeg. Brown a few sliced onions in butter and chop them, then add them to a heavy pot along with the seasoned meat. Cover with water and bring to a gentle simmer, cooking slowly for several hours, skimming occasionally to keep the broth clear and clean.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "tea-spoonful", "type": "human", "note": "Period unit. AI normalizes to 'teaspoon.'" },
+      { "phrase": "four dozen cloves", "type": "human", "note": "An aggressive quantity in period style." },
+      { "phrase": "five quarts of water", "type": "human", "note": "Period quantity in imperial measure." }
+    ],
     "meta": {
       "author": "Eliza Leslie, 'Directions for Cookery,' 1840 (public domain)"
     }
@@ -199,6 +311,13 @@
     "wordCount": 102,
     "difficulty": 2,
     "explanation": "From <strong>The Diary of a Nobody</strong> (1892). The roundabout way of admitting to cigar-induced nausea — 'The cigar didn't look green, but I fancy I must have done so' — is classic British understatement. The narrator's need to fabricate a reason to leave the room rather than simply admit he feels ill is a comedy of manners that AI wouldn't instinctively construct.",
+    "twinText": "Gowing visited in the evening and brought along an unusual cigar a friend had recently given him. After tea, the three of us sat together in the parlour for a quiet smoke. Carrie excused herself early, citing the heaviness of the smoke. The cigar proved stronger than I had anticipated — markedly so — and after a short while I found myself searching for a polite reason to leave the room before I had finished it entirely.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "what he called a green cigar", "type": "human", "note": "Period euphemism — quoted with bemusement." },
+      { "phrase": "Shoemach", "type": "human", "note": "A specific name that no model would invent." },
+      { "phrase": "I was obliged to retire on the pretext of telling Sarah to bring in the glasses", "type": "human", "note": "Victorian indirection — fabricating an errand to flee nausea." }
+    ],
     "meta": {
       "author": "George & Weedon Grossmith, 'The Diary of a Nobody,' 1892 (public domain)"
     }
@@ -211,6 +330,13 @@
     "wordCount": 79,
     "difficulty": 3,
     "explanation": "From Horace Miner's <strong>'Body Ritual among the Nacirema'</strong> (1956). This is describing <em>dentists</em> — 'holy-mouth-men' — and the passage reads like serious anthropological observation of an exotic culture. The formal academic register is nearly indistinguishable from AI, but the satirical intent (making the familiar seem alien) is a uniquely human intellectual move.",
+    "twinText": "In the daily routines of this community, particular attention is given to oral hygiene practices. Specialists trained in the care of the teeth are consulted on a regular basis, and members of the group view the maintenance of the mouth as a matter of considerable cultural importance. Failure to attend to this practice is widely understood to lead to a range of negative outcomes, both physical and social, within the community framework.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "holy-mouth-men", "type": "human", "note": "Satirical anthropological coinage — not a generated phrase." },
+      { "phrase": "their friends desert them, and their lovers reject them", "type": "human", "note": "Cascading consequences played for absurd effect." },
+      { "phrase": "almost pathological horror of and fascination with", "type": "human", "note": "Clinical-yet-witty register that AI smooths away." }
+    ],
     "meta": {
       "author": "Horace Miner, 'Body Ritual among the Nacirema,' American Anthropologist, 1956"
     }
@@ -223,6 +349,13 @@
     "wordCount": 93,
     "difficulty": 2,
     "explanation": "The famous ending of Frank R. Stockton's <strong>'The Lady, or the Tiger?'</strong> (1882). The direct address to the reader ('Think of it, fair reader') and the refusal to provide an answer are bold authorial choices. AI models are trained to be helpful and complete — leaving a question permanently unanswered goes against their fundamental nature.",
+    "twinText": "The conclusion of the matter is, in a meaningful sense, a question that the story leaves to the reader. The princess, faced with an impossible choice between love and pride, made a decision — but what decision did she make? The text does not provide a definitive answer. Instead, it invites contemplation, asking us to consider the nature of love, jealousy, and the limits of human reason. There is no single correct interpretation here.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "fair reader", "type": "human", "note": "Victorian direct address — too florid for a model's default voice." },
+      { "phrase": "her soul at a white heat beneath the combined fires of despair and jealousy", "type": "human", "note": "Period metaphor stacking — gloriously overcooked." },
+      { "phrase": "devious mazes of passion", "type": "human", "note": "Period phrasing AI would simplify." }
+    ],
     "meta": {
       "author": "Frank R. Stockton, 'The Lady, or the Tiger?', 1882 (public domain)"
     }
@@ -235,6 +368,13 @@
     "wordCount": 79,
     "difficulty": 3,
     "explanation": "From Miner's <strong>'Body Ritual among the Nacirema'</strong> (1956). This is describing a <em>hospital</em> — 'latipso' is 'hospital' scrambled, 'vestal maidens' are nurses. The passage perfectly mimics serious anthropological observation while satirizing American healthcare. Its formal, structured prose is exactly the register AI excels at, making it one of the hardest passages to classify correctly.",
+    "twinText": "The community maintains a central institution dedicated to the most intensive forms of medical treatment. These facilities serve those whose conditions exceed what can reasonably be addressed in routine consultations. They are staffed by a hierarchy of specialists, including supporting personnel who maintain the daily operations of the institution and assist with patient care. Outcomes vary considerably, and the experience of admission is widely regarded as significant within the cultural worldview.",
+    "twinSource": "ai",
+    "tells": [
+      { "phrase": "vestal maidens", "type": "human", "note": "Satirical for nurses — a specific anthropological joke." },
+      { "phrase": "latipso", "type": "human", "note": "Hospital backwards — a constructed term that's also a punchline." },
+      { "phrase": "phenomenal that a fair proportion of the really sick natives who enter the temple ever recover", "type": "human", "note": "Dark academic humor — too pointed for AI." }
+    ],
     "meta": {
       "author": "Horace Miner, 'Body Ritual among the Nacirema,' American Anthropologist, 1956"
     }
@@ -247,6 +387,13 @@
     "wordCount": 76,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to mimic a casual restaurant review. The planted street name ('Divisadero'), the hedging ('I don't know, maybe'), and the self-deprecating aside ('maybe I'm the problem') are deliberate tricks to sound human. The mention of 'Sarah' and splitting the check adds fake social texture. But the complaint is oddly lukewarm — real dissatisfied reviewers commit harder.",
+    "twinText": "Ok, the new ramen place on Divisadero. Went with Sarah and her work people last Tuesday. The broth was sweet?? Like, genuinely sweet. I kept asking the waiter if it was supposed to taste like that and he just sort of nodded which was unhelpful. Sarah loved it. Her coworker Daniel loved it. I felt like I was missing the joke. Tipped 22% out of guilt. Going to try again on a weekday after a normal lunch.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "I don't know, maybe I was just in a weird mood", "type": "ai", "note": "Calibrated hedge — the model softens before complaining." },
+      { "phrase": "maybe I'm the problem", "type": "ai", "note": "A self-aware aside that's been workshopped, not lived." },
+      { "phrase": "really nice about splitting the check four ways", "type": "ai", "note": "Planted social texture — the kind of detail real reviews skip." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a casual, slightly ambivalent restaurant review with specific details and a friend's name"
@@ -260,6 +407,13 @@
     "wordCount": 73,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to sound like an introspective journal entry. The planted details (5:30 alarm, February, the cat, the unfinished book) create an illusion of lived experience. The self-aware joke about therapy is calibrated to feel casually confessional. But the metaphor ('the day hasn't fully committed to happening') is a bit too polished for a real morning journal entry.",
+    "twinText": "5:30 alarm again. Lay there. Rain on the bedroom window for what felt like a long time. Made coffee, fed Pickle, read maybe two paragraphs of the Krakauer book before my brain wandered off to think about whether to email Beth about the thing or just leave it. Today is Wednesday I'm pretty sure. Dr. Mertens at 4 — need to leave by 3:15 for parking. Bagel for breakfast. Going.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "the day hasn't fully committed to happening yet", "type": "ai", "note": "A polished metaphor — too writerly for a 5:30am note." },
+      { "phrase": "I think I'm becoming the kind of person who only starts things", "type": "ai", "note": "A literary self-observation set up to land." },
+      { "phrase": "My therapist would probably have something to say about that", "type": "ai", "note": "Calibrated reflective close — the model's signature." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a reflective diary entry about a mundane morning with self-deprecating humor"
@@ -273,6 +427,13 @@
     "wordCount": 80,
     "difficulty": 1,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> in encyclopedic style. The clean structure, balanced phrasing, and smooth narrative arc from ancient history to modern applications are classic AI hallmarks. The progression 'ceremonial → creative → mathematical → engineering' is a bit too tidy. Real Wikipedia articles tend to be more fragmentary, with abrupt transitions and citation-needed gaps.",
+    "twinText": "Origami is the Japanese art of paper folding. The word combines 'oru' (to fold) and 'kami' (paper). Although the precise origins are uncertain — paper was costly in early Japan and most early folded works have not survived — the practice is documented from at least the Heian period (794–1185) onward, where ceremonial folds such as 'noshi' were attached to gifts. Akira Yoshizawa (1911–2005) developed the notation system most modern folders use; his diagrams were popularized in the West by Robert Harbin and Samuel Randlett.[citation needed]",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "deeply intertwined with the cultural and spiritual traditions", "type": "ai", "note": "An overstuffed opener — the model's signature warm-up." },
+      { "phrase": "transforming origami from a folk craft into a recognized art form", "type": "ai", "note": "A tidy narrative arc real Wikipedia rarely commits to." },
+      { "phrase": "continue to influence fields from engineering to medicine", "type": "ai", "note": "Sweeping coda — a model gesture, not an editor's." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a Wikipedia-style paragraph about origami history"
@@ -286,6 +447,13 @@
     "wordCount": 82,
     "difficulty": 2,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> mimicking an enthusiastic product review. The capitalized emphasis ('EIGHT. SECONDS.'), the 'hear me out' preamble, and the '10/10 would blend again' sign-off are internet-speak conventions that AI has learned to reproduce well. The minor complaint about the lid is a planted imperfection — real reviews include these naturally, AI adds them strategically.",
+    "twinText": "this thing is a beast lol. used my old ninja for like 4 years and it would basically have a meltdown over a frozen banana, this one just doesn't care. one annoying thing is the lid is tight as hell after you blend something — like you have to brace the base with one hand and unscrew with the other, kind of awkward when your hands are wet. but whatever, it works fine. five stars",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "EIGHT. SECONDS.", "type": "ai", "note": "Calibrated emphasis. A real reviewer would just type '8 seconds.'" },
+      { "phrase": "10/10 would blend again", "type": "ai", "note": "Memey sign-off — performed, not native." },
+      { "phrase": "I know that sounds dramatic for a kitchen appliance but hear me out", "type": "ai", "note": "The 'hear me out' preamble is an AI tell." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write an enthusiastic Amazon-style product review with one small complaint"
@@ -299,6 +467,13 @@
     "wordCount": 85,
     "difficulty": 2,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong>. This micro-fiction has the restrained, literary quality of a workshop piece. The details are carefully chosen (winter coat, December, original creases, passing the salt). But the emotional arc is almost too clean — setup, discovery, quiet resolution — without the messiness or ambiguity that real literary fiction often embraces.",
+    "twinText": "Marian found the letter in the gray coat — the one her mother had given him three Christmases back. She read it once. She read it again. The handwriting was not his. That came at her sideways. She didn't put it back exactly. She put it back close enough. At dinner he asked if she had moved his coat and she said yes, she had hung it in the front closet. That was a lie. There would be more, she could feel them coming.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "the kind of writing that comes from someone trying very hard not to make mistakes", "type": "ai", "note": "Over-described — a workshop note dressed as observation." },
+      { "phrase": "with something close to gratitude", "type": "ai", "note": "The literary close. AI loves a quiet, neat ending." },
+      { "phrase": "passed him the salt before he asked for it", "type": "ai", "note": "A calibrated tender beat." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a short literary fiction paragraph about an unspoken secret between partners"
@@ -312,6 +487,13 @@
     "wordCount": 72,
     "difficulty": 1,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> in encyclopedic style. This is textbook AI output — a complex topic explained clearly with a qualifier ('does not allow for faster-than-light communication') that pre-empts a common misconception. The phrase 'often described as' is an AI verbal tic. Real Wikipedia articles are usually more fragmented and citationheavy.",
+    "twinText": "Quantum entanglement is a phenomenon in which the quantum states of two or more particles are correlated such that the state of each cannot be described independently of the others. The correlations persist regardless of the spatial separation of the particles. The no-communication theorem establishes that entanglement cannot be used to transmit classical information faster than light.[1] Bell's theorem (1964) and the experimental tests beginning with Freedman and Clauser (1972) ruled out a broad class of local hidden-variable theories.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "spooky action at a distance", "type": "ai", "note": "The cliché framing the model reaches for first." },
+      { "phrase": "often described as", "type": "ai", "note": "A verbal tic — the model loves to introduce a phrase before using it." },
+      { "phrase": "regardless of the physical distance separating them", "type": "ai", "note": "Lightly purple where Wikipedia would be terse." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a Wikipedia-style explanation of quantum entanglement"
@@ -325,6 +507,13 @@
     "wordCount": 72,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to sound like an intimate grief journal. The radio metaphor is effective but <em>too</em> effective — it's a polished analogy for what should be raw emotion. The final three short sentences ('I ate a sandwich. I watched a bird. That was enough.') are a deliberate literary technique. Real grief journals are usually less composed.",
+    "twinText": "Saw a robin in the backyard this morning. Mom would've pointed it out. I keep noticing things she would have noticed and it makes me feel like I'm doing it wrong. Four months tomorrow. I had a pretty normal day at work yesterday and felt guilty about it the whole train ride home which is its own kind of stupid. Cheerios for dinner. Going to bed.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "Like a radio station you can't fully tune out", "type": "ai", "note": "The polished metaphor — too writerly for a real grief note." },
+      { "phrase": "Today was a static day", "type": "ai", "note": "Callback to the metaphor — the model loves a callback." },
+      { "phrase": "I ate a sandwich. I watched a bird outside. That was enough.", "type": "ai", "note": "A literary triplet pretending to be plain." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a diary entry about grief that uses a specific metaphor and ends with mundane details"
@@ -338,6 +527,13 @@
     "wordCount": 70,
     "difficulty": 2,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to mimic local news reporting. The invented-but-plausible details (Elm Street, Route 9, $2.3M / $18M, Maple Avenue) are designed to feel real. The inverted pyramid structure and passive voice ('are advised') are genre-appropriate. But the passage lacks a named source or direct quote — real news articles almost always attribute claims to a specific person.",
+    "twinText": "The Elm Street Bridge reopening has been pushed to March, county officials said at Thursday's commission meeting. 'We didn't expect to find what we found in that soil,' Public Works Director Janet Vasquez told reporters. 'We can't pour concrete on top of contamination — full stop.' The delay adds an estimated $2.3 million to a project already running $18 million. Drivers will continue using the Maple Avenue detour, which has averaged 14-minute backups during the morning peak, according to county traffic data.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "Regional transportation officials announced", "type": "ai", "note": "No named source — real news names a person." },
+      { "phrase": "are advised to continue using the detour", "type": "ai", "note": "Passive register where reporters would write actively." },
+      { "phrase": "approximately $2.3 million to the project's $18 million budget", "type": "ai", "note": "No quote, no named figure — the structural giveaway." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a local news excerpt about a construction delay with specific numbers and street names"
@@ -351,6 +547,13 @@
     "wordCount": 87,
     "difficulty": 2,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong>. This reads like a clean, competent recipe introduction — and that's exactly why it feels like AI. The instructional voice is steady and authoritative without being personal. There's no 'my grandmother taught me' or 'I once ruined this by...' — no human fingerprint. Real home cooks usually inject at least one aside or personal tip.",
+    "twinText": "Don't believe anyone who says risotto needs constant stirring — that's a myth chefs tell each other. Stir it like, every minute or two. What it actually needs is hot stock (cold stock will tank it, learned this the hard way) and patience. I do mine in a cast iron Dutch oven because that's what I have. Onion in butter, then the rice until it smells nutty, then a splash of white wine, then stock a ladle at a time until it's done — usually around 18 minutes for arborio. Salt as you go, never at the end.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "the most important thing is patience", "type": "ai", "note": "An aphoristic opener — recipes from people start with the dish, not the lesson." },
+      { "phrase": "From there, add broth one ladle at a time, stirring constantly", "type": "ai", "note": "Textbook order. Real cooks parenthesize, contradict, or skip steps." },
+      { "phrase": "cannot be rushed", "type": "ai", "note": "Sermonic close — the model wants you to learn." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write clear risotto instructions emphasizing patience and technique"
@@ -364,6 +567,13 @@
     "wordCount": 90,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to sound like a casual personal anecdote. Every detail is designed to feel specific and lived-in: the neighbor's cooking show, the gasp through the wall, the landlord's dismissive head shake. These are <em>planted</em> details — they mimic the randomness of real memory. The emotional beat ('that made me feel less alone') is the kind of observation AI has learned to deploy for authenticity.",
+    "twinText": "locked out for like two hours yesterday waiting for Dave from the building to come up with the master key. just sat in the hall on the floor. heard the lady in 4B was watching some kind of baking show?? she was REALLY into it, kept yelling no no no through the wall, I almost knocked. when Dave finally came he was holding a slice of pizza and like sighed when he saw me. anyway. long day.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "shook his head like I was a problem he'd already solved in his mind", "type": "ai", "note": "Over-articulated body language — the model showing its work." },
+      { "phrase": "that made me feel less alone", "type": "ai", "note": "A planted emotional beat." },
+      { "phrase": "Last Tuesday", "type": "ai", "note": "An evenly specific opener that flags 'I am giving you a story.'" }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a diary entry about being locked out with overheard details from a neighbor"
@@ -377,6 +587,13 @@
     "wordCount": 68,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> mimicking a stream-of-consciousness social media post. The deliberate lack of punctuation, the lowercase 'i,' the 'honestly same,' and the procrastination humor are all calibrated to read as authentic Gen Z internet voice. The final line ('the sky doesnt have a word count requirement') is a planted punchline — it's a <em>bit</em> too good for a real procrastination tweet.",
+    "twinText": "sky is doing something weird tonight. like greyish purple but not really either. been staring at it for like 20 min when i should be writing the lit essay due 9am. roommate just microwaved popcorn the whole apt smells. should be writing. wont be. anyway",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "the sky doesnt have a word count requirement", "type": "ai", "note": "A constructed punchline. Real tweets don't land that cleanly." },
+      { "phrase": "honestly same", "type": "ai", "note": "Gen Z register performed, not native." },
+      { "phrase": "butter and bad decisions", "type": "ai", "note": "A clever phrase the model couldn't resist." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a casual social media post about procrastination with no punctuation and Gen Z voice"
@@ -390,6 +607,13 @@
     "wordCount": 80,
     "difficulty": 2,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to sound like a literary review or academic essay. The vocabulary ('displacement,' 'inheritance,' 'formal constraint,' 'emotional excess') and the reference to a specific page number are designed to signal expertise. But the analysis is impressionistic rather than specific — it could describe almost any poetry collection. Real critics anchor their claims in quoted lines.",
+    "twinText": "Reading these poems straight through, I noticed the doorways before anything else. They appear in seven of the twenty-three pieces, never quite as metaphor and never quite as literal image. I keep returning to the villanelle 'After the House Fire,' whose repeated lines — 'I left the door open / I left the door open' — accuse rather than refrain. The book's organizing problem isn't displacement; it's culpability. That's a harder argument to advertise on a back cover.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "lives in the tension between formal constraint and emotional excess", "type": "ai", "note": "Essayistic boilerplate — could describe any collection." },
+      { "phrase": "displacement and inheritance", "type": "ai", "note": "Generic theme nouns. A real critic names lines." },
+      { "phrase": "the villanelle on page forty-three", "type": "ai", "note": "Page number with no title — a reference that conceals its source." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a literary criticism paragraph about a poetry collection with specific analytical language"
@@ -403,6 +627,13 @@
     "wordCount": 77,
     "difficulty": 2,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to sound like a standard office email. The casual-professional tone ('heads up,' 'concerning sounds,' 'sorry about that') is pitch-perfect workplace communication. But it's <em>too</em> considerate — real office emails about room closures tend to be more terse and less apologetic. The 'HVAC making concerning sounds' detail is a planted humanizing touch.",
+    "twinText": "heads up — 3rd floor conf room closed mon + tues. hvac doing its thing again and facilities is finally getting to it. if you had something booked grab the 2nd floor room or the one by reception. lmk if anything is weird with the calendar invites. — ken",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "I know it's short notice — sorry about that", "type": "ai", "note": "Calibrated apology. Real office notices skip this." },
+      { "phrase": "Thanks for your patience!", "type": "ai", "note": "A corporate closer the model defaults to." },
+      { "phrase": "Hi everyone, just a heads up", "type": "ai", "note": "Both salutation and qualifier — overdressed for a five-line email." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a workplace email about a conference room closure that sounds natural and slightly apologetic"
@@ -416,6 +647,13 @@
     "wordCount": 74,
     "difficulty": 2,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> as a prose poem. The extended personification of light and the colon-separated time structure are aesthetically pleasing but <em>organized</em> in a way real poems rarely are. The final metaphor ('the most patient teacher') ties everything up too neatly. Real poetry tends to resist such clean conclusions — it prefers to leave the reader unsettled.",
+    "twinText": "The kitchen window. Each hour a different room. Morning: amber, dust in the slant. Noon: too bright, the wood looks tired. Then later the elm out back writes on the wall and I can never read what it says. Eleven years and still I haven't learned. Maybe the light is teaching nothing. Maybe it's just light.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "It is the most patient teacher I have ever had", "type": "ai", "note": "A tidy moral close — real poems leave you stuck." },
+      { "phrase": "the shadows of the elm branches write cursive across the walls", "type": "ai", "note": "Overcooked image — too well-built to be heard once." },
+      { "phrase": "a language I almost understand", "type": "ai", "note": "A workshop phrase that's been around the block." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a prose poem about light in a kitchen across different times of day"
@@ -429,6 +667,13 @@
     "wordCount": 76,
     "difficulty": 1,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong>. This is classic AI academic writing — a concept is introduced, attributed, explained, and then its broader significance is noted, all in one smooth paragraph. The structure is impeccable but <em>too</em> impeccable. Real academic writing tends to be more argumentative and less expository, with the author's own position woven into the summary.",
+    "twinText": "Hochschild's 'emotional labor,' introduced in The Managed Heart (1983), did not arrive in academic discourse so much as creep through it. Her case studies — flight attendants instructed to perform care, debt collectors trained to perform menace — were striking, but the term's later spread depended on a slow drift from sociology into the wider conversation. By the time it reached HR handbooks, it had lost most of Hochschild's argument and kept only the phrase. That asymmetry is, in fact, what the book is about.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "first introduced by sociologist Arlie Russell Hochschild in her 1983 work", "type": "ai", "note": "A textbook attribution chain — too neatly assembled." },
+      { "phrase": "demonstrating how organizations effectively commodify human feeling", "type": "ai", "note": "A textbook gloss, not an argument." },
+      { "phrase": "entering popular discourse", "type": "ai", "note": "The model's stock phrase for 'caught on.'" }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write an academic paragraph explaining emotional labor and its origin"
@@ -442,6 +687,13 @@
     "wordCount": 91,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to mimic a personal food blog. The 'grandmother's recipe' framing, the defensive tone about lard, and the personification of dough ('barely wants to,' 'that reluctance') are all designed to feel authentically opinionated and personal. This is one of the trickiest AI passages — the voice is confident and specific. The tell is that it's <em>performatively</em> authentic rather than casually so.",
+    "twinText": "This is my mother-in-law's crust. She uses leaf lard from a guy in Lancaster County, but I just buy whatever the grocery has. Cold. Cut it into the flour with a pastry blender — no food processor, it heats up the fat. Coarse meal stage, not sand. Ice water and apple cider vinegar (yes vinegar, like a tablespoon for a double crust, it slows down the gluten). Stop adding water before you think you need to. Refrigerate at least an hour. If it cracks while you roll it out, patch it. It'll be ugly. It'll be flaky.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "barely wants to", "type": "ai", "note": "Personification dough doesn't get from real cooks." },
+      { "phrase": "That reluctance is what makes it perfect", "type": "ai", "note": "An epigrammatic close — the writer winking at the reader." },
+      { "phrase": "I know that's not what people want to hear in 2024", "type": "ai", "note": "Calibrated cultural awareness — performatively in-the-moment." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a recipe post defending an unpopular ingredient with a strong personal voice and grandmother reference"
@@ -455,6 +707,13 @@
     "wordCount": 68,
     "difficulty": 1,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong>. This reads like a generic overview paragraph from a magazine or textbook — balanced, informative, and completely impersonal. The list of three cities, the three-part benefit structure ('economic, ecological, and social'), and the 'complex negotiations' conclusion are structural patterns AI defaults to. Real journalism would focus on one city with specific people and conflicts.",
+    "twinText": "Baltimore's Inner Harbor was once a working port. Forty years ago, you couldn't walk along Pratt Street without smelling the canneries. Now it's a tourist district — a national aquarium, a science center, and a long-running argument about whether the redevelopment was worth it for residents of Sharp-Leadenhall and Federal Hill. The same fight is playing out in Copenhagen. In Melbourne. In dozens of mid-sized cities most of us couldn't name. The waterfront is rarely just a waterfront.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "Cities such as Copenhagen, Melbourne, and Baltimore", "type": "ai", "note": "The rule-of-three list — the model's signature." },
+      { "phrase": "complex negotiations between public agencies, private developers, and community stakeholders", "type": "ai", "note": "Textbook phrasing with no actual conflict named." },
+      { "phrase": "vibrant mixed-use districts featuring parks, cultural institutions, and residential developments", "type": "ai", "note": "Three-part listing — the model can't help itself." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a news-style paragraph about waterfront urban development trends"
@@ -468,6 +727,13 @@
     "wordCount": 82,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to mimic a casual text message or email between siblings. The pet name ('Biscuit'), the thyroid detail, and the pivot from vet news to Thanksgiving plans create an illusion of real domestic life. The 'sorry for the late reply' opener and 'hope your week's going ok' closer are natural bookends. The giveaway is subtle: this message has <em>exactly</em> the right emotional temperature throughout — real messages tend to be more uneven.",
+    "twinText": "hey sorry forgot to text back yesterday — vet appt was a whole thing. biscuit's thyroid is up but she said it's fine for now, just gonna start him on a pill. ALSO mom wants thanksgiving at hers this year not aunt carols, she sounded weird about it tbh, you know how she gets when carol does the green bean casserole thing. lmk",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "Hope your week's going ok", "type": "ai", "note": "A calibrated closer — real siblings don't sign off this gently." },
+      { "phrase": "She didn't seem too worried though", "type": "ai", "note": "Reassurance the model adds reflexively." },
+      { "phrase": "sorry for the late reply", "type": "ai", "note": "An even, polite opener — too composed for a sibling text." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a casual sibling text message about a pet's vet visit and holiday plans"
@@ -481,6 +747,13 @@
     "wordCount": 86,
     "difficulty": 3,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong> to sound like a writer's journal. The Chekhov quote (which <em>is</em> commonly misattributed), the meta-commentary about 'telling vs. showing,' and the frustrated self-awareness are designed to feel like genuine creative struggle. The lowercase style and the final rhetorical question mimic informal journaling. But the passage is itself a perfectly executed example of 'showing' — which is a little too self-aware.",
+    "twinText": "stuck on para 4 again. the chekhov line about the moon and the broken glass keeps coming up — i looked it up and apparently he never actually wrote it that way, its from a letter, sort of. anyway. been trying to fix this paragraph since sunday. three different versions, all bad in slightly different ways. i think the problem is i dont know what shes feeling. or i do know and i dont want to write it.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "how do you show something you haven't figured out yet", "type": "ai", "note": "A clean rhetorical close — the model loves a final flourish." },
+      { "phrase": "the point stands either way", "type": "ai", "note": "A calibrated handwave that's a little too smooth." },
+      { "phrase": "every version tells when it should show", "type": "ai", "note": "Too neat — a model writing about writing." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write a writer's journal entry about struggling with a Chekhov writing principle, lowercase and informal"
@@ -494,6 +767,13 @@
     "wordCount": 80,
     "difficulty": 1,
     "explanation": "Written by <strong>Claude 4.6 Opus</strong>. This is quintessential AI prose — eloquent, balanced, and making a point that sounds profound but is essentially a well-known observation about cognitive bias restated in elevated language. The three-part parallel structure ('faces in clouds, narratives in coincidences, intention in randomness') and the tidy reversal in the final sentence are hallmark AI rhetorical moves.",
+    "twinText": "Pareidolia — seeing faces in clouds, or in the burnt grain of toast — is the most charming case of a more general problem, which is that human cognition is, structurally, an apophenia engine. The interesting question isn't why we see patterns where none exist; we know the answer to that. The interesting question is why this same machinery, run at an angle, gives us science. Anyway, I haven't finished thinking about it.",
+    "twinSource": "human",
+    "tells": [
+      { "phrase": "We are, at our core, pattern-seeking creatures", "type": "ai", "note": "A universal pronouncement — the model's stock posture." },
+      { "phrase": "transforming noise into signal and correlation into cause", "type": "ai", "note": "A balanced rule-of-two close." },
+      { "phrase": "almost desperate need for coherence", "type": "ai", "note": "Faintly purple — the model dialing up emotional weight." }
+    ],
     "meta": {
       "model": "Claude 4.6 Opus",
       "prompt": "Write an essayistic reflection on human pattern-seeking behavior in formal academic style"

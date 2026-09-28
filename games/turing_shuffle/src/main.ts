@@ -3,13 +3,24 @@ import type { Passage, UserAnswer, AggregateStats, GameHistory } from './types';
 import passagePool from './passages.json';
 import { selectPassages, generateInsight, getScoreTitle, analyzeConfidence, analyzeTimings, type GameInsight } from './game';
 import { loadHistory, saveResult, getLastPassageIds } from './storage';
-import { submitResults, fetchStats } from './api';
+import { submitResults, fetchStats, communityStatsText } from './api';
 import { shareScore } from './share';
+import {
+  initLatentField,
+  setMode as setFieldMode,
+  setBias as setFieldBias,
+  setStreakActive,
+  setReadingTarget,
+  fieldPulse,
+} from './latentField';
+import { morphText } from './twinMorph';
 
 /* ═══════ DOM & MEDIA ═══════ */
 
 const app = document.getElementById('app')!;
 const mqReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const fieldCanvas = document.getElementById('latent-field') as HTMLCanvasElement | null;
+if (fieldCanvas) initLatentField(fieldCanvas);
 
 /* ═══════ STATE ═══════ */
 
@@ -18,6 +29,7 @@ interface AppState {
   passages: Passage[];
   currentIndex: number;
   answers: UserAnswer[];
+  submissionId: string;
   confidence: number;
   aggregateStats: AggregateStats | null;
   history: GameHistory;
@@ -25,6 +37,10 @@ interface AppState {
   passageStartTime: number;
   currentStreak: number;
   bestStreak: number;
+  /** True while the Twin Reveal is on screen (between answer and next passage). */
+  showingTwin: boolean;
+  /** Number of twins seen this session — passed into the share image. */
+  twinsSeen: number;
 }
 
 let state: AppState = {
@@ -32,6 +48,7 @@ let state: AppState = {
   passages: [],
   currentIndex: 0,
   answers: [],
+  submissionId: '',
   confidence: 75,
   aggregateStats: null,
   history: loadHistory(),
@@ -39,10 +56,14 @@ let state: AppState = {
   passageStartTime: 0,
   currentStreak: 0,
   bestStreak: 0,
+  showingTwin: false,
+  twinsSeen: 0,
 };
 
 let answerLocked = false;
 let scoreAnimated = false;
+let hoveredSide: 'human' | 'ai' | null = null;
+let twinController: AbortController | null = null;
 
 /* ═══════ CONSTANTS ═══════ */
 
@@ -151,6 +172,8 @@ function adjustConfidence(delta: number): void {
 }
 
 function handleKeydown(e: KeyboardEvent): void {
+  if (e.repeat || e.defaultPrevented) return;
+  if ((e.key === 'Enter' || e.key === ' ') && e.target instanceof Element && e.target.closest('button, a, input, select, textarea')) return;
   if (e.target instanceof HTMLTextAreaElement) return;
   if (e.target instanceof HTMLInputElement && (e.target as HTMLInputElement).type === 'text') return;
 
@@ -159,6 +182,10 @@ function handleKeydown(e: KeyboardEvent): void {
       if (e.key === 'Enter') { e.preventDefault(); startGame(); }
       break;
     case 'game':
+      if (state.showingTwin) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); advanceFromTwin(); }
+        return;
+      }
       if (answerLocked) return;
       if (e.key === 'h' || e.key === 'H' || e.key === '1') { e.preventDefault(); submitAnswer('human'); }
       else if (e.key === 'a' || e.key === 'A' || e.key === '2') { e.preventDefault(); submitAnswer('ai'); }
@@ -190,11 +217,14 @@ function startGame(): void {
   state.passages = selectPassages(passagePool as Passage[], lastIds);
   state.currentIndex = 0;
   state.answers = [];
+  state.submissionId = crypto.randomUUID();
   state.confidence = 75;
   state.screen = 'game';
   state.insight = null;
   state.currentStreak = 0;
   state.bestStreak = 0;
+  state.showingTwin = false;
+  state.twinsSeen = 0;
   answerLocked = false;
   scoreAnimated = false;
   transitionTo(() => renderGame());
@@ -204,6 +234,7 @@ function submitAnswer(guess: 'human' | 'ai'): void {
   if (answerLocked) return;
   answerLocked = true;
 
+  const btn = document.getElementById(guess === 'human' ? 'btn-human' : 'btn-ai');
   document.querySelectorAll('.btn-guess').forEach(b => {
     (b as HTMLButtonElement).disabled = true;
   });
@@ -230,18 +261,152 @@ function submitAnswer(guess: 'human' | 'ai'): void {
     haptic([30, 50, 30]);
   }
 
+  // Latent Field reaction: pulse from the button the user pressed
+  if (btn) {
+    const r = btn.getBoundingClientRect();
+    fieldPulse(r.left + r.width / 2, r.top + r.height / 2, isCorrect ? 'correct' : 'incorrect');
+  }
+  setStreakActive(state.currentStreak >= 3);
+  hoveredSide = null;
+  setFieldBias(0, 'neutral');
+
   showFeedback(isCorrect, passage.source);
 
-  setTimeout(() => {
-    answerLocked = false;
-    state.currentIndex++;
-    state.confidence = 75;
-    if (state.currentIndex >= 10) {
-      finishGame();
-    } else {
-      renderGame();
-    }
-  }, 900);
+  // After feedback settles, transition into the Twin Reveal.
+  setTimeout(() => beginTwinReveal(passage), 900);
+}
+
+/* ═══════ TWIN REVEAL ═══════ */
+
+function beginTwinReveal(passage: Passage): void {
+  twinController?.abort();
+  const controller = new AbortController();
+  twinController = controller;
+  state.showingTwin = true;
+  state.twinsSeen = Math.max(state.twinsSeen, state.currentIndex + 1);
+
+  const game = app.querySelector<HTMLElement>('.game');
+  const card = document.getElementById('passage-card');
+  const textEl = card?.querySelector<HTMLElement>('.passage-text') ?? null;
+  if (!game || !card || !textEl) return;
+
+  game.classList.add('game--twin');
+
+  // Fade out the existing feedback overlay.
+  const overlay = document.querySelector<HTMLElement>('.feedback-overlay');
+  if (overlay) {
+    overlay.classList.remove('show');
+    setTimeout(() => overlay.remove(), 300);
+  }
+
+  // "The twin" label, inserted above the passage card.
+  const label = document.createElement('div');
+  label.className = 'twin-label';
+  label.innerHTML = '<span class="twin-label__bullet">↔</span> The twin';
+  card.parentElement!.insertBefore(label, card);
+  requestAnimationFrame(() => label.classList.add('show'));
+
+  // Twin source badge next to the genre pill.
+  const pill = card.querySelector('.genre-pill');
+  if (pill) {
+    const badge = document.createElement('span');
+    badge.className = `twin-badge twin-badge--${passage.twinSource}`;
+    badge.textContent = passage.twinSource === 'human' ? 'now reads as Human' : 'now reads as AI';
+    pill.after(badge);
+    requestAnimationFrame(() => badge.classList.add('show'));
+  }
+
+  // A11y: announce the twin to screen readers.
+  const live = document.createElement('div');
+  live.className = 'sr-only';
+  live.setAttribute('aria-live', 'polite');
+  live.textContent = `Twin reveal — same idea written by the ${passage.twinSource === 'human' ? 'human' : 'AI'}: ${passage.twinText.substring(0, 160)}`;
+  card.parentElement!.appendChild(live);
+  setTimeout(() => live.remove(), 2000);
+
+  // Latent Field: subtle pulse from the card center, tinted by the twin's source.
+  const cardRect = card.getBoundingClientRect();
+  fieldPulse(
+    cardRect.left + cardRect.width / 2,
+    cardRect.top + cardRect.height / 2,
+    passage.twinSource === 'human' ? 'human' : 'ai',
+  );
+
+  // Run the morph.
+  morphText(textEl, passage.text, passage.twinText, {
+    duration: 1400,
+    signal: controller.signal,
+    onComplete: () => {
+      if (!controller.signal.aborted && state.showingTwin && state.passages[state.currentIndex] === passage) renderTwinDiffStrip(passage);
+    },
+  });
+}
+
+function renderTwinDiffStrip(passage: Passage): void {
+  const game = app.querySelector<HTMLElement>('.game');
+  if (!game) return;
+
+  const tellsHtml = passage.tells.map((t, i) => `
+    <li class="tell tell--${t.type}" style="--tell-delay: ${i * 90}ms">
+      <div class="tell__rule" aria-hidden="true"></div>
+      <div class="tell__body">
+        <div class="tell__phrase">&ldquo;${escapeHtml(t.phrase)}&rdquo;</div>
+        ${t.note ? `<div class="tell__note">${escapeHtml(t.note)}</div>` : ''}
+      </div>
+    </li>
+  `).join('');
+
+  const strip = document.createElement('div');
+  strip.className = 'diff-strip';
+  strip.innerHTML = `
+    <div class="diff-strip__title">What gave it away</div>
+    <ul class="diff-strip__list" role="list">${tellsHtml}</ul>
+  `;
+
+  const isLast = state.currentIndex >= 9;
+  const actions = document.createElement('div');
+  actions.className = 'twin-actions';
+  actions.innerHTML = `
+    <button class="btn-continue" id="btn-continue" type="button" aria-label="${isLast ? 'See your results' : 'Continue to the next passage'}">
+      <span class="btn-continue__label">${isLast ? 'See results' : 'Continue'}</span>
+      <span class="btn-continue__arrow" aria-hidden="true">→</span>
+      <span class="btn-continue__hint" aria-hidden="true">Space</span>
+    </button>
+  `;
+
+  // Insert before the (now hidden) controls so layout is stable.
+  const controls = game.querySelector('.controls');
+  if (controls) {
+    controls.before(strip);
+    controls.before(actions);
+  } else {
+    game.appendChild(strip);
+    game.appendChild(actions);
+  }
+
+  requestAnimationFrame(() => {
+    strip.classList.add('show');
+    actions.classList.add('show');
+  });
+
+  document.getElementById('btn-continue')!.addEventListener('click', advanceFromTwin);
+  // Focus the continue button so Enter/Space immediately works without re-tab.
+  setTimeout(() => document.getElementById('btn-continue')?.focus({ preventScroll: true }), 60);
+}
+
+function advanceFromTwin(): void {
+  if (!state.showingTwin) return;
+  state.showingTwin = false;
+  twinController?.abort();
+  twinController = null;
+  answerLocked = false;
+  state.currentIndex++;
+  state.confidence = 75;
+  if (state.currentIndex >= 10) {
+    finishGame();
+  } else {
+    renderGame();
+  }
 }
 
 function showFeedback(correct: boolean, source: 'human' | 'ai'): void {
@@ -283,6 +448,7 @@ function showFeedback(correct: boolean, source: 'human' | 'ai'): void {
 }
 
 async function finishGame(): Promise<void> {
+  const completedSubmissionId = state.submissionId;
   const score = state.answers.filter((a) => a.correct).length;
   state.insight = generateInsight(state.passages, state.answers);
 
@@ -293,11 +459,11 @@ async function finishGame(): Promise<void> {
   transitionTo(() => renderReveal());
 
   try {
-    await submitResults(state.answers);
+    await submitResults(state.answers, completedSubmissionId);
     const stats = await fetchStats();
     if (stats) {
       state.aggregateStats = stats;
-      renderReveal();
+      if (state.screen === 'reveal' && state.submissionId === completedSubmissionId) renderReveal();
     }
   } catch { /* graceful degradation */ }
 }
@@ -306,9 +472,7 @@ async function finishGame(): Promise<void> {
 
 function renderLanding(): void {
   const h = state.history;
-  const statsLine = state.aggregateStats?.global
-    ? `Average score across all visitors: ${state.aggregateStats.global.averageScore.toFixed(1)} / 10`
-    : 'Be the first to play.';
+  const statsLine = communityStatsText(state.aggregateStats);
 
   let historyHtml = '';
   if (h.totalGames > 0) {
@@ -349,6 +513,11 @@ function renderLanding(): void {
   `;
 
   document.getElementById('btn-begin')!.addEventListener('click', startGame);
+
+  setFieldMode('idle');
+  setStreakActive(false);
+  setFieldBias(0, 'neutral');
+  hoveredSide = null;
 }
 
 /* ═══════ GAME SCREEN ═══════ */
@@ -423,10 +592,40 @@ function renderGame(): void {
     state.confidence = parseInt((e.target as HTMLInputElement).value, 10);
     const valueEl = document.getElementById('conf-value');
     if (valueEl) valueEl.textContent = `${state.confidence}%`;
+    if (hoveredSide) setFieldBias(state.confidence / 100, hoveredSide);
   });
 
-  document.getElementById('btn-human')!.addEventListener('click', () => submitAnswer('human'));
-  document.getElementById('btn-ai')!.addEventListener('click', () => submitAnswer('ai'));
+  const humanBtn = document.getElementById('btn-human')!;
+  const aiBtn = document.getElementById('btn-ai')!;
+  humanBtn.addEventListener('click', () => submitAnswer('human'));
+  aiBtn.addEventListener('click', () => submitAnswer('ai'));
+
+  // Hover/focus bias — tilts the field toward the side the user is leaning,
+  // intensity proportional to the confidence slider.
+  const onEnterHuman = () => { hoveredSide = 'human'; setFieldBias(state.confidence / 100, 'human'); };
+  const onEnterAi = () => { hoveredSide = 'ai'; setFieldBias(state.confidence / 100, 'ai'); };
+  const onLeave = () => { hoveredSide = null; setFieldBias(0, 'neutral'); };
+  humanBtn.addEventListener('mouseenter', onEnterHuman);
+  humanBtn.addEventListener('focus', onEnterHuman);
+  humanBtn.addEventListener('mouseleave', onLeave);
+  humanBtn.addEventListener('blur', onLeave);
+  aiBtn.addEventListener('mouseenter', onEnterAi);
+  aiBtn.addEventListener('focus', onEnterAi);
+  aiBtn.addEventListener('mouseleave', onLeave);
+  aiBtn.addEventListener('blur', onLeave);
+
+  // Latent Field: pull particles toward the passage card while reading.
+  setFieldMode('reading');
+  setStreakActive(state.currentStreak >= 3);
+  setFieldBias(0, 'neutral');
+  hoveredSide = null;
+  requestAnimationFrame(() => {
+    const card = document.getElementById('passage-card');
+    if (card) {
+      const r = card.getBoundingClientRect();
+      setReadingTarget(r.left + r.width / 2, r.top + r.height / 2);
+    }
+  });
 
   state.passageStartTime = Date.now();
 }
@@ -434,6 +633,11 @@ function renderGame(): void {
 /* ═══════ REVEAL SCREEN ═══════ */
 
 function renderReveal(): void {
+  setFieldMode('reveal');
+  setStreakActive(false);
+  setFieldBias(0, 'neutral');
+  hoveredSide = null;
+
   const score = state.answers.filter((a) => a.correct).length;
   const pct = (score / 10) * 100;
   const circumference = 2 * Math.PI * 66;
@@ -677,7 +881,7 @@ function renderReveal(): void {
 
   document.getElementById('btn-again')!.addEventListener('click', startGame);
   document.getElementById('btn-share')!.addEventListener('click', () => {
-    shareScore(score, 10, state.answers);
+    shareScore(score, 10, state.answers, state.twinsSeen);
   });
 }
 

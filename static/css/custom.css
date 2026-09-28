@@ -7,6 +7,48 @@
   align-items: center;
 }
 
+.site-skip-link {
+  position: fixed;
+  top: 0;
+  left: 1rem;
+  z-index: 10000;
+  padding: .65rem 1rem;
+  color: #fff;
+  background: #172d40;
+  transform: translateY(-110%);
+}
+.site-skip-link:focus {
+  transform: translateY(0);
+  color: #fff;
+}
+
+/* Leave anchored sections below the collapsed fixed navigation. */
+.anchor { scroll-margin-top: 70px; }
+
+/* Filterizr retains offscreen transforms on hidden cards after a resize. */
+.filtr-projects { overflow: hidden; }
+
+.games-arcade-link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: #a2ddf3;
+  text-decoration: underline;
+  text-underline-offset: .25em;
+  padding: .35rem .8rem;
+  border-radius: 1rem;
+  background: rgba(10, 8, 28, .85);
+}
+.games-arcade-link:hover,
+.games-arcade-link:focus-visible { color: #e1f7ff; }
+
+/* Keep secondary-page navigation readable over moving or pale backgrounds. */
+#top-navbar.innerpage-navbar { background: #151725 !important; }
+#top-navbar.innerpage-navbar .navbar-brand,
+#top-navbar.innerpage-navbar .nav-link,
+#top-navbar.innerpage-navbar .navbar-pipe { color: #f3f5ff !important; }
+#top-navbar.innerpage-navbar .nav-link:focus-visible,
+.games-cabinet:focus-visible { outline: 3px solid #91e6ff; outline-offset: 3px; }
+
 .navbar-group {
   display: flex;
   flex-direction: column;

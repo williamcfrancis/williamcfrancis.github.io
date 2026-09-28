@@ -1,4 +1,6 @@
-import type { Mesh, Vector3, TransformNode } from '@babylonjs/core';
+import type { Mesh } from '@babylonjs/core/Meshes/mesh';
+import type { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 
 export interface WeaponDef {
   name: string;

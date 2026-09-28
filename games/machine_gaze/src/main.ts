@@ -441,7 +441,7 @@ async function showProcessing(dataUrl: string, imgCanvas: HTMLCanvasElement) {
   downloadBar.className = 'download-bar';
   downloadBar.style.display = 'none';
   downloadBar.innerHTML = `
-    <p>Downloading AI models (~40 MB, cached for next time)</p>
+    <p>Loading AI models. First use downloads model files; cached files are reused when available.</p>
     <div class="download-track"><div class="download-fill" id="dl-fill"></div></div>`;
 
   const timeline = document.createElement('div');
@@ -477,7 +477,15 @@ async function showProcessing(dataUrl: string, imgCanvas: HTMLCanvasElement) {
   setStep(0, 'done');
   await sleep(250);
 
-  const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+  // Keep the inference runtime and models out of the landing-page load. A
+  // worker is created only after the visitor chooses an image to process.
+  let worker: Worker;
+  try {
+    worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+  } catch (error) {
+    showError(error instanceof Error ? error.message : 'Unable to start image processing.');
+    return;
+  }
 
   interface TaskResults {
     depth: { depthData: Uint8Array; width: number; height: number } | null;
@@ -490,10 +498,27 @@ async function showProcessing(dataUrl: string, imgCanvas: HTMLCanvasElement) {
   const objectsDone = new Promise<void>((r) => (resolvers.objects = r));
   const segmentsDone = new Promise<void>((r) => (resolvers.segments = r));
 
+  let failed = false;
+  const fail = (message: string) => {
+    if (failed) return;
+    failed = true;
+    worker.terminate();
+    // Release the processing sequence so an unavailable worker does not leave
+    // an unresolved task and a permanent "Processing" state behind the error.
+    Object.values(resolvers).forEach(resolve => resolve());
+    showError(message);
+  };
+  worker.onerror = (event: ErrorEvent) => {
+    event.preventDefault();
+    fail(event.message || 'Unable to load the image-processing runtime. Please try again.');
+  };
+  worker.onmessageerror = () => fail('Unable to read the image-processing result. Please try again.');
+
   let dlShown = false;
   const dlFiles: Record<string, { loaded: number; total: number }> = {};
 
   worker.onmessage = (e: MessageEvent) => {
+    if (failed) return;
     const msg = e.data;
     if (msg.type === 'download-progress') {
       if (!dlShown) { downloadBar.style.display = 'block'; dlShown = true; }
@@ -508,27 +533,32 @@ async function showProcessing(dataUrl: string, imgCanvas: HTMLCanvasElement) {
       results[msg.task as keyof TaskResults] = msg.data;
       resolvers[msg.task]?.();
     }
-    if (msg.type === 'error') { worker.terminate(); showError(msg.message); }
+    if (msg.type === 'error') fail(msg.message);
   };
 
   worker.postMessage({ type: 'process', imageDataUrl: dataUrl });
 
   setStep(1, 'active');
   await Promise.all([sleep(900), depthDone]);
+  if (failed) return;
   setStep(1, 'done'); await sleep(180);
 
   setStep(2, 'active');
   await Promise.all([sleep(900), objectsDone]);
+  if (failed) return;
   setStep(2, 'done'); await sleep(180);
 
   setStep(3, 'active');
   await Promise.all([sleep(900), segmentsDone]);
+  if (failed) return;
   setStep(3, 'done'); await sleep(220);
 
   setStep(4, 'active');
   await sleep(600);
   setStep(4, 'done');
   await sleep(350);
+
+  if (failed) return;
 
   worker.terminate();
   showExploration(imgCanvas, edgesData, results.depth!, results.objects!.objects, results.segments!.segments);

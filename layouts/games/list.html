@@ -22,28 +22,7 @@
     {{ if eq .section.id "games" }}{{ $gamesSection = . }}{{ end }}
   {{ end }}
   {{ $intro := ($gamesSection.intro | default dict) }}
-  {{ $games := ($gamesSection.games | default (slice)) }}
-
-  {{/* Map genre keywords to accent classes */}}
-  {{ $genreAccent := dict
-     "arcade" "cyan"    "reflex" "cyan"
-     "chill"  "green"   "casual" "green"
-     "audio"  "amber"
-     "word"   "teal"    "typing" "teal"   "survival" "teal"
-     "lyric"  "pink"    "music"  "pink"
-     "deep"   "sky"
-     "dark"   "rose"    "simulation" "rose"
-     "3d"     "coral"   "arena"  "coral"
-     "llm"    "violet"  "ai"     "violet" "couch" "violet"
-     "fps"    "rose"
-     "educational" "sky" "explainer" "sky" "interactive" "sky"
-     "scale"  "amber"
-     "language" "teal"
-     "quiz"   "cyan"
-     "sandbox" "coral"
-     "cyberpunk" "pink"
-     "physics"  "teal"   "puzzle" "teal"
-  }}
+  {{ $games := partial "helpers/game-catalog.html" . }}
 
   <section class="games-page" id="content-section">
     <canvas class="fluid-bg" aria-hidden="true"></canvas>
@@ -57,30 +36,13 @@
           <span class="m-word m-sand" aria-hidden="true">Sandboxes</span>
         </h1>
         <p class="games-subtitle">{{ $intro.description | default "Playable experiments and toys I tinker with after hours." }}</p>
+        <a class="games-arcade-link" href="{{ "/arcade/" | relLangURL }}">Explore the interactive arcade <span aria-hidden="true">↗</span></a>
       </header>
 
       <div class="games-cabinet-grid">
-        {{ range $games }}
-          {{ $slug := "" }}
-          {{ with .link.url }}
-            {{ $path := . }}
-            {{ if hasPrefix $path "/games/" }}
-              {{ $slug = replaceRE "^/games/|/$" "" $path }}
-            {{ end }}
-          {{ end }}
-          {{ if not $slug }}
-            {{ $slug = replace (lower .title) " " "_" }}
-          {{ end }}
-
-          {{/* Pick accent from the first matching genre word */}}
-          {{ $accent := "cyan" }}
-          {{ $genreLower := lower (.genre | default "") }}
-          {{ range $k, $v := $genreAccent }}
-            {{ if in $genreLower $k }}{{ $accent = $v }}{{ end }}
-          {{ end }}
-
-          {{ $imgPath := printf "/games/%s/%s.png" $slug $slug }}
-          {{ $defaultImg := "/games/game_placeholder.svg" }}
+        {{ range $i, $game := $games }}
+          {{ $accent := .accent | default "cyan" }}
+          {{ $preview := partial "helpers/game-preview.html" . }}
 
           {{ $playURL := "#" }}
           {{ $playLabel := "Play" }}
@@ -90,16 +52,15 @@
             {{ with .link.label }}{{ $playLabel = . }}{{ end }}
           {{ end }}
 
-          <a class="games-cabinet acc-{{ $accent }}" href="{{ $playURL }}" target="_blank" rel="noopener" aria-label="{{ .title }}">
+          <a class="games-cabinet acc-{{ $accent }}" href="{{ $playURL }}" target="_blank" rel="noopener" aria-label="{{ .title }} (opens in a new tab)">
             <div class="games-cabinet-marquee">
               <span class="games-cabinet-genre">{{ .genre }}</span>
             </div>
             <div class="games-cabinet-screen">
-              <img src="{{ $imgPath | relURL }}" alt="{{ .title }} preview" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='block';">
-              <div class="games-cabinet-title-screen" style="display:none;">{{ upper .title }}</div>
+              <img src="{{ $preview.src }}"{{ with $preview.srcset }} srcset="{{ . }}" sizes="(max-width: 600px) 90vw, (max-width: 1000px) 45vw, 25vw"{{ end }} width="{{ $preview.width }}" height="{{ $preview.height }}" alt="{{ .title }} preview" loading="{{ if lt $i 4 }}eager{{ else }}lazy{{ end }}" decoding="async">
             </div>
             <div class="games-cabinet-body">
-              <h3 class="games-cabinet-title">{{ .title }}</h3>
+              <h2 class="games-cabinet-title">{{ .title }}</h2>
               <p class="games-cabinet-summary">{{ .summary }}</p>
             </div>
           </a>

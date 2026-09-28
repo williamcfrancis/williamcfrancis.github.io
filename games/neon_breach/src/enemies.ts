@@ -1,13 +1,13 @@
-import {
-  Scene,
-  Vector3,
-  Mesh,
-  MeshBuilder,
-  Color3,
-  PBRMaterial,
-  TransformNode,
-  StandardMaterial,
-} from '@babylonjs/core';
+import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
+import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
+import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { Enemy, EnemyType, PlayerState } from './types';
 
 export const ENEMY_TYPES: EnemyType[] = [
@@ -123,8 +123,8 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
 
   const makePart = (name: string, opts: any, pos: Vector3, mat: PBRMaterial, isHead = false): Mesh => {
     const mesh = opts.diameter !== undefined
-      ? MeshBuilder.CreateSphere(name, opts, scene)
-      : MeshBuilder.CreateBox(name, opts, scene);
+      ? CreateSphere(name, opts, scene)
+      : CreateBox(name, opts, scene);
     mesh.position = pos.scale(s);
     mesh.scaling.setAll(s);
     mesh.parent = root;
@@ -174,7 +174,7 @@ export function spawnEnemy(scene: Scene, type: EnemyType, position: Vector3): En
   // Boss health bar
   let healthBarMesh: Mesh | undefined;
   if (type.isBoss) {
-    const bar = MeshBuilder.CreatePlane('bossBar', { width: 4, height: 0.3 }, scene);
+    const bar = CreatePlane('bossBar', { width: 4, height: 0.3 }, scene);
     bar.position = new Vector3(0, 6 * s, 0);
     bar.parent = root;
     bar.billboardMode = Mesh.BILLBOARDMODE_ALL;

@@ -1,14 +1,13 @@
-import {
-  Scene,
-  Vector3,
-  ParticleSystem,
-  Texture,
-  Color4,
-  MeshBuilder,
-  Mesh,
-  StandardMaterial,
-  Color3,
-} from '@babylonjs/core';
+import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
+import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
+import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder';
+import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Color4, Color3 } from '@babylonjs/core/Maths/math.color';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 
 function createCircleTexture(): string {
   const canvas = document.createElement('canvas');
@@ -44,17 +43,18 @@ let cachedTexture: Texture | null = null;
 let cachedSparkTexture: Texture | null = null;
 
 function getCircleTexture(scene: Scene): Texture {
-  if (!cachedTexture) {
+  if (!cachedTexture || cachedTexture.getScene() !== scene) {
     cachedTexture = new Texture(createCircleTexture(), scene);
   }
-  return cachedTexture;
+  // disposeOnStop owns this wrapper; clone shares the cached GPU texture.
+  return cachedTexture.clone();
 }
 
 function getSparkTexture(scene: Scene): Texture {
-  if (!cachedSparkTexture) {
+  if (!cachedSparkTexture || cachedSparkTexture.getScene() !== scene) {
     cachedSparkTexture = new Texture(createSparkTexture(), scene);
   }
-  return cachedSparkTexture;
+  return cachedSparkTexture.clone();
 }
 
 export function createMuzzleFlash(scene: Scene, position: Vector3, direction: Vector3, scale = 1): void {
@@ -161,7 +161,7 @@ export function createBulletImpact(scene: Scene, position: Vector3, normal: Vect
     _decalMat.freeze();
   }
 
-  const decal = MeshBuilder.CreateDisc('decal', { radius: 0.14, tessellation: 5 }, scene);
+  const decal = CreateDisc('decal', { radius: 0.14, tessellation: 5 }, scene);
   decal.position = position.add(normal.scale(0.01));
   decal.lookAt(position.add(normal));
   decal.material = _decalMat;
@@ -209,7 +209,7 @@ export function createExplosion(scene: Scene, position: Vector3, radius: number)
     _flashMat.freeze();
   }
 
-  const flash = MeshBuilder.CreateSphere('expFlash', { diameter: radius * 0.4, segments: 6 }, scene);
+  const flash = CreateSphere('expFlash', { diameter: radius * 0.4, segments: 6 }, scene);
   flash.position = position.clone();
   flash.isPickable = false;
   flash.material = _flashMat;
@@ -284,7 +284,7 @@ export function createTracer(scene: Scene, start: Vector3, end: Vector3): void {
   const dist = dir.length();
   const midpoint = start.add(dir.scale(0.5));
 
-  const tracer = MeshBuilder.CreateCylinder('tracer', {
+  const tracer = CreateCylinder('tracer', {
     height: dist,
     diameter: 0.025,
     tessellation: 3,
@@ -312,7 +312,7 @@ export function createEnemyTracer(scene: Scene, start: Vector3, end: Vector3): v
   const dist = dir.length();
   const midpoint = start.add(dir.scale(0.5));
 
-  const tracer = MeshBuilder.CreateCylinder('eTracer', {
+  const tracer = CreateCylinder('eTracer', {
     height: dist,
     diameter: 0.025,
     tessellation: 3,

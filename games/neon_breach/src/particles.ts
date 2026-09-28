@@ -1,18 +1,14 @@
-import {
-  Scene,
-  Vector3,
-  Color3,
-  Color4,
-  ParticleSystem,
-  Texture,
-  MeshBuilder,
-  Mesh,
-  StandardMaterial,
-} from '@babylonjs/core';
+import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
+import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 
 let particleTextureUrl: string | null = null;
 let cachedParticleTex: Texture | null = null;
-let cachedParticleScene: Scene | null = null;
 
 function getParticleTextureUrl(): string {
   if (particleTextureUrl) return particleTextureUrl;
@@ -32,12 +28,12 @@ function getParticleTextureUrl(): string {
 }
 
 function getParticleTexture(scene: Scene): Texture {
-  if (cachedParticleTex && cachedParticleScene === scene && !cachedParticleTex.isDisposed()) {
-    return cachedParticleTex;
+  if (!cachedParticleTex || cachedParticleTex.getScene() !== scene) {
+    cachedParticleTex = new Texture(getParticleTextureUrl(), scene);
   }
-  cachedParticleScene = scene;
-  cachedParticleTex = new Texture(getParticleTextureUrl(), scene);
-  return cachedParticleTex;
+  // Each emitter owns its wrapper; Babylon's disposeOnStop disposes textures.
+  // Clones share the underlying GPU texture without invalidating other emitters.
+  return cachedParticleTex.clone();
 }
 
 export function createMuzzleFlash(scene: Scene, position: Vector3, direction: Vector3, scale: number): void {
@@ -181,7 +177,7 @@ export function createTracer(scene: Scene, start: Vector3, end: Vector3): void {
   if (dist < 0.1) return;
 
   const mid = start.add(dir.scale(0.5));
-  const tracer = MeshBuilder.CreateBox('tracer', { width: 0.03, height: 0.03, depth: dist }, scene);
+  const tracer = CreateBox('tracer', { width: 0.03, height: 0.03, depth: dist }, scene);
   tracer.position = mid;
   tracer.lookAt(end);
   tracer.isPickable = false;
@@ -211,7 +207,7 @@ export function createEnemyTracer(scene: Scene, start: Vector3, end: Vector3): v
   const actualEnd = start.add(dir.normalize().scale(dist));
 
   const mid = start.add(actualEnd.subtract(start).scale(0.5));
-  const tracer = MeshBuilder.CreateBox('eTracer', { width: 0.025, height: 0.025, depth: dist }, scene);
+  const tracer = CreateBox('eTracer', { width: 0.025, height: 0.025, depth: dist }, scene);
   tracer.position = mid;
   tracer.lookAt(actualEnd);
   tracer.isPickable = false;
@@ -260,7 +256,7 @@ export function createGrappleBeam(scene: Scene, start: Vector3, end: Vector3): M
   const dist = dir.length();
   const mid = start.add(dir.scale(0.5));
 
-  const beam = MeshBuilder.CreateBox('grappleBeam', { width: 0.04, height: 0.04, depth: dist }, scene);
+  const beam = CreateBox('grappleBeam', { width: 0.04, height: 0.04, depth: dist }, scene);
   beam.position = mid;
   beam.lookAt(end);
   beam.isPickable = false;
@@ -301,7 +297,7 @@ export function createBeamEffect(scene: Scene, start: Vector3, end: Vector3): vo
   const dist = dir.length();
   const mid = start.add(dir.scale(0.5));
 
-  const beam = MeshBuilder.CreateBox('beamFX', { width: 0.15, height: 0.15, depth: dist }, scene);
+  const beam = CreateBox('beamFX', { width: 0.15, height: 0.15, depth: dist }, scene);
   beam.position = mid;
   beam.lookAt(end);
   beam.isPickable = false;
@@ -313,7 +309,7 @@ export function createBeamEffect(scene: Scene, start: Vector3, end: Vector3): vo
   beam.material = mat;
 
   // Glow around beam
-  const glow = MeshBuilder.CreateBox('beamGlow', { width: 0.4, height: 0.4, depth: dist }, scene);
+  const glow = CreateBox('beamGlow', { width: 0.4, height: 0.4, depth: dist }, scene);
   glow.position = mid;
   glow.lookAt(end);
   glow.isPickable = false;

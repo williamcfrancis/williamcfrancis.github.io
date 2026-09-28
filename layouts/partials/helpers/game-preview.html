@@ -1,0 +1,21 @@
+{{/* Game screenshots live in assets, outside Vite's disposable output folders. */}}
+{{ $preview := dict "src" ("/games/game_placeholder.svg" | relURL) "width" 720 "height" 450 }}
+{{ with .image }}
+  {{ $path := strings.TrimPrefix "/" . }}
+  {{ with resources.Get $path }}
+    {{ if eq .MediaType.SubType "svg" }}
+      {{ $preview = dict "src" .RelPermalink "width" 720 "height" 450 }}
+    {{ else }}
+      {{ $small := .Fill "480x300 webp q82" }}
+      {{ $large := .Fill "960x600 webp q82" }}
+      {{ $preview = dict "src" $large.RelPermalink "srcset" (printf "%s 480w, %s 960w" $small.RelPermalink $large.RelPermalink) "width" 960 "height" 600 }}
+    {{ end }}
+  {{ else }}
+    {{ if fileExists (printf "static/%s" $path) }}
+      {{ $preview = dict "src" (printf "/%s" $path | relURL) "width" 720 "height" 450 }}
+    {{ else }}
+      {{ errorf "Missing game preview %q for %q" $path $.title }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+{{ return $preview }}

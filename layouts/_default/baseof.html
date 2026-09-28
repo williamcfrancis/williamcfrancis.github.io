@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="{{ site.Language.Lang }}">
+  <head>
+    {{ partial "header.html" . }}
+    <title>{{ .Title }} | {{ site.Title }}</title>
+    {{ template "_internal/opengraph.html" . }}
+    {{ block "header" . }}{{ end }}
+    {{ partial "analytics.html" . }}
+  </head>
+  <body data-spy="scroll" data-target="#TableOfContents" data-offset="80">
+    <a class="site-skip-link" href="#content-section">Skip to content</a>
+    <div class="container-fluid bg-dimmed wrapper">
+      {{ block "navbar" . }}{{ end }}
+      {{ block "sidebar" . }}{{ end }}
+      {{ block "content" . }}{{ end }}
+      {{ block "toc" . }}{{ end }}
+    </div>
+    {{ $footerTemplate := site.Params.footer.template | default "footer.html" }}
+    {{ partial $footerTemplate . }}
+    {{ partial "scripts.html" . }}
+    {{ block "scripts" . }}{{ end }}
+    {{ partial "misc/support.html" . }}
+  </body>
+</html>

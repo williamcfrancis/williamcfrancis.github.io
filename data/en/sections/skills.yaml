@@ -1,42 +1,42 @@
-# section information
 section:
   name: Skills
   id: skills
   enable: true
   weight: 2
   showOnNavbar: true
-  # Can optionally hide the title in sections
-  # hideTitle: true
 
-# Your Skills.
-# Give a summary of you each skill in the summary section.
 skills:
-
-  - name: Python
+  - name: Python & SQL
     logo: "/images/sections/skills/python.png"
-    summary: "Using as the main language for machine learning research and development. Capable of writing fast machine learning toy examples and algorithms with PyTorch, Numpy, etc."
+    summary: "Building data pipelines, predictive models, and analytics applications with Python and SQL. Developing reusable tools for data preparation, validation, and modeling."
     url: "https://www.python.org/"
-  
-  - name: C++
-    logo: "/images/sections/skills/c++.png"
-    summary: "Using as the main language for professional development. Capable of writing object-oriented, scalable, testable, and maintainable projects."
 
-  - name: PyTorch
+  - name: Predictive Modeling
+    summary: "GLMs, XGBoost, and scikit-learn for insurance pricing, conversion, retention, and loss-cost modeling, from feature selection and validation to production deployment."
+
+  - name: Agentic AI & LLMs
+    summary: "Building agent workflows for structured extraction and natural-language analytics, with experience in prompt engineering, LLM evaluation, Hugging Face, and multimodal applications."
+
+  - name: Deep Learning
     logo: "/images/sections/skills/pytorch-logo.png"
-    summary: "Using as the main framework for deep learning. Capable of developing fast training and testing code."
+    summary: "PyTorch and TensorFlow for computer vision, natural language processing, and multimodal learning. Experience with segmentation, image restoration, and vision-language models."
     url: "https://pytorch.org/"
-  
-  - name: ROS
-    logo: "/images/sections/skills/ros.png"
-    summary: "Capable of developing and managing large robotics systems in C++ and CMake."
-    url: "https://ros.org/"
 
-  - name: Tensorflow
-    logo: "/images/sections/skills/tensorflow.png"
-    summary: "Capable of developing fast, flexible, and scalable deep learning code for research and production."
-    url: "https://www.tensorflow.org/"
+  - name: Data Platforms
+    summary: "Databricks, Snowflake, and Spark for data processing and production modeling. Building Streamlit applications that put model outputs directly in stakeholders' hands."
+
+  - name: MLOps & Software Engineering
+    summary: "MLflow, Docker, Git, CI/CD, and model monitoring to support reproducible modeling, maintainable code, and reliable deployment."
+
+  - name: Computer Vision & Robotics
+    logo: "/images/sections/skills/ros.png"
+    summary: "Perception and localization for autonomous systems, including object detection, segmentation, GNSS/IMU sensor fusion, and real-time inference on NVIDIA Jetson with TensorRT."
+
+  - name: C++ & Embedded Systems
+    logo: "/images/sections/skills/c++.png"
+    summary: "C++ for robotics and performance-sensitive applications, alongside hands-on experience with microcontrollers, sensors, PCB design, and embedded prototypes."
 
   - name: AWS
     logo: "/images/sections/skills/aws.png"
-    summary: "Using as the main cloud computing platform for developing large scale deep learning models."
+    summary: "Deploying machine learning models with SageMaker and monitoring applications with CloudWatch, with experience connecting cloud services to real-time sensor systems."
     url: "https://aws.amazon.com/"

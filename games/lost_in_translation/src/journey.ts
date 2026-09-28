@@ -1,7 +1,8 @@
 import type { Language, TranslationStep, TranslationChain } from './types';
 import { countryCodeToFlag } from './languages';
 import { translateText } from './api';
-import { calculateDrift } from './drift';
+import { calculateSemanticDrift, calculateDriftFallback } from './drift';
+import { journeyAudio } from './audio';
 import { transliterate as romanize } from 'transliteration';
 
 function sleep(ms: number): Promise<void> {
@@ -96,6 +97,10 @@ export function createJourneyScreen(
       <div class="journey-footer">
         <span id="step-counter">0</span> / ${totalSteps} translations
         <div class="journey-controls">
+          <button class="btn-ghost btn-small btn-audio-toggle${journeyAudio.isEnabled() ? ' on' : ''}" id="audio-btn" aria-label="Toggle audio narration" aria-pressed="${journeyAudio.isEnabled()}" ${journeyAudio.isSupported() ? '' : 'hidden'}>
+            <span class="audio-icon" aria-hidden="true">${journeyAudio.isEnabled() ? '\u{1F50A}' : '\u{1F507}'}</span>
+            <span class="audio-label">${journeyAudio.isEnabled() ? 'Sound on' : 'Sound off'}</span>
+          </button>
           <button class="btn-ghost btn-small" id="skip-btn" aria-label="Skip to results">Skip to end</button>
           <button class="btn-ghost btn-small" id="cancel-btn" aria-label="Cancel and go back">&larr; Cancel</button>
         </div>
@@ -124,16 +129,40 @@ export function createJourneyScreen(
   const errorEl = container.querySelector('#journey-error') as HTMLElement;
   const errorText = container.querySelector('#error-text') as HTMLElement;
 
+  const holdResolvers: (() => void)[] = [];
+
   container.querySelector('#cancel-btn')!.addEventListener('click', () => {
     cancelled = true;
+    journeyAudio.cancel();
+    retryResolve?.();
+    holdResolvers.forEach(resolve => resolve());
+    holdResolvers.length = 0;
     onCancel?.();
   });
 
   container.querySelector('#skip-btn')!.addEventListener('click', () => {
     skipRequested = true;
+    journeyAudio.cancel();
+    holdResolvers.forEach(resolve => resolve());
+    holdResolvers.length = 0;
   });
 
+  const audioBtn = container.querySelector('#audio-btn') as HTMLButtonElement | null;
+  if (audioBtn) {
+    audioBtn.addEventListener('click', () => {
+      const next = !journeyAudio.isEnabled();
+      journeyAudio.setEnabled(next);
+      audioBtn.classList.toggle('on', next);
+      audioBtn.setAttribute('aria-pressed', String(next));
+      const icon = audioBtn.querySelector('.audio-icon');
+      const label = audioBtn.querySelector('.audio-label');
+      if (icon) icon.textContent = next ? '\u{1F50A}' : '\u{1F507}';
+      if (label) label.textContent = next ? 'Sound on' : 'Sound off';
+    });
+  }
+
   const stepBuffer: TranslationStep[] = [];
+  const driftJobs: Promise<unknown>[] = [];
   let producerDone = false;
   let retryResolve: (() => void) | null = null;
 
@@ -162,6 +191,7 @@ export function createJourneyScreen(
       } catch (err) {
         if (attempt === maxAttempts) {
           await showError(`Translation failed. Check your connection.`);
+          if (cancelled) throw new Error('cancelled');
           return translateText(text, src, tgt);
         }
         await sleep(1000 * attempt);
@@ -180,6 +210,7 @@ export function createJourneyScreen(
 
       try {
         const fwd = await translateWithRetry(currentText, src.code, tgt.code);
+        if (cancelled) return;
         currentText = fwd.translatedText;
 
         const step: TranslationStep = {
@@ -194,14 +225,29 @@ export function createJourneyScreen(
 
         if (tgt.code === 'en') {
           step.backTranslation = currentText;
-          step.driftScore = calculateDrift(sentence, currentText);
-        } else {
-          translateText(currentText, tgt.code, 'en')
-            .then(back => {
-              step.backTranslation = back.translatedText;
-              step.driftScore = calculateDrift(sentence, back.translatedText);
+          step.driftScore = calculateDriftFallback(sentence, currentText);
+          driftJobs.push(calculateSemanticDrift(sentence, currentText)
+            .then(score => {
+              step.driftScore = score.drift;
+              step.driftHint = score.hint;
             })
-            .catch(() => {});
+            .catch(() => {
+              step.driftScore = calculateDriftFallback(sentence, step.text);
+            }));
+        } else {
+          driftJobs.push(translateText(currentText, tgt.code, 'en')
+            .then(async back => {
+              step.backTranslation = back.translatedText;
+              step.driftScore = calculateDriftFallback(sentence, back.translatedText);
+              try {
+                const score = await calculateSemanticDrift(sentence, back.translatedText);
+                step.driftScore = score.drift;
+                step.driftHint = score.hint;
+              } catch {
+                step.driftScore = calculateDriftFallback(sentence, back.translatedText);
+              }
+            })
+            .catch(() => {}));
         }
       } catch (err) {
         if (cancelled) return;
@@ -221,9 +267,10 @@ export function createJourneyScreen(
     for (let i = 0; i < totalSteps; i++) {
       if (cancelled) return;
 
-      while (stepBuffer.length <= i && !producerDone) {
+      while (stepBuffer.length <= i && !producerDone && !cancelled) {
         await sleep(150);
       }
+      if (cancelled) return;
       if (stepBuffer.length <= i) break;
 
       if (skipRequested) {
@@ -235,6 +282,11 @@ export function createJourneyScreen(
 
     if (cancelled) return;
     await sleep(skipRequested ? 200 : 800);
+    // Scoring is parallel with the animation, but results must use settled
+    // scores rather than the provisional step-progress value.
+    await Promise.allSettled(driftJobs);
+    if (cancelled) return;
+    journeyAudio.cancel();
 
     const steps = stepBuffer.slice();
     onComplete({
@@ -249,7 +301,7 @@ export function createJourneyScreen(
 
   async function waitForBackTranslation(step: TranslationStep, maxWait: number): Promise<void> {
     const start = Date.now();
-    while (!step.backTranslation && Date.now() - start < maxWait) {
+    while (!step.backTranslation && Date.now() - start < maxWait && !cancelled && !skipRequested) {
       await sleep(100);
     }
   }
@@ -316,6 +368,11 @@ export function createJourneyScreen(
       await typewriter(ttext, step.text);
     }
 
+    if (cancelled) return;
+    if (!skipRequested && journeyAudio.isEnabled()) {
+      journeyAudio.speak(step.text, step.language.code).catch(() => {});
+    }
+
     if (step.transliteration && step.transliteration !== step.text) {
       translit.textContent = step.transliteration;
       translit.classList.remove('hidden');
@@ -334,6 +391,9 @@ export function createJourneyScreen(
           backTransText.textContent = `"${step.backTranslation}"`;
         } else {
           await typewriter(backTransText, `"${step.backTranslation}"`);
+        }
+        if (!cancelled && !skipRequested && journeyAudio.isEnabled()) {
+          journeyAudio.speak(step.backTranslation, 'en').catch(() => {});
         }
       }
     }
@@ -371,7 +431,49 @@ export function createJourneyScreen(
     station.querySelector('.station-check')!.classList.remove('hidden');
 
     stepCounter.textContent = String(idx + 1);
-    await sleep(reduced ? 200 : 800);
+    const holdMs = computeReadingHold(step, showBackTrans, reduced);
+    await holdWithSkip(holdMs);
+  }
+
+  function computeReadingHold(
+    step: TranslationStep,
+    showBackTrans: boolean,
+    reduced: boolean,
+  ): number {
+    if (reduced) return 200;
+    if (!showBackTrans || !step.backTranslation) return 800;
+    const words = step.backTranslation.trim().split(/\s+/).length;
+    return Math.min(5500, Math.max(2200, words * 280));
+  }
+
+  function holdWithSkip(ms: number): Promise<void> {
+    if (ms <= 0 || cancelled || skipRequested) return Promise.resolve();
+
+    return new Promise<void>(resolve => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        document.removeEventListener('keydown', onKey);
+        backTrans.removeEventListener('click', onClick);
+        const idx = holdResolvers.indexOf(finish);
+        if (idx >= 0) holdResolvers.splice(idx, 1);
+        resolve();
+      };
+      const onKey = (ev: KeyboardEvent) => {
+        if ((ev.target as Element | null)?.closest('button, a, input, textarea, select')) return;
+        if (ev.key === ' ' || ev.code === 'Space' || ev.key === 'Enter') {
+          ev.preventDefault();
+          finish();
+        }
+      };
+      const onClick = () => finish();
+      const timer = setTimeout(finish, ms);
+      document.addEventListener('keydown', onKey);
+      backTrans.addEventListener('click', onClick);
+      holdResolvers.push(finish);
+    });
   }
 
   produce();

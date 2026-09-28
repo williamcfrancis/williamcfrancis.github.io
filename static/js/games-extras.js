@@ -20,8 +20,10 @@
   if (typeof window === 'undefined') return;
   if (!document.querySelector('.games-page')) return;
 
-  var reduceMotion = window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var motionPreference = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var reduceMotion = !!(motionPreference && motionPreference.matches);
+  var catScheduled = false;
 
   function init() {
     // dat.GUI is mounted by webgl-fluid.js asynchronously after WebGL setup.
@@ -41,6 +43,12 @@
       }
     }, 50);
 
+    if (motionPreference) {
+      motionPreference.addEventListener('change', function () {
+        reduceMotion = motionPreference.matches;
+        if (!reduceMotion && !catScheduled) scheduleCat();
+      });
+    }
     if (!reduceMotion) scheduleCat();
   }
 
@@ -163,6 +171,8 @@
   };
 
   function scheduleCat() {
+    if (catScheduled) return;
+    catScheduled = true;
     var cat = createCat();
     document.body.appendChild(cat.root);
     window.gamesCat = catApi(cat);
@@ -193,7 +203,7 @@
     // read as continuous — the resting pose during the gap is the static
     // 'idle' frame that walkTo settles into, not a frozen mid-stride pose.
     function tick() {
-      if (document.hidden) {
+      if (document.hidden || reduceMotion) {
         setTimeout(tick, 4000);
         return;
       }
@@ -306,6 +316,7 @@
   // makes the puff visibly fly away from the cat — useful for making the
   // splat read as if the cat is causing it (clawing, swatting, startling).
   function paintSplat(cat, dirX, dirY, mag) {
+    if (document.hidden || reduceMotion) return;
     if (typeof window.fluidSplatScreen !== 'function') return;
     if (cat.state.x < 0 || cat.state.x > window.innerWidth) return;
     mag = mag || 60;
@@ -368,15 +379,39 @@
 
   function animate(durationMs, stepFn) {
     return new Promise(function (resolve) {
-      var start = null;
-      function frame(t) {
-        if (start === null) start = t;
-        var p = Math.min((t - start) / durationMs, 1);
-        stepFn(p, t);
-        if (p < 1) requestAnimationFrame(frame);
-        else resolve();
+      var elapsed = 0;
+      var previousTime = null;
+      var frameId = null;
+
+      // Pause elapsed animation time as well as drawing, so returning to the
+      // tab continues the current movement without jumping across the screen.
+      function sync() {
+        if (document.hidden || reduceMotion) {
+          if (frameId !== null) cancelAnimationFrame(frameId);
+          frameId = null;
+          previousTime = null;
+        } else if (frameId === null) {
+          frameId = requestAnimationFrame(frame);
+        }
       }
-      requestAnimationFrame(frame);
+      function frame(t) {
+        frameId = null;
+        if (document.hidden || reduceMotion) { sync(); return; }
+        if (previousTime !== null) elapsed += t - previousTime;
+        previousTime = t;
+        var p = Math.min(elapsed / Math.max(1, durationMs), 1);
+        stepFn(p, t);
+        if (p < 1) {
+          frameId = requestAnimationFrame(frame);
+        } else {
+          document.removeEventListener('visibilitychange', sync);
+          if (motionPreference) motionPreference.removeEventListener('change', sync);
+          resolve();
+        }
+      }
+      document.addEventListener('visibilitychange', sync);
+      if (motionPreference) motionPreference.addEventListener('change', sync);
+      sync();
     });
   }
 
@@ -405,6 +440,7 @@
     setSprite(cat, name, i);
     splatForSprite(cat, name);
     cat.state.animTimer = setInterval(function () {
+      if (document.hidden || reduceMotion) return;
       i = (i + 1) % frames.length;
       setSprite(cat, name, i);
       if (i === 0) splatForSprite(cat, name);

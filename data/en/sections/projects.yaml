@@ -22,6 +22,31 @@ buttons:
 
 # your projects
 projects:
+  - name: PeeqAI
+    role: Founder
+    timeline: "Dec 2023"
+    url: "https://youtu.be/aVxndqkXdTE"
+    summary: A hands-free assistant for visually impaired users, combining a custom vision-language model, wake-word speech recognition, and GPT-4 for real-time scene understanding. A context layer lets the assistant reason over accumulated environmental state.
+    tags: ["hobby", "multimodal AI", "agentic AI", "accessibility"]
+
+  - name: Autonomous Racing Go-Kart
+    role: Graduate Research Assistant, xLAB
+    timeline: "Dec 2021 - May 2023"
+    url: "https://www.youtube.com/watch?v=6IgGBG_flno"
+    summary: Built perception and localization with PSPNet, GNSS/IMU fusion, and TensorRT on NVIDIA Jetson AGX. Led the team to first place at Autonomous evGrandPrix 2023 and presented at ICRA 2022.
+    tags: ["academic", "robotics", "computer vision", "sensor fusion"]
+
+  - name: Insurance Modeling & Analytics
+    role: Data Scientist, Chubb
+    timeline: "May 2024 - Present"
+    summary: Production GLM and XGBoost models for pricing, quote conversion, retention, and loss cost, alongside reusable modeling tools and customer lifetime value applications.
+    tags: ["professional", "machine learning", "insurance", "python"]
+
+  - name: Agentic AI for Data Workflows
+    role: Data Scientist, Chubb
+    summary: Agent workflows for structured extraction and natural-language analytics, helping teams explore portfolio data and automate modeling tasks.
+    tags: ["professional", "agentic AI", "LLMs", "data analytics"]
+
   - name: Efficient Panoptic Segmentation with SOLOv2
     # logo: /images/sections/projects/kubernetes.png
     role: Developer
@@ -60,7 +85,7 @@ projects:
     timeline: "Aug 2021 - Dec 2021"
     repo: https://github.com/williamcfrancis/Enhancing-Image-Super-Resolution-with-Improved-ESRGAN # If your project is a public repo on GitHub, then provide this link. it will show star count.
     #url: ""  # If your project is not a public repo but it has a website or any external details url then provide it here. don't provide "repo" and "url" simultaneously.
-    summary: Pytorch Implementation of proposed improvements to the state-of-the-art image super resolution model ESRGAN.
+    summary: PyTorch implementation of proposed improvements to the ESRGAN image super-resolution model.
     tags:
       [ 
         "pytorch",
@@ -76,8 +101,8 @@ projects:
     timeline: "Aug 2021 - Dec 2021"
     repo: https://github.com/williamcfrancis/Blind-Motion-Deblurring-for-Legible-License-Plates-using-Deep-Learning # If your project is a public repo on GitHub, then provide this link. it will show star count.
     #url: ""  # If your project is not a public repo but it has a website or any external details url then provide it here. don't provide "repo" and "url" simultaneously.
-    summary: A novel approach to blind motion deblurring - converting a non-blind method (Weiner Deconvolution) to a blind method using Deep Learning
-    tags: ["Tensorflow", "motion deblurring", "computer vision", "license plate detection"]
+    summary: A deep learning approach to blind motion deblurring that estimates blur parameters for Wiener deconvolution, improving the legibility of blurred license plates. Includes an [interactive demo on Hugging Face](https://huggingface.co/spaces/williamcfrancis/Deep-Blind-Motion-Deblurring).
+    tags: ["TensorFlow", "motion deblurring", "computer vision", "academic"]
 
   - name: Robot Localization using PF-LSTM in HabitatAI
     # logo: /images/sections/projects/tensorflow.png
@@ -122,7 +147,7 @@ projects:
     timeline: "Aug 2022 - Dec 2022"
     repo: https://github.com/williamcfrancis/SOLO-and-FPN-for-Instance-Segmentation
     #url: ""
-    summary: pyTorch implementation of Segmenting Objects by LOcation (SOLO) and FPN for COCO dataset.
+    summary: PyTorch implementation of Segmenting Objects by LOcation (SOLO) and Feature Pyramid Networks for the COCO dataset.
     tags:
       ["object segmentation", "computer vision", "pytorch", "deep learning", "academic"]
 

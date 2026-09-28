@@ -1,18 +1,20 @@
-import {
-  Scene,
-  MeshBuilder,
-  Vector3,
-  Color3,
-  Color4,
-  Mesh,
-  HemisphericLight,
-  DirectionalLight,
-  StandardMaterial,
-  Texture,
-  GlowLayer,
-  ShadowGenerator,
-  PointLight,
-} from '@babylonjs/core';
+import { CreateTorus } from '@babylonjs/core/Meshes/Builders/torusBuilder';
+import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
+import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
+import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
+import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
+import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+// Shadow generators require this scene registration when using modular imports.
+import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
+import { PointLight } from '@babylonjs/core/Lights/pointLight';
 
 const ARENA_SIZE = 80;
 const WALL_HEIGHT = 12;
@@ -45,7 +47,7 @@ function makeGlowMat(scene: Scene, name: string, color: Color3, intensity = 0.6)
 }
 
 function createProceduralSkybox(scene: Scene): void {
-  const skybox = MeshBuilder.CreateBox('skybox', { size: 600 }, scene);
+  const skybox = CreateBox('skybox', { size: 600 }, scene);
   const skyMat = new StandardMaterial('skyMat', scene);
   skyMat.backFaceCulling = false;
   skyMat.disableLighting = true;
@@ -201,7 +203,7 @@ export function buildMap(scene: Scene): MapData {
   floorMat.specularPower = 32;
   floorMat.freeze();
 
-  const floor = MeshBuilder.CreateGround('floor', { width: ARENA_SIZE * 2, height: ARENA_SIZE * 2, subdivisions: 1 }, scene);
+  const floor = CreateGround('floor', { width: ARENA_SIZE * 2, height: ARENA_SIZE * 2, subdivisions: 1 }, scene);
   floor.material = floorMat;
   floor.checkCollisions = true;
   floor.isPickable = false;
@@ -214,7 +216,7 @@ export function buildMap(scene: Scene): MapData {
   const gridSpacing = 20;
   const gridMat = makeStdMat(scene, 'gridMat', new Color3(0.2, 0.22, 0.26));
   for (let x = -ARENA_SIZE; x <= ARENA_SIZE; x += gridSpacing) {
-    const lineX = MeshBuilder.CreateBox('gx', { width: 0.06, height: 0.015, depth: ARENA_SIZE * 2 }, scene);
+    const lineX = CreateBox('gx', { width: 0.06, height: 0.015, depth: ARENA_SIZE * 2 }, scene);
     lineX.position = new Vector3(x, 0.008, 0);
     lineX.material = gridMat;
     lineX.checkCollisions = false;
@@ -222,7 +224,7 @@ export function buildMap(scene: Scene): MapData {
     lineX.freezeWorldMatrix();
     allMeshes.push(lineX);
 
-    const lineZ = MeshBuilder.CreateBox('gz', { width: ARENA_SIZE * 2, height: 0.015, depth: 0.06 }, scene);
+    const lineZ = CreateBox('gz', { width: ARENA_SIZE * 2, height: 0.015, depth: 0.06 }, scene);
     lineZ.position = new Vector3(0, 0.008, x);
     lineZ.material = gridMat;
     lineZ.checkCollisions = false;
@@ -254,7 +256,7 @@ export function buildMap(scene: Scene): MapData {
   ];
 
   wallPositions.forEach(([x, y, z, w, d], i) => {
-    const wall = MeshBuilder.CreateBox(`wall${i}`, { width: w + 1, height: WALL_HEIGHT, depth: d + 1 }, scene);
+    const wall = CreateBox(`wall${i}`, { width: w + 1, height: WALL_HEIGHT, depth: d + 1 }, scene);
     wall.position = new Vector3(x, y, z);
     wall.material = wallMat;
     wall.checkCollisions = true;
@@ -266,7 +268,7 @@ export function buildMap(scene: Scene): MapData {
     const stripW = isXWall ? w : 0.15;
     const stripD = isXWall ? 0.15 : d;
 
-    const bandTop = MeshBuilder.CreateBox(`bandTop${i}`, { width: stripW, height: 0.3, depth: stripD }, scene);
+    const bandTop = CreateBox(`bandTop${i}`, { width: stripW, height: 0.3, depth: stripD }, scene);
     bandTop.position = new Vector3(x, WALL_HEIGHT - 0.5, z);
     bandTop.material = makeGlowMat(scene, `bandTopMat${i}`, accentColors[i], 0.7);
     bandTop.checkCollisions = false;
@@ -274,7 +276,7 @@ export function buildMap(scene: Scene): MapData {
     bandTop.freezeWorldMatrix();
     allMeshes.push(bandTop);
 
-    const bandBot = MeshBuilder.CreateBox(`bandBot${i}`, { width: stripW, height: 0.15, depth: stripD }, scene);
+    const bandBot = CreateBox(`bandBot${i}`, { width: stripW, height: 0.15, depth: stripD }, scene);
     bandBot.position = new Vector3(x, 0.1, z);
     bandBot.material = makeGlowMat(scene, `bandBotMat${i}`, accentColors[i], 0.35);
     bandBot.checkCollisions = false;
@@ -282,7 +284,7 @@ export function buildMap(scene: Scene): MapData {
     bandBot.freezeWorldMatrix();
     allMeshes.push(bandBot);
 
-    const midBand = MeshBuilder.CreateBox(`bandMid${i}`, { width: stripW, height: 0.08, depth: stripD }, scene);
+    const midBand = CreateBox(`bandMid${i}`, { width: stripW, height: 0.08, depth: stripD }, scene);
     midBand.position = new Vector3(x, WALL_HEIGHT * 0.45, z);
     midBand.material = makeGlowMat(scene, `bandMidMat${i}`, accentColors[i], 0.2);
     midBand.checkCollisions = false;
@@ -292,7 +294,7 @@ export function buildMap(scene: Scene): MapData {
   });
 
   const centerMat = makeMetalMat(scene, 'centerMat', new Color3(0.38, 0.4, 0.45), 48);
-  const centerPlatform = MeshBuilder.CreateBox('centerPlat', { width: 16, height: 2, depth: 16 }, scene);
+  const centerPlatform = CreateBox('centerPlat', { width: 16, height: 2, depth: 16 }, scene);
   centerPlatform.position = new Vector3(0, 1, 0);
   centerPlatform.material = centerMat;
   centerPlatform.checkCollisions = true;
@@ -307,7 +309,7 @@ export function buildMap(scene: Scene): MapData {
     { w: 0.12, d: 16, x: -8, z: 0 },
     { w: 0.12, d: 16, x: 8, z: 0 },
   ]) {
-    const strip = MeshBuilder.CreateBox('cEdge', { width: edge.w, height: 0.1, depth: edge.d }, scene);
+    const strip = CreateBox('cEdge', { width: edge.w, height: 0.1, depth: edge.d }, scene);
     strip.position = new Vector3(edge.x, 2.06, edge.z);
     strip.material = edgeGlowMat;
     strip.checkCollisions = false;
@@ -318,7 +320,7 @@ export function buildMap(scene: Scene): MapData {
 
   const pillarMat = makeMetalMat(scene, 'pillarMat', new Color3(0.42, 0.44, 0.5), 48);
 
-  const centerPillar = MeshBuilder.CreateCylinder('centerPillar', { height: 18, diameter: 4, tessellation: 12 }, scene);
+  const centerPillar = CreateCylinder('centerPillar', { height: 18, diameter: 4, tessellation: 12 }, scene);
   centerPillar.position = new Vector3(0, 9, 0);
   centerPillar.material = pillarMat;
   centerPillar.checkCollisions = true;
@@ -326,7 +328,7 @@ export function buildMap(scene: Scene): MapData {
   centerPillar.freezeWorldMatrix();
   allMeshes.push(centerPillar);
 
-  const pillarGlow = MeshBuilder.CreateCylinder('cpGlow', { height: 16, diameter: 4.15, tessellation: 12 }, scene);
+  const pillarGlow = CreateCylinder('cpGlow', { height: 16, diameter: 4.15, tessellation: 12 }, scene);
   pillarGlow.position = new Vector3(0, 9, 0);
   pillarGlow.material = makeGlowMat(scene, 'cpGlowMat', new Color3(0.1, 0.6, 0.5), 0.15);
   pillarGlow.checkCollisions = false;
@@ -335,7 +337,7 @@ export function buildMap(scene: Scene): MapData {
   allMeshes.push(pillarGlow);
 
   for (let ring = 0; ring < 3; ring++) {
-    const ringMesh = MeshBuilder.CreateTorus(`cpRing${ring}`, { diameter: 4.5, thickness: 0.12, tessellation: 16 }, scene);
+    const ringMesh = CreateTorus(`cpRing${ring}`, { diameter: 4.5, thickness: 0.12, tessellation: 16 }, scene);
     ringMesh.position = new Vector3(0, 4 + ring * 5, 0);
     ringMesh.material = edgeGlowMat;
     ringMesh.checkCollisions = false;
@@ -347,7 +349,7 @@ export function buildMap(scene: Scene): MapData {
   const rampMat = makeMetalMat(scene, 'rampMat', new Color3(0.36, 0.38, 0.42));
   const rampAngles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
   rampAngles.forEach((angle, i) => {
-    const ramp = MeshBuilder.CreateBox(`ramp${i}`, { width: 4, height: 0.3, depth: 10 }, scene);
+    const ramp = CreateBox(`ramp${i}`, { width: 4, height: 0.3, depth: 10 }, scene);
     const rx = Math.sin(angle) * 12;
     const rz = Math.cos(angle) * 12;
     ramp.position = new Vector3(rx, 1, rz);
@@ -360,7 +362,7 @@ export function buildMap(scene: Scene): MapData {
     ramp.freezeWorldMatrix();
     allMeshes.push(ramp);
 
-    const rampEdge = MeshBuilder.CreateBox(`rampEdge${i}`, { width: 4, height: 0.06, depth: 0.12 }, scene);
+    const rampEdge = CreateBox(`rampEdge${i}`, { width: 4, height: 0.06, depth: 0.12 }, scene);
     rampEdge.position = ramp.position.clone();
     rampEdge.position.y += 0.2;
     rampEdge.rotation = ramp.rotation.clone();
@@ -393,7 +395,7 @@ export function buildMap(scene: Scene): MapData {
   ];
 
   coverPositions.forEach(([x, h, z, w, d], i) => {
-    const cover = MeshBuilder.CreateBox(`cover${i}`, { width: w, height: h * 2, depth: d }, scene);
+    const cover = CreateBox(`cover${i}`, { width: w, height: h * 2, depth: d }, scene);
     cover.position = new Vector3(x, h, z);
     cover.material = coverMat;
     cover.checkCollisions = true;
@@ -402,7 +404,7 @@ export function buildMap(scene: Scene): MapData {
     cover.freezeWorldMatrix();
     allMeshes.push(cover);
 
-    const topTrim = MeshBuilder.CreateBox(`coverTrim${i}`, { width: w + 0.1, height: 0.08, depth: d + 0.1 }, scene);
+    const topTrim = CreateBox(`coverTrim${i}`, { width: w + 0.1, height: 0.08, depth: d + 0.1 }, scene);
     topTrim.position = new Vector3(x, h * 2 + 0.04, z);
     topTrim.material = i % 2 === 0 ? edgeGlowMat : edgeGlowPurple;
     topTrim.checkCollisions = false;
@@ -414,7 +416,7 @@ export function buildMap(scene: Scene): MapData {
       const panelW = w > d ? w * 0.6 : 0.08;
       const panelD = w > d ? 0.08 : d * 0.6;
       const panelH = h * 0.4;
-      const panel = MeshBuilder.CreateBox(`coverPanel${i}`, { width: panelW, height: panelH, depth: panelD }, scene);
+      const panel = CreateBox(`coverPanel${i}`, { width: panelW, height: panelH, depth: panelD }, scene);
       panel.position = new Vector3(x, h * 0.8, z + (w > d ? d / 2 + 0.04 : 0));
       panel.material = coverTrimMat;
       panel.checkCollisions = false;
@@ -427,7 +429,7 @@ export function buildMap(scene: Scene): MapData {
   const perchMat = makeMetalMat(scene, 'perchMat', new Color3(0.4, 0.42, 0.48), 48);
   const corners: [number, number][] = [[-60, -60], [60, -60], [-60, 60], [60, 60]];
   corners.forEach(([cx, cz], i) => {
-    const support = MeshBuilder.CreateCylinder(`ps${i}`, { height: 8, diameter: 2, tessellation: 8 }, scene);
+    const support = CreateCylinder(`ps${i}`, { height: 8, diameter: 2, tessellation: 8 }, scene);
     support.position = new Vector3(cx, 4, cz);
     support.material = pillarMat;
     support.checkCollisions = true;
@@ -435,7 +437,7 @@ export function buildMap(scene: Scene): MapData {
     support.freezeWorldMatrix();
     allMeshes.push(support);
 
-    const supportRing = MeshBuilder.CreateTorus(`psRing${i}`, { diameter: 2.4, thickness: 0.1, tessellation: 12 }, scene);
+    const supportRing = CreateTorus(`psRing${i}`, { diameter: 2.4, thickness: 0.1, tessellation: 12 }, scene);
     supportRing.position = new Vector3(cx, 7, cz);
     supportRing.material = edgeGlowMat;
     supportRing.checkCollisions = false;
@@ -443,7 +445,7 @@ export function buildMap(scene: Scene): MapData {
     supportRing.freezeWorldMatrix();
     allMeshes.push(supportRing);
 
-    const perch = MeshBuilder.CreateBox(`perch${i}`, { width: 8, height: 0.5, depth: 8 }, scene);
+    const perch = CreateBox(`perch${i}`, { width: 8, height: 0.5, depth: 8 }, scene);
     perch.position = new Vector3(cx, 8, cz);
     perch.material = perchMat;
     perch.checkCollisions = true;
@@ -458,7 +460,7 @@ export function buildMap(scene: Scene): MapData {
       { w: 0.08, d: 8, ex: -4, ez: 0 },
       { w: 0.08, d: 8, ex: 4, ez: 0 },
     ]) {
-      const pEdge = MeshBuilder.CreateBox(`pEdge${i}`, { width: edge.w, height: 0.06, depth: edge.d }, scene);
+      const pEdge = CreateBox(`pEdge${i}`, { width: edge.w, height: 0.06, depth: edge.d }, scene);
       pEdge.position = new Vector3(cx + edge.ex, 8.28, cz + edge.ez);
       pEdge.material = edgeGlowPurple;
       pEdge.checkCollisions = false;
@@ -468,7 +470,7 @@ export function buildMap(scene: Scene): MapData {
     }
 
     for (let side = 0; side < 4; side++) {
-      const railing = MeshBuilder.CreateBox(`rail${i}_${side}`, { width: side < 2 ? 8 : 0.15, height: 1.5, depth: side < 2 ? 0.15 : 8 }, scene);
+      const railing = CreateBox(`rail${i}_${side}`, { width: side < 2 ? 8 : 0.15, height: 1.5, depth: side < 2 ? 0.15 : 8 }, scene);
       const rxp = cx + (side === 2 ? -4 : side === 3 ? 4 : 0);
       const rzp = cz + (side === 0 ? -4 : side === 1 ? 4 : 0);
       railing.position = new Vector3(rxp, 9, rzp);
@@ -493,7 +495,7 @@ export function buildMap(scene: Scene): MapData {
   ];
 
   pillarPositions.forEach(([px, pz], i) => {
-    const pillar = MeshBuilder.CreateCylinder(`pil${i}`, { height: 10, diameter: 2.5, tessellation: 10 }, scene);
+    const pillar = CreateCylinder(`pil${i}`, { height: 10, diameter: 2.5, tessellation: 10 }, scene);
     pillar.position = new Vector3(px, 5, pz);
     pillar.material = pillarMat;
     pillar.checkCollisions = true;
@@ -501,7 +503,7 @@ export function buildMap(scene: Scene): MapData {
     pillar.freezeWorldMatrix();
     allMeshes.push(pillar);
 
-    const pilRing = MeshBuilder.CreateTorus(`pilRing${i}`, { diameter: 2.8, thickness: 0.08, tessellation: 10 }, scene);
+    const pilRing = CreateTorus(`pilRing${i}`, { diameter: 2.8, thickness: 0.08, tessellation: 10 }, scene);
     pilRing.position = new Vector3(px, 1, pz);
     pilRing.material = i % 2 === 0 ? edgeGlowMat : edgeGlowPurple;
     pilRing.checkCollisions = false;

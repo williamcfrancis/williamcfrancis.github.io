@@ -1,5 +1,8 @@
-# Copyright Notice
-copyright: © 2022 Copyright.
+# Leave copyright unset so the theme uses the current year.
 
 # Meta description for your site.  This will help the search engines to find your site.
-description: Personal website and gallery of William C Francis.
+description: William C Francis is a Philadelphia-based Data Scientist at Chubb with dual master's degrees in Robotics and Computer Science from the University of Pennsylvania. Explore his work in machine learning, agentic AI, computer vision, and robotics.
+
+openGraph:
+  title: William C Francis | Data Science, AI & Robotics
+  description: Data Scientist at Chubb, Penn Robotics and Computer Science graduate, and co-founder of Philly AI Connect. Projects, research, and experiments in machine learning and AI.

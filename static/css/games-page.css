@@ -192,6 +192,9 @@
   line-height: 1.65;
   color: var(--muted);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+  padding: .45rem .8rem;
+  border-radius: .7rem;
+  background: rgba(10, 8, 28, .85);
 }
 
 /* ---------- Cabinet cards (glass + mist) ---------- */
@@ -264,7 +267,7 @@
   position: relative;
   z-index: 1;
   padding: 0.75rem 1rem;
-  background: var(--glass-bg);
+  background: rgba(10, 8, 28, .85);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
@@ -323,7 +326,7 @@
   position: relative;
   z-index: 1;
   padding: 1rem 1.15rem 1.2rem;
-  background: var(--glass-bg-dark);
+  background: rgba(10, 8, 28, .85);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 .games-cabinet-title {
@@ -405,6 +408,7 @@
 /* Hide the full-width "— Minimize / + Maximize" bar — games-extras.js injects
    a small icon-sized toggle in the panel header instead (see .dg-min-toggle). */
 .dg.main .close-button { display: none !important; }
+.dg.main > ul.closed { display: none !important; }
 
 /* Small minimize / maximize toggle pinned to the top-right of the header. */
 .dg.main .dg-min-toggle {
@@ -533,7 +537,9 @@
     backdrop-filter: blur(12px) saturate(140%);
     -webkit-backdrop-filter: blur(12px) saturate(140%);
   }
-  .dg.main { transform: scale(0.92); transform-origin: top right; }
+  .dg.ac { top: auto !important; bottom: 12px !important; height: auto !important; display: flow-root; }
+  .dg.main { max-height: calc(100vh - 90px); overflow-y: auto !important; background: rgba(8, 6, 22, .9) !important; }
+  .fluid-hint { display: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -706,5 +712,4 @@
     padding: 6px 12px;
     letter-spacing: 0.18em;
   }
-  .dg.ac { top: 116px !important; }
 }

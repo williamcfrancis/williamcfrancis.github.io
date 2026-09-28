@@ -1,0 +1,6 @@
+# Preserve PDF byte offsets when Git checks files out on Windows.
+*.pdf binary
+
+# Legacy generated snapshots include third-party shader strings with whitespace.
+static/games/*/assets/* linguist-generated=true -whitespace
+static/games/*/dist/assets/* linguist-generated=true -whitespace

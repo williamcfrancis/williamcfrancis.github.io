@@ -3619,8 +3619,8 @@ function startCompilerPhase(loserIdx) {
   compileOutput.classList.remove('compile-reveal');
   compileOutput.innerHTML = '';
   compileModsDisplay.innerHTML = `
-    <span style="color:#00ffcc">Current weapon:</span> <span class="existing-mod-tag">${players[loserIdx].weapon.name}</span>
-    <span class="existing-mod-tag" style="background:#f4e9ff;border-color:#d9c8eb;color:#6f4e80">Omen: ${activeOmen?.name || 'Vernal Calm'}</span>
+    <span style="color:#00ffcc">Current weapon:</span> <span class="existing-mod-tag">${escapeHtml(players[loserIdx].weapon.name)}</span>
+    <span class="existing-mod-tag" style="background:#f4e9ff;border-color:#d9c8eb;color:#6f4e80">Omen: ${escapeHtml(activeOmen?.name || 'Vernal Calm')}</span>
     <div style="margin-top:4px;color:#8a6f5d">${escapeHtml(getMemoryEcho())}</div>
   `;
 
@@ -3637,15 +3637,19 @@ function submitCompile() {
   compileInput.disabled = true;
   compileOutput.classList.remove('hidden');
   compileOutput.innerHTML = `
-    <div style="color:#00ffcc">THE CHAOS GOBLIN CACKLES: "${request.slice(0, 120)}${request.length > 120 ? '...' : ''}"</div>
+    <div style="color:#00ffcc">THE CHAOS GOBLIN CACKLES: "${escapeHtml(request.slice(0, 120))}${request.length > 120 ? '...' : ''}"</div>
     <div class="compiling-bar"><div class="compiling-bar-fill"></div></div>
   `;
   fetch('/.netlify/functions/compile', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ request, existingMods: [players[compileLoser].weapon], round: roundNum }),
+    body: JSON.stringify({ request, existingMods: [{ name: players[compileLoser].weapon.name, tradeoff: players[compileLoser].weapon.tradeoff }], round: roundNum }),
+    signal: AbortSignal.timeout(26_000),
   })
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) throw new Error(`Wish forge unavailable (${r.status})`);
+      return r.json();
+    })
     .then(async data => {
       if (data._debug) console.warn('[FWT] Debug:', data._debug);
       compileResult = normalizeWeapon(data.mod || DEFAULT_WEAPON);

@@ -10,7 +10,8 @@ import path from 'path';
  * @param overrides Game-specific Vite config merged on top of the base
  *
  * Assumes Vite is invoked with cwd set to the game directory (games/{gameName}/).
- * Build output lands in static/games/{gameName}/ so Hugo picks it up.
+ * Build output lands in .build/static/games/{gameName}/. The site build stages
+ * ordinary static files alongside this output before running Hugo.
  */
 export function gameConfig(gameName: string, overrides: UserConfig = {}) {
   const gameDir = process.cwd();
@@ -20,7 +21,7 @@ export function gameConfig(gameName: string, overrides: UserConfig = {}) {
     defineConfig({
       base: `/games/${gameName}/`,
       build: {
-        outDir: path.resolve(repoRoot, 'static/games', gameName),
+        outDir: path.resolve(repoRoot, '.build/static/games', gameName),
         emptyOutDir: true,
       },
       plugins: [wasm(), topLevelAwait()],
