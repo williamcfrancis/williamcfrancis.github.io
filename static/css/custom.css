@@ -1,3 +1,8 @@
+/* Preserve brand colors so SVG skill logos remain legible in dark mode. */
+.skills-section img.card-img-xs[src$=".svg"] {
+  filter: none !important;
+}
+
 .navbar-groups {
   width: 100%;
   display: flex;

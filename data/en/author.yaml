@@ -2,17 +2,17 @@
 name: "William C Francis"
 nickname: "William"
 # greeting message before your name. it will default to "Hi! I am" if not provided
-greeting: "Hi, I am"
+greeting: "Hey, I'm"
 image: "images/author/avatar.jpg"
 # give your some contact information. they will be used in the footer
 contactInfo:
   email: "williamcfranco@gmail.com"
   github: williamcfrancis
 
-# some summary about what you do
+# Rotating introduction on the homepage.
 summary:
-  - I am a Data Scientist at Chubb
-  - I build machine learning tools and agentic AI applications
-  - I explore computer vision, language, and multimodal AI
-  - My roots are in robotics and autonomous systems
+  - I make machines see, learn, and occasionally race.
+  - I turn "what if?" into things you can try.
+  - Some of my side projects are playable. Have a look.
+  - Usually tinkering with something.
 
